@@ -140,6 +140,7 @@ header h1{
   max-width:90%;
   min-width:300px;
   display:none;
+  border:3px solid #00e5ff;
 }
 #popup h3 { margin-top:0; margin-bottom:8px; }
 #popup .close { position:absolute; top:8px; right:12px; cursor:pointer; font-weight:bold; font-size:18px; }
@@ -236,6 +237,7 @@ function renderGrid(){
 }
 
 async function updateEvents(){
+  if(dates.length===0) return;
   const timeMin=new Date(dates[0]); timeMin.setHours(0,0,0,0);
   const timeMax=new Date(dates[dates.length-1]); timeMax.setHours(23,59,59,999);
 
