@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Calendrier 4 semaines - sombre optimisé</title>
+<title>Calendrier 4 semaines - sombre corrigé</title>
 <style>
 :root{
   --bg:#121212;
@@ -83,34 +83,11 @@ header h1{
   flex-direction:column;
   transition: transform 0.25s ease, width 0.25s ease, background 0.25s, box-shadow 0.25s, border-color 0.25s;
 }
-
-/* Jour actuel */
-.day.today {
-  transform: scale(1.05);
-  background:#1f2226;
-  border:2px solid var(--accent);
-  z-index:2;
-}
-.day.today::after {
-  content:"";
-  position:absolute;
-  inset:0;
-  border-radius:12px;
-  pointer-events:none;
-  box-shadow:0 0 15px 5px rgba(0,229,255,0.4);
-}
-
-/* Jour futur / passé */
+.day.today { transform: scale(1.05); background:#1f2226; border:2px solid var(--accent); z-index:2; }
+.day.today::after { content:""; position:absolute; inset:0; border-radius:12px; pointer-events:none; box-shadow:0 0 15px 5px rgba(0,229,255,0.4); }
 .day.future { background:#1c1f23; color:#eaeaea; }
 .day.past { background:#0f1113; color:#555; }
-
-/* Zoom au survol */
-.day.today:hover,
-.day.future:hover {
-  transform: scale(1.08);
-  z-index:10;
-  width: 130%;
-}
+.day.today:hover, .day.future:hover { transform: scale(1.08); z-index:10; width: 130%; }
 
 .day .day-header{
   display:flex;
@@ -217,29 +194,18 @@ function computeGridStart(referenceDate){
   return mondayLastWeek;
 }
 gridStartDate = computeGridStart(new Date());
-
-// Créer la grille une seule fois
-const gridEl=document.getElementById('grid');
-const dates = [];
-for(let w=0; w<WEEKS; w++){
-  for(let i=0; i<7; i++){
-    const d=new Date(gridStartDate);
-    d.setDate(gridStartDate.getDate()+w*7+i);
-    dates.push(new Date(d));
-    const dayEl=document.createElement('div');
-    dayEl.className='day';
-    dayEl.dataset.date=fmtDate(d);
-    dayEl.innerHTML=`<div class="day-header"><div class="dow">${['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][d.getDay()]}</div><div class="date">${d.getDate()}</div></div><div class="events"></div>`;
-    gridEl.appendChild(dayEl);
-  }
-}
+let dates=[];
 
 function showPopup(title,start,end,isAllDay,cssClass){
   const popup=document.getElementById('popup');
   document.getElementById('popup-title').textContent=title;
   let text=isAllDay?'Toute la journée':'Du '+start+' au '+end;
   document.getElementById('popup-time').textContent=text;
-  popup.style.borderColor = cssClass==='c-reception'?'#109c53':'cssClass==='c-smr'?'#5768cb':'#00e5ff';
+
+  if(cssClass==='c-reception') popup.style.borderColor='#109c53';
+  else if(cssClass==='c-smr') popup.style.borderColor='#5768cb';
+  else popup.style.borderColor='#00e5ff';
+  
   popup.style.display='block';
 }
 
@@ -251,7 +217,24 @@ async function fetchEventsForCalendar(calId,timeMin,timeMax){
   return res.json();
 }
 
-// Fonction principale de mise à jour des événements seulement
+function renderGrid(){
+  const gridEl=document.getElementById('grid');
+  gridEl.innerHTML='';
+  dates.length=0;
+  for(let w=0; w<WEEKS; w++){
+    for(let i=0; i<7; i++){
+      const d=new Date(gridStartDate);
+      d.setDate(gridStartDate.getDate()+w*7+i);
+      dates.push(d);
+      const dayEl=document.createElement('div');
+      dayEl.className='day';
+      dayEl.dataset.date=fmtDate(d);
+      dayEl.innerHTML=`<div class="day-header"><div class="dow">${['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][d.getDay()]}</div><div class="date">${d.getDate()}</div></div><div class="events"></div>`;
+      gridEl.appendChild(dayEl);
+    }
+  }
+}
+
 async function updateEvents(){
   const timeMin=new Date(dates[0]); timeMin.setHours(0,0,0,0);
   const timeMax=new Date(dates[dates.length-1]); timeMax.setHours(23,59,59,999);
@@ -293,7 +276,6 @@ async function updateEvents(){
       }
     }
 
-    // Mettre à jour uniquement les jours
     const MAX_PER_CELL=6;
     const todayStr=fmtDate(new Date());
 
@@ -303,7 +285,6 @@ async function updateEvents(){
       const eventsContainer=dayEl.querySelector('.events');
       eventsContainer.innerHTML='';
 
-      // Tri : all-day d’abord
       evList.sort((a,b)=>{
         if(a.allDay && !b.allDay) return -1;
         if(!a.allDay && b.allDay) return 1;
@@ -338,7 +319,6 @@ async function updateEvents(){
       else dayEl.classList.add('future');
     });
 
-    // Mise à jour du titre du mois
     const monthNames=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
     document.getElementById('month-title').textContent=monthNames[dates[7].getMonth()]+' '+dates[7].getFullYear();
 
@@ -348,21 +328,22 @@ async function updateEvents(){
 // navigation
 document.getElementById('prev-week').onclick=()=>{
   gridStartDate.setDate(gridStartDate.getDate()-7);
-  dates.forEach((d,i)=>d.setDate(gridStartDate.getDate()+i));
+  renderGrid();
   updateEvents();
 };
 document.getElementById('next-week').onclick=()=>{
   gridStartDate.setDate(gridStartDate.getDate()+7);
-  dates.forEach((d,i)=>d.setDate(gridStartDate.getDate()+i));
+  renderGrid();
   updateEvents();
 };
 document.getElementById('today-btn').onclick=()=>{
   gridStartDate = computeGridStart(new Date());
-  dates.forEach((d,i)=>d.setDate(gridStartDate.getDate()+i));
+  renderGrid();
   updateEvents();
 };
 
 // initial render
+renderGrid();
 updateEvents();
 setInterval(updateEvents,60000);
 </script>
