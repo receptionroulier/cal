@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Calendrier 4 semaines - sombre avec pulse et halo</title>
+<title>Calendrier 4 semaines - sombre avec pulse et halo et expansion</title>
 <style>
 :root{
   --bg:#121212;
@@ -81,7 +81,7 @@ header h1{
   position:relative;
   display:flex;
   flex-direction:column;
-  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s, width 0.25s ease;
 }
 
 /* Pulse animations */
@@ -117,9 +117,8 @@ header h1{
   box-shadow:0 0 25px 10px rgba(0,229,255,0.4);
 }
 
-/* Élargissement dynamique si titre long */
+/* Expansion dynamique */
 .day.expand-on-hover {
-  transform: scale(1.12);
   z-index:10;
 }
 
@@ -268,16 +267,6 @@ function renderGrid(){
       dayEl.className='day';
       dayEl.dataset.date=fmtDate(d);
       dayEl.innerHTML=`<div class="day-header"><div class="dow">${['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][d.getDay()]}</div><div class="date">${d.getDate()}</div></div><div class="events"></div>`;
-      
-      // Élargissement conditionnel si titre long
-      dayEl.addEventListener('mouseenter', ()=>{
-        const events = dayEl.querySelectorAll('.event .title');
-        let needExpand = false;
-        events.forEach(ev=>{ if(ev.scrollWidth > ev.clientWidth) needExpand = true; });
-        if(needExpand) dayEl.classList.add('expand-on-hover');
-      });
-      dayEl.addEventListener('mouseleave', ()=>{ dayEl.classList.remove('expand-on-hover'); });
-      
       gridEl.appendChild(dayEl);
     }
   }
@@ -350,7 +339,7 @@ async function updateEvents(){
 
         const timeText=ev.allDay?'Toute la journée':fmtPopupDate(ev.start)+' '+fmtTime(ev.start);
         const endText=ev.end?fmtPopupDate(ev.end)+' '+fmtTime(ev.end):timeText;
-        evEl.innerHTML=`<div class="time">${ev.allDay?'':fmtTime(ev.start)}</div><div class="title">${shortTitle(ev.title,80)}</div>`;
+        evEl.innerHTML=`<div class="time">${ev.allDay?'':fmtTime(ev.start)}</div><div class="title">${ev.title}</div>`;
         evEl.onclick=()=>showPopup(ev.title,timeText,endText,ev.allDay,calMeta?.css);
         eventsContainer.appendChild(evEl);
       });
@@ -362,10 +351,28 @@ async function updateEvents(){
         eventsContainer.appendChild(moreEl);
       }
 
+      // classes past/future/today
       dayEl.classList.remove('past','future','today');
       if(date===todayStr) dayEl.classList.add('today');
       else if(date<todayStr) dayEl.classList.add('past');
       else dayEl.classList.add('future');
+
+      // expansion dynamique au survol
+      dayEl.onmouseenter=()=>{
+        const eventsTitles=dayEl.querySelectorAll('.event .title');
+        let maxWidth=0;
+        eventsTitles.forEach(ev=>{
+          if(ev.scrollWidth > ev.clientWidth) maxWidth=Math.max(maxWidth, ev.scrollWidth);
+        });
+        if(maxWidth>0){
+          dayEl.style.width=maxWidth + 60 + 'px'; // ajout padding
+          dayEl.classList.add('expand-on-hover');
+        }
+      };
+      dayEl.onmouseleave=()=>{
+        dayEl.style.width='';
+        dayEl.classList.remove('expand-on-hover');
+      };
     });
 
     const monthNames=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
