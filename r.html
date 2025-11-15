@@ -6,6 +6,7 @@
 <title>Ponts HAROPA & Calendrier</title>
 
 <style>
+/* ==== Styles généraux ==== */
 body {
   margin: 0;
   font-family: Arial, sans-serif;
@@ -13,20 +14,17 @@ body {
   color: #eaeaea;
 }
 
-html, body {
-  height: 100%;
-}
-
 .container {
   display: flex;
-  flex-wrap: nowrap;
   height: 100vh;
+  flex-wrap: nowrap;
 }
 
-/* === Colonne de gauche (ponts) === */
+/* ==== Colonne Ponts ==== */
 .left {
   background: #252525;
-  width: 15%;
+  width: 18%;
+  min-width: 200px;
   padding: 8px;
   overflow-y: auto;
   box-sizing: border-box;
@@ -40,77 +38,71 @@ h2 {
   font-size: 1.2em;
 }
 
-#ponts-title {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-wrap: nowrap;
-  gap: 5px;
-  font-size: 1em;
-}
-
-#ponts-title span#countdown {
+#ponts-title span {
   font-weight: bold;
   color: #ffdd00;
-  min-width: 25px;
-  text-align: right;
 }
 
+/* Liste */
 #ponts-table {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
-/* Cartes de ponts */
+/* ==== Cartes ponts ==== */
 .pont-card {
-  background: #252525;
+  background: #1f1f1f;
   border-radius: 8px;
-  padding: 6px;
+  padding: 6px 8px;
   box-shadow: 0 0 4px rgba(0,0,0,0.4);
-  transition: transform 0.2s ease;
-  font-size: 0.8em;
+  font-size: 0.85em;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-left-width: 4px;
+  border-left-style: solid;
+  transition: transform 0.15s ease;
 }
-.pont-card:hover { transform: scale(1.02); }
-.pont-card.ferme { border-left: 4px solid red; }
-.pont-card.ouvert { border-left: 4px solid lightgreen; }
-.pont-card.manoeuvre { border-left: 4px solid #1c3cff; }
+.pont-card:hover {
+  transform: scale(1.02);
+}
 
-/* Pastilles rondes */
+.pont-card.ferme { border-left-color: #ff4040; }
+.pont-card.ouvert { border-left-color: #58ff58; }
+.pont-card.manoeuvre { border-left-color: #1c3cff; }
+
 .pastille {
-  display: inline-block;
   width: 10px;
   height: 10px;
   border-radius: 50%;
   margin-right: 6px;
-}
-.pont-card.ferme .pastille { background: red; }
-.pont-card.ouvert .pastille { background: lightgreen; }
-.pont-card.manoeuvre .pastille {
-  background: #1c3cff;
-  animation: clignoter-fade 1s infinite;
+  display: inline-block;
 }
 
-@keyframes clignoter-fade {
-  0%,100% { opacity: 1; }
+.ferme .pastille { background: #ff4040; }
+.ouvert .pastille { background: #58ff58; }
+.manoeuvre .pastille {
+  background: #1c3cff;
+  animation: pastilleBlink 1s infinite;
+}
+
+@keyframes pastilleBlink {
+  0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }
 }
-.pont-card.manoeuvre .pont-nom,
-.pont-card.manoeuvre .pont-etat {
-  animation: clignoter-fade 1s infinite;
+
+.pont-nom {
+  font-weight: bold;
+  display: flex;
+  align-items: center;
 }
 
-.pont-nom { font-weight: bold; margin-bottom: 2px; display: flex; align-items: center; }
-.pont-etat { margin-bottom: 2px; }
-.pont-infos { color: #bbb; }
-
-/* === Colonne droite (calendrier intégré) === */
+/* ==== Colonne Calendrier ==== */
 .right {
-  background: #181818;
   flex: 1;
-  padding: 0;
+  background: #181818;
   display: flex;
-  flex-direction: column;
 }
 
 .calendar-wrapper {
@@ -119,40 +111,56 @@ h2 {
 }
 
 .calendar-wrapper iframe {
-  flex: 1;
   width: 100%;
   height: 100%;
-  border: none;       /* Pas de contour */
-  overflow: hidden;   /* Pas de scroll */
+  border: none;
 }
 
-/* === Mobile === */
-@media(max-width:900px) {
-  .container { flex-direction: column; height: 100vh; }
-  .left { width: 100%; border-right: none; border-bottom: 2px solid #222; }
-  .right { height: calc(100vh - 150px); }
+/* ==== Responsive ==== */
+@media(max-width: 900px) {
+  .container {
+    flex-direction: column;
+    height: auto;
+  }
+  .left {
+    width: 100%;
+    border-right: none;
+    border-bottom: 2px solid #222;
+    max-height: 45vh;
+  }
+  .right {
+    width: 100%;
+    height: 55vh;
+  }
 }
 </style>
 </head>
-<body>
 
+<body>
 <div class="container">
+
+  <!-- Colonne Ponts -->
   <div class="left">
     <h2 id="ponts-title">État des Ponts (<span id="countdown">5</span>s)</h2>
     <div id="ponts-table">Chargement...</div>
   </div>
 
+  <!-- Colonne Calendrier -->
   <div class="right">
     <div class="calendar-wrapper">
       <iframe src="https://receptionroulier.github.io/Agenda-Ponts/cal.html"></iframe>
     </div>
   </div>
+
 </div>
 
 <script>
-// === Countdown synchronisé avec fetchPonts ===
+/* =======================================================================
+    COUNTDOWN SYNCHRONE
+======================================================================= */
 let countdown = 5;
-function updateCountdown() {
+
+function tickCountdown() {
   document.getElementById("countdown").textContent = countdown;
   countdown--;
   if (countdown < 0) {
@@ -160,55 +168,66 @@ function updateCountdown() {
     fetchPonts();
   }
 }
-setInterval(updateCountdown, 1000);
+setInterval(tickCountdown, 1000);
 
-// === Chargement des ponts HAROPA toutes les 5s avec tri et suppression doublons ===
+
+/* =======================================================================
+    RÉCUPÉRATION & AFFICHAGE DES PONTS
+======================================================================= */
+
 async function fetchPonts() {
   try {
-    const url = encodeURIComponent('https://www.havre-port.com/map/getPonts');
+    const url = encodeURIComponent("https://www.havre-port.com/map/getPonts");
     const proxy = `https://api.allorigins.win/get?url=${url}`;
+
     const res = await fetch(proxy);
-    const data = await res.json();
-    const pontsJSON = JSON.parse(data.contents).data;
-    let ponts = Object.values(pontsJSON);
+    const raw = await res.json();
+    const ponts = Object.values(JSON.parse(raw.contents).data);
 
-    const seen = new Set();
-    ponts = ponts.filter(p => {
-      if (seen.has(p.nom)) return false;
-      seen.add(p.nom);
-      return true;
+    // Suppression des doublons + tri
+    const unique = Array.from(new Map(ponts.map(p => [p.nom, p])).values());
+
+    const ordered = unique.sort((a, b) => {
+      const ordre = (p) =>
+        p.statutText.includes("(Manoeuvre") ? 1 :
+        p.statutText.toLowerCase().includes("ouvert") ? 2 : 0;
+      return ordre(a) - ordre(b);
     });
 
-    const fermes = ponts.filter(p => !p.statutText.toLowerCase().includes('ouvert') && !p.statutText.includes('(Manoeuvre en cours)'));
-    const manoeuvre = ponts.filter(p => p.statutText.includes('(Manoeuvre en cours)'));
-    const ouverts = ponts.filter(p => p.statutText.toLowerCase().includes('ouvert'));
-    const triPonts = [...fermes, ...manoeuvre, ...ouverts];
+    renderPonts(ordered);
 
-    let html = '';
-    triPonts.forEach(p => {
-      const ouvert = p.statutText.toLowerCase().includes('ouvert');
-      const isManoeuvre = p.statutText.includes('(Manoeuvre en cours)');
-      let classe = ouvert ? 'ouvert' : (!isManoeuvre ? 'ferme' : 'manoeuvre');
-      const infos = p.forceText ? p.forceText : `MàJ : ${p.date}`;
-
-      html += `
-        <div class="pont-card ${classe}">
-          <div class="pont-nom"><span class="pastille"></span>${p.nom}</div>
-          <div class="pont-etat">${p.statutText}</div>
-          <div class="pont-infos">${infos}</div>
-        </div>`;
-    });
-
-    document.getElementById('ponts-table').innerHTML = html;
   } catch (err) {
-    console.error("Erreur lors de la récupération des ponts :", err);
-    document.getElementById('ponts-table').innerHTML = 'Impossible de récupérer les ponts.';
+    console.error("Erreur:", err);
+    document.getElementById("ponts-table").textContent =
+      "Impossible de récupérer les ponts.";
   }
 }
 
-// Premier chargement
+function renderPonts(list) {
+  const container = document.getElementById("ponts-table");
+
+  container.innerHTML = list
+    .map((p) => {
+      const isOpen = p.statutText.toLowerCase().includes("ouvert");
+      const isMove = p.statutText.includes("(Manoeuvre");
+      const stateClass = isMove ? "manoeuvre" : isOpen ? "ouvert" : "ferme";
+
+      const info = p.forceText || `MàJ : ${p.date}`;
+
+      return `
+        <div class="pont-card ${stateClass}">
+          <div class="pont-nom">
+            <span class="pastille"></span>${p.nom}
+          </div>
+          <div class="pont-etat">${p.statutText}</div>
+          <div class="pont-infos">${info}</div>
+        </div>`;
+    })
+    .join("");
+}
+
+// Initialisation
 fetchPonts();
 </script>
-
 </body>
 </html>
