@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Calendrier 4 semaines - sombre corrigé</title>
+<title>Calendrier 4 semaines - sombre avec pulse et halo</title>
 <style>
 :root{
   --bg:#121212;
@@ -81,13 +81,50 @@ header h1{
   position:relative;
   display:flex;
   flex-direction:column;
-  transition: transform 0.25s ease, width 0.25s ease, background 0.25s, box-shadow 0.25s, border-color 0.25s;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s;
 }
-.day.today { transform: scale(1.05); background:#1f2226; border:2px solid var(--accent); z-index:2; }
-.day.today::after { content:""; position:absolute; inset:0; border-radius:12px; pointer-events:none; box-shadow:0 0 15px 5px rgba(0,229,255,0.4); }
-.day.future { background:#1c1f23; color:#eaeaea; }
+
+/* Pulse animations */
+@keyframes pulse-today { 0%,100%{transform:scale(1.05);} 50%{transform:scale(1.08);} }
+@keyframes pulse-future { 0%,100%{transform:scale(1);} 50%{transform:scale(1.02);} }
+
+/* Jour actuel */
+.day.today {
+  animation: pulse-today 3s infinite ease-in-out;
+  background:#1f2226;
+  border:2px solid var(--accent);
+  z-index:2;
+}
+.day.today::after {
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:12px;
+  pointer-events:none;
+  box-shadow:0 0 20px 8px rgba(0,229,255,0.5);
+}
+
+/* Jour futur */
+.day.future {
+  animation: pulse-future 3s infinite ease-in-out;
+  background:#1c1f23;
+  color:#eaeaea;
+}
+
+/* Halo lumineux au survol */
+.day.today:hover,
+.day.future:hover {
+  box-shadow:0 0 25px 10px rgba(0,229,255,0.4);
+}
+
+/* Élargissement dynamique si titre long */
+.day.expand-on-hover {
+  transform: scale(1.12);
+  z-index:10;
+}
+
+/* Jour passé inchangé */
 .day.past { background:#0f1113; color:#555; }
-.day.today:hover, .day.future:hover { transform: scale(1.08); z-index:10; width: 130%; }
 
 .day .day-header{
   display:flex;
@@ -122,7 +159,7 @@ header h1{
 .event .time { min-width:50px; font-weight:600; font-size:11px; }
 .event.allDay .time { display:none; }
 .event.more { font-size:12px; color:var(--muted); padding-left:6px; }
-.event .title { text-align:left; }
+.event .title { text-align:left; display:inline-block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .c-reception { color:#109c53; }
 .c-smr { color:#5768cb; }
 
@@ -231,6 +268,16 @@ function renderGrid(){
       dayEl.className='day';
       dayEl.dataset.date=fmtDate(d);
       dayEl.innerHTML=`<div class="day-header"><div class="dow">${['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][d.getDay()]}</div><div class="date">${d.getDate()}</div></div><div class="events"></div>`;
+      
+      // Élargissement conditionnel si titre long
+      dayEl.addEventListener('mouseenter', ()=>{
+        const events = dayEl.querySelectorAll('.event .title');
+        let needExpand = false;
+        events.forEach(ev=>{ if(ev.scrollWidth > ev.clientWidth) needExpand = true; });
+        if(needExpand) dayEl.classList.add('expand-on-hover');
+      });
+      dayEl.addEventListener('mouseleave', ()=>{ dayEl.classList.remove('expand-on-hover'); });
+      
       gridEl.appendChild(dayEl);
     }
   }
