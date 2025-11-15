@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Calendrier 4 semaines - sombre avec pulse et halo et expansion</title>
+<title>Calendrier 4 semaines - sombre avec pulse et zoom flottant</title>
 <style>
 :root{
   --bg:#121212;
@@ -64,12 +64,14 @@ header h1{
   padding:12px;
   box-shadow: 0 6px 18px rgba(0,0,0,0.5);
   width: 100%;
+  position:relative;
 }
 .grid {
   display:grid;
   grid-template-columns: repeat(7, 1fr);
   gap: var(--gap);
   grid-auto-rows: minmax(80px, auto);
+  position:relative;
 }
 .day {
   background: #141619;
@@ -81,7 +83,8 @@ header h1{
   position:relative;
   display:flex;
   flex-direction:column;
-  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s, width 0.25s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease, z-index 0.3s;
+  z-index:1;
 }
 
 /* Pulse animations */
@@ -115,11 +118,13 @@ header h1{
 .day.today:hover,
 .day.future:hover {
   box-shadow:0 0 25px 10px rgba(0,229,255,0.4);
+  z-index:20;
 }
 
-/* Expansion dynamique */
-.day.expand-on-hover {
-  z-index:10;
+/* Zoom au survol */
+.day.zoom-on-hover {
+  position: absolute;
+  transform-origin: top left;
 }
 
 /* Jour passé inchangé */
@@ -172,7 +177,7 @@ header h1{
   padding:16px;
   border-radius:12px;
   box-shadow:0 0 20px rgba(0,0,0,0.8);
-  z-index:20;
+  z-index:30;
   max-width:90%;
   min-width:300px;
   display:none;
@@ -317,6 +322,8 @@ async function updateEvents(){
     const MAX_PER_CELL=6;
     const todayStr=fmtDate(new Date());
 
+    const gridRect = document.getElementById('grid').getBoundingClientRect();
+
     document.querySelectorAll('.day').forEach(dayEl=>{
       const date=dayEl.dataset.date;
       const evList=eventsByDay[date]||[];
@@ -357,21 +364,24 @@ async function updateEvents(){
       else if(date<todayStr) dayEl.classList.add('past');
       else dayEl.classList.add('future');
 
-      // expansion dynamique au survol
+      // zoom flottant au survol (jours actuels/futurs)
       dayEl.onmouseenter=()=>{
-        const eventsTitles=dayEl.querySelectorAll('.event .title');
-        let maxWidth=0;
-        eventsTitles.forEach(ev=>{
-          if(ev.scrollWidth > ev.clientWidth) maxWidth=Math.max(maxWidth, ev.scrollWidth);
-        });
-        if(maxWidth>0){
-          dayEl.style.width=maxWidth + 60 + 'px'; // ajout padding
-          dayEl.classList.add('expand-on-hover');
+        if(dayEl.classList.contains('past')) return;
+        const rect = dayEl.getBoundingClientRect();
+        const maxTitleWidth = Math.max(...Array.from(dayEl.querySelectorAll('.event .title')).map(e=>e.scrollWidth));
+        if(maxTitleWidth>0){
+          dayEl.style.position='absolute';
+          dayEl.style.transform=`scaleX(${Math.min(2,maxTitleWidth/rect.width+0.1)}) scaleY(1.1)`;
+          dayEl.style.zIndex=50;
+          dayEl.style.left=(rect.left-gridRect.left)+'px';
+          dayEl.style.top=(rect.top-gridRect.top)+'px';
         }
       };
       dayEl.onmouseleave=()=>{
-        dayEl.style.width='';
-        dayEl.classList.remove('expand-on-hover');
+        if(dayEl.classList.contains('past')) return;
+        dayEl.style.position='relative';
+        dayEl.style.transform='';
+        dayEl.style.zIndex=1;
       };
     });
 
