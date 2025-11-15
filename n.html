@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ponts HAROPA & Calendrier Google</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #121212;
+  color: #fff;
+}
+
+.container {
+  display: flex;
+  flex-wrap: nowrap;
+  height: 100vh;
+}
+
+/* === Colonne de gauche (ponts) === */
+.left {
+  background: #1e1e1e;
+  width: 15%;
+  padding: 8px;
+  overflow-y: auto;
+  box-sizing: border-box;
+  border-right: 2px solid #222;
+}
+
+h2 {
+  text-align: center;
+  color: #00e5ff;
+  margin: 0 0 10px;
+  font-size: 1.2em;
+}
+
+#ponts-title {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  align-items: center;
+}
+
+#ponts-table {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Cartes de ponts */
+.pont-card {
+  background: #2a2a2a;
+  border-radius: 8px;
+  padding: 6px;
+  box-shadow: 0 0 4px rgba(0,0,0,0.4);
+  transition: transform 0.2s ease;
+  font-size: 0.8em;
+}
+.pont-card:hover { transform: scale(1.02); }
+.pont-card.ferme { border-left: 4px solid red; }
+.pont-card.ouvert { border-left: 4px solid lightgreen; }
+
+/* Clignotement en fondu */
+@keyframes clignoter-fade {
+  0%,100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* Pastilles rondes */
+.pastille {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.pont-card.ferme .pastille { background: red; }
+.pont-card.ouvert .pastille { background: lightgreen; }
+.pont-card.manoeuvre .pastille {
+  background: #1c3cff;
+  animation: clignoter-fade 1s infinite;
+}
+
+/* Clignotement du texte des ponts en manœuvre */
+.pont-card.manoeuvre .pont-nom,
+.pont-card.manoeuvre .pont-etat {
+  animation: clignoter-fade 1s infinite;
+}
+
+/* Texte */
+.pont-nom { font-weight: bold; margin-bottom: 2px; display: flex; align-items: center; }
+.pont-etat { margin-bottom: 2px; }
+.pont-infos { color: #bbb; }
+
+/* === Colonne droite (calendrier) === */
+.right {
+  background: #141414;
+  flex: 1;
+  padding: 20px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.calendar-wrapper {
+  background: #1a1a1a;
+  padding: 12px;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.6);
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.calendar-wrapper iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 10px;
+  filter: invert(90%) hue-rotate(180deg);
+}
+
+/* === Mobile === */
+@media(max-width: 900px) {
+  .container { flex-direction: column; height: auto; }
+  .left { width: 100%; border-right: none; border-bottom: 2px solid #222; }
+  .right { padding: 10px; }
+  .calendar-wrapper iframe { height: 450px; }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="left">
+    <h2 id="ponts-title">État des Ponts (<span id="countdown">5</span>s)</h2>
+    <div id="ponts-table">Chargement...</div>
+  </div>
+
+  <div class="right">
+    <h2 id="calendar-month"></h2>
+    <div class="calendar-wrapper">
+       <iframe src="https://calendar.google.com/calendar/embed?
+     height=800&wkst=1&ctz=Europe%2FParis&showPrint=0&showTitle=0&showNav=0&showDate=0&showTabs=0&showCalendars=0&showTz=0&src=c21yLnByb2dyYW1tZUBnbWFpbC5jb20&color=%233f51b5" style="border-width:0" width="800" height="600" frameborder="0" scrolling="no"></iframe>
+    </div>
+  </div>
+</div>
+
+<script>
+// === Affichage du mois courant ===
+function afficherMois() {
+  const mois = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+  const maintenant = new Date();
+  document.getElementById("calendar-month").textContent = `${mois[maintenant.getMonth()]} ${maintenant.getFullYear()}`;
+}
+afficherMois();
+setInterval(afficherMois, 3600000);
+
+// === Countdown pour rafraîchissement ===
+let countdown = 5;
+function updateCountdown() {
+  document.getElementById("countdown").textContent = countdown;
+  countdown--;
+  if (countdown < 0) countdown = 5;
+}
+setInterval(updateCountdown, 1000);
+
+// === Chargement des ponts HAROPA toutes les 5s ===
+async function fetchPonts() {
+  try {
+    const url = encodeURIComponent('https://www.havre-port.com/map/getPonts');
+    const proxy = `https://api.allorigins.win/get?url=${url}`;
+    const res = await fetch(proxy);
+    const data = await res.json();
+    const pontsJSON = JSON.parse(data.contents).data;
+    const ponts = Object.values(pontsJSON);
+
+    const fermes = ponts.filter(p => !p.statutText.toLowerCase().includes('ouvert') && !p.statutText.includes('(Manoeuvre en cours)'));
+    const manoeuvre = ponts.filter(p => p.statutText.includes('(Manoeuvre en cours)'));
+    const ouverts = ponts.filter(p => p.statutText.toLowerCase().includes('ouvert'));
+
+    const triPonts = [...fermes, ...manoeuvre, ...ouverts];
+
+    let html = '';
+    triPonts.forEach(p => {
+      const ouvert = p.statutText.toLowerCase().includes('ouvert');
+      const isManoeuvre = p.statutText.includes('(Manoeuvre en cours)');
+      let classe = ouvert ? 'ouvert' : (!isManoeuvre ? 'ferme' : 'manoeuvre');
+      const infos = p.forceText ? p.forceText : `MàJ : ${p.date}`;
+
+      html += `
+        <div class="pont-card ${classe}">
+          <div class="pont-nom"><span class="pastille"></span>${p.nom}</div>
+          <div class="pont-etat">${p.statutText}</div>
+          <div class="pont-infos">${infos}</div>
+        </div>`;
+    });
+
+    document.getElementById('ponts-table').innerHTML = html;
+  } catch (err) {
+    console.error("Erreur lors de la récupération des ponts :", err);
+    document.getElementById('ponts-table').innerHTML = 'Impossible de récupérer les ponts.';
+  }
+}
+
+fetchPonts();
+setInterval(fetchPonts, 5000);
+</script>
+
+</body>
+</html>
