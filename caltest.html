@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Calendrier 3-4 semaines - Single Line Events</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Calendrier 3-4 semaines - Sombre</title>
 <style>
 :root {
   --bg:#121212; --card:#1c1f23; --border:#555; --text:#eaeaea; --muted:#999; --accent:#00e5ff;
@@ -11,7 +11,7 @@
 }
 
 * { box-sizing:border-box; margin:0; padding:0; }
-body { font-family:Inter, system-ui, Arial, sans-serif; background:var(--bg); color:var(--text); height:100vh; display:flex; flex-direction:column; }
+body { font-family:Inter,system-ui,Arial,sans-serif; background:var(--bg); color:var(--text); height:100vh; display:flex; flex-direction:column; }
 .container { flex:1; display:flex; flex-direction:column; padding:16px; }
 header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:20px; flex-wrap:wrap; }
 header h1 { font-size:24px; color:var(--accent); text-align:center; }
@@ -48,10 +48,10 @@ header h1 { font-size:24px; color:var(--accent); text-align:center; }
 .day.today { transform: scale(1.08); animation: todayPulse 3s infinite ease-in-out; background:#1f2226; border:2px solid var(--accent); z-index:2; }
 .day.today::after { content:""; position:absolute; inset:0; border-radius:12px; pointer-events:none; box-shadow:0 0 20px 8px rgba(0,229,255,0.5); }
 .day.future { animation: futurePulse 3s infinite ease-in-out; }
+
 .day.past { transform: scale(0.95); background:#0f1113; color:#555; }
 
-.day.today:hover, .day.future:hover { animation:none; transform: scale(1.12); z-index:10; width:auto; overflow:visible; }
-.day.today:hover .event, .day.future:hover .event { max-height:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.day.today:hover, .day.future:hover { animation:none; transform: scale(1.12); z-index:10; max-width:140%; overflow:visible; }
 
 @media(max-width:900px){ .grid{ grid-template-columns:repeat(2,1fr); } }
 @media(max-width:520px){ .grid{ grid-template-columns:repeat(1,1fr); } }
@@ -90,7 +90,7 @@ const CALENDARS = [
   { id:'smr.programme@gmail.com', key:'smr', css:'c-smr'}
 ];
 const CACHE_TTL = 120000;
-const CACHE_KEY = 'googleCalendarCache_v8';
+const CACHE_KEY = 'googleCalendarCache_v9';
 
 let WEEKS = 4;
 let gridStartDate;
@@ -117,12 +117,12 @@ const computeGridStart = refDate=>{
 };
 
 /* CACHE */
-const loadCache = ()=> { try{ const raw=localStorage.getItem(CACHE_KEY); if(!raw)return null; const data=JSON.parse(raw); if(!data.timestamp||Date.now()-data.timestamp>CACHE_TTL)return null; return data.payload; }catch{return null;} };
+const loadCache = ()=>{try{const raw=localStorage.getItem(CACHE_KEY);if(!raw)return null;const data=JSON.parse(raw);if(!data.timestamp||Date.now()-data.timestamp>CACHE_TTL)return null;return data.payload;}catch{return null;}};
 const saveCache = payload=>localStorage.setItem(CACHE_KEY,JSON.stringify({timestamp:Date.now(),payload}));
 
 /* FETCH */
 async function fetchEventsForCalendar(calId,timeMin,timeMax){
-  const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime&maxResults=2500`;
+  const url=`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime&maxResults=2500`;
   const res = await fetch(url);
   if(!res.ok) throw new Error(res.status);
   const data = await res.json();
@@ -132,7 +132,7 @@ async function fetchEventsForCalendar(calId,timeMin,timeMax){
 async function getEvents(timeMin,timeMax){
   const cache = loadCache();
   if(cache) return cache;
-  const allEvents={};
+  const allEvents = {};
   for(const cal of CALENDARS){ allEvents[cal.key]=await fetchEventsForCalendar(cal.id,timeMin,timeMax); }
   saveCache(allEvents);
   return allEvents;
