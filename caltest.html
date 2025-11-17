@@ -1,356 +1,12 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Calendrier 3-4 semaines - Stable & Zoom corrigé</title>
-<style>
-  :root{
-    --bg:#121212; --card:#1c1f23; --border:#555; --text:#eaeaea; --muted:#999; --accent:#00e5ff;
-    --gap:6px; --days-font:14px; --event-font:14px;
-  }
-  *{box-sizing:border-box}
-  body{
-    margin:0;
-    font-family:Inter, system-ui, Arial, sans-serif;
-    background:var(--bg);
-    color:var(--text);
-    padding:16px;
-    height:100vh;
-    display:flex;
-    flex-direction:column;
-  }
+function createZoomClone(dayEl) {
+  removeZoomClone(); 
 
-  .container{flex:1; display:flex; flex-direction:column; max-width:1400px; margin:0 auto;}
-  header{display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px;}
-  header h1{margin:0; color:var(--accent); font-size:20px;}
-  .nav-buttons{display:flex; gap:8px; align-items:center;}
-  .nav-buttons button, .nav-buttons select{background:none;border:none;color:var(--accent);cursor:pointer;padding:6px 8px;border-radius:6px;}
-  .nav-buttons button:hover, .nav-buttons select:hover{background:rgba(0,229,255,0.08)}
-
-  .calendar{background:var(--card); border-radius:12px; flex:1; box-shadow:0 8px 30px rgba(0,0,0,0.6); overflow:visible; display:flex; flex-direction:column;}
-  .grid{display:grid; grid-template-columns:repeat(7,1fr); gap:var(--gap); padding:8px; flex:1; position:relative; overflow:visible; height:100%;}
-  .day{background:#141619; border-radius:10px; border:1px solid var(--border); overflow:hidden; position:relative; display:flex; flex-direction:column; min-height:120px;}
-  .day-content{height:100%; padding:8px; display:flex; flex-direction:column; transition:transform .22s ease;}
-  .day-header{display:flex; justify-content:space-between; align-items:center; font-size:var(--days-font); margin-bottom:6px;}
-  .date{font-weight:700}
-
-  .events{flex:1 1 auto; display:flex; flex-direction:column; gap:6px; overflow:hidden}
-  .event{display:flex; gap:8px; align-items:center; padding:4px 6px; font-size:var(--event-font); border-radius:6px; background:rgba(0,0,0,0.25); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer;}
-  .event .time{min-width:52px; font-weight:600; font-size:11px}
-  .event.more{color:var(--muted); padding-left:6px}
-  .c-reception{color:#109c53}
-  .c-smr{color:#5768cb}
-
-  /* popup */
-  #popup{position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); background:#1c1f23; color:#fff; padding:14px; border-radius:10px; box-shadow:0 18px 60px rgba(0,0,0,0.7); z-index:9999; display:none; min-width:300px}
-  #popup h3{margin:0 0 8px 0}
-  #popup .close{position:absolute; right:10px; top:6px; cursor:pointer; font-weight:700; font-size:18px}
-
-  /* pulses */
-  @keyframes todayPulse{0%,100%{transform:scale(1.03)}50%{transform:scale(1.06)}}
-  @keyframes futurePulse{0%,100%{transform:scale(1)}50%{transform:scale(1.02)}}
-  .day.today .day-content{animation:todayPulse 3s ease-in-out infinite; background:#1f2226; border-radius:8px; border:2px solid var(--accent);}
-  .day.future .day-content{animation:futurePulse 3s ease-in-out infinite;}
-
-  /* responsive */
-  @media(max-width:1000px){ .grid{grid-template-columns:repeat(2,1fr)} }
-  @media(max-width:520px){ .grid{grid-template-columns:repeat(1,1fr)} }
-</style>
-</head>
-<body>
-  <div class="container">
-    <header>
-      <h1 id="month-title">Calendrier</h1>
-      <div class="nav-buttons">
-        <button id="prev-week">&lt;</button>
-        <button id="today-btn">Aujourd'hui</button>
-        <button id="next-week">&gt;</button>
-        <select id="weeks-select" title="Choix nombre semaines">
-          <option value="3">3 semaines</option>
-          <option value="4" selected>4 semaines</option>
-        </select>
-      </div>
-    </header>
-
-    <div class="calendar">
-      <div id="grid" class="grid" aria-live="polite"></div>
-    </div>
-  </div>
-
-  <div id="popup" role="dialog" aria-modal="true">
-    <span class="close" onclick="document.getElementById('popup').style.display='none'">&times;</span>
-    <h3 id="popup-title"></h3>
-    <div id="popup-time"></div>
-  </div>
-
-<script>
-/* =======================
-   Configuration
-   ======================= */
-const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo'; // ta clé
-const CALENDARS = [
-  { id:'receptionroulier@gmail.com', key:'reception', css:'c-reception' },
-  { id:'smr.programme@gmail.com',   key:'smr',       css:'c-smr' }
-];
-const CACHE_KEY = 'googleCalendarCache_v_final';
-const CACHE_TTL = 120 * 1000; // 120s
-
-let WEEKS = 4;
-let gridStartDate;
-
-/* DOM */
-const gridEl = document.getElementById('grid');
-const monthTitle = document.getElementById('month-title');
-const popup = document.getElementById('popup');
-const popupTitle = document.getElementById('popup-title');
-const popupTime = document.getElementById('popup-time');
-const weeksSelect = document.getElementById('weeks-select');
-const prevBtn = document.getElementById('prev-week');
-const nextBtn = document.getElementById('next-week');
-const todayBtn = document.getElementById('today-btn');
-
-/* =======================
-   Utilitaires de date / format
-   ======================= */
-const fmtDate = d => d.toISOString().split('T')[0];
-const pad = n => n < 10 ? '0'+n : ''+n;
-const fmtTime = dt => {
-  if(!dt) return '';
-  const d = new Date(dt);
-  return pad(d.getHours()) + ':' + pad(d.getMinutes());
-};
-function computeGridStart(referenceDate = new Date()){
-  // toujours débuter la grille sur le lundi de la semaine passée (comme demandé)
-  const d = new Date(referenceDate);
-  d.setHours(0,0,0,0);
-  const day = d.getDay();
-  const mondayThisWeek = new Date(d);
-  mondayThisWeek.setDate(d.getDate() - ((day + 6) % 7));
-  const mondayLastWeek = new Date(mondayThisWeek);
-  mondayLastWeek.setDate(mondayLastWeek.getDate() - 7);
-  return mondayLastWeek;
-}
-
-/* =======================
-   Cache localStorage simple
-   ======================= */
-function loadCache(){
-  try{
-    const raw = localStorage.getItem(CACHE_KEY);
-    if(!raw) return null;
-    const obj = JSON.parse(raw);
-    if(!obj.timestamp) return null;
-    if(Date.now() - obj.timestamp > CACHE_TTL) return null;
-    return obj.payload;
-  }catch(e){ return null; }
-}
-function saveCache(payload){
-  try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ timestamp: Date.now(), payload })); }catch(e){}
-}
-
-/* =======================
-   Fetch Google Calendar (single calendar)
-   returns items[] or throws
-   ======================= */
-async function fetchEventsForCalendar(calId, timeMinISO, timeMaxISO){
-  const base = 'https://www.googleapis.com/calendar/v3/calendars/';
-  const url = base + encodeURIComponent(calId) + '/events'
-    + '?key=' + encodeURIComponent(API_KEY)
-    + '&timeMin=' + encodeURIComponent(timeMinISO)
-    + '&timeMax=' + encodeURIComponent(timeMaxISO)
-    + '&singleEvents=true&orderBy=startTime&maxResults=2500';
-  const res = await fetch(url);
-  if(!res.ok) throw new Error('HTTP '+res.status);
-  const json = await res.json();
-  return json.items || [];
-}
-
-/* =======================
-   Wrapper to get all events with cache
-   returns object { calendarKey: [items...] }
-   ======================= */
-async function getEvents(timeMinISO, timeMaxISO){
-  const cached = loadCache();
-  if(cached) return cached;
-  const result = {};
-  for(const cal of CALENDARS){
-    try{
-      const items = await fetchEventsForCalendar(cal.id, timeMinISO, timeMaxISO);
-      result[cal.key] = items;
-    }catch(err){
-      // si erreur API, on met empty and continue (UI will be empty)
-      console.warn('Erreur fetch calendar', cal.id, err);
-      result[cal.key] = [];
-    }
-  }
-  saveCache(result);
-  return result;
-}
-
-/* =======================
-   Show popup details
-   ======================= */
-function showPopup(title, startText, endText, isAllDay){
-  popupTitle.textContent = title || '(sans titre)';
-  popupTime.textContent = isAllDay ? 'Toute la journée' : (startText + (endText ? ' → ' + endText : ''));
-  popup.style.display = 'block';
-}
-
-/* =======================
-   Render calendar grid and events
-   ======================= */
-async function renderCalendar(){
-  // build date list
-  gridEl.innerHTML = '';
-  const dates = [];
-  for(let w=0; w<WEEKS; w++){
-    for(let i=0;i<7;i++){
-      const d = new Date(gridStartDate);
-      d.setDate(d.getDate() + w*7 + i);
-      dates.push(d);
-    }
-  }
-  // CSS rows
-  gridEl.style.gridTemplateRows = `repeat(${WEEKS}, 1fr)`;
-
-  // Build DOM cells
-  dates.forEach(d => {
-    const cell = document.createElement('div');
-    cell.className = 'day';
-    cell.dataset.date = fmtDate(d);
-    cell.innerHTML = `
-      <div class="day-content" role="group" aria-label="${fmtDate(d)}">
-        <div class="day-header"><div class="dow">${['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][d.getDay()]}</div><div class="date">${d.getDate()}</div></div>
-        <div class="events" aria-hidden="false"></div>
-      </div>
-    `;
-    gridEl.appendChild(cell);
-  });
-
-  // compute time range for API
-  const timeMin = new Date(dates[0]); timeMin.setHours(0,0,0,0);
-  const timeMax = new Date(dates[dates.length-1]); timeMax.setHours(23,59,59,999);
-
-  // fetch events
-  const fetched = await getEvents(timeMin.toISOString(), timeMax.toISOString());
-
-  // normalize events into eventsByDay
-  const eventsByDay = {};
-  const seen = new Set();
-  for(const calKey in fetched){
-    for(const it of (fetched[calKey] || [])){
-      const dedupeKey = it.iCalUID || it.id || (it.summary || '') + '|' + (it.start?.dateTime || it.start?.date || '');
-      if(seen.has(dedupeKey)) continue;
-      seen.add(dedupeKey);
-
-      const start = it.start?.dateTime || it.start?.date;
-      const end   = it.end?.dateTime   || it.end?.date;
-      const allDay = !!it.start?.date;
-      const calMeta = CALENDARS.find(c => c.key === calKey) || { key: calKey };
-
-      if(allDay){
-        // expand multi-day all-day events into each date they cover
-        const s = new Date(start + 'T00:00:00');
-        const e = new Date(end + 'T00:00:00');
-        for(let d = new Date(s); d < e; d.setDate(d.getDate()+1)){
-          const key = fmtDate(d);
-          eventsByDay[key] = eventsByDay[key] || [];
-          eventsByDay[key].push({ title: it.summary || '(sans titre)', start: null, end: null, allDay: true, calendarKey: calMeta.key });
-        }
-      } else {
-        const dayKey = fmtDate(new Date(start));
-        eventsByDay[dayKey] = eventsByDay[dayKey] || [];
-        eventsByDay[dayKey].push({ title: it.summary || '(sans titre)', start: start, end: end, allDay: false, calendarKey: calMeta.key });
-      }
-    }
-  }
-
-  // populate events into cells
-  document.querySelectorAll('.day').forEach(dayEl => {
-    const date = dayEl.dataset.date;
-    const list = eventsByDay[date] || [];
-    const container = dayEl.querySelector('.events');
-    container.innerHTML = '';
-    // sort: allDay first, then by start time
-    list.sort((a,b) => {
-      if(a.allDay && !b.allDay) return -1;
-      if(!a.allDay && b.allDay) return 1;
-      if(a.allDay && b.allDay) return 0;
-      return new Date(a.start) - new Date(b.start);
-    });
-    const SHOW_MAX = 6;
-    list.slice(0, SHOW_MAX).forEach(ev => {
-      const evEl = document.createElement('div');
-      evEl.className = 'event ' + (ev.allDay ? 'allDay' : '') + (CALENDARS.find(c=>c.key===ev.calendarKey)?.css ? ' ' + CALENDARS.find(c=>c.key===ev.calendarKey).css : '');
-      const timeText = ev.allDay ? '' : fmtTime(ev.start);
-      evEl.innerHTML = `<div class="time">${timeText}</div><div class="title" title="${(ev.title||'').replace(/"/g,'&quot;')}">${ev.title}</div>`;
-      evEl.addEventListener('click', () => showPopup(ev.title, ev.allDay ? null : fmtTime(ev.start), ev.allDay ? null : fmtTime(ev.end), ev.allDay));
-      container.appendChild(evEl);
-    });
-    if(list.length > SHOW_MAX){
-      const more = document.createElement('div');
-      more.className = 'event more';
-      more.textContent = `+ ${list.length - SHOW_MAX} autres`;
-      container.appendChild(more);
-    }
-  });
-
-  // mark past / today / future
-  const todayStr = fmtDate(new Date());
-  document.querySelectorAll('.day').forEach(dayEl => {
-    const date = dayEl.dataset.date;
-    dayEl.classList.remove('past','today','future');
-    if(date === todayStr) dayEl.classList.add('today');
-    else if(date < todayStr) dayEl.classList.add('past');
-    else dayEl.classList.add('future');
-  });
-
-  attachZoomHandlers(); // attach hover behavior (clone zoom)
-  // month title (use date[7] equivalent; show start month)
-  const monthNames = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
-  monthTitle.textContent = monthNames[dates[0].getMonth()] + ' ' + dates[0].getFullYear();
-}
-
-/* =======================
-   Zoom clone implementation
-   - clone day-content into body
-   - scale the clone and clamp to viewport
-   ======================= */
-let zoomClone = null;
-let zoomRemoveTimeout = null;
-
-function attachZoomHandlers(){
-  // remove previous listeners safely (we re-render grid often).
-  // For simplicity we re-query and reattach event listeners.
-  document.querySelectorAll('.day').forEach(dayEl => {
-    // only attach to today and future
-    if(!dayEl.classList.contains('today') && !dayEl.classList.contains('future')){
-      dayEl.onmouseenter = null;
-      dayEl.onmouseleave = null;
-      return;
-    }
-    // use pointerenter/pointerleave semantics via onmouseenter/onmouseleave
-    dayEl.onmouseenter = () => {
-      // small debounce to avoid flicker when moving quickly
-      if(zoomRemoveTimeout){ clearTimeout(zoomRemoveTimeout); zoomRemoveTimeout = null; }
-      createZoomClone(dayEl);
-    };
-    dayEl.onmouseleave = () => {
-      // slight delay to allow moving into clone region (if ever)
-      zoomRemoveTimeout = setTimeout(() => removeZoomClone(), 40);
-    };
-  });
-}
-
-function createZoomClone(dayEl){
-  removeZoomClone(); // safety
   const content = dayEl.querySelector('.day-content');
-  if(!content) return;
-  // clone
+  if (!content) return;
+
   zoomClone = content.cloneNode(true);
   zoomClone.classList.add('zoom-clone');
-  // base styles for clone
+
   Object.assign(zoomClone.style, {
     position: 'absolute',
     zIndex: 9998,
@@ -360,92 +16,49 @@ function createZoomClone(dayEl){
     transition: 'transform 120ms ease'
   });
 
-  // compute rects relative to viewport
   const dayRect = content.getBoundingClientRect();
   const viewportW = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
   const viewportH = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
   const scrollX = window.scrollX || window.pageXOffset;
   const scrollY = window.scrollY || window.pageYOffset;
 
-  // compute target scale
   const scale = 1.12;
-
-  // desired size after scale
   const desiredW = dayRect.width * scale;
   const desiredH = dayRect.height * scale;
 
-  // initial left/top based on dayRect (relative to document)
   let left = dayRect.left + scrollX;
-  let top  = dayRect.top + scrollY;
+  let top = dayRect.top + scrollY;
 
-  // adjust to keep within viewport (document coordinates)
-  // prefer keeping the clone aligned with the original cell where possible
-  // clamp right and bottom
-  const maxLeft = scrollX + viewportW - desiredW - 8; // 8px margin
-  const maxTop  = scrollY + viewportH - desiredH - 8;
-  if(left > maxLeft) left = Math.max(scrollX + 8, maxLeft);
-  if(top > maxTop) top = Math.max(scrollY + 8, maxTop);
-  if(left < scrollX + 8) left = Math.max(scrollX + 8, left);
-  if(top < scrollY + 8) top = Math.max(scrollY + 8, top);
+  const maxLeft = scrollX + viewportW - desiredW - 8;
+  const maxTop = scrollY + viewportH - desiredH - 8;
 
-  // set width/height to original day's unscaled size (so scaling works visually)
+  if (left > maxLeft) left = Math.max(scrollX + 8, maxLeft);
+  if (top > maxTop) top = Math.max(scrollY + 8, maxTop);
+  if (left < scrollX + 8) left = Math.max(scrollX + 8, left);
+  if (top < scrollY + 8) top = Math.max(scrollY + 8, top);
+
   zoomClone.style.width = dayRect.width + 'px';
   zoomClone.style.height = dayRect.height + 'px';
   zoomClone.style.left = left + 'px';
-  zoomClone.style.top  = top  + 'px';
-  // small visual styling to match pulse (if day is today/future)
-  if(dayEl.classList.contains('today')) {
+  zoomClone.style.top = top + 'px';
+
+  if (dayEl.classList.contains('today')) {
     zoomClone.style.background = '#1f2226';
     zoomClone.style.border = '2px solid var(--accent)';
   } else {
-    // future
     zoomClone.style.background = '#161819';
     zoomClone.style.border = '1px solid rgba(255,255,255,0.04)';
   }
 
-  // append to body to be above everything and not clipped by grid
   document.body.appendChild(zoomClone);
 
-  // force reflow then scale
+  // --- CORRECTION CRITIQUE À CET ENDROIT ---
   requestAnimationFrame(() => {
+    if (!zoomClone) return;  // <--- protection anti-crash
     zoomClone.style.transform = `scale(${scale})`;
   });
 
-  // ensure clone removed if window resized or scrolled
   const cleanup = () => removeZoomClone();
-  window.addEventListener('scroll', cleanup, {once:true});
-  window.addEventListener('resize', cleanup, {once:true});
+  window.addEventListener('scroll', cleanup, { once: true });
+  window.addEventListener('resize', cleanup, { once: true });
 }
-
-function removeZoomClone(){
-  if(zoomClone){
-    try{ zoomClone.remove(); }catch(e){}
-    zoomClone = null;
-  }
-  if(zoomRemoveTimeout){ clearTimeout(zoomRemoveTimeout); zoomRemoveTimeout = null; }
-}
-
-/* =======================
-   Navigation handlers
-   ======================= */
-prevBtn.addEventListener('click', () => { gridStartDate.setDate(gridStartDate.getDate() - 7); renderCalendar(); });
-nextBtn.addEventListener('click', () => { gridStartDate.setDate(gridStartDate.getDate() + 7); renderCalendar(); });
-todayBtn.addEventListener('click', () => { gridStartDate = computeGridStart(new Date()); renderCalendar(); });
-weeksSelect.addEventListener('change', (e) => { WEEKS = parseInt(e.target.value, 10); renderCalendar(); });
-
-/* =======================
-   Init
-   ======================= */
-gridStartDate = computeGridStart(new Date());
-renderCalendar();
-
-// refresh every minute to keep "today" classes in sync and update events if needed
-setInterval(() => {
-  // clear cache on interval so remote changes eventually appear - you can keep cache if you prefer
-  // localStorage.removeItem(CACHE_KEY);
-  renderCalendar();
-}, 60000);
-
-</script>
-</body>
-</html>
