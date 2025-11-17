@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Calendrier 3-4 semaines - Sombre</title>
+<title>Calendrier 3-4 semaines - Sombre + Zoom corrigé</title>
 <style>
 :root {
   --bg:#121212;
@@ -98,14 +98,21 @@ header h1 {
 .day {
   background:#141619;
   border-radius:12px;
-  padding:6px;
   border:1px solid var(--border);
   overflow:hidden;
   position:relative;
   display:flex;
   flex-direction:column;
-  transition:transform 0.35s ease, box-shadow 0.35s ease, border-color 0.25s;
   z-index:1;
+}
+
+/* Contenu interne pour zoom */
+.day-content {
+  height:100%;
+  padding:6px;
+  display:flex;
+  flex-direction:column;
+  transition:transform 0.35s ease;
 }
 
 .day-header {
@@ -197,37 +204,21 @@ header h1 {
 @keyframes todayPulse { 0%,100%{transform:scale(1.08);} 50%{transform:scale(1.12);} }
 @keyframes futurePulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.02);} }
 
-.day.today {
-  transform:scale(1.08);
+.day.today .day-content {
   animation:todayPulse 3s infinite ease-in-out;
   background:#1f2226;
-  border:2px solid var(--accent);
-  z-index:2;
-}
-
-.day.today::after {
-  content:"";
-  position:absolute;
-  inset:0;
   border-radius:12px;
-  pointer-events:none;
-  box-shadow:0 0 20px 8px rgba(0,229,255,0.5);
+  border:2px solid var(--accent);
 }
 
-.day.future {
+.day.future .day-content {
   animation:futurePulse 3s infinite ease-in-out;
 }
 
-.day.past {
-  transform:scale(0.95);
-  background:#0f1113;
-  color:#555;
-}
-
 /* Zoom sur jour actuel et futur */
-.day.today:hover,
-.day.future:hover {
-  transform:scale(1.12);
+.day.today:hover .day-content,
+.day.future:hover .day-content {
+  transform: scale(1.12);
   z-index:20;
 }
 
@@ -269,7 +260,7 @@ const CALENDARS=[
   {id:'receptionroulier@gmail.com',key:'reception',css:'c-reception'},
   {id:'smr.programme@gmail.com',key:'smr',css:'c-smr'}
 ];
-const CACHE_KEY='googleCalendarCache_v14';
+const CACHE_KEY='googleCalendarCache_v15';
 const CACHE_TTL=120000;
 
 let WEEKS=4;
@@ -354,7 +345,7 @@ async function renderCalendar(){
     const dayEl=document.createElement('div');
     dayEl.className='day';
     dayEl.dataset.date=fmtDate(d);
-    dayEl.innerHTML=`<div class="day-header"><div>${['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][d.getDay()]}</div><div class="date">${d.getDate()}</div></div><div class="events"></div>`;
+    dayEl.innerHTML=`<div class="day-content"><div class="day-header"><div>${['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][d.getDay()]}</div><div class="date">${d.getDate()}</div></div><div class="events"></div></div>`;
     gridEl.appendChild(dayEl);
   });
 
@@ -429,10 +420,11 @@ async function renderCalendar(){
 function adjustZoomOrigin(){
   const gridRect=gridEl.getBoundingClientRect();
   document.querySelectorAll('.day.today,.day.future').forEach(dayEl=>{
+    const content = dayEl.querySelector('.day-content');
     const rect=dayEl.getBoundingClientRect();
-    if(rect.left-gridRect.left<gridRect.width/4) dayEl.style.transformOrigin='left top';
-    else if(rect.right-gridRect.left>gridRect.width*3/4) dayEl.style.transformOrigin='right top';
-    else dayEl.style.transformOrigin='center top';
+    if(rect.left-gridRect.left<gridRect.width/4) content.style.transformOrigin='left top';
+    else if(rect.right-gridRect.left>gridRect.width*3/4) content.style.transformOrigin='right top';
+    else content.style.transformOrigin='center top';
   });
 }
 
