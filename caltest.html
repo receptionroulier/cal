@@ -5,49 +5,232 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Calendrier 3-4 semaines - Sombre</title>
 <style>
-:root{
-  --bg:#121212; --card:#1c1f23; --border:#555; --text:#eaeaea; --muted:#999; --accent:#00e5ff;
-  --gap:4px; --days-font:14px; --event-font:14px;
+:root {
+  --bg:#121212;
+  --card:#1c1f23;
+  --border:#555;
+  --text:#eaeaea;
+  --muted:#999;
+  --accent:#00e5ff;
+  --gap:4px;
+  --days-font:14px;
+  --event-font:14px;
 }
-body{
-  margin:0;font-family:Inter,system-ui,Arial,sans-serif;
-  background:var(--bg);color:var(--text);
-  padding:16px;box-sizing:border-box;height:100vh;display:flex;flex-direction:column;
+
+body {
+  margin:0;
+  font-family:Inter, system-ui, Arial, sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  padding:16px;
+  box-sizing:border-box;
+  height:100vh;
+  display:flex;
+  flex-direction:column;
 }
-.container{flex:1;display:flex;flex-direction:column;max-width:1600px;margin:0 auto;}
-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:20px;flex-wrap:wrap;}
-header h1{margin:0;font-size:24px;color:var(--accent);text-align:center;}
-.nav-buttons{display:flex;gap:8px;align-items:center;}
-.nav-buttons button,.nav-buttons select{background:none;border:none;color:var(--accent);font-size:16px;cursor:pointer;padding:4px 8px;transition:all 0.35s ease;}
-.nav-buttons button:hover,.nav-buttons select:hover{background:rgba(0,229,255,0.2);}
-.calendar{background:var(--card);border-radius:12px;padding:0;flex:1;display:flex;flex-direction:column;box-shadow:0 6px 18px rgba(0,0,0,0.5);overflow:visible;}
-.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:var(--gap);flex:1;position:relative;overflow:visible;}
-.day{background:#141619;border-radius:12px;padding:6px;border:1px solid var(--border);overflow:hidden;position:relative;display:flex;flex-direction:column;transition:transform 0.35s ease,box-shadow 0.35s ease,border-color 0.25s;z-index:1;}
-.day-header{display:flex;justify-content:space-between;align-items:center;font-size:var(--days-font);margin-bottom:2px;}
-.day .date{font-weight:600;font-size:var(--days-font);}
-.events{flex:1 1 auto;display:flex;flex-direction:column;gap:2px;overflow:hidden;}
-.event{display:flex;align-items:center;gap:4px;padding:2px 4px;font-size:var(--event-font);border-radius:6px;background: rgba(0,0,0,0.3);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background 0.25s ease;}
-.event:hover{background: rgba(0,0,0,0.5);}
-.event .time{min-width:50px;font-weight:600;font-size:11px;}
-.event.allDay .time{display:none;}
-.event.more{font-size:12px;color:var(--muted);padding-left:6px;}
-.event .title{text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.c-reception{color:#109c53;}
-.c-smr{color:#5768cb;}
-#popup{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#1c1f23;color:#fff;padding:16px;border-radius:12px;box-shadow:0 0 20px rgba(0,0,0,0.8);z-index:30;max-width:90%;min-width:300px;display:none;}
-#popup h3{margin-top:0;margin-bottom:8px;}
-#popup .close{position:absolute;top:8px;right:12px;cursor:pointer;font-weight:bold;font-size:18px;}
-/* Pulse */
-@keyframes todayPulse{0%,100%{transform:scale(1.08);}50%{transform:scale(1.12);}}
-@keyframes futurePulse{0%,100%{transform:scale(1);}50%{transform:scale(1.02);}}
-.day.today{transform:scale(1.08);animation:todayPulse 3s infinite ease-in-out;background:#1f2226;border:2px solid var(--accent);z-index:2;}
-.day.today::after{content:"";position:absolute;inset:0;border-radius:12px;pointer-events:none;box-shadow:0 0 20px 8px rgba(0,229,255,0.5);}
-.day.future{animation:futurePulse 3s infinite ease-in-out;}
-.day.past{transform:scale(0.95);background:#0f1113;color:#555;}
-/* Zoom sécurisé sur jour actuel et futur */
-.day.today:hover,.day.future:hover{
-  transform:scale(1.12); z-index:20;
+
+.container {
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  max-width:1600px;
+  margin:0 auto;
 }
+
+header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:10px;
+  gap:20px;
+  flex-wrap:wrap;
+}
+
+header h1 {
+  margin:0;
+  font-size:24px;
+  color:var(--accent);
+  text-align:center;
+}
+
+.nav-buttons {
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+
+.nav-buttons button,
+.nav-buttons select {
+  background:none;
+  border:none;
+  color:var(--accent);
+  font-size:16px;
+  cursor:pointer;
+  padding:4px 8px;
+  transition:all 0.35s ease;
+}
+
+.nav-buttons button:hover,
+.nav-buttons select:hover {
+  background:rgba(0,229,255,0.2);
+}
+
+.calendar {
+  background:var(--card);
+  border-radius:12px;
+  padding:0;
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  box-shadow:0 6px 18px rgba(0,0,0,0.5);
+  overflow:visible;
+}
+
+.grid {
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+  gap:var(--gap);
+  flex:1;
+  position:relative;
+  overflow:visible;
+}
+
+.day {
+  background:#141619;
+  border-radius:12px;
+  padding:6px;
+  border:1px solid var(--border);
+  overflow:hidden;
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  transition:transform 0.35s ease, box-shadow 0.35s ease, border-color 0.25s;
+  z-index:1;
+}
+
+.day-header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  font-size:var(--days-font);
+  margin-bottom:2px;
+}
+
+.day .date {
+  font-weight:600;
+  font-size:var(--days-font);
+}
+
+.events {
+  flex:1 1 auto;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  overflow:hidden;
+}
+
+.event {
+  display:flex;
+  align-items:center;
+  gap:4px;
+  padding:2px 4px;
+  font-size:var(--event-font);
+  border-radius:6px;
+  background: rgba(0,0,0,0.3);
+  cursor:pointer;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  transition:background 0.25s ease;
+}
+
+.event:hover {
+  background: rgba(0,0,0,0.5);
+}
+
+.event .time {
+  min-width:50px;
+  font-weight:600;
+  font-size:11px;
+}
+
+.event.allDay .time {
+  display:none;
+}
+
+.event.more {
+  font-size:12px;
+  color:var(--muted);
+  padding-left:6px;
+}
+
+.event .title {
+  text-align:left;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.c-reception { color:#109c53; }
+.c-smr { color:#5768cb; }
+
+#popup {
+  position: fixed;
+  top:50%;
+  left:50%;
+  transform: translate(-50%,-50%);
+  background:#1c1f23;
+  color:#fff;
+  padding:16px;
+  border-radius:12px;
+  box-shadow:0 0 20px rgba(0,0,0,0.8);
+  z-index:30;
+  max-width:90%;
+  min-width:300px;
+  display:none;
+}
+
+#popup h3 { margin-top:0; margin-bottom:8px; }
+#popup .close { position:absolute; top:8px; right:12px; cursor:pointer; font-weight:bold; font-size:18px; }
+
+/* Pulse animations */
+@keyframes todayPulse { 0%,100%{transform:scale(1.08);} 50%{transform:scale(1.12);} }
+@keyframes futurePulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.02);} }
+
+.day.today {
+  transform:scale(1.08);
+  animation:todayPulse 3s infinite ease-in-out;
+  background:#1f2226;
+  border:2px solid var(--accent);
+  z-index:2;
+}
+
+.day.today::after {
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:12px;
+  pointer-events:none;
+  box-shadow:0 0 20px 8px rgba(0,229,255,0.5);
+}
+
+.day.future {
+  animation:futurePulse 3s infinite ease-in-out;
+}
+
+.day.past {
+  transform:scale(0.95);
+  background:#0f1113;
+  color:#555;
+}
+
+/* Zoom sur jour actuel et futur */
+.day.today:hover,
+.day.future:hover {
+  transform:scale(1.12);
+  z-index:20;
+}
+
 @media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr);}}
 @media(max-width:520px){.grid{grid-template-columns:repeat(1,1fr);}}
 </style>
@@ -78,16 +261,16 @@ header h1{margin:0;font-size:24px;color:var(--accent);text-align:center;}
 </div>
 
 <script>
-/* ==========================
-   CONFIG GOOGLE + CALENDARS
-========================== */
+/* ==================================
+   CONFIG GOOGLE + CACHE
+================================== */
 const API_KEY='AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
 const CALENDARS=[
   {id:'receptionroulier@gmail.com',key:'reception',css:'c-reception'},
   {id:'smr.programme@gmail.com',key:'smr',css:'c-smr'}
 ];
+const CACHE_KEY='googleCalendarCache_v14';
 const CACHE_TTL=120000;
-const CACHE_KEY='googleCalendarCache_v13';
 
 let WEEKS=4;
 let gridStartDate;
@@ -102,9 +285,9 @@ const prevBtn=document.getElementById('prev-week');
 const nextBtn=document.getElementById('next-week');
 const todayBtn=document.getElementById('today-btn');
 
-/* ==========================
+/* ==================================
    UTILITAIRES
-========================== */
+================================== */
 const fmtDate=d=>d.toISOString().split('T')[0];
 const pad=n=>n<10?'0'+n:n;
 const fmtTime=dt=>dt?pad(new Date(dt).getHours())+':'+pad(new Date(dt).getMinutes()):'';
@@ -118,26 +301,23 @@ const computeGridStart=refDate=>{
   return mondayLastWeek;
 };
 
-/* ==========================
+/* ==================================
    CACHE
-========================== */
+================================== */
 function loadCache(){try{const raw=localStorage.getItem(CACHE_KEY);if(!raw)return null;const data=JSON.parse(raw);if(!data.timestamp||Date.now()-data.timestamp>CACHE_TTL)return null;return data.payload;}catch{return null;}}
 function saveCache(payload){localStorage.setItem(CACHE_KEY,JSON.stringify({timestamp:Date.now(),payload}));}
 
-/* ==========================
+/* ==================================
    FETCH GOOGLE EVENTS
-========================== */
+================================== */
 async function fetchEventsForCalendar(calId,timeMin,timeMax){
   const url=`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime&maxResults=2500`;
-  const res=await fetch(url);
-  if(!res.ok) throw new Error(res.status);
-  const data=await res.json();
-  return data.items||[];
+  const res=await fetch(url); if(!res.ok) throw new Error(res.status);
+  const data=await res.json(); return data.items||[];
 }
 
 async function getEvents(timeMin,timeMax){
-  const cache=loadCache();
-  if(cache) return cache;
+  const cache=loadCache(); if(cache) return cache;
   const allEvents={};
   for(const cal of CALENDARS){
     allEvents[cal.key]=await fetchEventsForCalendar(cal.id,timeMin,timeMax);
@@ -146,18 +326,18 @@ async function getEvents(timeMin,timeMax){
   return allEvents;
 }
 
-/* ==========================
+/* ==================================
    POPUP
-========================== */
+================================== */
 function showPopup(title,start,end,isAllDay){
   popupTitle.textContent=title;
   popupTime.textContent=isAllDay?'Toute la journée':start+(end?' → '+end:'');
   popup.style.display='block';
 }
 
-/* ==========================
+/* ==================================
    RENDER CALENDAR
-========================== */
+================================== */
 async function renderCalendar(){
   gridEl.innerHTML='';
   const dates=[];
@@ -188,8 +368,7 @@ async function renderCalendar(){
   for(const key in fetched){
     for(const it of fetched[key]){
       const dedupeKey=it.iCalUID||it.id||it.summary;
-      if(seen.has(dedupeKey)) continue;
-      seen.add(dedupeKey);
+      if(seen.has(dedupeKey)) continue; seen.add(dedupeKey);
       const start=it.start?.dateTime||it.start?.date;
       const end=it.end?.dateTime||it.end?.date;
       const allDay=!!it.start?.date;
@@ -244,9 +423,9 @@ async function renderCalendar(){
   monthTitle.textContent = monthNames[dates[0].getMonth()]+' '+dates[0].getFullYear();
 }
 
-/* ==========================
+/* ==================================
    ADJUST ZOOM ORIGIN
-========================== */
+================================== */
 function adjustZoomOrigin(){
   const gridRect=gridEl.getBoundingClientRect();
   document.querySelectorAll('.day.today,.day.future').forEach(dayEl=>{
@@ -257,17 +436,17 @@ function adjustZoomOrigin(){
   });
 }
 
-/* ==========================
+/* ==================================
    NAVIGATION
-========================== */
+================================== */
 prevBtn.onclick=()=>{gridStartDate.setDate(gridStartDate.getDate()-7);renderCalendar();};
 nextBtn.onclick=()=>{gridStartDate.setDate(gridStartDate.getDate()+7);renderCalendar();};
 todayBtn.onclick=()=>{gridStartDate=computeGridStart(new Date());renderCalendar();};
 weeksSelect.onchange=e=>{WEEKS=parseInt(e.target.value);renderCalendar();};
 
-/* ==========================
+/* ==================================
    INITIAL
-========================== */
+================================== */
 gridStartDate=computeGridStart(new Date());
 renderCalendar();
 window.addEventListener('resize',adjustZoomOrigin);
