@@ -3,119 +3,46 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Calendrier 3-4 semaines - sombre + cache</title>
+<title>Calendrier 3-4 semaines - propre & cache</title>
 <style>
 :root {
-  --bg: #121212;
-  --card: #1c1f23;
-  --border: #555;
-  --text: #eaeaea;
-  --muted: #999;
-  --accent: #00e5ff;
-  --gap: 4px;
-  --days-font: 14px;
-  --event-font: 14px;
+  --bg:#121212; --card:#1c1f23; --border:#555; --text:#eaeaea;
+  --muted:#999; --accent:#00e5ff; --gap:4px;
+  --days-font:14px; --event-font:14px;
 }
-* { box-sizing: border-box; margin:0; padding:0; }
-body {
-  font-family: Inter, system-ui, Arial, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-.container {
-  flex:1;
-  display: flex;
-  flex-direction: column;
-  padding:16px;
-}
-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-  gap: 20px;
-  flex-wrap: wrap;
-}
-header h1 { font-size: 24px; color: var(--accent); text-align:center; }
-.nav-buttons {
-  display: flex;
-  gap:8px;
-  align-items: center;
-}
-.nav-buttons button, .nav-buttons select {
-  background:none;
-  border:none;
-  color: var(--accent);
-  font-size:16px;
-  cursor:pointer;
-  padding:4px 8px;
-  transition: all 0.35s ease;
-}
-.nav-buttons button:hover, .nav-buttons select:hover { background: rgba(0,229,255,0.2); }
-.calendar {
-  background: var(--card);
-  border-radius: 12px;
-  padding:0;
-  flex:1;
-  display:flex;
-  flex-direction: column;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.5);
-}
-.grid {
-  display:grid;
-  grid-template-columns: repeat(7,1fr);
-  gap: var(--gap);
-  flex:1;
-}
-.day {
-  background:#141619;
-  border-radius:12px;
-  padding:6px;
-  border:1px solid var(--border);
-  display:flex;
-  flex-direction: column;
-  overflow:hidden;
-  position:relative;
-  transition: transform 0.35s ease, width 0.35s ease, background 0.25s, box-shadow 0.35s, border-color 0.25s;
-}
-.day.today { transform: scale(1.08); animation: todayPulse 3s infinite ease-in-out; background:#1f2226; border:2px solid var(--accent); z-index:2; }
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:Inter,system-ui,Arial,sans-serif; background:var(--bg); color:var(--text); height:100vh; display:flex; flex-direction:column; }
+.container { flex:1; display:flex; flex-direction:column; padding:16px; }
+header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:20px; flex-wrap:wrap; }
+header h1 { font-size:24px; color:var(--accent); text-align:center; }
+.nav-buttons { display:flex; gap:8px; align-items:center; }
+.nav-buttons button, .nav-buttons select { background:none; border:none; color:var(--accent); font-size:16px; cursor:pointer; padding:4px 8px; transition:all 0.35s ease; }
+.nav-buttons button:hover, .nav-buttons select:hover { background:rgba(0,229,255,0.2); }
+.calendar { background:var(--card); border-radius:12px; padding:0; flex:1; display:flex; flex-direction:column; box-shadow:0 6px 18px rgba(0,0,0,0.5); }
+.grid { display:grid; grid-template-columns:repeat(7,1fr); gap:var(--gap); flex:1; }
+.day { background:#141619; border-radius:12px; padding:6px; border:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; position:relative; transition:transform 0.35s ease,width 0.35s ease,background 0.25s,box-shadow 0.35s,border-color 0.25s; }
+.day.today { transform:scale(1.08); animation:todayPulse 3s infinite ease-in-out; background:#1f2226; border:2px solid var(--accent); z-index:2; }
 .day.today::after { content:""; position:absolute; inset:0; border-radius:12px; pointer-events:none; box-shadow:0 0 20px 8px rgba(0,229,255,0.5); }
-.day.past { background:#0f1113; color:#555; transform: scale(0.95); }
+.day.past { background:#0f1113; color:#555; transform:scale(0.95); }
 .day.future { background:#1c1f23; color:#eaeaea; }
-.day.today:hover, .day.future:hover { animation:none; transform: scale(1.12); z-index:10; width:140%; }
-.day-header { display:flex; justify-content:space-between; align-items:center; font-size: var(--days-font); margin-bottom:2px; }
-.day .date { font-weight:600; font-size: var(--days-font); }
-.events { flex:1 1 auto; display:flex; flex-direction: column; gap:2px; overflow:hidden; }
-.event { display:flex; align-items:center; gap:4px; padding:2px 4px; font-size: var(--event-font); border-radius:6px; background: rgba(0,0,0,0.3); cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition: background 0.25s ease; }
-.event:hover { background: rgba(0,0,0,0.5); }
+.day.today:hover, .day.future:hover { animation:none; transform:scale(1.12); z-index:10; width:140%; }
+.day-header { display:flex; justify-content:space-between; align-items:center; font-size:var(--days-font); margin-bottom:2px; }
+.day .date { font-weight:600; font-size:var(--days-font); }
+.events { flex:1 1 auto; display:flex; flex-direction:column; gap:2px; overflow:hidden; }
+.event { display:flex; align-items:center; gap:4px; padding:2px 4px; font-size:var(--event-font); border-radius:6px; background:rgba(0,0,0,0.3); cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:background 0.25s ease; }
+.event:hover { background:rgba(0,0,0,0.5); }
 .event .time { min-width:50px; font-weight:600; font-size:11px; }
 .event.allDay .time { display:none; }
 .event.more { font-size:12px; color:var(--muted); padding-left:6px; }
 .event .title { text-align:left; }
 .c-reception { color:#109c53; }
 .c-smr { color:#5768cb; }
-#popup {
-  position:fixed;
-  top:50%; left:50%;
-  transform: translate(-50%,-50%);
-  background:#1c1f23;
-  color:#fff;
-  padding:16px;
-  border-radius:12px;
-  box-shadow:0 0 20px rgba(0,0,0,0.8);
-  z-index:20;
-  max-width:90%;
-  min-width:300px;
-  display:none;
-}
+#popup { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#1c1f23; color:#fff; padding:16px; border-radius:12px; box-shadow:0 0 20px rgba(0,0,0,0.8); z-index:20; max-width:90%; min-width:300px; display:none; }
 #popup h3 { margin-bottom:8px; }
 #popup .close { position:absolute; top:8px; right:12px; cursor:pointer; font-weight:bold; font-size:18px; }
-@media(max-width:900px){ .grid{ grid-template-columns: repeat(2,1fr); } }
-@media(max-width:520px){ .grid{ grid-template-columns: repeat(1,1fr); } }
-@keyframes todayPulse { 0%,100%{ transform: scale(1.08); } 50%{ transform: scale(1.12); } }
+@media(max-width:900px){ .grid{ grid-template-columns:repeat(2,1fr); } }
+@media(max-width:520px){ .grid{ grid-template-columns:repeat(1,1fr); } }
+@keyframes todayPulse { 0%,100%{ transform:scale(1.08); } 50%{ transform:scale(1.12); } }
 </style>
 </head>
 <body>
@@ -144,271 +71,190 @@ header h1 { font-size: 24px; color: var(--accent); text-align:center; }
 </div>
 
 <script>
-/* =====================
-   CONFIGURATION
-===================== */
-const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
-const CALENDARS = [
-  { id:'receptionroulier@gmail.com', key:'reception', css:'c-reception'},
-  { id:'smr.programme@gmail.com', key:'smr', css:'c-smr'}
-];
-const CACHE_TTL = 120000; // 120 sec
-
-/* clefs locales pour le cache + hash */
-const CACHE_PAYLOAD_KEY = 'cal_cache_payload_v1';
-const CACHE_HASH_KEY    = 'cal_cache_hash_v1';
-const CACHE_TS_KEY      = 'cal_cache_ts_v1';
-
-let WEEKS = 4;
-let gridStartDate;
-const gridEl = document.getElementById('grid');
-const monthTitle = document.getElementById('month-title');
-const popup = document.getElementById('popup');
-const popupTitle = document.getElementById('popup-title');
-const popupTime = document.getElementById('popup-time');
-const weeksSelect = document.getElementById('weeks-select');
-const prevBtn = document.getElementById('prev-week');
-const nextBtn = document.getElementById('next-week');
-const todayBtn = document.getElementById('today-btn');
-
-/* =====================
-   UTILITAIRES
-===================== */
-const fmtDate = d => d.toISOString().split('T')[0];
-const pad = n => n<10?'0'+n:n;
-const fmtTime = dt => dt?pad(new Date(dt).getHours())+':'+pad(new Date(dt).getMinutes()):'';
-const shortTitle = (s,max=60)=> s.length>max?s.slice(0,max-1)+'…':s;
-const computeGridStart = refDate=>{
-  const d = new Date(refDate); d.setHours(0,0,0,0);
-  const day = d.getDay();
-  const mondayThisWeek = new Date(d);
-  mondayThisWeek.setDate(d.getDate()-((day+6)%7));
-  const mondayLastWeek = new Date(mondayThisWeek);
-  mondayLastWeek.setDate(mondayLastWeek.getDate()-7);
-  return mondayLastWeek;
-};
-
-/* =====================
-   SHA256 helper (WebCrypto)
-   retourne une hex-string
-===================== */
-async function sha256Hex(str){
-  const enc = new TextEncoder().encode(str);
-  const hashBuf = await crypto.subtle.digest('SHA-256', enc);
-  const hashArray = Array.from(new Uint8Array(hashBuf));
-  return hashArray.map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-
-/* =====================
-   CACHE (payload + hash + timestamp)
-   - si cache valide (TTL) -> on renvoie le payload sans requête
-   - sinon : on appelle google, calcule le hash global des réponses
-       -> si hash == ancien_hash : on réutilise le payload (on met à jour le timestamp)
-       -> sinon : on enregistre nouveau payload + hash + timestamp
-===================== */
-
-function loadCachePayload(){
-  try{
-    const raw = localStorage.getItem(CACHE_PAYLOAD_KEY);
-    if(!raw) return null;
-    const ts = parseInt(localStorage.getItem(CACHE_TS_KEY) || '0',10);
-    if(!ts || (Date.now() - ts) > CACHE_TTL) return null;
-    return JSON.parse(raw);
-  }catch{
-    return null;
-  }
-}
-function saveCachePayload(payload){
-  try{
-    localStorage.setItem(CACHE_PAYLOAD_KEY, JSON.stringify(payload));
-    localStorage.setItem(CACHE_TS_KEY, Date.now().toString());
-  }catch{}
-}
-function getStoredHash(){ return localStorage.getItem(CACHE_HASH_KEY); }
-function saveStoredHash(h){ try{ localStorage.setItem(CACHE_HASH_KEY, h); }catch{} }
-function updateCacheTimestamp(){ try{ localStorage.setItem(CACHE_TS_KEY, Date.now().toString()); }catch{} }
-
-/* =====================
-   FETCH EVENTS (avec hash global)
-   - retourne un objet { calendarKey: items[] }
-===================== */
-
-async function getEvents(timeMin,timeMax){
-  // 1) si cache payload encore valide -> retour direct (AUCUNE requête)
-  const cached = loadCachePayload();
-  if(cached){
-    console.log('Cache payload valide — utilisation sans requête');
-    return cached;
+/* ===================== CLASS CALENDAR APP ===================== */
+class CalendarApp {
+  constructor(config) {
+    this.apiKey = config.apiKey;
+    this.calendars = config.calendars;
+    this.cacheKey = config.cacheKey;
+    this.cacheTtl = config.cacheTtl;
+    this.weeks = config.weeks || 4;
+    this.gridEl = document.getElementById('grid');
+    this.monthTitle = document.getElementById('month-title');
+    this.popup = document.getElementById('popup');
+    this.popupTitle = document.getElementById('popup-title');
+    this.popupTime = document.getElementById('popup-time');
+    this.gridStartDate = this.computeGridStart(new Date());
+    this.init();
   }
 
-  // 2) sinon on doit appeler Google pour récupérer nouvelles données,
-  //    puis comparer hash global pour savoir si on remplace le cache.
-  const allEvents = {};
-  for(const cal of CALENDARS){
+  /* ========== UTILITAIRES ========== */
+  fmtDate(d){ return d.toISOString().split('T')[0]; }
+  pad(n){ return n<10?'0'+n:n; }
+  fmtTime(dt){ return dt?this.pad(new Date(dt).getHours())+':'+this.pad(new Date(dt).getMinutes()):''; }
+  shortTitle(s,max=60){ return s.length>max?s.slice(0,max-1)+'…':s; }
+  computeGridStart(refDate){
+    const d=new Date(refDate); d.setHours(0,0,0,0);
+    const day=d.getDay();
+    const mondayThisWeek=new Date(d); mondayThisWeek.setDate(d.getDate()-((day+6)%7));
+    const mondayLastWeek=new Date(mondayThisWeek); mondayLastWeek.setDate(mondayLastWeek.getDate()-7);
+    return mondayLastWeek;
+  }
+
+  hashEvents(items){
+    let str = JSON.stringify(items.map(ev=>({iCalUID:ev.iCalUID,summary:ev.summary,start:ev.start,end:ev.end})));
+    let hash=0; for(let i=0;i<str.length;i++){ hash=((hash<<5)-hash)+str.charCodeAt(i); hash|=0; } return hash;
+  }
+
+  /* ========== CACHE ========== */
+  loadCache(){ 
     try{
-      const items = await fetchEventsForCalendar(cal.id, timeMin, timeMax);
-      allEvents[cal.key] = items || [];
-    }catch(err){
-      console.warn('Erreur fetch calendar', cal.id, err);
-      allEvents[cal.key] = [];
-    }
+      const raw=localStorage.getItem(this.cacheKey);
+      if(!raw) return null;
+      const data=JSON.parse(raw);
+      if(!data.timestamp || Date.now()-data.timestamp>this.cacheTtl) return null;
+      return data.payload;
+    }catch{return null;}
+  }
+  saveCache(payload){ localStorage.setItem(this.cacheKey,JSON.stringify({timestamp:Date.now(),payload})); }
+
+  /* ========== FETCH EVENTS ========== */
+  async fetchEventsForCalendar(calId,timeMin,timeMax){
+    const url=`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events?key=${this.apiKey}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime&maxResults=2500`;
+    const res=await fetch(url);
+    if(!res.ok) throw new Error(res.status);
+    const data=await res.json();
+    return data.items || [];
   }
 
-  // 3) calculer hash global à partir du payload (stringifié de manière stable)
-  //    on trie les clés pour assurer stabilité
-  const stable = {};
-  Object.keys(allEvents).sort().forEach(k=> stable[k] = allEvents[k]);
-  const payloadStr = JSON.stringify(stable);
-  const newHash = await sha256Hex(payloadStr);
-
-  const oldHash = getStoredHash();
-  if(oldHash && oldHash === newHash){
-    // Pas de changement : on réutilise l'ancien payload si présent (même si TTL perdu)
-    const existing = (() => {
-      try{
-        const raw = localStorage.getItem(CACHE_PAYLOAD_KEY);
-        return raw ? JSON.parse(raw) : null;
-      }catch{ return null; }
-    })();
-    if(existing){
-      console.log('Hash identique — réutilisation du cache existant (mise à jour du timestamp)');
-      updateCacheTimestamp();
-      return existing;
+  async getEvents(timeMin,timeMax){
+    const cache=this.loadCache();
+    if(cache) { console.info('Cache payload valide — utilisation sans requête'); return cache; }
+    const allEvents={};
+    for(const cal of this.calendars){
+      allEvents[cal.key]=await this.fetchEventsForCalendar(cal.id,timeMin,timeMax);
     }
-    // si pas d'ancien payload, sauvegarder le nouveau
+    this.saveCache(allEvents);
+    return allEvents;
   }
 
-  // 4) nouveau hash -> sauvegarder payload + hash + ts
-  saveCachePayload(allEvents);
-  saveStoredHash(newHash);
-  console.log('Nouveau hash — cache mis à jour');
-  return allEvents;
-}
-
-/* =====================
-   FETCH helper (inchangé)
-===================== */
-async function fetchEventsForCalendar(calId,timeMin,timeMax){
-  const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime&maxResults=2500`;
-  const res = await fetch(url);
-  if(!res.ok) throw new Error(res.status);
-  const data = await res.json();
-  return data.items || [];
-}
-
-/* =====================
-   RENDER CALENDAR (inchangé)
-===================== */
-async function renderCalendar(){
-  const dates=[];
-  for(let w=0; w<WEEKS; w++){
-    for(let i=0;i<7;i++){
-      const d=new Date(gridStartDate);
-      d.setDate(d.getDate()+w*7+i);
-      dates.push(d);
-    }
-  }
-
-  gridEl.style.gridTemplateRows = `repeat(${WEEKS},1fr)`;
-  gridEl.innerHTML='';
-
-  dates.forEach(d=>{
-    const dayEl=document.createElement('div');
-    dayEl.className='day';
-    dayEl.dataset.date=fmtDate(d);
-    dayEl.innerHTML = `<div class="day-header"><div>${['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][d.getDay()]}</div><div class="date">${d.getDate()}</div></div><div class="events"></div>`;
-    gridEl.appendChild(dayEl);
-  });
-
-  const timeMin = new Date(dates[0]); timeMin.setHours(0,0,0,0);
-  const timeMax = new Date(dates[dates.length-1]); timeMax.setHours(23,59,59,999);
-  const eventsByDay = {};
-  const fetched = await getEvents(timeMin.toISOString(),timeMax.toISOString());
-  const seen = new Set();
-
-  for(const key in fetched){
-    for(const it of fetched[key]){
-      const dedupeKey = it.iCalUID || it.id || it.summary;
-      if(seen.has(dedupeKey)) continue;
-      seen.add(dedupeKey);
-
-      const start = it.start?.dateTime || it.start?.date;
-      const end = it.end?.dateTime || it.end?.date;
-      const allDay = !!it.start?.date;
-      const cal = CALENDARS.find(c=>c.key===key) || {key:key};
-
-      if(allDay){
-        let s = new Date(start+'T00:00:00');
-        let e = new Date(end+'T00:00:00');
-        for(let d=new Date(s); d<e; d.setDate(d.getDate()+1)){
-          const keyD = fmtDate(d);
-          eventsByDay[keyD] = eventsByDay[keyD]||[];
-          eventsByDay[keyD].push({title:it.summary||'(sans titre)',start:null,end:null,allDay:true,calendarKey:cal.key});
-        }
-      } else {
-        const keyD = fmtDate(new Date(start));
-        eventsByDay[keyD] = eventsByDay[keyD]||[];
-        eventsByDay[keyD].push({title:it.summary||'(sans titre)',start:start,end:end,allDay:false,calendarKey:cal.key});
+  /* ========== RENDER CALENDAR ========== */
+  async renderCalendar(){
+    const dates=[];
+    for(let w=0;w<this.weeks;w++){
+      for(let i=0;i<7;i++){
+        const d=new Date(this.gridStartDate); d.setDate(d.getDate()+w*7+i); dates.push(d);
       }
     }
-  }
+    this.gridEl.style.gridTemplateRows=`repeat(${this.weeks},1fr)`;
+    this.gridEl.innerHTML='';
 
-  document.querySelectorAll('.day').forEach(dayEl=>{
-    const date = dayEl.dataset.date;
-    const evList = eventsByDay[date]||[];
-    const eventsContainer = dayEl.querySelector('.events');
-    eventsContainer.innerHTML='';
-
-    evList.slice(0,6).forEach(ev=>{
-      const evEl=document.createElement('div');
-      const calMeta = CALENDARS.find(c=>c.key===ev.calendarKey);
-      evEl.className='event '+(ev.allDay?'allDay':'')+(calMeta?` ${calMeta.css}`:'');
-      evEl.innerHTML=`<div class="time">${ev.allDay?'':fmtTime(ev.start)}</div><div class="title">${shortTitle(ev.title,80)}</div>`;
-      evEl.onclick = ()=>{
-        let startText = ev.allDay?'Toute la journée':fmtTime(ev.start);
-        let endText = ev.allDay?'':fmtTime(ev.end);
-        popupTitle.textContent = ev.title;
-        popupTime.textContent = ev.allDay?'Toute la journée':`${startText} → ${endText}`;
-        popup.style.display='block';
-      };
-      eventsContainer.appendChild(evEl);
+    dates.forEach(d=>{
+      const dayEl=document.createElement('div');
+      dayEl.className='day';
+      dayEl.dataset.date=this.fmtDate(d);
+      dayEl.innerHTML=`<div class="day-header"><div>${['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][d.getDay()]}</div><div class="date">${d.getDate()}</div></div><div class="events"></div>`;
+      this.gridEl.appendChild(dayEl);
     });
 
-    if(evList.length>6){
-      const more=document.createElement('div');
-      more.className='event more';
-      more.textContent=`+ ${evList.length-6} autres`;
-      eventsContainer.appendChild(more);
+    const timeMin=new Date(dates[0]); timeMin.setHours(0,0,0,0);
+    const timeMax=new Date(dates[dates.length-1]); timeMax.setHours(23,59,59,999);
+    const eventsByDay={};
+    const fetched=await this.getEvents(timeMin.toISOString(),timeMax.toISOString());
+    const seen=new Set();
+
+    for(const key in fetched){
+      for(const it of fetched[key]){
+        const dedupeKey=it.iCalUID||it.id||it.summary;
+        if(seen.has(dedupeKey)) continue;
+        seen.add(dedupeKey);
+        const start=it.start?.dateTime||it.start?.date;
+        const end=it.end?.dateTime||it.end?.date;
+        const allDay=!!it.start?.date;
+        const cal=this.calendars.find(c=>c.key===key)||{key:key};
+
+        if(allDay){
+          let s=new Date(start+'T00:00:00'), e=new Date(end+'T00:00:00');
+          for(let d=new Date(s); d<e; d.setDate(d.getDate()+1)){
+            const keyD=this.fmtDate(d);
+            eventsByDay[keyD]=eventsByDay[keyD]||[];
+            eventsByDay[keyD].push({title:it.summary||'(sans titre)',start:null,end:null,allDay:true,calendarKey:cal.key});
+          }
+        } else {
+          const keyD=this.fmtDate(new Date(start));
+          eventsByDay[keyD]=eventsByDay[keyD]||[];
+          eventsByDay[keyD].push({title:it.summary||'(sans titre)',start:start,end:end,allDay:false,calendarKey:cal.key});
+        }
+      }
     }
-  });
 
-  const todayStr = fmtDate(new Date());
-  document.querySelectorAll('.day').forEach(dayEl=>{
-    const date = dayEl.dataset.date;
-    dayEl.classList.remove('past','future','today');
-    if(date===todayStr) dayEl.classList.add('today');
-    else if(date<todayStr) dayEl.classList.add('past');
-    else dayEl.classList.add('future');
-  });
+    document.querySelectorAll('.day').forEach(dayEl=>{
+      const date=dayEl.dataset.date;
+      const evList=eventsByDay[date]||[];
+      const eventsContainer=dayEl.querySelector('.events');
+      eventsContainer.innerHTML='';
+      evList.slice(0,6).forEach(ev=>{
+        const evEl=document.createElement('div');
+        const calMeta=this.calendars.find(c=>c.key===ev.calendarKey);
+        evEl.className='event '+(ev.allDay?'allDay':'')+(calMeta?` ${calMeta.css}`:'');
+        evEl.innerHTML=`<div class="time">${ev.allDay?'':this.fmtTime(ev.start)}</div><div class="title">${this.shortTitle(ev.title,80)}</div>`;
+        evEl.onclick=()=>{ 
+          let startText=ev.allDay?'Toute la journée':this.fmtTime(ev.start);
+          let endText=ev.allDay?'':this.fmtTime(ev.end);
+          this.popupTitle.textContent=ev.title;
+          this.popupTime.textContent=ev.allDay?'Toute la journée':`${startText} → ${endText}`;
+          this.popup.style.display='block';
+        };
+        eventsContainer.appendChild(evEl);
+      });
+      if(evList.length>6){
+        const more=document.createElement('div');
+        more.className='event more';
+        more.textContent=`+ ${evList.length-6} autres`;
+        eventsContainer.appendChild(more);
+      }
+    });
 
-  const monthNames=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
-  monthTitle.textContent = monthNames[dates[0].getMonth()]+' '+dates[0].getFullYear();
+    const todayStr=this.fmtDate(new Date());
+    document.querySelectorAll('.day').forEach(dayEl=>{
+      const date=dayEl.dataset.date;
+      dayEl.classList.remove('past','future','today');
+      if(date===todayStr) dayEl.classList.add('today');
+      else if(date<todayStr) dayEl.classList.add('past');
+      else dayEl.classList.add('future');
+    });
+
+    const monthNames=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+    this.monthTitle.textContent=monthNames[dates[0].getMonth()]+' '+dates[0].getFullYear();
+  }
+
+  /* ========== NAVIGATION ========== */
+  initNavigation(prevBtnId,nextBtnId,todayBtnId,weeksSelectId){
+    document.getElementById(prevBtnId).onclick=()=>{ this.gridStartDate.setDate(this.gridStartDate.getDate()-7); this.renderCalendar(); };
+    document.getElementById(nextBtnId).onclick=()=>{ this.gridStartDate.setDate(this.gridStartDate.getDate()+7); this.renderCalendar(); };
+    document.getElementById(todayBtnId).onclick=()=>{ this.gridStartDate=this.computeGridStart(new Date()); this.renderCalendar(); };
+    document.getElementById(weeksSelectId).onchange=e=>{ this.weeks=parseInt(e.target.value); this.renderCalendar(); };
+  }
+
+  /* ========== INIT ========== */
+  init(){
+    this.initNavigation('prev-week','next-week','today-btn','weeks-select');
+    this.renderCalendar();
+    setInterval(()=>this.renderCalendar(),60000);
+  }
 }
 
-/* =====================
-   NAVIGATION
-===================== */
-prevBtn.onclick = ()=>{ gridStartDate.setDate(gridStartDate.getDate()-7); renderCalendar(); };
-nextBtn.onclick = ()=>{ gridStartDate.setDate(gridStartDate.getDate()+7); renderCalendar(); };
-todayBtn.onclick = ()=>{ gridStartDate = computeGridStart(new Date()); renderCalendar(); };
-weeksSelect.onchange = e => { WEEKS = parseInt(e.target.value); renderCalendar(); };
-
-/* =====================
-   INIT
-===================== */
-gridStartDate = computeGridStart(new Date());
-renderCalendar();
-setInterval(renderCalendar,60000);
+/* ===================== INIT CALENDAR ===================== */
+const app=new CalendarApp({
+  apiKey:'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo',
+  calendars:[
+    {id:'receptionroulier@gmail.com',key:'reception',css:'c-reception'},
+    {id:'smr.programme@gmail.com',key:'smr',css:'c-smr'}
+  ],
+  cacheKey:'googleCalendarCache_v4',
+  cacheTtl:120000,
+  weeks:4
+});
 </script>
 </body>
 </html>
