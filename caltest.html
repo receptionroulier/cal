@@ -20,9 +20,9 @@ header h1 { font-size:24px; color:var(--accent); text-align:center; }
 .nav-buttons button:hover, .nav-buttons select:hover { background: rgba(0,229,255,0.2); }
 
 .calendar { background:var(--card); border-radius:12px; padding:0; flex:1; display:flex; flex-direction:column; box-shadow:0 6px 18px rgba(0,0,0,0.5); overflow:hidden; }
-.grid { display:grid; grid-template-columns:repeat(7,1fr); gap:var(--gap); flex:1; }
+.grid { display:grid; grid-template-columns:repeat(7,1fr); gap:var(--gap); flex:1; position:relative; }
 
-.day { background:#141619; border-radius:12px; padding:6px; border:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; position:relative; transition: transform 0.35s ease, background 0.25s, box-shadow 0.35s, border-color 0.25s; }
+.day { background:#141619; border-radius:12px; padding:6px; border:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; position:relative; transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.25s; transform-origin:center top; z-index:1; }
 .day-header { display:flex; justify-content:space-between; align-items:center; font-size:var(--days-font); margin-bottom:2px; }
 .day .date { font-weight:600; font-size:var(--days-font); }
 .events { flex:1 1 auto; display:flex; flex-direction:column; gap:2px; overflow:hidden; }
@@ -51,10 +51,7 @@ header h1 { font-size:24px; color:var(--accent); text-align:center; }
 
 .day.past { transform: scale(0.95); background:#0f1113; color:#555; }
 
-.day.today:hover, .day.future:hover { animation:none; transform: scale(1.12); z-index:10; max-width:140%; overflow:visible; }
-
-@media(max-width:900px){ .grid{ grid-template-columns:repeat(2,1fr); } }
-@media(max-width:520px){ .grid{ grid-template-columns:repeat(1,1fr); } }
+.day:hover { z-index:10; transform:scale(1.12); }
 </style>
 </head>
 <body>
@@ -83,17 +80,22 @@ header h1 { font-size:24px; color:var(--accent); text-align:center; }
 </div>
 
 <script>
-/* CONFIGURATION */
+/* ===========================
+   CONFIGURATION
+=========================== */
 const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
 const CALENDARS = [
   { id:'receptionroulier@gmail.com', key:'reception', css:'c-reception'},
   { id:'smr.programme@gmail.com', key:'smr', css:'c-smr'}
 ];
 const CACHE_TTL = 120000;
-const CACHE_KEY = 'googleCalendarCache_v9';
-
+const CACHE_KEY = 'googleCalendarCache_v10';
 let WEEKS = 4;
 let gridStartDate;
+
+/* ===========================
+   ELEMENTS DOM
+=========================== */
 const gridEl = document.getElementById('grid');
 const monthTitle = document.getElementById('month-title');
 const popup = document.getElementById('popup');
@@ -104,7 +106,9 @@ const prevBtn = document.getElementById('prev-week');
 const nextBtn = document.getElementById('next-week');
 const todayBtn = document.getElementById('today-btn');
 
-/* UTILITAIRES */
+/* ===========================
+   UTILITAIRES
+=========================== */
 const fmtDate = d => d.toISOString().split('T')[0];
 const pad = n => n<10?'0'+n:n;
 const fmtTime = dt => dt?pad(new Date(dt).getHours())+':'+pad(new Date(dt).getMinutes()):'';
@@ -116,11 +120,15 @@ const computeGridStart = refDate=>{
   return mondayLastWeek;
 };
 
-/* CACHE */
+/* ===========================
+   CACHE
+=========================== */
 const loadCache = ()=>{try{const raw=localStorage.getItem(CACHE_KEY);if(!raw)return null;const data=JSON.parse(raw);if(!data.timestamp||Date.now()-data.timestamp>CACHE_TTL)return null;return data.payload;}catch{return null;}};
 const saveCache = payload=>localStorage.setItem(CACHE_KEY,JSON.stringify({timestamp:Date.now(),payload}));
 
-/* FETCH */
+/* ===========================
+   FETCH EVENTS
+=========================== */
 async function fetchEventsForCalendar(calId,timeMin,timeMax){
   const url=`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime&maxResults=2500`;
   const res = await fetch(url);
@@ -138,7 +146,9 @@ async function getEvents(timeMin,timeMax){
   return allEvents;
 }
 
-/* RENDER CALENDAR */
+/* ===========================
+   RENDER CALENDAR
+=========================== */
 async function renderCalendar(){
   gridEl.innerHTML='';
   const dates=[];
@@ -218,20 +228,38 @@ async function renderCalendar(){
     else dayEl.classList.add('future');
   });
 
+  adjustZoomOrigin();
   const monthNames=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
   monthTitle.textContent = monthNames[dates[0].getMonth()]+' '+dates[0].getFullYear();
 }
 
-/* NAVIGATION */
+/* ===========================
+   ZOOM SECURISE
+=========================== */
+function adjustZoomOrigin(){
+  const gridRect = gridEl.getBoundingClientRect();
+  document.querySelectorAll('.day').forEach(dayEl=>{
+    const rect = dayEl.getBoundingClientRect();
+    if(rect.left - gridRect.left < gridRect.width/4){ dayEl.style.transformOrigin='left top'; }
+    else if(rect.right - gridRect.left > gridRect.width*3/4){ dayEl.style.transformOrigin='right top'; }
+    else { dayEl.style.transformOrigin='center top'; }
+  });
+}
+
+/* ===========================
+   NAVIGATION
+=========================== */
 prevBtn.onclick = ()=>{ gridStartDate.setDate(gridStartDate.getDate()-7); renderCalendar(); };
 nextBtn.onclick = ()=>{ gridStartDate.setDate(gridStartDate.getDate()+7); renderCalendar(); };
 todayBtn.onclick = ()=>{ gridStartDate = computeGridStart(new Date()); renderCalendar(); };
 weeksSelect.onchange = e=>{ WEEKS=parseInt(e.target.value); renderCalendar(); };
 
-/* INIT */
+/* ===========================
+   INIT
+=========================== */
 gridStartDate = computeGridStart(new Date());
 renderCalendar();
-window.addEventListener('resize', renderCalendar);
+window.addEventListener('resize', adjustZoomOrigin);
 setInterval(renderCalendar,60000);
 </script>
 </body>
