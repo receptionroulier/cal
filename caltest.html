@@ -1,373 +1,277 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Calendrier 4 semaines - sombre + cache</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ponts HAROPA & Calendrier</title>
 
 <style>
-/* ======= CODE ORIGINAL (inchangé) ======= */
-:root{
-  --bg:#121212;
-  --card:#1c1f23;
-  --border:#555;
-  --text:#eaeaea;
-  --muted:#999;
-  --accent:#00e5ff;
-  --gap:4px;
-  --days-font:14px;
-  --event-font:14px;
+/* ==== Styles généraux ==== */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #101010;
+  color: #eaeaea;
 }
-body{
-  margin:0;
-  font-family:Inter, system-ui, Arial, sans-serif;
-  background:var(--bg);
-  color:var(--text);
-  padding:16px;
-  box-sizing:border-box;
-}
-.container{
-  max-width:1600px;
-  margin:0 auto;
-}
-header{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  margin-bottom:10px;
-  gap:20px;
-  flex-wrap:wrap;
-}
-header h1{
-  margin:0;
-  font-size:24px;
-  color:var(--accent);
-  text-align:center;
-}
-.nav-buttons{
-  display:flex;
-  gap:8px;
-  align-items:center;
-}
-.nav-buttons button{
-  background:none;
-  border:none;
-  color:var(--accent);
-  font-size:16px;
-  cursor:pointer;
-  padding:4px 8px;
-  transition: all 0.35s ease;
-}
-.nav-buttons button:hover { background: rgba(0,229,255,0.2); }
 
-.calendar {
-  background: var(--card);
-  border-radius:12px;
-  padding:12px;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+.container {
+  display: flex;
+  height: 100vh;
+  flex-wrap: nowrap;
+}
+
+/* ==== Colonne Ponts ==== */
+.left {
+  background: #252525;
+  width: 18%;
+  min-width: 200px;
+  padding: 8px;
+  overflow-y: auto;
+  box-sizing: border-box;
+  border-right: 2px solid #222;
+}
+
+h2 {
+  text-align: center;
+  color: #00e5ff;
+  margin: 0 0 10px;
+  font-size: 1.2em;
+}
+
+#ponts-title span {
+  font-weight: bold;
+  color: #ffdd00;
+}
+
+/* Liste */
+#ponts-table {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ==== Cartes ponts ==== */
+.pont-card {
+  background: #1f1f1f;
+  border-radius: 8px;
+  padding: 6px 8px;
+  box-shadow: 0 0 4px rgba(0,0,0,0.4);
+  font-size: 0.85em;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-left-width: 4px;
+  border-left-style: solid;
+  transition: transform 0.15s ease;
+}
+.pont-card:hover {
+  transform: scale(1.02);
+}
+
+.pont-card.ferme { border-left-color: #ff4040; }
+.pont-card.ouvert { border-left-color: #58ff58; }
+.pont-card.manoeuvre { border-left-color: #1c3cff; }
+
+.pastille {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+  display: inline-block;
+}
+
+.ferme .pastille { background: #ff4040; }
+.ouvert .pastille { background: #58ff58; }
+.manoeuvre .pastille {
+  background: #1c3cff;
+  animation: pastilleBlink 1s infinite;
+}
+
+@keyframes pastilleBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.pont-nom {
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+}
+
+/* ==== Colonne Calendrier ==== */
+.right {
+  flex: 1;
+  background: #181818;
+  display: flex;
+}
+
+.calendar-wrapper {
+  flex: 1;
+  display: flex;
+}
+
+.calendar-wrapper iframe {
   width: 100%;
-}
-.grid {
-  display:grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: var(--gap);
-}
-.day {
-  background: #141619;
-  border-radius:12px;
-  height: calc((100vh - 150px)/4);
-  padding:12px;
-  box-sizing:border-box;
-  border:1px solid var(--border);
-  overflow:hidden;
-  position:relative;
-  display:flex;
-  flex-direction:column;
+  height: 100%;
+  border: none;
 }
 
-/* PAST / TODAY / FUTURE (original) */
-.day.today {
-  transform: scale(1.08);
-  animation: todayPulse 3s infinite ease-in-out;
-  background:#1f2226;
-  border:2px solid var(--accent);
-  z-index:2;
+/* ==== Responsive ==== */
+@media(max-width: 900px) {
+  .container {
+    flex-direction: column;
+    height: auto;
+  }
+  .left {
+    width: 100%;
+    border-right: none;
+    border-bottom: 2px solid #222;
+    max-height: 45vh;
+  }
+  .right {
+    width: 100%;
+    height: 55vh;
+  }
 }
-
-.day.future {
-  transform: scale(1);
-  background:#1c1f23;
-  color:#eaeaea;
-  animation: futurePulse 3s infinite ease-in-out;
-}
-
-.day.past {
-  transform: scale(0.95);
-  background:#0f1113;
-  color:#555;
-}
-
-/* POPUP ORIGINAL */
-#popup {
-  position: fixed;
-  top:50%;
-  left:50%;
-  transform: translate(-50%,-50%);
-  background:#1c1f23;
-  color:#fff;
-  padding:16px;
-  border-radius:12px;
-  box-shadow:0 0 20px rgba(0,0,0,0.8);
-  z-index:20;
-  max-width:90%;
-  min-width:300px;
-  display:none;
-}
-#popup h3 { margin-top:0; margin-bottom:8px; }
-#popup .close { position:absolute; top:8px; right:12px; cursor:pointer; font-weight:bold; font-size:18px; }
-
 </style>
 </head>
 
 <body>
 <div class="container">
-  <header>
-    <h1 id="month-title">Mois</h1>
-    <div class="nav-buttons">
-      <button id="prev-week">&lt;</button>
-      <button id="today-btn">Aujourd'hui</button>
-      <button id="next-week">&gt;</button>
-    </div>
-  </header>
 
-  <div class="calendar" id="calendar-root">
-    <div class="grid" id="grid"></div>
+  <!-- Colonne Ponts -->
+  <div class="left">
+    <h2 id="ponts-title">État des Ponts (<span id="countdown">15</span>s)</h2>
+    <div id="ponts-table">Chargement...</div>
   </div>
-</div>
 
-<div id="popup">
-  <span class="close" onclick="document.getElementById('popup').style.display='none'">&times;</span>
-  <h3 id="popup-title"></h3>
-  <div id="popup-time"></div>
+  <!-- Colonne Calendrier -->
+  <div class="right">
+    <div class="calendar-wrapper">
+      <iframe src="https://receptionroulier.github.io/cal/calr.html"></iframe>
+    </div>
+  </div>
+
 </div>
 
 <script>
-/* =======================================================
-      CONFIG GOOGLE + CALENDARS
-   =======================================================*/
-const API_KEY = "AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo";
-const CALENDARS = [
-  { id:"receptionroulier@gmail.com", key:"reception", css:"c-reception" },
-  { id:"smr.programme@gmail.com",   key:"smr",        css:"c-smr" }
-];
-const WEEKS = 4;
+/* =======================================================================
+    SHA-256 (pour hash cache)
+======================================================================= */
+async function sha256(str) {
+  const buf = new TextEncoder().encode(str);
+  const digest = await crypto.subtle.digest("SHA-256", buf);
+  return Array.from(new Uint8Array(digest))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+/* =======================================================================
+    COUNTDOWN SYNCHRONE
+======================================================================= */
+let countdown = 15;
+
+function tickCountdown() {
+  document.getElementById("countdown").textContent = countdown;
+  countdown--;
+  if (countdown < 0) {
+    countdown = 15;
+    fetchPonts();
+  }
+}
+setInterval(tickCountdown, 1000);
 
 
-/* =======================================================
-          CACHE + HASH (ajout demandé)
-   =======================================================*/
-const CACHE_KEY       = "googleCalendarCache_v1";
-const CACHE_TTL       = 120 * 1000; // 120 sec
-const CACHE_HASH_KEY  = "googleCalendarHash_v1";
+/* =======================================================================
+    RÉCUPÉRATION + CACHE + HASH + EXPIRATION 120s
+======================================================================= */
 
-/* Charger le cache */
-function loadCache() {
-  const raw = localStorage.getItem(CACHE_KEY);
-  if (!raw) return null;
-
+async function fetchPonts() {
   try {
-    const data = JSON.parse(raw);
-    if (!data.timestamp) return null;
-    if (Date.now() - data.timestamp > CACHE_TTL) return null;
-    return data.payload;
-  } catch {
-    return null;
-  }
-}
+    const CACHE_KEY_DATA = "ponts_cache_data";
+    const CACHE_KEY_HASH = "ponts_cache_hash";
+    const CACHE_KEY_TIME = "ponts_cache_time";
 
-/* Sauvegarder payload + timestamp */
-function saveCache(payload) {
-  localStorage.setItem(
-    CACHE_KEY,
-    JSON.stringify({
-      timestamp: Date.now(),
-      payload
-    })
-  );
-}
+    const now = Date.now();
+    const cacheData = localStorage.getItem(CACHE_KEY_DATA);
+    const cacheHash = localStorage.getItem(CACHE_KEY_HASH);
+    const cacheTime = localStorage.getItem(CACHE_KEY_TIME);
 
-/* HASH simple mais rapide */
-function hashEvents(items) {
-  let h = 0;
-  for (const ev of items) {
-    const str = (ev.iCalUID||"") + (ev.summary||"") +
-                (ev.start?.dateTime||ev.start?.date||"") +
-                (ev.end?.dateTime||ev.end?.date||"");
-    for (let i=0; i<str.length; i++) {
-      h = (h << 5) - h + str.charCodeAt(i);
-      h |= 0;
+    /* === Vérification expiration 120 secondes === */
+    if (cacheData && cacheHash && cacheTime && (now - cacheTime) < 120000) {
+      console.log("✔ Cache valide — affichage sans requête");
+      const parsed = JSON.parse(cacheData);
+      renderPonts(parsed);
+      return;
     }
-  }
-  return h;
-}
 
+    /* === Récupération en ligne === */
+    const url = encodeURIComponent("https://www.havre-port.com/map/getPonts");
+    const proxy = `https://api.allorigins.win/get?url=${url}`;
 
-/* =======================================================
-          FONCTION : FETCH AVEC CACHE ET HASH
-   =======================================================*/
-async function fetchEventsWithCache(timeMin, timeMax) {
+    const res = await fetch(proxy);
+    const raw = await res.json();
 
-  const url = (calendarId) =>
-    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?key=${API_KEY}`
-    + `&timeMin=${encodeURIComponent(timeMin)}`
-    + `&timeMax=${encodeURIComponent(timeMax)}`
-    + `&singleEvents=true&orderBy=startTime`;
+    const newHash = await sha256(raw.contents);
 
-  // 1) Vérifier si cache encore valable
-  const cached = loadCache();
-  if (cached) {
-    console.log("→ Cache utilisé (valide)");
-    return cached;
-  }
-
-  console.log("→ Pas de cache valide → appel Google");
-
-  // 2) Appels Google
-  const allEvents = [];
-  for (const cal of CALENDARS) {
-    const response = await fetch(url(cal.id));
-    const data = await response.json();
-    if (data.items) {
-      data.items.forEach(ev => {
-        ev._calendar = cal.css; // garder la couleur
-        allEvents.push(ev);
-      });
+    /* === Si le hash est identique → pas de nouvelle requête === */
+    if (cacheHash && cacheHash === newHash) {
+      console.log("✔ Hash identique — réutilisation cache");
+      const parsed = JSON.parse(cacheData);
+      renderPonts(parsed);
+      localStorage.setItem(CACHE_KEY_TIME, now); // refresh timer
+      return;
     }
-  }
 
-  // 3) HASH DE LA NOUVELLE RÉPONSE
-  const newHash = hashEvents(allEvents);
-  const oldHash = localStorage.getItem(CACHE_HASH_KEY);
-
-  // 4) Si même hash → ne rien faire
-  if (oldHash && newHash.toString() === oldHash) {
-    console.log("→ Hash identique : aucune nouvelle requête utile");
-    return allEvents;
-  }
-
-  // 5) Nouveau hash, on stocke
-  localStorage.setItem(CACHE_HASH_KEY, newHash);
-  saveCache(allEvents);
-
-  return allEvents;
-}
-
-
-/* =======================================================
-          LE RESTE DU CODE ORIGINAL…
-          (remplissage de la grille, affichage, popup)
-   =======================================================*/
-
-/* CALCUL DES DATES DE LA GRILLE */
-let currentStart = getStartOfWeek(new Date());
-
-function getStartOfWeek(d) {
-  const date = new Date(d);
-  date.setHours(0,0,0,0);
-  const day = date.getDay();
-  const diff = (day === 0 ? -6 : 1) - day;
-  date.setDate(date.getDate() + diff - 7); // semaine passée
-  return date;
-}
-
-function shiftWeek(offset) {
-  currentStart.setDate(currentStart.getDate() + offset * 7);
-  renderCalendar();
-}
-
-document.getElementById("prev-week").onclick = () => shiftWeek(-1);
-document.getElementById("next-week").onclick = () => shiftWeek(+1);
-document.getElementById("today-btn").onclick = () => {
-  currentStart = getStartOfWeek(new Date());
-  renderCalendar();
-};
-
-/* AFFICHAGE PRINCIPAL */
-async function renderCalendar() {
-  const grid = document.getElementById("grid");
-  grid.innerHTML = "";
-
-  const start = new Date(currentStart);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 7 * WEEKS);
-
-  const events = await fetchEventsWithCache(
-    start.toISOString(),
-    end.toISOString()
-  );
-
-  const todayStr = new Date().toISOString().slice(0,10);
-
-  let date = new Date(start);
-
-  for (let i = 0; i < 7*WEEKS; i++) {
-    const dayStr = date.toISOString().slice(0,10);
-
-    const dayDiv = document.createElement("div");
-    dayDiv.className = "day";
-
-    if (dayStr < todayStr)        dayDiv.classList.add("past");
-    else if (dayStr === todayStr) dayDiv.classList.add("today");
-    else                          dayDiv.classList.add("future");
-
-    const header = document.createElement("div");
-    header.className = "day-header";
-    header.innerText = dayStr;
-
-    const evts = events.filter(ev =>
-      (ev.start.dateTime || ev.start.date)?.slice(0,10) === dayStr
-    );
-
-    const evContainer = document.createElement("div");
-    evContainer.className = "events";
-
-    evts.forEach(ev => {
-      const e = document.createElement("div");
-      e.className = `event ${ev._calendar}`;
-      e.innerText = ev.summary || "(Sans titre)";
-
-      e.onclick = () => showPopup(ev);
-      evContainer.appendChild(e);
+    /* === Hash différent → mise à jour du cache === */
+    const ponts = Object.values(JSON.parse(raw.contents).data);
+    const unique = Array.from(new Map(ponts.map(p => [p.nom, p])).values());
+    const ordered = unique.sort((a, b) => {
+      const ordre = (p) =>
+        p.statutText.includes("(Manoeuvre") ? 1 :
+        p.statutText.toLowerCase().includes("ouvert") ? 2 : 0;
+      return ordre(a) - ordre(b);
     });
 
-    dayDiv.appendChild(header);
-    dayDiv.appendChild(evContainer);
-    grid.appendChild(dayDiv);
+    localStorage.setItem(CACHE_KEY_DATA, JSON.stringify(ordered));
+    localStorage.setItem(CACHE_KEY_HASH, newHash);
+    localStorage.setItem(CACHE_KEY_TIME, now);
 
-    date.setDate(date.getDate()+1);
+    console.log("✔ Nouveau hash — cache mis à jour");
+    renderPonts(ordered);
+
+  } catch (err) {
+    console.error("Erreur:", err);
+    document.getElementById("ponts-table").textContent =
+      "Impossible de récupérer les ponts.";
   }
-
-  updateMonthTitle();
 }
 
-function updateMonthTitle() {
-  const m = currentStart.toLocaleString("fr-FR",{month:"long",year:"numeric"});
-  document.getElementById("month-title").innerText = m;
+function renderPonts(list) {
+  const container = document.getElementById("ponts-table");
+
+  container.innerHTML = list
+    .map((p) => {
+      const isOpen = p.statutText.toLowerCase().includes("ouvert");
+      const isMove = p.statutText.includes("(Manoeuvre");
+      const stateClass = isMove ? "manoeuvre" : isOpen ? "ouvert" : "ferme";
+
+      const info = p.forceText || `MàJ : ${p.date}`;
+
+      return `
+        <div class="pont-card ${stateClass}">
+          <div class="pont-nom">
+            <span class="pastille"></span>${p.nom}
+          </div>
+          <div class="pont-etat">${p.statutText}</div>
+          <div class="pont-infos">${info}</div>
+        </div>`;
+    })
+    .join("");
 }
 
-/* POPUP */
-function showPopup(ev) {
-  const p = document.getElementById("popup");
-  document.getElementById("popup-title").innerText = ev.summary || "(Sans titre)";
-  document.getElementById("popup-time").innerText =
-    (ev.start.dateTime || ev.start.date || "") +
-    " → " +
-    (ev.end.dateTime || ev.end.date || "");
-
-  p.style.display = "block";
-}
-
-renderCalendar();
+// Initialisation
+fetchPonts();
 </script>
 </body>
 </html>
