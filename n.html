@@ -2,248 +2,232 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Calendrier SMR Programme</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ponts HAROPA & Calendrier</title>
 
 <style>
+/* ==== Styles généraux ==== */
 body {
   margin: 0;
   font-family: Arial, sans-serif;
-  background: #111;
-  color: #eee;
+  background: #101010;
+  color: #eaeaea;
 }
 
-/* ===================== CALENDRIER ===================== */
-.calendar {
-  max-width: 1000px;
-  margin: 20px auto;
-  padding: 10px;
-}
-
-.calendar-header {
+.container {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
+  height: 100vh;
+  flex-wrap: nowrap;
 }
 
-.calendar-header button {
-  background: #333;
-  border: none;
-  color: #eee;
-  padding: 6px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-}
-.calendar-header button:hover {
-  background: #444;
-}
-
-.calendar-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  border: 1px solid #333;
-}
-
-.day-name {
-  background: #1b1b1b;
+/* ==== Colonne Ponts ==== */
+.left {
+  background: #252525;
+  width: 18%;
+  min-width: 200px;
   padding: 8px;
+  overflow-y: auto;
+  box-sizing: border-box;
+  border-right: 2px solid #222;
+}
+
+h2 {
   text-align: center;
-  border-bottom: 1px solid #222;
+  color: #00e5ff;
+  margin: 0 0 10px;
+  font-size: 1.2em;
+}
+
+#ponts-title span {
   font-weight: bold;
+  color: #ffdd00;
 }
 
-.day {
-  border: 1px solid #222;
-  min-height: 100px;
-  padding: 4px;
-  position: relative;
+/* Liste */
+#ponts-table {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.other-month {
-  opacity: 0.35;
+/* ==== Cartes ponts ==== */
+.pont-card {
+  background: #1f1f1f;
+  border-radius: 8px;
+  padding: 6px 8px;
+  box-shadow: 0 0 4px rgba(0,0,0,0.4);
+  font-size: 0.85em;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-left-width: 4px;
+  border-left-style: solid;
+  transition: transform 0.15s ease;
+}
+.pont-card:hover {
+  transform: scale(1.02);
 }
 
-.event {
-  position: absolute;
-  left: 2px;
-  right: 2px;
-  background: #0a84ff;
-  border-radius: 4px;
-  padding: 2px 5px;
-  font-size: 12px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+.pont-card.ferme { border-left-color: #ff4040; }
+.pont-card.ouvert { border-left-color: #58ff58; }
+.pont-card.manoeuvre { border-left-color: #1c3cff; }
 
-.event.continues-before::before,
-.event.continues-after::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  width: 6px;
-  height: 6px;
-  background: #0a84ff;
+.pastille {
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  transform: translateY(-50%);
+  margin-right: 6px;
+  display: inline-block;
 }
 
-.event.continues-before::before {
-  left: -4px;
-}
-.event.continues-after::after {
-  right: -4px;
+.ferme .pastille { background: #ff4040; }
+.ouvert .pastille { background: #58ff58; }
+.manoeuvre .pastille {
+  background: #1c3cff;
+  animation: pastilleBlink 1s infinite;
 }
 
+@keyframes pastilleBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.pont-nom {
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+}
+
+/* ==== Colonne Calendrier ==== */
+.right {
+  flex: 1;
+  background: #181818;
+  display: flex;
+}
+
+.calendar-wrapper {
+  flex: 1;
+  display: flex;
+}
+
+.calendar-wrapper iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+/* ==== Responsive ==== */
+@media(max-width: 900px) {
+  .container {
+    flex-direction: column;
+    height: auto;
+  }
+  .left {
+    width: 100%;
+    border-right: none;
+    border-bottom: 2px solid #222;
+    max-height: 45vh;
+  }
+  .right {
+    width: 100%;
+    height: 55vh;
+  }
+}
 </style>
 </head>
-<body>
 
-<div class="calendar">
-  <div class="calendar-header">
-    <button id="prevMonth">◀</button>
-    <h2 id="monthLabel"></h2>
-    <button id="nextMonth">▶</button>
+<body>
+<div class="container">
+
+  <!-- Colonne Ponts -->
+  <div class="left">
+    <h2 id="ponts-title">État des Ponts (<span id="countdown">5</span>s)</h2>
+    <div id="ponts-table">Chargement...</div>
   </div>
 
-  <div id="calendarGrid" class="calendar-grid"></div>
+  <!-- Colonne Calendrier -->
+  <div class="right">
+    <div class="calendar-wrapper">
+      <iframe src="https://receptionroulier.github.io/cal/caln.html"></iframe>
+    </div>
+  </div>
+
 </div>
 
 <script>
-/* ===============================================================
-                       CHARGEMENT ICS
-================================================================ */
-const ICS_URL = "URL_DU_CALENDRIER_ICS"; // <<< À REMPLACER
+/* =======================================================================
+    COUNTDOWN SYNCHRONE
+======================================================================= */
+let countdown = 5;
 
-async function loadICS() {
-  const res = await fetch(ICS_URL);
-  const text = await res.text();
-  return parseICS(text);
-}
-
-function parseICS(text) {
-  const events = [];
-  const lines = text.split(/\r?\n/);
-  let event = null;
-
-  for (const line of lines) {
-    if (line.startsWith("BEGIN:VEVENT")) event = {};
-    else if (line.startsWith("END:VEVENT")) events.push(event);
-    else if (event) {
-      if (line.startsWith("DTSTART")) event.start = parseICSTime(line);
-      if (line.startsWith("DTEND"))   event.end   = parseICSTime(line);
-      if (line.startsWith("SUMMARY")) event.title = line.split(":")[1];
-    }
+function tickCountdown() {
+  document.getElementById("countdown").textContent = countdown;
+  countdown--;
+  if (countdown < 0) {
+    countdown = 5;
+    fetchPonts();
   }
-  return events;
 }
+setInterval(tickCountdown, 1000);
 
-function parseICSTime(line) {
-  const value = line.split(":")[1];
-  return new Date(
-    value.substring(0,4),
-    value.substring(4,6)-1,
-    value.substring(6,8)
-  );
-}
 
-/* ===============================================================
-                       CALENDRIER
-================================================================ */
-let currentDate = new Date();
-let events = [];
+/* =======================================================================
+    RÉCUPÉRATION & AFFICHAGE DES PONTS
+======================================================================= */
 
-loadICS().then(ev => {
-  events = ev;
-  renderCalendar();
-});
+async function fetchPonts() {
+  try {
+    const url = encodeURIComponent("https://www.havre-port.com/map/getPonts");
+    const proxy = `https://api.allorigins.win/get?url=${url}`;
 
-/* ====== Génération du calendrier ====== */
-function renderCalendar() {
-  const grid = document.getElementById("calendarGrid");
-  grid.innerHTML = "";
+    const res = await fetch(proxy);
+    const raw = await res.json();
+    const ponts = Object.values(JSON.parse(raw.contents).data);
 
-  const monthLabel = document.getElementById("monthLabel");
-  monthLabel.textContent = currentDate.toLocaleDateString("fr-FR", {
-    month: "long",
-    year: "numeric"
-  });
+    // Suppression des doublons + tri
+    const unique = Array.from(new Map(ponts.map(p => [p.nom, p])).values());
 
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
+    const ordered = unique.sort((a, b) => {
+      const ordre = (p) =>
+        p.statutText.includes("(Manoeuvre") ? 1 :
+        p.statutText.toLowerCase().includes("ouvert") ? 2 : 0;
+      return ordre(a) - ordre(b);
+    });
 
-  const firstDay = new Date(year, month, 1);
-  const lastDay = new Date(year, month + 1, 0);
+    renderPonts(ordered);
 
-  const startDay = (firstDay.getDay() + 6) % 7; // Commence lundi
-  const totalDays = lastDay.getDate();
-
-  const dayNames = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
-  dayNames.forEach(d => {
-    const div = document.createElement("div");
-    div.className = "day-name";
-    div.textContent = d;
-    grid.appendChild(div);
-  });
-
-  for (let i = 0; i < startDay; i++) {
-    const div = document.createElement("div");
-    div.className = "day other-month";
-    grid.appendChild(div);
+  } catch (err) {
+    console.error("Erreur:", err);
+    document.getElementById("ponts-table").textContent =
+      "Impossible de récupérer les ponts.";
   }
-
-  for (let d = 1; d <= totalDays; d++) {
-    const div = document.createElement("div");
-    div.className = "day";
-    div.dataset.date = new Date(year, month, d).toISOString().split("T")[0];
-    div.innerHTML = `<strong>${d}</strong>`;
-    grid.appendChild(div);
-  }
-
-  placeEvents();
 }
 
-/* ===============================================================
-              PLACEMENT DES ÉVÈNEMENTS (barres continues)
-================================================================ */
-function placeEvents() {
-  const days = [...document.querySelectorAll(".day")];
+function renderPonts(list) {
+  const container = document.getElementById("ponts-table");
 
-  events.forEach(ev => {
-    const start = ev.start;
-    const end = new Date(ev.end.getTime() - 86400000); // DTEND = exclusive
+  container.innerHTML = list
+    .map((p) => {
+      const isOpen = p.statutText.toLowerCase().includes("ouvert");
+      const isMove = p.statutText.includes("(Manoeuvre");
+      const stateClass = isMove ? "manoeuvre" : isOpen ? "ouvert" : "ferme";
 
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      const key = d.toISOString().split("T")[0];
-      const cell = days.find(x => x.dataset.date === key);
-      if (!cell) continue;
+      const info = p.forceText || `MàJ : ${p.date}`;
 
-      const bar = document.createElement("div");
-      bar.className = "event";
-      bar.textContent = ev.title;
-
-      if (d.getTime() > start.getTime()) bar.classList.add("continues-before");
-      if (d.getTime() < end.getTime())   bar.classList.add("continues-after");
-
-      cell.appendChild(bar);
-    }
-  });
+      return `
+        <div class="pont-card ${stateClass}">
+          <div class="pont-nom">
+            <span class="pastille"></span>${p.nom}
+          </div>
+          <div class="pont-etat">${p.statutText}</div>
+          <div class="pont-infos">${info}</div>
+        </div>`;
+    })
+    .join("");
 }
 
-/* ===============================================================
-                       NAVIGATION
-================================================================ */
-document.getElementById("prevMonth").onclick = () => {
-  currentDate.setMonth(currentDate.getMonth() - 1);
-  renderCalendar();
-};
-
-document.getElementById("nextMonth").onclick = () => {
-  currentDate.setMonth(currentDate.getMonth() + 1);
-  renderCalendar();
-};
-
+// Initialisation
+fetchPonts();
 </script>
 </body>
 </html>
