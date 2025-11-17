@@ -42,8 +42,8 @@ header h1{margin:0;font-size:24px;color:var(--accent);text-align:center;}
 .day.past{transform:scale(0.95);background:#0f1113;color:#555;}
 /* Zoom sécurisé */
 .day.today:hover,.day.future:hover{transform:scale(1.12);z-index:10;}
-/* Overlay titre complet au zoom */
-.day.zoomed .events .event .title{white-space:normal;overflow:visible;}
+/* Tooltip complet au hover */
+.day:hover .events .event{overflow:visible;white-space:normal;}
 @media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr);}}
 @media(max-width:520px){.grid{grid-template-columns:repeat(1,1fr);}}
 </style>
@@ -83,7 +83,7 @@ const CALENDARS=[
   {id:'smr.programme@gmail.com',key:'smr',css:'c-smr'}
 ];
 const CACHE_TTL=120000;
-const CACHE_KEY='googleCalendarCache_v11';
+const CACHE_KEY='googleCalendarCache_v12';
 
 let WEEKS=4;
 let gridStartDate;
@@ -105,8 +105,7 @@ const fmtDate=d=>d.toISOString().split('T')[0];
 const pad=n=>n<10?'0'+n:n;
 const fmtTime=dt=>dt?pad(new Date(dt).getHours())+':'+pad(new Date(dt).getMinutes()):'';
 const computeGridStart=refDate=>{
-  const d=new Date(refDate);
-  d.setHours(0,0,0,0);
+  const d=new Date(refDate); d.setHours(0,0,0,0);
   const day=d.getDay();
   const mondayThisWeek=new Date(d);
   mondayThisWeek.setDate(d.getDate()-((day+6)%7));
@@ -235,7 +234,7 @@ async function renderCalendar(){
   const todayStr=fmtDate(new Date());
   document.querySelectorAll('.day').forEach(dayEl=>{
     const date=dayEl.dataset.date;
-    dayEl.classList.remove('past','future','today','zoomed');
+    dayEl.classList.remove('past','future','today');
     if(date===todayStr) dayEl.classList.add('today');
     else if(date<todayStr) dayEl.classList.add('past');
     else dayEl.classList.add('future');
@@ -246,12 +245,6 @@ async function renderCalendar(){
   // Mois titre
   const monthNames=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
   monthTitle.textContent = monthNames[dates[0].getMonth()]+' '+dates[0].getFullYear();
-
-  // Ajouter zoom overlay pour afficher titres complets
-  document.querySelectorAll('.day.today,.day.future').forEach(dayEl=>{
-    dayEl.onmouseenter=()=>dayEl.classList.add('zoomed');
-    dayEl.onmouseleave=()=>dayEl.classList.remove('zoomed');
-  });
 }
 
 /* ==========================
