@@ -9,13 +9,11 @@
   --bg:#121212; --card:#1c1f23; --border:#555; --text:#eaeaea;
   --muted:#999; --accent:#00e5ff; --gap:4px; --days-font:14px; --event-font:14px;
 }
-
 body {
   margin:0; font-family:Inter, system-ui, Arial, sans-serif;
   background:var(--bg); color:var(--text); padding:16px; box-sizing:border-box;
   height:100vh; display:flex; flex-direction:column;
 }
-
 .container { flex:1; display:flex; flex-direction:column; max-width:1600px; margin:0 auto; }
 header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:20px; flex-wrap:wrap; }
 header h1 { margin:0; font-size:24px; color:var(--accent); text-align:center; }
@@ -87,7 +85,7 @@ const CALENDARS=[
   {id:'receptionroulier@gmail.com',key:'reception',css:'c-reception'},
   {id:'smr.programme@gmail.com',key:'smr',css:'c-smr'}
 ];
-const CACHE_KEY='googleCalendarCache_v16';
+const CACHE_KEY='googleCalendarCache_v17';
 const CACHE_TTL=120000;
 let WEEKS=4;
 let gridStartDate;
@@ -211,6 +209,7 @@ async function renderCalendar(){
 }
 
 /* ZOOM CLONE */
+let zoomClone=null;
 function applyZoomListeners(){
   document.querySelectorAll('.day.today,.day.future').forEach(dayEl=>{
     dayEl.onmouseenter=()=>{createZoom(dayEl);};
@@ -218,7 +217,6 @@ function applyZoomListeners(){
   });
 }
 
-let zoomClone=null;
 function createZoom(dayEl){
   if(zoomClone) removeZoom();
   const rect=dayEl.getBoundingClientRect();
@@ -234,15 +232,15 @@ function createZoom(dayEl){
   zoomClone.style.transformOrigin='top left';
   const containerRect=gridEl.getBoundingClientRect();
   let left=rect.left-containerRect.left; let top=rect.top-containerRect.top;
-  // Ajuster pour ne pas dépasser
   if(left+rect.width*1.12>containerRect.width) left=containerRect.width-rect.width*1.12;
   if(top+rect.height*1.12>containerRect.height) top=containerRect.height-rect.height*1.12;
+  if(left<0) left=0; if(top<0) top=0;
   zoomClone.style.left=left+'px'; zoomClone.style.top=top+'px';
   zoomClone.style.pointerEvents='none';
   gridEl.appendChild(zoomClone);
 }
 
-function removeZoom(){if(zoomClone){zoomClone.remove(); zoomClone=null;}
+function removeZoom(){if(zoomClone){zoomClone.remove(); zoomClone=null;}}
 
 /* NAVIGATION */
 prevBtn.onclick=()=>{gridStartDate.setDate(gridStartDate.getDate()-7);renderCalendar();};
