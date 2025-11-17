@@ -9,16 +9,20 @@
   --bg:#121212; --card:#1c1f23; --border:#555; --text:#eaeaea; --muted:#999; --accent:#00e5ff;
   --gap:4px; --days-font:14px; --event-font:14px;
 }
-body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:var(--bg);color:var(--text);padding:16px;box-sizing:border-box;height:100vh;display:flex;flex-direction:column;}
+body{
+  margin:0;font-family:Inter,system-ui,Arial,sans-serif;
+  background:var(--bg);color:var(--text);
+  padding:16px;box-sizing:border-box;height:100vh;display:flex;flex-direction:column;
+}
 .container{flex:1;display:flex;flex-direction:column;max-width:1600px;margin:0 auto;}
 header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:20px;flex-wrap:wrap;}
 header h1{margin:0;font-size:24px;color:var(--accent);text-align:center;}
 .nav-buttons{display:flex;gap:8px;align-items:center;}
 .nav-buttons button,.nav-buttons select{background:none;border:none;color:var(--accent);font-size:16px;cursor:pointer;padding:4px 8px;transition:all 0.35s ease;}
 .nav-buttons button:hover,.nav-buttons select:hover{background:rgba(0,229,255,0.2);}
-.calendar{background:var(--card);border-radius:12px;padding:0;flex:1;display:flex;flex-direction:column;box-shadow:0 6px 18px rgba(0,0,0,0.5);overflow:hidden;}
-.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:var(--gap);flex:1;position:relative;}
-.day{background:#141619;border-radius:12px;padding:6px;border:1px solid var(--border);overflow:hidden;position:relative;display:flex;flex-direction:column;transition:transform 0.35s ease,box-shadow 0.35s ease,border-color 0.25s;transform-origin:center top;z-index:1;}
+.calendar{background:var(--card);border-radius:12px;padding:0;flex:1;display:flex;flex-direction:column;box-shadow:0 6px 18px rgba(0,0,0,0.5);overflow:visible;}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:var(--gap);flex:1;position:relative;overflow:visible;}
+.day{background:#141619;border-radius:12px;padding:6px;border:1px solid var(--border);overflow:hidden;position:relative;display:flex;flex-direction:column;transition:transform 0.35s ease,box-shadow 0.35s ease,border-color 0.25s;z-index:1;}
 .day-header{display:flex;justify-content:space-between;align-items:center;font-size:var(--days-font);margin-bottom:2px;}
 .day .date{font-weight:600;font-size:var(--days-font);}
 .events{flex:1 1 auto;display:flex;flex-direction:column;gap:2px;overflow:hidden;}
@@ -30,7 +34,7 @@ header h1{margin:0;font-size:24px;color:var(--accent);text-align:center;}
 .event .title{text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .c-reception{color:#109c53;}
 .c-smr{color:#5768cb;}
-#popup{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#1c1f23;color:#fff;padding:16px;border-radius:12px;box-shadow:0 0 20px rgba(0,0,0,0.8);z-index:20;max-width:90%;min-width:300px;display:none;}
+#popup{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#1c1f23;color:#fff;padding:16px;border-radius:12px;box-shadow:0 0 20px rgba(0,0,0,0.8);z-index:30;max-width:90%;min-width:300px;display:none;}
 #popup h3{margin-top:0;margin-bottom:8px;}
 #popup .close{position:absolute;top:8px;right:12px;cursor:pointer;font-weight:bold;font-size:18px;}
 /* Pulse */
@@ -40,10 +44,10 @@ header h1{margin:0;font-size:24px;color:var(--accent);text-align:center;}
 .day.today::after{content:"";position:absolute;inset:0;border-radius:12px;pointer-events:none;box-shadow:0 0 20px 8px rgba(0,229,255,0.5);}
 .day.future{animation:futurePulse 3s infinite ease-in-out;}
 .day.past{transform:scale(0.95);background:#0f1113;color:#555;}
-/* Zoom sécurisé */
-.day.today:hover,.day.future:hover{transform:scale(1.12);z-index:10;}
-/* Tooltip complet au hover */
-.day:hover .events .event{overflow:visible;white-space:normal;}
+/* Zoom sécurisé sur jour actuel et futur */
+.day.today:hover,.day.future:hover{
+  transform:scale(1.12); z-index:20;
+}
 @media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr);}}
 @media(max-width:520px){.grid{grid-template-columns:repeat(1,1fr);}}
 </style>
@@ -83,7 +87,7 @@ const CALENDARS=[
   {id:'smr.programme@gmail.com',key:'smr',css:'c-smr'}
 ];
 const CACHE_TTL=120000;
-const CACHE_KEY='googleCalendarCache_v12';
+const CACHE_KEY='googleCalendarCache_v13';
 
 let WEEKS=4;
 let gridStartDate;
@@ -166,7 +170,6 @@ async function renderCalendar(){
   }
   gridEl.style.gridTemplateRows=`repeat(${WEEKS},1fr)`;
 
-  // Crée les cases
   dates.forEach(d=>{
     const dayEl=document.createElement('div');
     dayEl.className='day';
@@ -206,13 +209,11 @@ async function renderCalendar(){
     }
   }
 
-  // Remplit les cases avec les événements
   document.querySelectorAll('.day').forEach(dayEl=>{
     const date=dayEl.dataset.date;
     const evList=eventsByDay[date]||[];
     const eventsContainer=dayEl.querySelector('.events');
     eventsContainer.innerHTML='';
-
     evList.slice(0,6).forEach(ev=>{
       const evEl=document.createElement('div');
       const calMeta=CALENDARS.find(c=>c.key===ev.calendarKey);
@@ -221,7 +222,6 @@ async function renderCalendar(){
       evEl.onclick=()=>showPopup(ev.title,ev.allDay?null:fmtTime(ev.start),ev.allDay?null:fmtTime(ev.end),ev.allDay);
       eventsContainer.appendChild(evEl);
     });
-
     if(evList.length>6){
       const more=document.createElement('div');
       more.className='event more';
@@ -230,7 +230,6 @@ async function renderCalendar(){
     }
   });
 
-  // Ajout classes jour passé, actuel, futur
   const todayStr=fmtDate(new Date());
   document.querySelectorAll('.day').forEach(dayEl=>{
     const date=dayEl.dataset.date;
@@ -241,8 +240,6 @@ async function renderCalendar(){
   });
 
   adjustZoomOrigin();
-
-  // Mois titre
   const monthNames=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
   monthTitle.textContent = monthNames[dates[0].getMonth()]+' '+dates[0].getFullYear();
 }
