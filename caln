@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Calendrier SMR - Événements multi-jours en barre continue</title>
+<style>
+:root{
+  --bg:#121212;
+  --card:#1c1f23;
+  --border:#555;
+  --text:#eaeaea;
+  --muted:#999;
+  --accent:#00e5ff;
+  --gap:4px;
+  --days-font:14px;
+  --event-font:14px;
+}
+body{
+  margin:0;
+  font-family:Inter, system-ui, Arial, sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  padding:16px;
+  box-sizing:border-box;
+}
+.container{ max-width:1600px; margin:0 auto; }
+header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:20px; flex-wrap:wrap; }
+header h1{ margin:0; font-size:24px; color:var(--accent); text-align:center; }
+.nav-buttons{ display:flex; gap:8px; align-items:center; }
+.nav-buttons button{ background:none; border:none; color:var(--accent); font-size:16px; cursor:pointer; padding:4px 8px; transition: all 0.35s ease; }
+.nav-buttons button:hover { background: rgba(0,229,255,0.2); }
+
+.calendar{ background:var(--card); border-radius:12px; padding:12px; box-shadow:0 6px 18px rgba(0,0,0,0.5); width:100%; }
+.grid{ display:grid; grid-template-columns: repeat(7,1fr); gap:var(--gap); grid-auto-rows:100px; position:relative; }
+.day{ background:#141619; border-radius:12px; padding:8px; box-sizing:border-box; border:1px solid var(--border); position:relative; overflow:hidden; }
+.day-header{ display:flex; justify-content:space-between; font-size:var(--days-font); margin-bottom:4px; }
+.event-bar{
+  position:absolute;
+  height:18px;
+  background:#5768cb;
+  border-radius:10px;
+  top:70px;
+  left:0;
+  z-index:5;
+  font-size:12px;
+  padding-left:6px;
+  display:flex;
+  align-items:center;
+  overflow:hidden;
+  white-space:nowrap;
+  color:white;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1 id="month-title">Mois</h1>
+    <div class="nav-buttons">
+      <button id="prev-week">&lt;</button>
+      <button id="today-btn">Aujourd'hui</button>
+      <button id="next-week">&gt;</button>
+    </div>
+  </header>
+  <div class="calendar">
+    <div class="grid" id="grid"></div>
+  </div>
+</div>
+
+<script>
+const API_KEY="AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo";
+const CALENDAR_ID="smr.programme@gmail.com";
+const WEEKS=4;
+let gridStartDate;
+
+function fmtDate(d){ return d.toISOString().split("T")[0]; }
+function computeGridStart(reference){
+  const d=new Date(reference);
+  const monday=new Date(d);
+  monday.setDate(d.getDate()-((d.getDay()+6)%7)-7);
+  return monday;
+}
+
+gridStartDate=computeGridStart(new Date());
+let dates=[];
+
+function renderGrid(){
+  const grid=document.getElementById("grid");
+  grid.innerHTML="";
+  dates=[];
+  for(let w=0;w<WEEKS;w++){
+    for(let i=0;i<7;i++){
+      const d=new Date(gridStartDate);
+      d.setDate(gridStartDate.getDate()+w*7+i);
+      dates.push(d);
+      const div=document.createElement("div");
+      div.className="day";
+      div.dataset.date=fmtDate(d);
+      div.innerHTML=`<div class="day-header"><div>${["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"][d.getDay()]}</div><div>${d.getDate()}</div></div>`;
+      grid.appendChild(div);
+    }
+  }
+}
+
+async function fetchEvents(min,max){
+  const url=`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events?key=${API_KEY}&singleEvents=true&orderBy=startTime&timeMin=${min}&timeMax=${max}`;
+  const r=await fetch(url);
+  return r.json();
+}
+
+async function updateEvents(){
+  const min=new Date(dates[0]); min.setHours(0,0,0,0);
+  const max=new Date(dates[dates.length-1]); max.setHours(23,59,59,999);
+
+  const json=await fetchEvents(min.toISOString(),max.toISOString());
+  const items=json.items||[];
+
+  // Pour chaque événement → tracer une barre continue
+  items.forEach(ev=>{
+    const start=ev.start.date ? new Date(ev.start.date+"T00:00:00") : new Date(ev.start.dateTime);
+    const end=ev.end.date ? new Date(ev.end.date+"T00:00:00") : new Date(ev.end.dateTime);
+
+    let s=new Date(start);
+    while(s<end){
+      const key=fmtDate(s);
+      const day=document.querySelector(`.day[data-date="${key}"]`);
+      if(day){
+        const bar=document.createElement("div");
+        bar.className="event-bar";
+        bar.textContent=ev.summary;
+
+        const cellIndex=dates.findIndex(d=>fmtDate(d)===key);
+        if(cellIndex>=0){
+          const dayWidth=day.offsetWidth;
+          let length=0;
+
+          let d2=new Date(s);
+          while(d2<end){
+            const k2=fmtDate(d2);
+            if(!document.querySelector(`.day[data-date="${k2}"]`)) break;
+            length+=dayWidth+4;
+            d2.setDate(d2.getDate()+1);
+          }
+
+          bar.style.width=length+"px";
+          bar.style.left="0px";
+        }
+
+        day.appendChild(bar);
+      }
+      s.setDate(s.getDate()+1);
+    }
+  });
+
+  const monthNames=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+  document.getElementById("month-title").textContent=monthNames[dates[7].getMonth()]+" "+dates[7].getFullYear();
+}
+
+// Navigation
+document.getElementById("prev-week").onclick=()=>{ gridStartDate.setDate(gridStartDate.getDate()-7); renderGrid(); updateEvents(); };
+document.getElementById("next-week").onclick=()=>{ gridStartDate.setDate(gridStartDate.getDate()+7); renderGrid(); updateEvents(); };
+document.getElementById("today-btn").onclick=()=>{ gridStartDate=computeGridStart(new Date()); renderGrid(); updateEvents(); };
+
+renderGrid();
+updateEvents();
+</script>
+</body>
+</html>
