@@ -3,30 +3,36 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ponts HAROPA – Monitoring</title>
-
+<title>Ponts HAROPA – Monitoring + Calendrier</title>
 <style>
 body {
     margin: 0;
     font-family: Arial, sans-serif;
     background: #101010;
     color: #eaeaea;
-}
-.container {
+    display: flex;
     height: 100vh;
-    padding: 14px;
+    overflow: hidden;
+}
+.left { 
+    flex: 0 0 30%;  /* Colonne gauche plus étroite */
+    border-right: 1px solid #444; 
+    padding: 14px; 
+    overflow-y: auto; 
     box-sizing: border-box;
 }
+.right { 
+    flex: 1;  
+    padding: 0; 
+    overflow-y: auto; 
+}
+.container { height: 100%; }
 h2 {
     text-align: center;
     color: #00e5ff;
     margin: 0 0 15px;
 }
-#ponts-table {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
+#ponts-table { display: flex; flex-direction: column; gap: 10px; }
 .pont-card {
     background: #1f1f1f;
     border-radius: 8px;
@@ -37,46 +43,59 @@ h2 {
 }
 .pont-card:hover { transform: scale(1.02); }
 .pont-card.ferme { border-left-color: #ff4040; }
-.pont-card.fermeture { border-left-color: orange; }
-.pont-card.manoeuvre { border-left-color: #1c3cff; }
+.pont-card.fermeture { border-left-color: orange; animation: pulse-orange 1.2s infinite; }
+.pont-card.manoeuvre { border-left-color: #1c3cff; animation: pulse-blue 1.2s infinite; }
 .pont-card.ouvert { border-left-color: #58ff58; }
-
 .pastille { width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; display: inline-block; }
 .ferme .pastille    { background: #ff4040; }
 .fermeture .pastille { background: orange; }
 .manoeuvre .pastille { background: #1c3cff; }
 .ouvert .pastille   { background: #58ff58; }
-
-.pont-card.manoeuvre { animation: pulse-blue 1.2s infinite; }
-.pont-card.fermeture { animation: pulse-orange 1.2s infinite; }
-
 @keyframes pulse-blue {
-    0% { box-shadow: 0 0 5px rgba(28, 60, 255, 0.4); transform: scale(1); }
-    50% { box-shadow: 0 0 20px rgba(28, 60, 255, 0.7); transform: scale(1.02); }
-    100% { box-shadow: 0 0 5px rgba(28, 60, 255, 0.4); transform: scale(1); }
+    0%,100% { box-shadow: 0 0 5px rgba(28,60,255,0.4); transform: scale(1); }
+    50% { box-shadow: 0 0 20px rgba(28,60,255,0.7); transform: scale(1.02); }
 }
 @keyframes pulse-orange {
-    0% { box-shadow: 0 0 5px rgba(255,165,0,0.4); transform: scale(1); }
+    0%,100% { box-shadow: 0 0 5px rgba(255,165,0,0.4); transform: scale(1); }
     50% { box-shadow: 0 0 20px rgba(255,165,0,0.7); transform: scale(1.02); }
-    100% { box-shadow: 0 0 5px rgba(255,165,0,0.4); transform: scale(1); }
 }
-
 .pont-nom { font-weight: bold; display: flex; align-items: center; }
+iframe { width: 100%; height: 100%; border: none; }
 </style>
 </head>
 <body>
-<div class="container">
-    <h2>État des Ponts</h2>
-    <div id="ponts-table">Chargement...</div>
+
+<div class="left">
+    <div class="container">
+        <h2>État des Ponts</h2>
+        <div id="ponts-table">Chargement...</div>
+    </div>
+</div>
+
+<div class="right">
+    <iframe src="https://receptionroulier.github.io/cal/calr.html"></iframe>
 </div>
 
 <script>
+// =====================
+// CONFIGURATION
+// =====================
 const CACHE_KEY_DATA = "pontsData";
 const CACHE_KEY_HASH = "pontsHash";
 const CACHE_KEY_TIME = "pontsCacheTime";
 const CACHE_EXPIRATION = 120000;
 const REFRESH_INTERVAL = 60000;
 
+// Liste de proxys pour fallback
+const PROXIES = [
+    "https://api.allorigins.win/get?url=",
+    "https://cors-anywhere.herokuapp.com/",
+    "https://thingproxy.freeboard.io/fetch/"
+];
+
+// =====================
+// UTILITAIRES
+// =====================
 async function sha256(str) {
     const data = new TextEncoder().encode(str);
     const digest = await crypto.subtle.digest("SHA-256", data);
@@ -85,6 +104,27 @@ async function sha256(str) {
         .join("");
 }
 
+// =====================
+// FETCH AVEC MULTI-PROXY
+// =====================
+async function fetchWithProxies(url) {
+    for (const proxy of PROXIES) {
+        try {
+            const fullUrl = proxy + encodeURIComponent(url);
+            const res = await fetch(fullUrl);
+            if (!res.ok) throw new Error(`Proxy failed: ${res.status}`);
+            const data = await res.json();
+            return data.contents ? data.contents : data;
+        } catch (err) {
+            console.warn(`Échec du proxy ${proxy}:`, err.message);
+        }
+    }
+    throw new Error("Tous les proxys ont échoué");
+}
+
+// =====================
+// LOGIQUE PONTS
+// =====================
 async function checkAndUpdate() {
     const now = Date.now();
     const last = localStorage.getItem(CACHE_KEY_TIME);
@@ -97,11 +137,7 @@ async function checkAndUpdate() {
 
 async function fetchWithHashControl() {
     try {
-        const url = encodeURIComponent("https://www.havre-port.com/map/getPonts");
-        const proxy = `https://api.allorigins.win/get?url=${url}`;
-        const res = await fetch(proxy);
-        const raw = await res.json();
-        const rawContent = raw.contents;
+        const rawContent = await fetchWithProxies("https://www.havre-port.com/map/getPonts");
         const newHash = await sha256(rawContent);
         const oldHash = localStorage.getItem(CACHE_KEY_HASH);
 
@@ -112,7 +148,6 @@ async function fetchWithHashControl() {
 
         const ponts = Object.values(JSON.parse(rawContent).data);
         const unique = Array.from(new Map(ponts.map(p => [p.nom, p])).values());
-
         const ordered = unique.sort((a, b) => {
             const score = p => {
                 const statut = p.statutText.toLowerCase();
@@ -129,8 +164,9 @@ async function fetchWithHashControl() {
         localStorage.setItem(CACHE_KEY_HASH, newHash);
         localStorage.setItem(CACHE_KEY_TIME, Date.now());
         renderPonts(ordered);
+
     } catch (err) {
-        console.error("Erreur:", err);
+        console.error("Erreur récupération ponts:", err);
         document.getElementById("ponts-table").textContent = "Impossible de récupérer les ponts.";
     }
 }
@@ -161,5 +197,6 @@ function renderPonts(list) {
 checkAndUpdate();
 setInterval(checkAndUpdate, REFRESH_INTERVAL);
 </script>
+
 </body>
 </html>
