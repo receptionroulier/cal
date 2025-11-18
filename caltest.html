@@ -144,19 +144,15 @@ header h1 { font-size: 24px; color: var(--accent); text-align:center; }
 </div>
 
 <script>
-/* =====================
-   CONFIGURATION
-===================== */
 const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
 const CALENDARS = [
   { id:'receptionroulier@gmail.com', key:'reception', css:'c-reception'},
   { id:'smr.programme@gmail.com', key:'smr', css:'c-smr'}
 ];
-const CACHE_TTL = 120000; // 120 sec
-
+const CACHE_TTL = 120000;
 const CACHE_PAYLOAD_KEY = 'cal_cache_payload_v1';
-const CACHE_HASH_KEY    = 'cal_cache_hash_v1';
-const CACHE_TS_KEY      = 'cal_cache_ts_v1';
+const CACHE_HASH_KEY = 'cal_cache_hash_v1';
+const CACHE_TS_KEY = 'cal_cache_ts_v1';
 
 let WEEKS = 4;
 let gridStartDate;
@@ -170,27 +166,27 @@ const prevBtn = document.getElementById('prev-week');
 const nextBtn = document.getElementById('next-week');
 const todayBtn = document.getElementById('today-btn');
 
-/* =====================
-   UTILITAIRES
-===================== */
 const fmtDate = d => d.toISOString().split('T')[0];
 const pad = n => n<10?'0'+n:n;
 const fmtTime = dt => dt?pad(new Date(dt).getHours())+':'+pad(new Date(dt).getMinutes()):'';
 const shortTitle = (s,max=60)=> s.length>max?s.slice(0,max-1)+'…':s;
 
-/* Calcul du lundi courant */
+// Crée une date locale à partir de YYYY-MM-DD
+function localDateFromYMD(ymd){
+  const parts = ymd.split('-').map(Number);
+  return new Date(parts[0], parts[1]-1, parts[2]);
+}
+
+// Lundi de la semaine courante
 const computeGridStart = refDate => {
   const d = new Date(refDate);
   d.setHours(0,0,0,0);
   const day = d.getDay();
   const mondayThisWeek = new Date(d);
-  mondayThisWeek.setDate(d.getDate() - ((day + 6) % 7)); // lundi courant
+  mondayThisWeek.setDate(d.getDate() - ((day + 6) % 7));
   return mondayThisWeek;
 };
 
-/* =====================
-   SHA256 helper
-===================== */
 async function sha256Hex(str){
   const enc = new TextEncoder().encode(str);
   const hashBuf = await crypto.subtle.digest('SHA-256', enc);
@@ -198,9 +194,6 @@ async function sha256Hex(str){
   return hashArray.map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 
-/* =====================
-   CACHE
-===================== */
 function loadCachePayload(){
   try{
     const raw = localStorage.getItem(CACHE_PAYLOAD_KEY);
@@ -220,24 +213,15 @@ function getStoredHash(){ return localStorage.getItem(CACHE_HASH_KEY); }
 function saveStoredHash(h){ try{ localStorage.setItem(CACHE_HASH_KEY, h); }catch{} }
 function updateCacheTimestamp(){ try{ localStorage.setItem(CACHE_TS_KEY, Date.now().toString()); }catch{} }
 
-/* =====================
-   FETCH EVENTS
-===================== */
 async function getEvents(timeMin,timeMax){
   const cached = loadCachePayload();
-  if(cached){
-    console.log('Cache payload valide — utilisation sans requête');
-    return cached;
-  }
+  if(cached) return cached;
   const allEvents = {};
   for(const cal of CALENDARS){
     try{
       const items = await fetchEventsForCalendar(cal.id, timeMin, timeMax);
       allEvents[cal.key] = items || [];
-    }catch(err){
-      console.warn('Erreur fetch calendar', cal.id, err);
-      allEvents[cal.key] = [];
-    }
+    }catch{ allEvents[cal.key] = []; }
   }
   const stable = {};
   Object.keys(allEvents).sort().forEach(k=> stable[k] = allEvents[k]);
@@ -250,7 +234,6 @@ async function getEvents(timeMin,timeMax){
   }
   saveCachePayload(allEvents);
   saveStoredHash(newHash);
-  console.log('Nouveau hash — cache mis à jour');
   return allEvents;
 }
 
@@ -262,15 +245,12 @@ async function fetchEventsForCalendar(calId,timeMin,timeMax){
   return data.items || [];
 }
 
-/* =====================
-   RENDER CALENDAR
-===================== */
 async function renderCalendar(){
   const dates = [];
-  for(let w=-1; w<WEEKS-1; w++){ // inclut la semaine passée
+  for(let w=-1; w<WEEKS-1; w++){
     for(let i=0;i<7;i++){
       const d = new Date(gridStartDate);
-      d.setDate(d.getDate()+w*7+i);
+      d.setDate(d.getDate() + w*7 + i);
       dates.push(d);
     }
   }
@@ -279,7 +259,6 @@ async function renderCalendar(){
   gridEl.innerHTML='';
 
   const dayNames = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
-
   dates.forEach(d=>{
     const dayEl=document.createElement('div');
     dayEl.className='day';
@@ -304,8 +283,8 @@ async function renderCalendar(){
       const cal = CALENDARS.find(c=>c.key===key) || {key:key};
 
       if(allDay){
-        let s = new Date(it.start.date);
-        let e = new Date(it.end.date);
+        let s = localDateFromYMD(it.start.date);
+        let e = localDateFromYMD(it.end.date);
         for(let d = new Date(s); d<e; d.setDate(d.getDate()+1)){
           const keyD = fmtDate(d);
           eventsByDay[keyD] = eventsByDay[keyD]||[];
@@ -361,17 +340,11 @@ async function renderCalendar(){
   monthTitle.textContent = monthNames[dates[0].getMonth()]+' '+dates[0].getFullYear();
 }
 
-/* =====================
-   NAVIGATION
-===================== */
 prevBtn.onclick = ()=>{ gridStartDate.setDate(gridStartDate.getDate()-7); renderCalendar(); };
 nextBtn.onclick = ()=>{ gridStartDate.setDate(gridStartDate.getDate()+7); renderCalendar(); };
 todayBtn.onclick = ()=>{ gridStartDate = computeGridStart(new Date()); renderCalendar(); };
 weeksSelect.onchange = e => { WEEKS = parseInt(e.target.value); renderCalendar(); };
 
-/* =====================
-   INIT
-===================== */
 gridStartDate = computeGridStart(new Date());
 renderCalendar();
 setInterval(renderCalendar,60000);
