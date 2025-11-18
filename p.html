@@ -23,17 +23,12 @@ body {
 }
 
 /* ==========================================================================
-   TITRE & COMPTE À REBOURS
+   TITRE
    ========================================================================== */
 h2 {
     text-align: center;
     color: #00e5ff;
     margin: 0 0 15px;
-}
-
-h2 span {
-    color: #ffdd00;
-    font-weight: bold;
 }
 
 /* ==========================================================================
@@ -76,8 +71,7 @@ h2 span {
 .ferme .pastille    { background: #ff4040; }
 .ouvert .pastille   { background: #58ff58; }
 .manoeuvre .pastille {
-    background: #1c3cff; /* couleur fixe */
-    animation: none;
+    background: #1c3cff;
 }
 
 /* ==========================================================================
@@ -113,7 +107,7 @@ h2 span {
 <body>
 <div class="container">
 
-    <h2>État des Ponts (<span id="countdown">15</span>s)</h2>
+    <h2>État des Ponts</h2>
     <div id="ponts-table">Chargement...</div>
 
 </div>
@@ -126,21 +120,7 @@ const CACHE_KEY_DATA = "pontsData";
 const CACHE_KEY_HASH = "pontsHash";
 const CACHE_KEY_TIME = "pontsCacheTime";
 const CACHE_EXPIRATION = 120000; // 120 secondes
-
-let countdown = 15;
-
-/* ==========================================================================
-   COMPTE À REBOURS
-   ========================================================================== */
-function tickCountdown() {
-    document.getElementById("countdown").textContent = countdown;
-    countdown--;
-    if (countdown < 0) {
-        countdown = 15;
-        checkAndUpdate();
-    }
-}
-setInterval(tickCountdown, 1000);
+const REFRESH_INTERVAL = 60000; // 60 secondes
 
 /* ==========================================================================
    SHA-256 HASH
@@ -154,7 +134,7 @@ async function sha256(str) {
 }
 
 /* ==========================================================================
-   LOGIQUE PRINCIPALE : CACHE + HASH
+   VÉRIFICATION ET MISE À JOUR
    ========================================================================== */
 async function checkAndUpdate() {
     const now = Date.now();
@@ -247,6 +227,7 @@ function renderPonts(list) {
    INITIALISATION
    ========================================================================== */
 checkAndUpdate();
+setInterval(checkAndUpdate, REFRESH_INTERVAL);
 </script>
 </body>
 </html>
