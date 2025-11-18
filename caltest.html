@@ -84,6 +84,7 @@ header h1{
   transition: transform 0.35s ease, width 0.35s ease, background 0.25s, box-shadow 0.35s, border-color 0.25s;
 }
 
+/* Jour actuel */
 @keyframes todayPulse {
   0%,100%{ transform: scale(1.08); }
   50%{ transform: scale(1.12); }
@@ -104,6 +105,7 @@ header h1{
   box-shadow:0 0 20px 8px rgba(0,229,255,0.5);
 }
 
+/* Jour futur */
 @keyframes futurePulse {
   0%,100%{ transform: scale(1); }
   50%{ transform: scale(1.02); }
@@ -115,12 +117,14 @@ header h1{
   animation: futurePulse 3s infinite ease-in-out;
 }
 
+/* Jour passé */
 .day.past {
   transform: scale(0.95);
   background:#0f1113;
   color:#555;
 }
 
+/* Zoom au survol pour jour actuel et futur */
 .day.today:hover,
 .day.future:hover {
   animation:none;
@@ -129,6 +133,7 @@ header h1{
   width: 140%;
 }
 
+/* Affichage titres sur une ligne */
 .day .event .title {
   white-space: nowrap;
   overflow: hidden;
@@ -257,49 +262,6 @@ async function fetchEventsForCalendar(calId,timeMin,timeMax){
   return res.json();
 }
 
-/* ------------------------------------------------------------------
-   🔥 ULTRA FAST HASH (FNV-1a + signature minimisée)
------------------------------------------------------------------- */
-let lastEventsHash = null;
-
-// Hash FNV-1a rapide
-function fnv1a(str) {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < str.length; i++) {
-    h ^= str.charCodeAt(i);
-    h = (h * 0x01000193) >>> 0;
-  }
-  return h.toString(16);
-}
-
-function computeEventsHash(eventsByDay) {
-  const keys = Object.keys(eventsByDay).sort();
-  let signature = "";
-
-  for (const day of keys) {
-    const events = eventsByDay[day];
-
-    events.sort((a, b) => {
-      if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
-      if (a.start !== b.start) return (a.start || "").localeCompare(b.start || "");
-      return (a.title || "").localeCompare(b.title || "");
-    });
-
-    for (const ev of events) {
-      signature +=
-        day + "|" +
-        (ev.title || "") + "|" +
-        (ev.start || "") + "|" +
-        (ev.end || "") + "|" +
-        (ev.allDay ? "1" : "0") + "|" +
-        (ev.calendarKey || "") + "\n";
-    }
-  }
-
-  return fnv1a(signature);
-}
-/* ------------------------------------------------------------------ */
-
 function buildDates(start){
   const dates=[];
   for(let w=0;w<WEEKS;w++){
@@ -316,6 +278,16 @@ async function renderCalendar(){
   const dates = buildDates(gridStartDate);
   const monthNames=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
   document.getElementById('month-title').textContent=monthNames[dates[7].getMonth()]+' '+dates[7].getFullYear();
+
+  const gridEl=document.getElementById('grid');
+  gridEl.innerHTML='';
+  dates.forEach(d=>{
+    const dayEl=document.createElement('div');
+    dayEl.className='day';
+    dayEl.dataset.date=fmtDate(d);
+    dayEl.innerHTML=`<div class="day-header"><div class="dow">${['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][d.getDay()]}</div><div class="date">${d.getDate()}</div></div><div class="events"></div>`;
+    gridEl.appendChild(dayEl);
+  });
 
   const timeMin=new Date(dates[0]); timeMin.setHours(0,0,0,0);
   const timeMax=new Date(dates[dates.length-1]); timeMax.setHours(23,59,59,999);
@@ -357,26 +329,6 @@ async function renderCalendar(){
       }
     }
 
-    // 💡 SMART REFRESH — skip si aucun changement
-    const newHash = computeEventsHash(eventsByDay);
-    if (lastEventsHash === newHash) {
-      console.log("Aucune modification détectée → rendu ignoré");
-      return;
-    }
-    lastEventsHash = newHash;
-
-    // --- RENDER GRID ---
-    const gridEl=document.getElementById('grid');
-    gridEl.innerHTML='';
-    dates.forEach(d=>{
-      const dayEl=document.createElement('div');
-      dayEl.className='day';
-      dayEl.dataset.date=fmtDate(d);
-      dayEl.innerHTML=`<div class="day-header"><div class="dow">${['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][d.getDay()]}</div><div class="date">${d.getDate()}</div></div><div class="events"></div>`;
-      gridEl.appendChild(dayEl);
-    });
-
-    // populate
     for(const dayEl of Array.from(document.querySelectorAll('.day'))){
       const date=dayEl.dataset.date;
       const evList=eventsByDay[date]||[];
@@ -427,12 +379,14 @@ async function renderCalendar(){
   }
 }
 
+// navigation
 document.getElementById('prev-week').onclick=()=>{ gridStartDate.setDate(gridStartDate.getDate()-7); renderCalendar(); };
 document.getElementById('next-week').onclick=()=>{ gridStartDate.setDate(gridStartDate.getDate()+7); renderCalendar(); };
 document.getElementById('today-btn').onclick=()=>{ gridStartDate = computeGridStart(new Date()); renderCalendar(); };
 
+// initial render
 renderCalendar();
-setInterval(renderCalendar,8000);
+setInterval(renderCalendar,60000);
 </script>
 </body>
 </html>
