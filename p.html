@@ -6,9 +6,6 @@
 <title>Ponts HAROPA – Monitoring</title>
 
 <style>
-/* ==========================================================================
-   GLOBAL
-   ========================================================================== */
 body {
     margin: 0;
     font-family: Arial, sans-serif;
@@ -22,27 +19,18 @@ body {
     box-sizing: border-box;
 }
 
-/* ==========================================================================
-   TITRE
-   ========================================================================== */
 h2 {
     text-align: center;
     color: #00e5ff;
     margin: 0 0 15px;
 }
 
-/* ==========================================================================
-   LISTE DES PONTS
-   ========================================================================== */
 #ponts-table {
     display: flex;
     flex-direction: column;
     gap: 10px;
 }
 
-/* ==========================================================================
-   CARTE DE PONT
-   ========================================================================== */
 .pont-card {
     background: #1f1f1f;
     border-radius: 8px;
@@ -51,177 +39,138 @@ h2 {
     border-left: 4px solid #444;
     transition: transform 0.15s ease, box-shadow 0.3s ease;
 }
-.pont-card:hover {
-    transform: scale(1.02);
-}
+.pont-card:hover { transform: scale(1.02); }
 
 .pont-card.ferme { border-left-color: #ff4040; }
 .pont-card.ouvert { border-left-color: #58ff58; }
 .pont-card.manoeuvre { border-left-color: #1c3cff; }
 
-/* Pastille */
-.pastille {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    margin-right: 6px;
-    display: inline-block;
-}
+.pastille { width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; display: inline-block; }
+.ferme .pastille { background: #ff4040; }
+.ouvert .pastille { background: #58ff58; }
+.manoeuvre .pastille { background: #1c3cff; }
 
-.ferme .pastille    { background: #ff4040; }
-.ouvert .pastille   { background: #58ff58; }
-.manoeuvre .pastille {
-    background: #1c3cff;
-}
-
-/* ==========================================================================
-   PULSE SUR LA CARTE MANOEUVRE
-   ========================================================================== */
-.pont-card.manoeuvre {
-    animation: pulse 1.2s infinite;
-}
-
+.pont-card.manoeuvre { animation: pulse 1.2s infinite; }
 @keyframes pulse {
-    0% {
-        box-shadow: 0 0 5px rgba(28, 60, 255, 0.4);
-        transform: scale(1);
-    }
-    50% {
-        box-shadow: 0 0 20px rgba(28, 60, 255, 0.7);
-        transform: scale(1.02);
-    }
-    100% {
-        box-shadow: 0 0 5px rgba(28, 60, 255, 0.4);
-        transform: scale(1);
-    }
+    0% { box-shadow: 0 0 5px rgba(28, 60, 255, 0.4); transform: scale(1); }
+    50% { box-shadow: 0 0 20px rgba(28, 60, 255, 0.7); transform: scale(1.02); }
+    100% { box-shadow: 0 0 5px rgba(28, 60, 255, 0.4); transform: scale(1); }
 }
 
-.pont-nom {
-    font-weight: bold;
-    display: flex;
-    align-items: center;
-}
+.pont-nom { font-weight: bold; display: flex; align-items: center; }
 </style>
 </head>
 
 <body>
 <div class="container">
-
     <h2>État des Ponts</h2>
     <div id="ponts-table">Chargement...</div>
-
 </div>
 
 <script>
-/* ==========================================================================
-   CONFIGURATION
-   ========================================================================== */
 const CACHE_KEY_DATA = "pontsData";
 const CACHE_KEY_HASH = "pontsHash";
 const CACHE_KEY_TIME = "pontsCacheTime";
-const CACHE_EXPIRATION = 120000; // 120 secondes
-const REFRESH_INTERVAL = 60000; // 60 secondes
+const CACHE_EXPIRATION = 120000; // 120s
+const REFRESH_INTERVAL = 60000; // 60s
 
-/* ==========================================================================
-   SHA-256 HASH
-   ========================================================================== */
 async function sha256(str) {
     const data = new TextEncoder().encode(str);
     const digest = await crypto.subtle.digest("SHA-256", data);
-    return Array.from(new Uint8Array(digest))
-        .map(b => b.toString(16).padStart(2, "0"))
-        .join("");
+    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2,"0")).join("");
 }
 
-/* ==========================================================================
-   VÉRIFICATION ET MISE À JOUR
-   ========================================================================== */
 async function checkAndUpdate() {
     const now = Date.now();
     const last = localStorage.getItem(CACHE_KEY_TIME);
 
-    if (last && now - last < CACHE_EXPIRATION) {
+    if(last && now - last < CACHE_EXPIRATION) {
         const cached = localStorage.getItem(CACHE_KEY_DATA);
-        if (cached) {
+        if(cached) {
             renderPonts(JSON.parse(cached));
             console.log("⚡ Cache utilisé");
             return;
         }
     }
 
-    await fetchWithHashControl();
+    await fetchWithFallback();
 }
 
-/* ==========================================================================
-   FETCH AVEC CONTRÔLE DE MODIFICATION PAR HASH
-   ========================================================================== */
-async function fetchWithHashControl() {
-    try {
-        const url = encodeURIComponent("https://www.havre-port.com/map/getPonts");
+/* FETCH AVEC FALLBACK AUTOMATIQUE */
+async function fetchWithFallback() {
+    const url = "https://www.havre-port.com/map/getPonts";
+    const proxies = [
+        `https://api.allorigins.org/get?url=${encodeURIComponent(url)}`,
+        `https://corsproxy.io/?${encodeURIComponent(url)}`
+    ];
 
-        /* --------------- VERSION CORRIGÉE : AllOrigins .ORG ---------------- */
-        const proxy = `https://api.allorigins.org/get?url=${url}`;
+    for (let proxy of proxies) {
+        try {
+            const res = await fetch(proxy);
+            if(!res.ok) throw new Error("Proxy indisponible");
 
-        const res = await fetch(proxy);
-        const raw = await res.json();
-        const rawContent = raw.contents;
-
-        const newHash = await sha256(rawContent);
-        const oldHash = localStorage.getItem(CACHE_KEY_HASH);
-
-        if (newHash === oldHash) {
-            const cached = localStorage.getItem(CACHE_KEY_DATA);
-            if (cached) {
-                console.log("✔ Hash identique → aucune requête utile");
-                renderPonts(JSON.parse(cached));
-                return;
+            let rawContent;
+            if(proxy.includes("allorigins")) {
+                const raw = await res.json();
+                rawContent = raw.contents;
+            } else {
+                rawContent = await res.text();
             }
+
+            const newHash = await sha256(rawContent);
+            const oldHash = localStorage.getItem(CACHE_KEY_HASH);
+
+            if(newHash === oldHash) {
+                const cached = localStorage.getItem(CACHE_KEY_DATA);
+                if(cached) {
+                    console.log("✔ Hash identique → cache utilisé");
+                    renderPonts(JSON.parse(cached));
+                    return;
+                }
+            }
+
+            const ponts = Object.values(JSON.parse(rawContent).data);
+            const unique = Array.from(new Map(ponts.map(p => [p.nom,p])).values());
+
+            const ordered = unique.sort((a,b) => {
+                const score = p => {
+                    const statut = p.statutText.toLowerCase();
+                    if(statut.includes("manoeuvre")) return 1;
+                    if(statut.includes("ouvert")) return 2;
+                    return 0;
+                };
+                return score(a)-score(b);
+            });
+
+            localStorage.setItem(CACHE_KEY_DATA, JSON.stringify(ordered));
+            localStorage.setItem(CACHE_KEY_HASH, newHash);
+            localStorage.setItem(CACHE_KEY_TIME, Date.now());
+
+            renderPonts(ordered);
+            return;
+
+        } catch(err) {
+            console.warn("Proxy échoué, tentative suivante...", proxy, err);
         }
-
-        const ponts = Object.values(JSON.parse(rawContent).data);
-        const unique = Array.from(new Map(ponts.map(p => [p.nom, p])).values());
-
-        const ordered = unique.sort((a, b) => {
-            const score = p => {
-                const statut = p.statutText.toLowerCase();
-                if (statut.includes("manoeuvre")) return 1;
-                if (statut.includes("ouvert")) return 2;
-                return 0;
-            };
-            return score(a) - score(b);
-        });
-
-        localStorage.setItem(CACHE_KEY_DATA, JSON.stringify(ordered));
-        localStorage.setItem(CACHE_KEY_HASH, newHash);
-        localStorage.setItem(CACHE_KEY_TIME, Date.now());
-
-        renderPonts(ordered);
-
-    } catch (err) {
-        console.error("Erreur:", err);
-        document.getElementById("ponts-table").textContent =
-            "Impossible de récupérer les ponts.";
     }
+
+    document.getElementById("ponts-table").textContent =
+        "Impossible de récupérer les ponts, tous les proxies ont échoué.";
+    console.error("Tous les proxies ont échoué");
 }
 
-/* ==========================================================================
-   RENDU DES PONTS
-   ========================================================================== */
 function renderPonts(list) {
     const container = document.getElementById("ponts-table");
-
     container.innerHTML = list.map(p => {
         const statut = p.statutText.toLowerCase();
-        const open   = statut.includes("ouvert");
-        const move   = statut.includes("manoeuvre");
-        const cls    = move ? "manoeuvre" : open ? "ouvert" : "ferme";
-        const info   = p.forceText || `MàJ : ${p.date}`;
+        const open = statut.includes("ouvert");
+        const move = statut.includes("manoeuvre");
+        const cls = move ? "manoeuvre" : open ? "ouvert" : "ferme";
+        const info = p.forceText || `MàJ : ${p.date}`;
 
         return `
             <div class="pont-card ${cls}">
-                <div class="pont-nom">
-                    <span class="pastille"></span>${p.nom}
-                </div>
+                <div class="pont-nom"><span class="pastille"></span>${p.nom}</div>
                 <div class="pont-etat">${p.statutText}</div>
                 <div class="pont-infos">${info}</div>
             </div>
@@ -229,9 +178,6 @@ function renderPonts(list) {
     }).join("");
 }
 
-/* ==========================================================================
-   INITIALISATION
-   ========================================================================== */
 checkAndUpdate();
 setInterval(checkAndUpdate, REFRESH_INTERVAL);
 </script>
