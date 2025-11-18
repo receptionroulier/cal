@@ -178,19 +178,19 @@ const fmtDate = d => d.toISOString().split('T')[0];
 const pad = n => n<10?'0'+n:n;
 const fmtTime = dt => dt?pad(new Date(dt).getHours())+':'+pad(new Date(dt).getMinutes()):'';
 const shortTitle = (s,max=60)=> s.length>max?s.slice(0,max-1)+'…':s;
-const computeGridStart = refDate=>{
-  const d = new Date(refDate); d.setHours(0,0,0,0);
+
+/* Correction : calcul du lundi courant */
+const computeGridStart = refDate => {
+  const d = new Date(refDate);
+  d.setHours(0,0,0,0);
   const day = d.getDay();
   const mondayThisWeek = new Date(d);
-  mondayThisWeek.setDate(d.getDate()-((day+6)%7));
-  const mondayLastWeek = new Date(mondayThisWeek);
-  mondayLastWeek.setDate(mondayLastWeek.getDate()-7);
-  return mondayLastWeek;
+  mondayThisWeek.setDate(d.getDate() - ((day + 6) % 7)); // lundi courant
+  return mondayThisWeek;
 };
 
 /* =====================
    SHA256 helper (WebCrypto)
-   retourne une hex-string
 ===================== */
 async function sha256Hex(str){
   const enc = new TextEncoder().encode(str);
@@ -200,13 +200,8 @@ async function sha256Hex(str){
 }
 
 /* =====================
-   CACHE (payload + hash + timestamp)
-   - si cache valide (TTL) -> on renvoie le payload sans requête
-   - sinon : on appelle google, calcule le hash global des réponses
-       -> si hash == ancien_hash : on réutilise le payload (on met à jour le timestamp)
-       -> sinon : on enregistre nouveau payload + hash + timestamp
+   CACHE
 ===================== */
-
 function loadCachePayload(){
   try{
     const raw = localStorage.getItem(CACHE_PAYLOAD_KEY);
@@ -229,20 +224,14 @@ function saveStoredHash(h){ try{ localStorage.setItem(CACHE_HASH_KEY, h); }catch
 function updateCacheTimestamp(){ try{ localStorage.setItem(CACHE_TS_KEY, Date.now().toString()); }catch{} }
 
 /* =====================
-   FETCH EVENTS (avec hash global)
-   - retourne un objet { calendarKey: items[] }
+   FETCH EVENTS
 ===================== */
-
 async function getEvents(timeMin,timeMax){
-  // 1) si cache payload encore valide -> retour direct (AUCUNE requête)
   const cached = loadCachePayload();
   if(cached){
     console.log('Cache payload valide — utilisation sans requête');
     return cached;
   }
-
-  // 2) sinon on doit appeler Google pour récupérer nouvelles données,
-  //    puis comparer hash global pour savoir si on remplace le cache.
   const allEvents = {};
   for(const cal of CALENDARS){
     try{
@@ -253,41 +242,21 @@ async function getEvents(timeMin,timeMax){
       allEvents[cal.key] = [];
     }
   }
-
-  // 3) calculer hash global à partir du payload (stringifié de manière stable)
-  //    on trie les clés pour assurer stabilité
   const stable = {};
   Object.keys(allEvents).sort().forEach(k=> stable[k] = allEvents[k]);
   const payloadStr = JSON.stringify(stable);
   const newHash = await sha256Hex(payloadStr);
-
   const oldHash = getStoredHash();
-  if(oldHash && oldHash === newHash){
-    // Pas de changement : on réutilise l'ancien payload si présent (même si TTL perdu)
-    const existing = (() => {
-      try{
-        const raw = localStorage.getItem(CACHE_PAYLOAD_KEY);
-        return raw ? JSON.parse(raw) : null;
-      }catch{ return null; }
-    })();
-    if(existing){
-      console.log('Hash identique — réutilisation du cache existant (mise à jour du timestamp)');
-      updateCacheTimestamp();
-      return existing;
-    }
-    // si pas d'ancien payload, sauvegarder le nouveau
+  if(oldHash && oldHash===newHash){
+    const existing = (()=>{ try{ const raw=localStorage.getItem(CACHE_PAYLOAD_KEY); return raw?JSON.parse(raw):null; }catch{return null;} })();
+    if(existing){ updateCacheTimestamp(); return existing; }
   }
-
-  // 4) nouveau hash -> sauvegarder payload + hash + ts
   saveCachePayload(allEvents);
   saveStoredHash(newHash);
   console.log('Nouveau hash — cache mis à jour');
   return allEvents;
 }
 
-/* =====================
-   FETCH helper (inchangé)
-===================== */
 async function fetchEventsForCalendar(calId,timeMin,timeMax){
   const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime&maxResults=2500`;
   const res = await fetch(url);
@@ -297,7 +266,7 @@ async function fetchEventsForCalendar(calId,timeMin,timeMax){
 }
 
 /* =====================
-   RENDER CALENDAR (inchangé)
+   RENDER CALENDAR
 ===================== */
 async function renderCalendar(){
   const dates=[];
@@ -312,11 +281,13 @@ async function renderCalendar(){
   gridEl.style.gridTemplateRows = `repeat(${WEEKS},1fr)`;
   gridEl.innerHTML='';
 
+  const dayNames = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+
   dates.forEach(d=>{
     const dayEl=document.createElement('div');
     dayEl.className='day';
     dayEl.dataset.date=fmtDate(d);
-    dayEl.innerHTML = `<div class="day-header"><div>${['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][d.getDay()]}</div><div class="date">${d.getDate()}</div></div><div class="events"></div>`;
+    dayEl.innerHTML = `<div class="day-header"><div>${dayNames[(d.getDay()+6)%7]}</div><div class="date">${d.getDate()}</div></div><div class="events"></div>`;
     gridEl.appendChild(dayEl);
   });
 
