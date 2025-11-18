@@ -1,270 +1,44 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ponts HAROPA & Calendrier Temps Réel</title>
-
-<style>
-body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: #101010;
-    color: #eaeaea;
-}
-
-.container {
-    display: flex;
-    height: 100vh;
-    flex-wrap: nowrap;
-}
-
-/* Colonne Ponts */
-.left {
-    background: #252525;
-    width: 22%;
-    min-width: 200px;
-    padding: 8px;
-    overflow-y: auto;
-    box-sizing: border-box;
-    border-right: 2px solid #222;
-}
-
-h2 {
-    text-align: center;
-    color: #00e5ff;
-    margin: 0 0 10px;
-    font-size: 1.2em;
-}
-
-#ponts-table {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.pont-card {
-    background: #1f1f1f;
-    border-radius: 8px;
-    padding: 6px 8px;
-    box-shadow: 0 0 4px rgba(0,0,0,0.4);
-    font-size: 0.85em;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    border-left-width: 4px;
-    border-left-style: solid;
-    transition: transform 0.15s ease, box-shadow 0.3s ease;
-}
-.pont-card:hover { transform: scale(1.02); }
-.pont-card.ferme { border-left-color: #ff4040; }
-.pont-card.ouvert { border-left-color: #58ff58; }
-.pont-card.manoeuvre { border-left-color: #1c3cff; }
-
-.pastille {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    margin-right: 6px;
-    display: inline-block;
-}
-.ferme .pastille { background: #ff4040; }
-.ouvert .pastille { background: #58ff58; }
-.manoeuvre .pastille { background: #1c3cff; }
-
-.pont-card.manoeuvre {
-    animation: pulse 1.2s infinite;
-}
-@keyframes pulse {
-    0% { box-shadow: 0 0 5px rgba(28,60,255,0.4); transform: scale(1); }
-    50% { box-shadow: 0 0 20px rgba(28,60,255,0.7); transform: scale(1.02); }
-    100% { box-shadow: 0 0 5px rgba(28,60,255,0.4); transform: scale(1); }
-}
-
-.pont-nom { font-weight: bold; display: flex; align-items: center; }
-
-/* Colonne Calendrier */
-.right {
-    flex: 1;
-    background: #181818;
-    padding: 8px;
-    overflow-y: auto;
-    box-sizing: border-box;
-}
-
-/* Contenu calendrier */
-#calendar-content {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-/* Responsive */
-@media(max-width: 900px) {
-    .container { flex-direction: column; height: auto; }
-    .left { width: 100%; border-right: none; border-bottom: 2px solid #222; max-height: 45vh; }
-    .right { width: 100%; height: 55vh; }
-}
-</style>
-</head>
-
-<body>
-<div class="container">
-
-    <!-- Colonne Ponts -->
-    <div class="left">
-        <h2>État des Ponts</h2>
-        <div id="ponts-table">Chargement...</div>
-    </div>
-
-    <!-- Colonne Calendrier -->
-    <div class="right">
-        <h2>Calendrier</h2>
-        <div id="calendar-content">Chargement...</div>
-    </div>
-
+<div class="right">
+  <h2>Calendrier</h2>
+  <div id="calendar-wrapper"></div>
 </div>
 
 <script>
-/* ===================== CONFIGURATION ===================== */
-const CACHE_PONTS_KEY_DATA = "pontsData";
-const CACHE_PONTS_KEY_HASH = "pontsHash";
-const CACHE_PONTS_KEY_TIME = "pontsCacheTime";
+// ==================== CALENDRIER DANS DASHBOARD ====================
+const CACHE_CAL_HTML = "cal_html_cache";
+const CACHE_CAL_HASH = "cal_html_hash";
+const CACHE_EXP_CAL = 120000; // 120 s
 
-const CACHE_CAL_KEY_DATA = "calendarData";
-const CACHE_CAL_KEY_HASH = "calendarHash";
-const CACHE_CAL_KEY_TIME = "calendarCacheTime";
+async function loadCalendarHTML() {
+  try {
+    const res = await fetch("https://receptionroulier.github.io/cal/calr.html");
+    const html = await res.text();
 
-const CACHE_EXPIRATION = 120000; // 120 s
-const REFRESH_INTERVAL = 60000; // 60 s
+    // hash pour vérifier si le contenu a changé
+    const newHash = await sha256Hex(html);
+    const oldHash = localStorage.getItem(CACHE_CAL_HASH);
 
-/* ===================== UTIL SHA-256 ===================== */
-async function sha256(str) {
-    const data = new TextEncoder().encode(str);
-    const digest = await crypto.subtle.digest("SHA-256", data);
-    return Array.from(new Uint8Array(digest))
-        .map(b => b.toString(16).padStart(2, "0"))
-        .join("");
-}
-
-/* ===================== PONTS ===================== */
-async function checkAndUpdatePonts() {
-    const now = Date.now();
-    const last = localStorage.getItem(CACHE_PONTS_KEY_TIME);
-
-    if (last && now - last < CACHE_EXPIRATION) {
-        const cached = localStorage.getItem(CACHE_PONTS_KEY_DATA);
-        if (cached) { renderPonts(JSON.parse(cached)); return; }
+    if(oldHash && oldHash === newHash){
+      console.log("Calendrier inchangé — utilisation cache");
+      document.getElementById("calendar-wrapper").innerHTML = localStorage.getItem(CACHE_CAL_HTML);
+      return;
     }
-    await fetchPonts();
+
+    // Mise à jour du cache
+    localStorage.setItem(CACHE_CAL_HTML, html);
+    localStorage.setItem(CACHE_CAL_HASH, newHash);
+    localStorage.setItem("cal_html_ts", Date.now());
+
+    document.getElementById("calendar-wrapper").innerHTML = html;
+    console.log("Nouveau calendrier chargé");
+
+  } catch(e){
+    console.error("Erreur calendrier:", e);
+    document.getElementById("calendar-wrapper").textContent = "Impossible de charger le calendrier.";
+  }
 }
 
-async function fetchPonts() {
-    try {
-        const url = encodeURIComponent("https://www.havre-port.com/map/getPonts");
-        const proxy = `https://api.allorigins.win/get?url=${url}`;
-        const res = await fetch(proxy);
-        const raw = await res.json();
-        const rawContent = raw.contents;
-
-        const newHash = await sha256(rawContent);
-        const oldHash = localStorage.getItem(CACHE_PONTS_KEY_HASH);
-        if (newHash === oldHash) {
-            const cached = localStorage.getItem(CACHE_PONTS_KEY_DATA);
-            if (cached) { renderPonts(JSON.parse(cached)); return; }
-        }
-
-        const ponts = Object.values(JSON.parse(rawContent).data);
-        const unique = Array.from(new Map(ponts.map(p => [p.nom,p])).values());
-        const ordered = unique.sort((a,b)=>{
-            const score = p => {
-                const s = p.statutText.toLowerCase();
-                if (s.includes("manoeuvre")) return 1;
-                if (s.includes("ouvert")) return 2;
-                return 0;
-            }; return score(a)-score(b);
-        });
-
-        localStorage.setItem(CACHE_PONTS_KEY_DATA, JSON.stringify(ordered));
-        localStorage.setItem(CACHE_PONTS_KEY_HASH, newHash);
-        localStorage.setItem(CACHE_PONTS_KEY_TIME, Date.now());
-
-        renderPonts(ordered);
-
-    } catch(e) {
-        console.error("Erreur ponts:", e);
-        document.getElementById("ponts-table").textContent = "Impossible de récupérer les ponts.";
-    }
-}
-
-function renderPonts(list) {
-    const container = document.getElementById("ponts-table");
-    container.innerHTML = list.map(p=>{
-        const s = p.statutText.toLowerCase();
-        const cls = s.includes("manoeuvre") ? "manoeuvre" : s.includes("ouvert") ? "ouvert" : "ferme";
-        const info = p.forceText || `MàJ : ${p.date}`;
-        return `<div class="pont-card ${cls}">
-            <div class="pont-nom"><span class="pastille"></span>${p.nom}</div>
-            <div class="pont-etat">${p.statutText}</div>
-            <div class="pont-infos">${info}</div>
-        </div>`;
-    }).join("");
-}
-
-/* ===================== CALENDRIER ===================== */
-async function checkAndUpdateCalendar() {
-    const now = Date.now();
-    const last = localStorage.getItem(CACHE_CAL_KEY_TIME);
-
-    if (last && now - last < CACHE_EXPIRATION) {
-        const cached = localStorage.getItem(CACHE_CAL_KEY_DATA);
-        if (cached) { renderCalendar(JSON.parse(cached)); return; }
-    }
-    await fetchCalendar();
-}
-
-async function fetchCalendar() {
-    try {
-        const url = "https://receptionroulier.github.io/cal/calr.json"; // JSON calendrier
-        const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-        const res = await fetch(proxy);
-        const raw = await res.json();
-        const rawContent = raw.contents;
-
-        const newHash = await sha256(rawContent);
-        const oldHash = localStorage.getItem(CACHE_CAL_KEY_HASH);
-        if (newHash === oldHash) {
-            const cached = localStorage.getItem(CACHE_CAL_KEY_DATA);
-            if (cached) { renderCalendar(JSON.parse(cached)); return; }
-        }
-
-        const data = JSON.parse(rawContent);
-        localStorage.setItem(CACHE_CAL_KEY_DATA, JSON.stringify(data));
-        localStorage.setItem(CACHE_CAL_KEY_HASH, newHash);
-        localStorage.setItem(CACHE_CAL_KEY_TIME, Date.now());
-
-        renderCalendar(data);
-
-    } catch(e) {
-        console.error("Erreur calendrier:", e);
-        document.getElementById("calendar-content").textContent = "Impossible de récupérer le calendrier.";
-    }
-}
-
-function renderCalendar(list) {
-    const container = document.getElementById("calendar-content");
-    container.innerHTML = list.map(ev=>{
-        return `<div style="padding:6px 8px; background:#1f1f1f; border-radius:6px; box-shadow:0 0 4px rgba(0,0,0,0.3)">
-            <strong>${ev.title}</strong> <br> ${ev.date} ${ev.info || ""}
-        </div>`;
-    }).join("");
-}
-
-/* ===================== INITIALISATION ===================== */
-checkAndUpdatePonts();
-checkAndUpdateCalendar();
-setInterval(checkAndUpdatePonts, REFRESH_INTERVAL);
-setInterval(checkAndUpdateCalendar, REFRESH_INTERVAL);
+// Refresh automatique toutes les 60 secondes
+loadCalendarHTML();
+setInterval(loadCalendarHTML, 60000);
 </script>
-</body>
-</html>
