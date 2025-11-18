@@ -180,9 +180,12 @@ async function fetchWithHashControl() {
         const unique = Array.from(new Map(ponts.map(p => [p.nom, p])).values());
 
         const ordered = unique.sort((a, b) => {
-            const score = p =>
-                p.statutText.includes("(Manoeuvre") ? 1 :
-                p.statutText.toLowerCase().includes("ouvert") ? 2 : 0;
+            const score = p => {
+                const statut = p.statutText.toLowerCase();
+                if (statut.includes("manoeuvre")) return 1;
+                if (statut.includes("ouvert")) return 2;
+                return 0;
+            };
             return score(a) - score(b);
         });
 
@@ -206,10 +209,11 @@ function renderPonts(list) {
     const container = document.getElementById("ponts-table");
 
     container.innerHTML = list.map(p => {
-        const open  = p.statutText.toLowerCase().includes("ouvert");
-        const move  = p.statutText.includes("(Manoeuvre");
-        const cls   = move ? "manoeuvre" : open ? "ouvert" : "ferme";
-        const info  = p.forceText || `MàJ : ${p.date}`;
+        const statut = p.statutText.toLowerCase();
+        const open   = statut.includes("ouvert");
+        const move   = statut.includes("manoeuvre");
+        const cls    = move ? "manoeuvre" : open ? "ouvert" : "ferme";
+        const info   = p.forceText || `MàJ : ${p.date}`;
 
         return `
             <div class="pont-card ${cls}">
