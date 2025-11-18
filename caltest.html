@@ -1,14 +1,12 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ponts HAROPA & Calendrier</title>
 
 <style>
-/* =========================================================
-   STYLE GLOBAL (identique à ton code d’origine, propre)
-   ========================================================= */
+/* ==== Styles généraux ==== */
 body {
   margin: 0;
   font-family: Arial, sans-serif;
@@ -45,6 +43,7 @@ h2 {
   color: #ffdd00;
 }
 
+/* Liste */
 #ponts-table {
   display: flex;
   flex-direction: column;
@@ -65,12 +64,11 @@ h2 {
   border-left-style: solid;
   transition: transform 0.15s ease;
 }
-
 .pont-card:hover {
   transform: scale(1.02);
 }
 
-.pont-card.ferme  { border-left-color: #ff4040; }
+.pont-card.ferme { border-left-color: #ff4040; }
 .pont-card.ouvert { border-left-color: #58ff58; }
 .pont-card.manoeuvre { border-left-color: #1c3cff; }
 
@@ -82,8 +80,8 @@ h2 {
   display: inline-block;
 }
 
-.ferme .pastille    { background: #ff4040; }
-.ouvert .pastille   { background: #58ff58; }
+.ferme .pastille { background: #ff4040; }
+.ouvert .pastille { background: #58ff58; }
 .manoeuvre .pastille {
   background: #1c3cff;
   animation: pastilleBlink 1s infinite;
@@ -100,7 +98,7 @@ h2 {
   align-items: center;
 }
 
-/* ==== Calendrier ==== */
+/* ==== Colonne Calendrier ==== */
 .right {
   flex: 1;
   background: #181818;
@@ -141,11 +139,13 @@ h2 {
 <body>
 <div class="container">
 
+  <!-- Colonne Ponts -->
   <div class="left">
     <h2 id="ponts-title">État des Ponts (<span id="countdown">15</span>s)</h2>
     <div id="ponts-table">Chargement...</div>
   </div>
 
+  <!-- Colonne Calendrier -->
   <div class="right">
     <div class="calendar-wrapper">
       <iframe src="https://receptionroulier.github.io/cal/calr.html"></iframe>
@@ -155,126 +155,45 @@ h2 {
 </div>
 
 <script>
-/* ============================================================================
-   CONFIG CACHE
-============================================================================ */
-const CACHE_KEY = "PONTS_CACHE_PAYLOAD";
-const CACHE_HASH = "PONTS_CACHE_HASH";
-const CACHE_TIME = "PONTS_CACHE_TIME";
-const TTL = 120 * 1000; // 120s
-
-/* ============================================================================
-   HASH SHA-256 (ultra-rapide et natif)
-============================================================================ */
-async function sha256(str) {
-  const data = new TextEncoder().encode(str);
-  const hash = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hash))
-    .map(b => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-/* ============================================================================
-   CACHE : vérification & stockage
-============================================================================ */
-function getCachedPonts() {
-  const payload = localStorage.getItem(CACHE_KEY);
-  const hash = localStorage.getItem(CACHE_HASH);
-  const time = localStorage.getItem(CACHE_TIME);
-
-  if (!payload || !hash || !time) return null;
-  if (Date.now() - parseInt(time) > TTL) return null;
-
-  return { payload: JSON.parse(payload), hash };
-}
-
-function saveCache(payload, hash) {
-  localStorage.setItem(CACHE_KEY, JSON.stringify(payload));
-  localStorage.setItem(CACHE_HASH, hash);
-  localStorage.setItem(CACHE_TIME, Date.now().toString());
-}
-
-/* ============================================================================
-   COUNTDOWN
-============================================================================ */
+/* =======================================================================
+    COUNTDOWN SYNCHRONE
+======================================================================= */
 let countdown = 15;
-setInterval(() => {
+
+function tickCountdown() {
   document.getElementById("countdown").textContent = countdown;
   countdown--;
   if (countdown < 0) {
     countdown = 15;
     fetchPonts();
   }
-}, 1000);
-
-/* ============================================================================
-   AFFICHAGE
-============================================================================ */
-function renderPonts(list) {
-  const container = document.getElementById("ponts-table");
-
-  container.innerHTML = list.map(p => {
-    const isOpen = p.statutText.toLowerCase().includes("ouvert");
-    const isMove = p.statutText.includes("(Manoeuvre");
-    const stateClass = isMove ? "manoeuvre" : isOpen ? "ouvert" : "ferme";
-    const info = p.forceText || `MàJ : ${p.date}`;
-
-    return `
-      <div class="pont-card ${stateClass}">
-        <div class="pont-nom">
-          <span class="pastille"></span>${p.nom}
-        </div>
-        <div class="pont-etat">${p.statutText}</div>
-        <div class="pont-infos">${info}</div>
-      </div>`;
-  }).join("");
 }
+setInterval(tickCountdown, 1000);
 
-/* ============================================================================
-   FETCH + HASH + CACHE INTELLIGENT
-============================================================================ */
+
+/* =======================================================================
+    RÉCUPÉRATION & AFFICHAGE DES PONTS
+======================================================================= */
+
 async function fetchPonts() {
   try {
-    // 1) TENTER CACHE
-    const cached = getCachedPonts();
-    if (cached) {
-      console.log("✔ Cache valide — utilisation sans requête");
-      renderPonts(cached.payload);
-      return;
-    }
-
-    // 2) FETCH GOOGLE
     const url = encodeURIComponent("https://www.havre-port.com/map/getPonts");
     const proxy = `https://api.allorigins.win/get?url=${url}`;
 
     const res = await fetch(proxy);
     const raw = await res.json();
-    const data = JSON.parse(raw.contents).data;
+    const ponts = Object.values(JSON.parse(raw.contents).data);
 
-    const unique = Array.from(new Map(
-      Object.values(data).map(p => [p.nom, p])
-    ).values());
+    // Suppression des doublons + tri
+    const unique = Array.from(new Map(ponts.map(p => [p.nom, p])).values());
 
     const ordered = unique.sort((a, b) => {
-      const ordre = p =>
+      const ordre = (p) =>
         p.statutText.includes("(Manoeuvre") ? 1 :
         p.statutText.toLowerCase().includes("ouvert") ? 2 : 0;
       return ordre(a) - ordre(b);
     });
 
-    // 3) HASH & COMPARAISON
-    const payloadStr = JSON.stringify(ordered);
-    const newHash = await sha256(payloadStr);
-
-    if (cached && cached.hash === newHash) {
-      console.log("✔ Hash identique — skip requête Google");
-      return;
-    }
-
-    // 4) STOCKAGE CACHE
-    saveCache(ordered, newHash);
-
-    // 5) AFFICHAGE
     renderPonts(ordered);
 
   } catch (err) {
@@ -284,11 +203,31 @@ async function fetchPonts() {
   }
 }
 
-/* ============================================================================
-   INITIALISATION
-============================================================================ */
+function renderPonts(list) {
+  const container = document.getElementById("ponts-table");
+
+  container.innerHTML = list
+    .map((p) => {
+      const isOpen = p.statutText.toLowerCase().includes("ouvert");
+      const isMove = p.statutText.includes("(Manoeuvre");
+      const stateClass = isMove ? "manoeuvre" : isOpen ? "ouvert" : "ferme";
+
+      const info = p.forceText || `MàJ : ${p.date}`;
+
+      return `
+        <div class="pont-card ${stateClass}">
+          <div class="pont-nom">
+            <span class="pastille"></span>${p.nom}
+          </div>
+          <div class="pont-etat">${p.statutText}</div>
+          <div class="pont-infos">${info}</div>
+        </div>`;
+    })
+    .join("");
+}
+
+// Initialisation
 fetchPonts();
 </script>
-
 </body>
 </html>
