@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+"<!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="utf-8" />
@@ -309,7 +309,7 @@ async function getEvents(timeMin,timeMax){
    FETCH helper
 ===================== */
 async function fetchEventsForCalendar(calId,timeMin,timeMax){
-  const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime&maxResults=2500`;
+  const url = https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime&maxResults=2500;
   const res = await fetch(url);
   if(!res.ok) throw new Error(res.status);
   const data = await res.json();
@@ -329,14 +329,14 @@ async function renderCalendar(){
     }
   }
 
-  gridEl.style.gridTemplateRows = `repeat(${WEEKS},1fr)`;
+  gridEl.style.gridTemplateRows = repeat(${WEEKS},1fr);
   gridEl.innerHTML='';
 
   dates.forEach(d=>{
     const dayEl=document.createElement('div');
     dayEl.className='day';
     dayEl.dataset.date=fmtDate(d);
-    dayEl.innerHTML = `<div class="day-header"><div>${['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][d.getDay()]}</div><div class="date">${d.getDate()}</div></div><div class="events"></div>`;
+    dayEl.innerHTML = <div class="day-header"><div>${['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][d.getDay()]}</div><div class="date">${d.getDate()}</div></div><div class="events"></div>;
     gridEl.appendChild(dayEl);
   });
 
@@ -382,13 +382,13 @@ async function renderCalendar(){
     evList.slice(0,6).forEach(ev=>{
       const evEl=document.createElement('div');
       const calMeta = CALENDARS.find(c=>c.key===ev.calendarKey);
-      evEl.className='event '+(ev.allDay?'allDay':'')+(calMeta?` ${calMeta.css}`:'');
-      evEl.innerHTML=`<div class="time">${ev.allDay?'':fmtTime(ev.start)}</div><div class="title">${shortTitle(ev.title,80)}</div>`;
+      evEl.className='event '+(ev.allDay?'allDay':'')+(calMeta? ${calMeta.css}:'');
+      evEl.innerHTML=<div class="time">${ev.allDay?'':fmtTime(ev.start)}</div><div class="title">${shortTitle(ev.title,80)}</div>;
       evEl.onclick = ()=>{
         let startText = ev.allDay?'Toute la journée':fmtTime(ev.start);
         let endText = ev.allDay?'':fmtTime(ev.end);
         popupTitle.textContent = ev.title;
-        popupTime.textContent = ev.allDay?'Toute la journée':`${startText} → ${endText}`;
+        popupTime.textContent = ev.allDay?'Toute la journée':${startText} → ${endText};
         popup.style.display='block';
       };
       eventsContainer.appendChild(evEl);
@@ -397,7 +397,7 @@ async function renderCalendar(){
     if(evList.length>6){
       const more=document.createElement('div');
       more.className='event more';
-      more.textContent=`+ ${evList.length-6} autres`;
+      more.textContent=+ ${evList.length-6} autres;
       eventsContainer.appendChild(more);
     }
   });
@@ -431,4 +431,4 @@ renderCalendar();
 setInterval(renderCalendar,60000);
 </script>
 </body>
-</html
+</html"
