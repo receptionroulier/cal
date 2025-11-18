@@ -3,57 +3,261 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Calendrier 3-4 semaines - sombre + couleurs navire</title>
+<title>Calendrier 3-4 semaines - sombre avec couleurs navire</title>
 <style>
-:root{
-  --bg:#121212;
-  --card:#1c1f23;
-  --border:#555;
-  --text:#eaeaea;
-  --muted:#999;
-  --accent:#00e5ff;
-  --gap:4px;
-  --days-font:14px;
-  --event-font:14px;
-  --weeks:3;
+:root {
+  --bg: #121212;
+  --card: #1c1f23;
+  --border: #555;
+  --text: #eaeaea;
+  --muted: #999;
+  --accent: #00e5ff;
+  --gap: 4px;
+  --days-font: 14px;
+  --event-font: 14px;
+  --weeks: 3;
 }
-html, body{height:100%; margin:0; padding:0; box-sizing:border-box;}
-body{font-family:Inter,system-ui,Arial,sans-serif; background:var(--bg); color:var(--text); display:flex; flex-direction:column;}
-.container{flex:1; display:flex; flex-direction:column; padding:16px;}
-header{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:20px; flex-wrap:wrap;}
-header h1{margin:0; font-size:24px; color:var(--accent); text-align:center;}
-.nav-buttons{display:flex; gap:8px; align-items:center;}
-.nav-buttons button, .week-selector select{background:none; border:none; color:var(--accent); font-size:16px; cursor:pointer; padding:4px 8px; transition:0.35s;}
-.nav-buttons button:hover, .week-selector select:hover{background: rgba(0,229,255,0.2);}
-.week-selector{margin-left:auto; display:flex; align-items:center; gap:4px;}
-.week-selector label{color: var(--accent); font-size:16px;}
-.calendar{flex:1; background:var(--card); border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,0.5); display:flex; flex-direction:column;}
-.grid{display:grid; grid-template-columns:repeat(7,1fr); grid-template-rows:repeat(var(--weeks),1fr); gap:var(--gap); flex:1;}
-.day{background:#141619; border-radius:12px; padding:8px; border:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; position:relative; transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s;}
-.day.today{animation:pulse-today 3s infinite ease-in-out; background:#1f2226; border:2px solid var(--accent); z-index:2;}
-.day.today::after{content:""; position:absolute; inset:0; border-radius:12px; pointer-events:none; box-shadow:0 0 20px 8px rgba(0,229,255,0.5);}
-.day.future{animation:pulse-future 3s infinite ease-in-out; background:#1c1f23; color:#eaeaea;}
-.day.past{background:#0f1113; color:#555;}
-.day.today:hover, .day.future:hover{box-shadow:0 0 25px 10px rgba(0,229,255,0.4);}
-.day.expand-on-hover{transform:scale(1.12); z-index:10;}
-.day .day-header{display:flex; justify-content:space-between; align-items:center; font-size:var(--days-font); margin-bottom:2px;}
-.day .date{font-weight:600; font-size:var(--days-font);}
-.events{flex:1 1 auto; display:flex; flex-direction:column; gap:2px; overflow:hidden;}
-.event{display:flex; align-items:center; gap:4px; padding:2px 4px; font-size:var(--event-font); border-radius:6px; background: rgba(0,0,0,0.3); cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition: background 0.25s ease;}
-.event:hover{background: rgba(0,0,0,0.5);}
-.event .time{min-width:50px; font-weight:600; font-size:11px;}
-.event.allDay .time{display:none;}
-.event.more{font-size:12px; color:var(--muted); padding-left:6px;}
-.event .title{text-align:left; display:inline-block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.c-reception{color:#109c53;}
-.c-smr{color:#5768cb;}
-#popup{position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#1c1f23; color:#fff; padding:16px; border-radius:12px; box-shadow:0 0 20px rgba(0,0,0,0.8); z-index:20; max-width:90%; min-width:300px; display:none; border:3px solid #00e5ff;}
-#popup h3{margin-top:0; margin-bottom:8px;}
-#popup .close{position:absolute; top:8px; right:12px; cursor:pointer; font-weight:bold; font-size:18px;}
-@media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr);}}
-@media(max-width:520px){.grid{grid-template-columns:repeat(1,1fr);}}
-@keyframes pulse-today{0%,100%{transform:scale(1.05);}50%{transform:scale(1.08);}}
-@keyframes pulse-future{0%,100%{transform:scale(1);}50%{transform:scale(1.02);}}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: Inter, system-ui, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+}
+
+.container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 24px;
+  color: var(--accent);
+  text-align: center;
+}
+
+.nav-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.nav-buttons button,
+.week-selector select {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 8px;
+  transition: 0.35s;
+}
+
+.nav-buttons button:hover,
+.week-selector select:hover {
+  background: rgba(0,229,255,0.2);
+}
+
+.week-selector {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.week-selector label {
+  color: var(--accent);
+  font-size: 16px;
+}
+
+.calendar {
+  flex: 1;
+  background: var(--card);
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+  display: flex;
+  flex-direction: column;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(var(--weeks), 1fr);
+  gap: var(--gap);
+  flex: 1;
+}
+
+.day {
+  background: #141619;
+  border-radius: 12px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s;
+}
+
+.day.today {
+  animation: pulse-today 3s infinite ease-in-out;
+  background: #1f2226;
+  border: 2px solid var(--accent);
+  z-index: 2;
+}
+
+.day.today::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  pointer-events: none;
+  box-shadow: 0 0 20px 8px rgba(0,229,255,0.5);
+}
+
+.day.future {
+  animation: pulse-future 3s infinite ease-in-out;
+  background: #1c1f23;
+  color: #eaeaea;
+}
+
+.day.past {
+  background: #0f1113;
+  color: #555;
+}
+
+.day.today:hover,
+.day.future:hover {
+  box-shadow: 0 0 25px 10px rgba(0,229,255,0.4);
+}
+
+.day.expand-on-hover {
+  transform: scale(1.12);
+  z-index: 10;
+}
+
+.day .day-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--days-font);
+  margin-bottom: 2px;
+}
+
+.day .date {
+  font-weight: 600;
+  font-size: var(--days-font);
+}
+
+.events {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.event {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+  font-size: var(--event-font);
+  border-radius: 6px;
+  background: rgba(0,0,0,0.3);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.25s ease;
+}
+
+.event:hover {
+  background: rgba(0,0,0,0.5);
+}
+
+.event .time {
+  min-width: 50px;
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.event.allDay .time {
+  display: none;
+}
+
+.event.more {
+  font-size: 12px;
+  color: var(--muted);
+  padding-left: 6px;
+}
+
+.event .title {
+  text-align: left;
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.c-reception { color: #109c53; }
+.c-smr { color: #5768cb; }
+
+#popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #1c1f23;
+  color: #fff;
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 0 20px rgba(0,0,0,0.8);
+  z-index: 20;
+  max-width: 90%;
+  min-width: 300px;
+  display: none;
+  border: 3px solid var(--accent);
+}
+
+#popup h3 {
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+#popup .close {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 18px;
+}
+
+@media(max-width:900px){ .grid { grid-template-columns: repeat(2, 1fr); } }
+@media(max-width:520px){ .grid { grid-template-columns: repeat(1, 1fr); } }
+
+@keyframes pulse-today { 0%,100%{transform:scale(1.05);}50%{transform:scale(1.08);} }
+@keyframes pulse-future { 0%,100%{transform:scale(1);}50%{transform:scale(1.02);} }
 </style>
 </head>
 <body>
@@ -66,14 +270,15 @@ header h1{margin:0; font-size:24px; color:var(--accent); text-align:center;}
       <button id="next-week">&gt;</button>
     </div>
     <div class="week-selector">
-      <label for="weeks-count">Semaines (lundi → dimanche) :</label>
+      <label for="weeks-count">Semaines :</label>
       <select id="weeks-count">
         <option value="3" selected>3</option>
         <option value="4">4</option>
       </select>
     </div>
   </header>
-  <div class="calendar" id="calendar-root">
+
+  <div class="calendar">
     <div class="grid" id="grid"></div>
   </div>
 </div>
@@ -85,44 +290,35 @@ header h1{margin:0; font-size:24px; color:var(--accent); text-align:center;}
 </div>
 
 <script>
+// --- CONFIGURATION ---
 const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
 const CALENDARS = [
-  { id:'receptionroulier@gmail.com', key:'reception', css:'c-reception'},
-  { id:'smr.programme@gmail.com', key:'smr', css:'c-smr'}
+  { id:'receptionroulier@gmail.com', key:'reception', css:'c-reception' },
+  { id:'smr.programme@gmail.com', key:'smr', css:'c-smr' }
 ];
 
 let WEEKS = 3;
 let gridStartDate;
-let dates=[];
+let dates = [];
 
-function fmtDate(d){return d.toISOString().split('T')[0];}
-function pad(n){return n<10?'0'+n:n;}
-function fmtTime(dt){if(!dt) return ''; const d=new Date(dt); return pad(d.getHours())+':'+pad(d.getMinutes());}
+// --- UTILITAIRES ---
+function fmtDate(d){ return d.toISOString().split('T')[0]; }
+function pad(n){ return n<10?'0'+n:n; }
+function fmtTime(dt){ if(!dt) return ''; const d = new Date(dt); return pad(d.getHours())+':'+pad(d.getMinutes()); }
+function shortTitle(s,max=60){ if(!s) return ''; return s.length>max?s.slice(0,max-1)+'…':s; }
 function fmtPopupDate(dt){ const d=new Date(dt); const dayNames=["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"]; return dayNames[d.getDay()]+' '+d.getDate(); }
-function shortTitle(s,max=60){if(!s)return ''; return s.length>max?s.slice(0,max-1)+'…':s;}
-
-function computeGridStart(referenceDate){
-  const today = new Date(referenceDate);
-  const day = today.getDay();
-  const mondayThisWeek = new Date(today);
-  mondayThisWeek.setDate(today.getDate()-((day+6)%7));
-  const mondayLastWeek = new Date(mondayThisWeek);
-  mondayLastWeek.setDate(mondayLastWeek.getDate()-7);
-  return mondayLastWeek;
-}
-gridStartDate = computeGridStart(new Date());
-
+function computeGridStart(refDate){ const today=new Date(refDate); const day=today.getDay(); const mondayThisWeek=new Date(today); mondayThisWeek.setDate(today.getDate()-((day+6)%7)); const mondayLastWeek=new Date(mondayThisWeek); mondayLastWeek.setDate(mondayLastWeek.getDate()-7); return mondayLastWeek; }
 function showPopup(title,start,end,isAllDay,cssClass){
   const popup=document.getElementById('popup');
   document.getElementById('popup-title').textContent=title;
-  let text=isAllDay?'Toute la journée':'Du '+start+' au '+end;
-  document.getElementById('popup-time').textContent=text;
+  document.getElementById('popup-time').textContent = isAllDay?'Toute la journée':'Du '+start+' au '+end;
   if(cssClass==='c-reception') popup.style.borderColor='#109c53';
   else if(cssClass==='c-smr') popup.style.borderColor='#5768cb';
   else popup.style.borderColor='#00e5ff';
   popup.style.display='block';
 }
 
+// --- FETCH EVENTS ---
 async function fetchEventsForCalendar(calId,timeMin,timeMax){
   const url=`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime&maxResults=2500`;
   const res = await fetch(url);
@@ -130,15 +326,16 @@ async function fetchEventsForCalendar(calId,timeMin,timeMax){
   return res.json();
 }
 
+// --- RENDER CALENDAR ---
 function renderGrid(){
   const gridEl=document.getElementById('grid');
   gridEl.innerHTML='';
   document.documentElement.style.setProperty('--weeks', WEEKS);
-  dates.length=0;
+  dates = [];
   for(let w=0; w<WEEKS; w++){
     for(let i=0; i<7; i++){
-      const d=new Date(gridStartDate);
-      d.setDate(gridStartDate.getDate()+w*7+i);
+      const d = new Date(gridStartDate);
+      d.setDate(gridStartDate.getDate() + w*7 + i);
       dates.push(d);
       const dayEl=document.createElement('div');
       dayEl.className='day';
@@ -159,8 +356,9 @@ async function updateEvents(){
     const results=await Promise.all(promises);
     const eventsByDay={};
     const seen=new Set();
+
     for(const res of results){
-      if(res.error){console.warn('Erreur API pour',res.calendar.id,res.error); continue;}
+      if(res.error){ console.warn('Erreur API pour', res.calendar.id, res.error); continue; }
       const cal=res.calendar;
       for(const it of res.items){
         const dedupeKey=it.iCalUID||it.id||(it.summary+(it.start?.dateTime||it.start?.date));
@@ -170,49 +368,53 @@ async function updateEvents(){
         let end=it.end?.dateTime||it.end?.date;
         const isAllDay=!!it.start?.date && !it.start?.dateTime;
         if(isAllDay){
-          const s=new Date(start+'T00:00:00');
-          const e=new Date(end+'T00:00:00');
+          const s=new Date(start+'T00:00:00'); const e=new Date(end+'T00:00:00');
           for(let d=new Date(s); d<e; d.setDate(d.getDate()+1)){
             const key=fmtDate(d);
             eventsByDay[key]=eventsByDay[key]||[];
-            eventsByDay[key].push({title:it.summary||'(sans titre)',allDay:true,calendarKey:cal.key,start:null,end:null});
+            eventsByDay[key].push({title:it.summary||'(sans titre)',allDay:true,calendarKey:cal.key});
           }
-        }else{
+        } else {
           const s=new Date(start); const e=end?new Date(end):null;
-          const dayKey=fmtDate(s);
-          eventsByDay[dayKey]=eventsByDay[dayKey]||[];
-          eventsByDay[dayKey].push({title:it.summary||'(sans titre)',allDay:false,start:s.toISOString(),end:e?e.toISOString():null,calendarKey:cal.key});
+          const key=fmtDate(s);
+          eventsByDay[key]=eventsByDay[key]||[];
+          eventsByDay[key].push({title:it.summary||'(sans titre)',allDay:false,start:s.toISOString(),end:e?e.toISOString():null,calendarKey:cal.key});
         }
       }
     }
 
     const MAX_PER_CELL=6;
     const todayStr=fmtDate(new Date());
+
     document.querySelectorAll('.day').forEach(dayEl=>{
       const date=dayEl.dataset.date;
       const evList=eventsByDay[date]||[];
       const eventsContainer=dayEl.querySelector('.events');
       eventsContainer.innerHTML='';
+
       evList.sort((a,b)=>{
         if(a.allDay && !b.allDay) return -1;
         if(!a.allDay && b.allDay) return 1;
         if(a.allDay && b.allDay) return 0;
         return new Date(a.start)-new Date(b.start);
       });
+
       evList.slice(0,MAX_PER_CELL).forEach(ev=>{
         const evEl=document.createElement('div');
         const calMeta=CALENDARS.find(c=>c.key===ev.calendarKey);
         evEl.className='event '+(ev.allDay?'allDay ':'')+(calMeta?calMeta.css:'');
         evEl.innerHTML=`<div class="time">${ev.allDay?'':fmtTime(ev.start)}</div><div class="title">${shortTitle(ev.title,80)}</div>`;
-        evEl.onclick=()=>showPopup(ev.title,ev.allDay?'Toute la journée':fmtPopupDate(ev.start)+' '+fmtTime(ev.start),ev.end?fmtPopupDate(ev.end)+' '+fmtTime(ev.end):'',ev.allDay,calMeta?.css);
+        evEl.onclick=()=>showPopup(ev.title, ev.allDay?'Toute la journée':fmtPopupDate(ev.start)+' '+fmtTime(ev.start), ev.end?fmtPopupDate(ev.end)+' '+fmtTime(ev.end):'', ev.allDay, calMeta?.css);
         eventsContainer.appendChild(evEl);
       });
+
       if(evList.length>MAX_PER_CELL){
         const moreEl=document.createElement('div');
         moreEl.className='event more';
         moreEl.textContent=`+ ${evList.length-MAX_PER_CELL} autres`;
         eventsContainer.appendChild(moreEl);
       }
+
       dayEl.classList.remove('past','future','today');
       if(date===todayStr) dayEl.classList.add('today');
       else if(date<todayStr) dayEl.classList.add('past');
@@ -222,26 +424,19 @@ async function updateEvents(){
     const monthNames=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
     document.getElementById('month-title').textContent=monthNames[dates[0].getMonth()]+' '+dates[0].getFullYear();
 
-  }catch(err){console.error('Erreur lors du chargement des événements :',err);}
+  } catch(err){ console.error('Erreur lors du chargement des événements :', err); }
 }
 
-// Navigation
-document.getElementById('prev-week').onclick=()=>{ gridStartDate.setDate(gridStartDate.getDate()-7); renderGrid(); updateEvents(); };
-document.getElementById('next-week').onclick=()=>{ gridStartDate.setDate(gridStartDate.getDate()+7); renderGrid(); updateEvents(); };
-document.getElementById('today-btn').onclick=()=>{ gridStartDate=computeGridStart(new Date()); renderGrid(); updateEvents(); };
+// --- NAVIGATION ---
+document.getElementById('prev-week').onclick = ()=>{ gridStartDate.setDate(gridStartDate.getDate()-7); renderGrid(); updateEvents(); };
+document.getElementById('next-week').onclick = ()=>{ gridStartDate.setDate(gridStartDate.getDate()+7); renderGrid(); updateEvents(); };
+document.getElementById('today-btn').onclick = ()=>{ gridStartDate=computeGridStart(new Date()); renderGrid(); updateEvents(); };
+document.getElementById('weeks-count').onchange = ()=>{ WEEKS=parseInt(document.getElementById('weeks-count').value); gridStartDate=computeGridStart(new Date()); renderGrid(); updateEvents(); };
 
-// Changement du nombre de semaines
-document.getElementById('weeks-count').onchange=()=>{ 
-  WEEKS=parseInt(document.getElementById('weeks-count').value); 
-  gridStartDate=computeGridStart(new Date()); 
-  renderGrid(); 
-  updateEvents();
-};
-
-// Initialisation
+// --- INIT ---
 renderGrid();
 updateEvents();
-setInterval(updateEvents,60000);
+setInterval(updateEvents, 60000);
 </script>
 </body>
 </html>
