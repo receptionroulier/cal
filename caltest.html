@@ -84,7 +84,6 @@ header h1{
   transition: transform 0.35s ease, width 0.35s ease, background 0.25s, box-shadow 0.35s, border-color 0.25s;
 }
 
-/* Jour actuel */
 @keyframes todayPulse {
   0%,100%{ transform: scale(1.08); }
   50%{ transform: scale(1.12); }
@@ -105,7 +104,6 @@ header h1{
   box-shadow:0 0 20px 8px rgba(0,229,255,0.5);
 }
 
-/* Jour futur */
 @keyframes futurePulse {
   0%,100%{ transform: scale(1); }
   50%{ transform: scale(1.02); }
@@ -117,14 +115,12 @@ header h1{
   animation: futurePulse 3s infinite ease-in-out;
 }
 
-/* Jour passé */
 .day.past {
   transform: scale(0.95);
   background:#0f1113;
   color:#555;
 }
 
-/* Zoom au survol pour jour actuel et futur */
 .day.today:hover,
 .day.future:hover {
   animation:none;
@@ -133,7 +129,6 @@ header h1{
   width: 140%;
 }
 
-/* Affichage titres sur une ligne */
 .day .event .title {
   white-space: nowrap;
   overflow: hidden;
@@ -228,10 +223,14 @@ const CALENDARS = [
 ];
 const WEEKS=4;
 
-function fmtDate(d){return d.toISOString().split('T')[0];}
 function pad(n){return n<10?'0'+n:n;}
-function fmtTime(dt){if(!dt) return ''; const d=new Date(dt); return pad(d.getHours())+':'+pad(d.getMinutes());}
-function fmtPopupDate(dt){ const d=new Date(dt); const dayNames=["Lun","Mar","Mer","Jeu","Ven","Sam",Dim]; return dayNames[d.getDay()]+' '+d.getDate(); }
+function fmtDate(d){ 
+  if(typeof d === "string") return d;
+  const date = new Date(d);
+  return date.getFullYear()+'-'+pad(date.getMonth()+1)+'-'+pad(date.getDate());
+}
+function fmtTime(dt){ if(!dt) return ''; const d=new Date(dt); return pad(d.getHours())+':'+pad(d.getMinutes()); }
+function fmtPopupDate(dt){ const d=new Date(dt); const dayNames=["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"]; return dayNames[d.getDay()]+' '+d.getDate(); }
 function shortTitle(s,max=60){if(!s)return ''; return s.length>max?s.slice(0,max-1)+'…':s;}
 
 let gridStartDate;
@@ -262,6 +261,32 @@ async function fetchEventsForCalendar(calId,timeMin,timeMax){
   return res.json();
 }
 
+let lastEventsHash = null;
+function fnv1a(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = (h * 0x01000193) >>> 0;
+  }
+  return h.toString(16);
+}
+function computeEventsHash(eventsByDay) {
+  const keys = Object.keys(eventsByDay).sort();
+  let signature = "";
+  for (const day of keys) {
+    const events = eventsByDay[day];
+    events.sort((a, b) => {
+      if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
+      if (a.start !== b.start) return (a.start || "").localeCompare(b.start || "");
+      return (a.title || "").localeCompare(b.title || "");
+    });
+    for (const ev of events) {
+      signature += day + "|" + (ev.title || "") + "|" + (ev.start || "") + "|" + (ev.end || "") + "|" + (ev.allDay ? "1" : "0") + "|" + (ev.calendarKey || "") + "\n";
+    }
+  }
+  return fnv1a(signature);
+}
+
 function buildDates(start){
   const dates=[];
   for(let w=0;w<WEEKS;w++){
@@ -277,116 +302,134 @@ function buildDates(start){
 async function renderCalendar(){
   const dates = buildDates(gridStartDate);
   const monthNames=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
-  document.getElementById('month-title').textContent=monthNames[dates[7].getMonth()]+' '+dates[7].getFullYear();
+  document.getElementById('month-title').textContent = monthNames[dates[7].getMonth()]+' '+dates[7].getFullYear();
 
-  const gridEl=document.getElementById('grid');
-  gridEl.innerHTML='';
-  dates.forEach(d=>{
-    const dayEl=document.createElement('div');
-    dayEl.className='day';
-    dayEl.dataset.date=fmtDate(d);
-    dayEl.innerHTML=`<div class="day-header"><div class="dow">${['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][d.getDay()]}</div><div class="date">${d.getDate()}</div></div><div class="events"></div>`;
-    gridEl.appendChild(dayEl);
-  });
-
-  const timeMin=new Date(dates[0]); timeMin.setHours(0,0,0,0);
-  const timeMax=new Date(dates[dates.length-1]); timeMax.setHours(23,59,59,999);
+  const timeMin = new Date(dates[0]); timeMin.setHours(0,0,0,0);
+  const timeMax = new Date(dates[dates.length-1]); timeMax.setHours(23,59,59,999);
 
   try{
-    const promises=CALENDARS.map(c=>fetchEventsForCalendar(c.id,timeMin.toISOString(),timeMax.toISOString())
-      .then(json=>({calendar:c,items:json.items||[]})).catch(err=>({calendar:c,error:err})));
-    const results=await Promise.all(promises);
+    const promises = CALENDARS.map(c =>
+      fetchEventsForCalendar(c.id, timeMin.toISOString(), timeMax.toISOString())
+        .then(json => ({calendar:c, items:json.items||[]}))
+        .catch(err => ({calendar:c, error:err}))
+    );
+    const results = await Promise.all(promises);
 
-    const eventsByDay={};
-    const seen=new Set();
+    const eventsByDay = {};
+    const seen = new Set();
 
     for(const res of results){
-      if(res.error){console.warn('Erreur API pour',res.calendar.id,res.error); continue;}
-      const cal=res.calendar;
+      if(res.error){ console.warn('Erreur API pour',res.calendar.id,res.error); continue; }
+      const cal = res.calendar;
       for(const it of res.items){
-        const dedupeKey=it.iCalUID||it.id||(it.summary+(it.start?.dateTime||it.start?.date));
+        const dedupeKey = it.iCalUID || it.id || (it.summary+(it.start?.dateTime||it.start?.date));
         if(seen.has(dedupeKey)) continue;
         seen.add(dedupeKey);
 
-        let start=it.start?.dateTime||it.start?.date;
-        let end=it.end?.dateTime||it.end?.date;
-        const isAllDay=!!it.start?.date && !it.start?.dateTime;
+        const isAllDay = !!it.start?.date && !it.start?.dateTime;
 
         if(isAllDay){
-          const s=new Date(start+'T00:00:00');
-          const e=new Date(end+'T00:00:00');
-          for(let d=new Date(s); d<e; d.setDate(d.getDate()+1)){
-            const key=fmtDate(d);
-            eventsByDay[key]=eventsByDay[key]||[];
-            eventsByDay[key].push({title:it.summary||'(sans titre)',start:null,end:null,allDay:true,calendarKey:cal.key});
+          const startDate = new Date(it.start.date);
+          const endDate = new Date(it.end.date);
+          for(let d = new Date(startDate); d < endDate; d.setDate(d.getDate()+1)){
+            const key = fmtDate(d);
+            eventsByDay[key] = eventsByDay[key] || [];
+            eventsByDay[key].push({
+              title: it.summary || '(sans titre)',
+              start: null,
+              end: null,
+              allDay: true,
+              calendarKey: cal.key
+            });
           }
-        }else{
-          const s=new Date(start); const e=end?new Date(end):null;
-          const dayKey=fmtDate(s);
-          eventsByDay[dayKey]=eventsByDay[dayKey]||[];
-          eventsByDay[dayKey].push({title:it.summary||'(sans titre)',start:s.toISOString(),end:e?e.toISOString():null,allDay:false,calendarKey:cal.key});
+        } else {
+          const startDt = new Date(it.start.dateTime);
+          const endDt = it.end?.dateTime ? new Date(it.end.dateTime) : new Date(startDt.getTime() + 3600*1000);
+          for(let d = new Date(startDt); d <= endDt; d.setDate(d.getDate()+1)){
+            const key = fmtDate(d);
+            eventsByDay[key] = eventsByDay[key] || [];
+            eventsByDay[key].push({
+              title: it.summary || '(sans titre)',
+              start: startDt.toISOString(),
+              end: endDt.toISOString(),
+              allDay: false,
+              calendarKey: cal.key
+            });
+          }
         }
       }
     }
 
+    const newHash = computeEventsHash(eventsByDay);
+    if(lastEventsHash === newHash){ console.log("Aucune modification détectée → rendu ignoré"); return; }
+    lastEventsHash = newHash;
+
+    const gridEl = document.getElementById('grid');
+    gridEl.innerHTML = '';
+    dates.forEach(d => {
+      const dayEl = document.createElement('div');
+      dayEl.className='day';
+      dayEl.dataset.date=fmtDate(d);
+      dayEl.innerHTML=`<div class="day-header"><div class="dow">${['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][d.getDay()]}</div><div class="date">${d.getDate()}</div></div><div class="events"></div>`;
+      gridEl.appendChild(dayEl);
+    });
+
     for(const dayEl of Array.from(document.querySelectorAll('.day'))){
-      const date=dayEl.dataset.date;
-      const evList=eventsByDay[date]||[];
-      const eventsContainer=dayEl.querySelector('.events');
-      eventsContainer.innerHTML='';
+      const date = dayEl.dataset.date;
+      const evList = eventsByDay[date] || [];
+      const eventsContainer = dayEl.querySelector('.events');
+      eventsContainer.innerHTML = '';
 
       evList.sort((a,b)=>{
         if(a.allDay && !b.allDay) return -1;
         if(!a.allDay && b.allDay) return 1;
         if(a.allDay && b.allDay) return 0;
-        return new Date(a.start)-new Date(b.start);
+        return new Date(a.start) - new Date(b.start);
       });
 
-      const MAX_PER_CELL=6;
-      const show=evList.slice(0,MAX_PER_CELL);
+      const MAX_PER_CELL = 6;
+      const show = evList.slice(0,MAX_PER_CELL);
       for(const ev of show){
-        const evEl=document.createElement('div');
+        const evEl = document.createElement('div');
         evEl.className='event '+(ev.allDay?'allDay':'');
-        const calMeta=CALENDARS.find(c=>c.key===ev.calendarKey);
+        const calMeta = CALENDARS.find(c=>c.key===ev.calendarKey);
         if(calMeta) evEl.classList.add(calMeta.css);
 
-        const timeText=ev.allDay?'Toute la journée':fmtPopupDate(ev.start)+' '+fmtTime(ev.start);
-        const endText=ev.end?fmtPopupDate(ev.end)+' '+fmtTime(ev.end):timeText;
-        evEl.innerHTML=`<div class="time">${ev.allDay?'':fmtTime(ev.start)}</div><div class="title">${shortTitle(ev.title,80)}</div>`;
-        evEl.onclick=()=>showPopup(ev.title,timeText,endText,ev.allDay);
+        const timeText = ev.allDay?'Toute la journée':fmtPopupDate(ev.start)+' '+fmtTime(ev.start);
+        const endText = ev.end ? fmtPopupDate(ev.end)+' '+fmtTime(ev.end) : timeText;
+        evEl.innerHTML = `<div class="time">${ev.allDay?'':fmtTime(ev.start)}</div><div class="title">${shortTitle(ev.title,80)}</div>`;
+        evEl.onclick = ()=>showPopup(ev.title,timeText,endText,ev.allDay);
         eventsContainer.appendChild(evEl);
       }
 
-      if(evList.length>MAX_PER_CELL){
-        const moreEl=document.createElement('div');
+      if(evList.length > MAX_PER_CELL){
+        const moreEl = document.createElement('div');
         moreEl.className='event more';
-        moreEl.textContent=`+ ${evList.length-MAX_PER_CELL} autres`;
+        moreEl.textContent = `+ ${evList.length-MAX_PER_CELL} autres`;
         eventsContainer.appendChild(moreEl);
       }
     }
 
-    const todayStr=fmtDate(new Date());
+    const todayStr = fmtDate(new Date());
     for(const dayEl of Array.from(document.querySelectorAll('.day'))){
-      const date=dayEl.dataset.date;
+      const date = dayEl.dataset.date;
       dayEl.classList.remove('past','future','today');
       if(date===todayStr) dayEl.classList.add('today');
       else if(date<todayStr) dayEl.classList.add('past');
       else dayEl.classList.add('future');
     }
 
-  }catch(err){
+  } catch(err){
     console.error('Erreur lors du chargement des événements :',err);
   }
 }
 
-// navigation
 document.getElementById('prev-week').onclick=()=>{ gridStartDate.setDate(gridStartDate.getDate()-7); renderCalendar(); };
 document.getElementById('next-week').onclick=()=>{ gridStartDate.setDate(gridStartDate.getDate()+7); renderCalendar(); };
 document.getElementById('today-btn').onclick=()=>{ gridStartDate = computeGridStart(new Date()); renderCalendar(); };
 
-// initial render
 renderCalendar();
-setInterval(renderCalendar,60000);
+setInterval(renderCalendar,8000);
 </script>
 </body>
 </html>
