@@ -6,9 +6,7 @@
 <title>Ponts HAROPA – Monitoring</title>
 
 <style>
-/* ==========================================================================
-   GLOBAL
-   ========================================================================== */
+/* ========================================================================== GLOBAL ========================================================================== */
 body {
     margin: 0;
     font-family: Arial, sans-serif;
@@ -22,27 +20,21 @@ body {
     box-sizing: border-box;
 }
 
-/* ==========================================================================
-   TITRE
-   ========================================================================== */
+/* ========================================================================== TITRE ========================================================================== */
 h2 {
     text-align: center;
     color: #00e5ff;
     margin: 0 0 15px;
 }
 
-/* ==========================================================================
-   LISTE DES PONTS
-   ========================================================================== */
+/* ========================================================================== LISTE DES PONTS ========================================================================== */
 #ponts-table {
     display: flex;
     flex-direction: column;
     gap: 10px;
 }
 
-/* ==========================================================================
-   CARTE DE PONT
-   ========================================================================== */
+/* ========================================================================== CARTE DE PONT ========================================================================== */
 .pont-card {
     background: #1f1f1f;
     border-radius: 8px;
@@ -58,6 +50,7 @@ h2 {
 .pont-card.ferme { border-left-color: #ff4040; }
 .pont-card.ouvert { border-left-color: #58ff58; }
 .pont-card.manoeuvre { border-left-color: #1c3cff; }
+.pont-card.fermeture { border-left-color: orange; }
 
 /* Pastille */
 .pastille {
@@ -70,30 +63,23 @@ h2 {
 
 .ferme .pastille    { background: #ff4040; }
 .ouvert .pastille   { background: #58ff58; }
-.manoeuvre .pastille {
-    background: #1c3cff;
+.manoeuvre .pastille { background: #1c3cff; }
+.fermeture .pastille { background: orange; }
+
+/* ========================================================================== PULSE ========================================================================== */
+.pont-card.manoeuvre { animation: pulse-blue 1.2s infinite; }
+.pont-card.fermeture { animation: pulse-orange 1.2s infinite; }
+
+@keyframes pulse-blue {
+    0% { box-shadow: 0 0 5px rgba(28, 60, 255, 0.4); transform: scale(1); }
+    50% { box-shadow: 0 0 20px rgba(28, 60, 255, 0.7); transform: scale(1.02); }
+    100% { box-shadow: 0 0 5px rgba(28, 60, 255, 0.4); transform: scale(1); }
 }
 
-/* ==========================================================================
-   PULSE SUR LA CARTE MANOEUVRE
-   ========================================================================== */
-.pont-card.manoeuvre {
-    animation: pulse 1.2s infinite;
-}
-
-@keyframes pulse {
-    0% {
-        box-shadow: 0 0 5px rgba(28, 60, 255, 0.4);
-        transform: scale(1);
-    }
-    50% {
-        box-shadow: 0 0 20px rgba(28, 60, 255, 0.7);
-        transform: scale(1.02);
-    }
-    100% {
-        box-shadow: 0 0 5px rgba(28, 60, 255, 0.4);
-        transform: scale(1);
-    }
+@keyframes pulse-orange {
+    0% { box-shadow: 0 0 5px rgba(255,165,0,0.4); transform: scale(1); }
+    50% { box-shadow: 0 0 20px rgba(255,165,0,0.7); transform: scale(1.02); }
+    100% { box-shadow: 0 0 5px rgba(255,165,0,0.4); transform: scale(1); }
 }
 
 .pont-nom {
@@ -106,25 +92,19 @@ h2 {
 
 <body>
 <div class="container">
-
     <h2>État des Ponts</h2>
     <div id="ponts-table">Chargement...</div>
-
 </div>
 
 <script>
-/* ==========================================================================
-   CONFIGURATION
-   ========================================================================== */
+/* ========================================================================== CONFIGURATION ========================================================================== */
 const CACHE_KEY_DATA = "pontsData";
 const CACHE_KEY_HASH = "pontsHash";
 const CACHE_KEY_TIME = "pontsCacheTime";
 const CACHE_EXPIRATION = 120000; // 120 secondes
 const REFRESH_INTERVAL = 60000; // 60 secondes
 
-/* ==========================================================================
-   SHA-256 HASH
-   ========================================================================== */
+/* ========================================================================== SHA-256 HASH ========================================================================== */
 async function sha256(str) {
     const data = new TextEncoder().encode(str);
     const digest = await crypto.subtle.digest("SHA-256", data);
@@ -133,9 +113,7 @@ async function sha256(str) {
         .join("");
 }
 
-/* ==========================================================================
-   VÉRIFICATION ET MISE À JOUR
-   ========================================================================== */
+/* ========================================================================== VÉRIFICATION ET MISE À JOUR ========================================================================== */
 async function checkAndUpdate() {
     const now = Date.now();
     const last = localStorage.getItem(CACHE_KEY_TIME);
@@ -152,9 +130,7 @@ async function checkAndUpdate() {
     await fetchWithHashControl();
 }
 
-/* ==========================================================================
-   FETCH AVEC CONTRÔLE DE MODIFICATION PAR HASH
-   ========================================================================== */
+/* ========================================================================== FETCH AVEC CONTRÔLE DE MODIFICATION PAR HASH ========================================================================== */
 async function fetchWithHashControl() {
     try {
         const url = encodeURIComponent("https://www.havre-port.com/map/getPonts");
@@ -183,6 +159,7 @@ async function fetchWithHashControl() {
             const score = p => {
                 const statut = p.statutText.toLowerCase();
                 if (statut.includes("manoeuvre")) return 1;
+                if (statut.includes("fermeture")) return 1; // Fermeture imminente même effet que manœuvre
                 if (statut.includes("ouvert")) return 2;
                 return 0;
             };
@@ -202,9 +179,7 @@ async function fetchWithHashControl() {
     }
 }
 
-/* ==========================================================================
-   RENDU DES PONTS
-   ========================================================================== */
+/* ========================================================================== RENDU DES PONTS ========================================================================== */
 function renderPonts(list) {
     const container = document.getElementById("ponts-table");
 
@@ -212,7 +187,8 @@ function renderPonts(list) {
         const statut = p.statutText.toLowerCase();
         const open   = statut.includes("ouvert");
         const move   = statut.includes("manoeuvre");
-        const cls    = move ? "manoeuvre" : open ? "ouvert" : "ferme";
+        const fermeture = statut.includes("fermeture"); // <-- nouveau statut
+        const cls    = move ? "manoeuvre" : fermeture ? "fermeture" : open ? "ouvert" : "ferme";
         const info   = p.forceText || `MàJ : ${p.date}`;
 
         return `
@@ -227,9 +203,7 @@ function renderPonts(list) {
     }).join("");
 }
 
-/* ==========================================================================
-   INITIALISATION
-   ========================================================================== */
+/* ========================================================================== INITIALISATION ========================================================================== */
 checkAndUpdate();
 setInterval(checkAndUpdate, REFRESH_INTERVAL);
 </script>
