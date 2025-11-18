@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Calendrier & État des Ponts</title>
+
 <style>
 /* ================= GLOBAL ================= */
 body {
@@ -23,23 +24,25 @@ body {
 
 /* ================= LEFT PANEL ================= */
 #ponts-panel {
-    flex: 1;
-    max-width: 300px;
+    flex: 0 0 280px; /* largeur fixe pour colonne ponts */
     padding: 16px;
     box-sizing: border-box;
     overflow-y: auto;
     border-right: 1px solid #555;
 }
+
 #ponts-panel h2 {
     text-align: center;
     color: #00e5ff;
     margin-bottom: 12px;
 }
+
 #ponts-table {
     display: flex;
     flex-direction: column;
     gap: 10px;
 }
+
 .pont-card {
     background: #1f1f1f;
     border-radius: 8px;
@@ -68,13 +71,14 @@ body {
 
 /* ================= RIGHT PANEL (CALENDAR) ================= */
 #calendar-panel {
-    flex: 2;
+    flex: 1; /* prend le reste de l'espace */
     display: flex;
     flex-direction: column;
     padding: 16px;
     box-sizing: border-box;
     overflow-y: auto;
 }
+
 #calendar-panel header {
     display: flex;
     justify-content: space-between;
@@ -83,16 +87,19 @@ body {
     gap: 20px;
     flex-wrap: wrap;
 }
+
 #calendar-panel header h1 {
     font-size: 24px;
     color: #00e5ff;
     text-align: center;
 }
+
 .nav-buttons {
     display: flex;
     gap: 8px;
     align-items: center;
 }
+
 .nav-buttons button,
 .nav-buttons select {
     background: none;
@@ -103,8 +110,11 @@ body {
     padding: 4px 8px;
     transition: all 0.35s ease;
 }
+
 .nav-buttons button:hover,
-.nav-buttons select:hover { background: rgba(0,229,255,0.2); }
+.nav-buttons select:hover {
+    background: rgba(0,229,255,0.2);
+}
 
 .calendar {
     background: #1c1f23;
@@ -115,12 +125,14 @@ body {
     box-shadow: 0 6px 18px rgba(0,0,0,0.5);
     overflow: hidden;
 }
+
 .grid {
     display: grid;
     grid-template-columns: repeat(7,1fr);
     gap: 4px;
     flex: 1;
 }
+
 .day {
     background:#141619;
     border-radius:12px;
@@ -136,20 +148,20 @@ body {
 .day.today { transform: scale(1.08); animation: todayPulse 3s infinite ease-in-out; background:#1f2226; border:2px solid #00e5ff; z-index:2; }
 .day.today::after { content:""; position:absolute; inset:0; border-radius:12px; pointer-events:none; box-shadow:0 0 20px 8px rgba(0,229,255,0.5); }
 .day.past { background:#0f1113; color:#555; transform: scale(0.95); }
-.day.future { background:#1c1f23; color:#eaeaea; animation: pulseFuture 3s infinite ease-in-out; }
+.day.future { background:#1c1f23; color:#eaeaea; }
 .day.today:hover,
 .day.future:hover { transform: scale(1.12); z-index:10; }
+.day.future:hover { animation: todayPulse 3s infinite ease-in-out; }
 .day.future:hover::after { content:""; position:absolute; inset:0; border-radius:12px; pointer-events:none; box-shadow:0 0 18px 6px rgba(0,229,255,0.18); }
 
 .day-header { display:flex; justify-content:space-between; align-items:center; font-size:14px; margin-bottom:2px; }
 .day .date { font-weight:600; font-size:14px; }
-.events { flex:1 1 auto; display:flex; flex-direction: column; gap:2px; overflow: visible; }
-.event { display:flex; align-items:center; gap:4px; padding:2px 4px; font-size:14px; border-radius:6px; background: rgba(0,0,0,0.3); cursor:pointer; white-space: normal; overflow: visible; text-overflow: unset; transition: background 0.25s ease; }
+.events { flex:1 1 auto; display:flex; flex-direction: column; gap:2px; overflow:hidden; }
+.event { display:flex; align-items:center; gap:4px; padding:2px 4px; font-size:14px; border-radius:6px; background: rgba(0,0,0,0.3); cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition: background 0.25s ease; }
 .event:hover { background: rgba(0,0,0,0.5); }
 .event .time { min-width:50px; font-weight:600; font-size:11px; }
 .event.allDay .time { display:none; }
 .event.more { font-size:12px; color:#999; padding-left:6px; }
-.event.multi-day { border-radius:0; margin-top:1px; margin-bottom:1px; }
 .event .title { text-align:left; }
 .c-reception { color:#109c53; }
 .c-smr { color:#5768cb; }
@@ -172,22 +184,23 @@ body {
 #popup .close { position:absolute; top:8px; right:12px; cursor:pointer; font-weight:bold; font-size:18px; }
 
 @keyframes todayPulse { 0%,100%{ transform: scale(1.08); } 50%{ transform: scale(1.12); } }
-@keyframes pulseFuture { 0%,100%{ transform: scale(1); box-shadow:0 0 6px rgba(0,229,255,0.15); } 50%{ transform: scale(1.02); box-shadow:0 0 12px rgba(0,229,255,0.3); } }
 
 @media(max-width:1200px) {
     .container { flex-direction: column; }
     #calendar-panel { order:2; }
-    #ponts-panel { order:1; border-right:none; border-bottom:1px solid #555; max-width:none; }
+    #ponts-panel { order:1; border-right:none; border-bottom:1px solid #555; flex: none; }
 }
 </style>
 </head>
 <body>
+
 <div class="container">
     <!-- LEFT PANEL : Ponts -->
     <div id="ponts-panel">
         <h2>État des Ponts</h2>
         <div id="ponts-table">Chargement...</div>
     </div>
+
     <!-- RIGHT PANEL : Calendar -->
     <div id="calendar-panel">
         <header>
@@ -287,6 +300,7 @@ async function checkAndUpdatePonts() {
     }
     await fetchPonts();
 }
+
 checkAndUpdatePonts();
 setInterval(checkAndUpdatePonts, REFRESH_INTERVAL);
 
@@ -402,8 +416,8 @@ async function renderCalendar(){
 
   const timeMin = new Date(dates[0]); timeMin.setHours(0,0,0,0);
   const timeMax = new Date(dates[dates.length-1]); timeMax.setHours(23,59,59,999);
-  const fetched = await getEvents(timeMin.toISOString(),timeMax.toISOString());
   const eventsByDay = {};
+  const fetched = await getEvents(timeMin.toISOString(),timeMax.toISOString());
   const seen = new Set();
   for(const key in fetched){
     for(const it of fetched[key]){
@@ -414,18 +428,17 @@ async function renderCalendar(){
       const end = it.end?.dateTime || it.end?.date;
       const allDay = !!it.start?.date;
       const cal = CALENDARS.find(c=>c.key===key) || {key:key};
-      if(allDay || new Date(end) - new Date(start) > 86400000){
-        let s = new Date(start);
-        let e = new Date(end);
+      if(allDay){
+        let s = new Date(start+'T00:00:00'); let e = new Date(end+'T00:00:00');
         for(let d=new Date(s); d<e; d.setDate(d.getDate()+1)){
           const keyD = fmtDate(d);
           eventsByDay[keyD] = eventsByDay[keyD]||[];
-          eventsByDay[keyD].push({title:it.summary||'(sans titre)',start:start,end:end,allDay:true,calendarKey:cal.key,multiDay:true});
+          eventsByDay[keyD].push({title:it.summary||'(sans titre)',start:null,end:null,allDay:true,calendarKey:cal.key});
         }
       } else {
         const keyD = fmtDate(new Date(start));
         eventsByDay[keyD] = eventsByDay[keyD]||[];
-        eventsByDay[keyD].push({title:it.summary||'(sans titre)',start:start,end:end,allDay:false,calendarKey:cal.key,multiDay:false});
+        eventsByDay[keyD].push({title:it.summary||'(sans titre)',start:start,end:end,allDay:false,calendarKey:cal.key});
       }
     }
   }
@@ -435,12 +448,12 @@ async function renderCalendar(){
     const evList = eventsByDay[date]||[];
     const eventsContainer = dayEl.querySelector('.events');
     eventsContainer.innerHTML='';
-    evList.forEach(ev=>{
+    evList.slice(0,6).forEach(ev=>{
       const evEl = document.createElement('div');
       const calMeta = CALENDARS.find(c=>c.key===ev.calendarKey);
-      evEl.className='event '+(ev.allDay?'allDay':'')+(calMeta?` ${calMeta.css}`:'')+(ev.multiDay?' multi-day':'');
-      evEl.innerHTML=`<div class="time">${ev.allDay?'':fmtTime(ev.start)}</div><div class="title">${ev.title}</div>`;
-      evEl.onclick = ()=>{
+      evEl.className='event '+(ev.allDay?'allDay':'')+(calMeta?` ${calMeta.css}`:'');
+      evEl.innerHTML=`<div class="time">${ev.allDay?'':fmtTime(ev.start)}</div><div class="title">${shortTitle(ev.title,80)}</div>`;
+      evEl.onclick = ()=>{ 
         const startText = ev.allDay?'Toute la journée':fmtTime(ev.start);
         const endText = ev.allDay?'':fmtTime(ev.end);
         popupTitle.textContent = ev.title;
@@ -449,6 +462,12 @@ async function renderCalendar(){
       };
       eventsContainer.appendChild(evEl);
     });
+    if(evList.length>6){
+      const more=document.createElement('div');
+      more.className='event more';
+      more.textContent=`+ ${evList.length-6} autres`;
+      eventsContainer.appendChild(more);
+    }
   });
 
   const todayStr = fmtDate(new Date());
@@ -475,5 +494,6 @@ setInterval(renderCalendar,60000);
 
 });
 </script>
+
 </body>
 </html>
