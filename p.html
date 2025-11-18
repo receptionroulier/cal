@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ponts HAROPA – Monitoring</title>
+
+<style>
+/* ==========================================================================
+   GLOBAL
+   ========================================================================== */
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #101010;
+    color: #eaeaea;
+}
+
+.container {
+    height: 100vh;
+    padding: 14px;
+    box-sizing: border-box;
+}
+
+/* ==========================================================================
+   TITRE & COMPTE À REBOURS
+   ========================================================================== */
+h2 {
+    text-align: center;
+    color: #00e5ff;
+    margin: 0 0 15px;
+}
+
+h2 span {
+    color: #ffdd00;
+    font-weight: bold;
+}
+
+/* ==========================================================================
+   LISTE DES PONTS
+   ========================================================================== */
+#ponts-table {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* ==========================================================================
+   CARTE DE PONT
+   ========================================================================== */
+.pont-card {
+    background: #1f1f1f;
+    border-radius: 8px;
+    padding: 10px 12px;
+    box-shadow: 0 0 5px rgba(0,0,0,0.4);
+    border-left: 4px solid #444;
+    transition: transform 0.15s ease;
+}
+.pont-card:hover {
+    transform: scale(1.02);
+}
+
+.pont-card.ferme { border-left-color: #ff4040; }
+.pont-card.ouvert { border-left-color: #58ff58; }
+.pont-card.manoeuvre { border-left-color: #1c3cff; }
+
+/* Pastille */
+.pastille {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 6px;
+    display: inline-block;
+}
+
+.ferme .pastille    { background: #ff4040; }
+.ouvert .pastille   { background: #58ff58; }
+.manoeuvre .pastille {
+    background: #1c3cff;
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.3; }
+}
+
+.pont-nom {
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+    <h2>État des Ponts (<span id="countdown">15</span>s)</h2>
+    <div id="ponts-table">Chargement...</div>
+
+</div>
+
+<script>
+/* ==========================================================================
+   CONFIGURATION
+   ========================================================================== */
+const CACHE_KEY_DATA = "pontsData";
+const CACHE_KEY_HASH = "pontsHash";
+const CACHE_KEY_TIME = "pontsCacheTime";
+const CACHE_EXPIRATION = 120000; // 120 secondes
+
+let countdown = 15;
+
+/* ==========================================================================
+   COMPTE À REBOURS
+   ========================================================================== */
+function tickCountdown() {
+    document.getElementById("countdown").textContent = countdown;
+    countdown--;
+    if (countdown < 0) {
+        countdown = 15;
+        checkAndUpdate();
+    }
+}
+setInterval(tickCountdown, 1000);
+
+/* ==========================================================================
+   SHA-256 HASH
+   ========================================================================== */
+async function sha256(str) {
+    const data = new TextEncoder().encode(str);
+    const digest = await crypto.subtle.digest("SHA-256", data);
+    return Array.from(new Uint8Array(digest))
+        .map(b => b.toString(16).padStart(2, "0"))
+        .join("");
+}
+
+/* ==========================================================================
+   LOGIQUE PRINCIPALE : CACHE + HASH
+   ========================================================================== */
+async function checkAndUpdate() {
+    const now = Date.now();
+    const last = localStorage.getItem(CACHE_KEY_TIME);
+
+    if (last && now - last < CACHE_EXPIRATION) {
+        const cached = localStorage.getItem(CACHE_KEY_DATA);
+        if (cached) {
+            renderPonts(JSON.parse(cached));
+            console.log("⚡ Cache utilisé");
+            return;
+        }
+    }
+
+    await fetchWithHashControl();
+}
+
+/* ==========================================================================
+   FETCH AVEC CONTRÔLE DE MODIFICATION PAR HASH
+   ========================================================================== */
+async function fetchWithHashControl() {
+    try {
+        const url = encodeURIComponent("https://www.havre-port.com/map/getPonts");
+        const proxy = `https://api.allorigins.win/get?url=${url}`;
+
+        const res = await fetch(proxy);
+        const raw = await res.json();
+        const rawContent = raw.contents;
+
+        const newHash = await sha256(rawContent);
+        const oldHash = localStorage.getItem(CACHE_KEY_HASH);
+
+        // Si pas de changement → utiliser cache
+        if (newHash === oldHash) {
+            const cached = localStorage.getItem(CACHE_KEY_DATA);
+            if (cached) {
+                console.log("✔ Hash identique → aucune requête utile");
+                renderPonts(JSON.parse(cached));
+                return;
+            }
+        }
+
+        // Mise à jour complète
+        const ponts = Object.values(JSON.parse(rawContent).data);
+        const unique = Array.from(new Map(ponts.map(p => [p.nom, p])).values());
+
+        const ordered = unique.sort((a, b) => {
+            const score = p =>
+                p.statutText.includes("(Manoeuvre") ? 1 :
+                p.statutText.toLowerCase().includes("ouvert") ? 2 : 0;
+            return score(a) - score(b);
+        });
+
+        // Sauvegarde en cache
+        localStorage.setItem(CACHE_KEY_DATA, JSON.stringify(ordered));
+        localStorage.setItem(CACHE_KEY_HASH, newHash);
+        localStorage.setItem(CACHE_KEY_TIME, Date.now());
+
+        renderPonts(ordered);
+
+    } catch (err) {
+        console.error("Erreur:", err);
+        document.getElementById("ponts-table").textContent =
+            "Impossible de récupérer les ponts.";
+    }
+}
+
+/* ==========================================================================
+   RENDU DES PONTS
+   ========================================================================== */
+function renderPonts(list) {
+    const container = document.getElementById("ponts-table");
+
+    container.innerHTML = list.map(p => {
+        const open  = p.statutText.toLowerCase().includes("ouvert");
+        const move  = p.statutText.includes("(Manoeuvre");
+        const cls   = move ? "manoeuvre" : open ? "ouvert" : "ferme";
+        const info  = p.forceText || `MàJ : ${p.date}`;
+
+        return `
+            <div class="pont-card ${cls}">
+                <div class="pont-nom">
+                    <span class="pastille"></span>${p.nom}
+                </div>
+                <div class="pont-etat">${p.statutText}</div>
+                <div class="pont-infos">${info}</div>
+            </div>
+        `;
+    }).join("");
+}
+
+/* ==========================================================================
+   INITIALISATION
+   ========================================================================== */
+checkAndUpdate();
+</script>
+</body>
+</html>
