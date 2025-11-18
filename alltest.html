@@ -24,7 +24,7 @@ body {
 
 /* ================= LEFT PANEL ================= */
 #ponts-panel {
-    flex: 1;
+    flex: 0 0 280px; /* largeur fixe pour colonne ponts */
     padding: 16px;
     box-sizing: border-box;
     overflow-y: auto;
@@ -71,7 +71,7 @@ body {
 
 /* ================= RIGHT PANEL (CALENDAR) ================= */
 #calendar-panel {
-    flex: 2;
+    flex: 1; /* prend le reste de l'espace */
     display: flex;
     flex-direction: column;
     padding: 16px;
@@ -188,7 +188,7 @@ body {
 @media(max-width:1200px) {
     .container { flex-direction: column; }
     #calendar-panel { order:2; }
-    #ponts-panel { order:1; border-right:none; border-bottom:1px solid #555; }
+    #ponts-panel { order:1; border-right:none; border-bottom:1px solid #555; flex: none; }
 }
 </style>
 </head>
@@ -250,12 +250,10 @@ async function fetchPonts() {
         const rawContent = raw.contents;
         const newHash = await sha256(rawContent);
         const oldHash = localStorage.getItem(CACHE_KEY_HASH);
-
         if (newHash === oldHash) {
             const cached = localStorage.getItem(CACHE_KEY_DATA);
             if (cached) { renderPonts(JSON.parse(cached)); return; }
         }
-
         const ponts = Object.values(JSON.parse(rawContent).data);
         const unique = Array.from(new Map(ponts.map(p => [p.nom, p])).values());
         const ordered = unique.sort((a,b)=>{
@@ -267,12 +265,10 @@ async function fetchPonts() {
             };
             return score(a)-score(b);
         });
-
         localStorage.setItem(CACHE_KEY_DATA, JSON.stringify(ordered));
         localStorage.setItem(CACHE_KEY_HASH, newHash);
         localStorage.setItem(CACHE_KEY_TIME, Date.now());
         renderPonts(ordered);
-
     } catch(err){
         console.error("Erreur Ponts:", err);
         document.getElementById("ponts-table").textContent = "Impossible de récupérer les ponts.";
@@ -298,7 +294,6 @@ function renderPonts(list){
 async function checkAndUpdatePonts() {
     const now = Date.now();
     const last = localStorage.getItem(CACHE_KEY_TIME);
-
     if(last && now - last < CACHE_EXPIRATION){
         const cached = localStorage.getItem(CACHE_KEY_DATA);
         if(cached){ renderPonts(JSON.parse(cached)); return; }
