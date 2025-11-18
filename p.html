@@ -158,7 +158,9 @@ async function checkAndUpdate() {
 async function fetchWithHashControl() {
     try {
         const url = encodeURIComponent("https://www.havre-port.com/map/getPonts");
-        const proxy = `https://api.allorigins.win/get?url=${url}`;
+
+        /* --------------- VERSION CORRIGÉE : AllOrigins .ORG ---------------- */
+        const proxy = `https://api.allorigins.org/get?url=${url}`;
 
         const res = await fetch(proxy);
         const raw = await res.json();
