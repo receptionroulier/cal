@@ -141,14 +141,14 @@ h2 {
 
   <!-- Colonne Ponts -->
   <div class="left">
-    <h2 id="ponts-title">État des Ponts (<span id="countdown">5</span>s)</h2>
+    <h2 id="ponts-title">État des Ponts (<span id="countdown">15</span>s)</h2>
     <div id="ponts-table">Chargement...</div>
   </div>
 
   <!-- Colonne Calendrier -->
   <div class="right">
     <div class="calendar-wrapper">
-      <iframe src="https://receptionroulier.github.io/Agenda-Ponts/cal.html"></iframe>
+      <iframe src="https://receptionroulier.github.io/cal/calr.html"></iframe>
     </div>
   </div>
 
@@ -158,13 +158,13 @@ h2 {
 /* =======================================================================
     COUNTDOWN SYNCHRONE
 ======================================================================= */
-let countdown = 5;
+let countdown = 15;
 
 function tickCountdown() {
   document.getElementById("countdown").textContent = countdown;
   countdown--;
   if (countdown < 0) {
-    countdown = 5;
+    countdown = 15;
     fetchPonts();
   }
 }
@@ -230,4 +230,4 @@ function renderPonts(list) {
 fetchPonts();
 </script>
 </body>
-</html>
+</html
