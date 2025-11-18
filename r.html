@@ -16,15 +16,18 @@ body {
 }
 
 /* Conteneurs gauche/droite */
-.left, .right {
-    flex: 1;
-    overflow-y: auto;
+.left { 
+    flex: 0 0 30%;  /* Colonne gauche plus étroite */
+    border-right: 1px solid #444; 
+    padding: 14px; 
+    overflow-y: auto; 
     box-sizing: border-box;
 }
-
-/* Bordure entre les deux colonnes */
-.left { border-right: 1px solid #444; padding: 14px; }
-.right { padding: 0; }
+.right { 
+    flex: 1;  /* Colonne droite prend le reste */
+    padding: 0; 
+    overflow-y: auto; 
+}
 
 /* Styles du container des ponts */
 .container {
