@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Calendrier 3-4 semaines - sombre + cache</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Calendrier 3-4 semaines - sombre + couleurs</title>
 <style>
 :root {
   --bg: #121212;
@@ -11,7 +11,7 @@
   --border: #555;
   --text: #eaeaea;
   --muted: #999;
-  --accent: #00e5ff;
+  --accent: #00e5ff; /* couleur du titre et boutons */
   --gap: 4px;
   --days-font: 14px;
   --event-font: 14px;
@@ -36,7 +36,6 @@ header {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 10px;
-  gap: 20px;
   flex-wrap: wrap;
 }
 header h1 { font-size: 24px; color: var(--accent); text-align:center; }
@@ -55,14 +54,13 @@ header h1 { font-size: 24px; color: var(--accent); text-align:center; }
   transition: all 0.35s ease;
 }
 .nav-buttons button:hover, .nav-buttons select:hover { background: rgba(0,229,255,0.2); }
+
 .calendar {
   background: var(--card);
   border-radius: 12px;
-  padding:0;
   flex:1;
   display:flex;
   flex-direction: column;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.5);
 }
 .grid {
   display:grid;
@@ -71,32 +69,27 @@ header h1 { font-size: 24px; color: var(--accent); text-align:center; }
   flex:1;
 }
 .day {
-  background:#141619;
-  border-radius:12px;
+  background:#1c1f23;  /* couleur unie des cases */
+  border-radius:8px;
   padding:6px;
   border:1px solid var(--border);
   display:flex;
   flex-direction: column;
   overflow:hidden;
-  position:relative;
-  transition: transform 0.35s ease, width 0.35s ease, background 0.25s, box-shadow 0.35s, border-color 0.25s;
+  height:100px; /* taille fixe des cases */
+  transition: transform 0.25s ease;
 }
-.day.today { transform: scale(1.08); animation: todayPulse 3s infinite ease-in-out; background:#1f2226; border:2px solid var(--accent); z-index:2; }
-.day.today::after { content:""; position:absolute; inset:0; border-radius:12px; pointer-events:none; box-shadow:0 0 20px 8px rgba(0,229,255,0.5); }
-.day.past { background:#0f1113; color:#555; transform: scale(0.95); }
+.day.today { border:2px solid var(--accent); }
+.day.past { background:#0f1113; color:#555; }
 .day.future { background:#1c1f23; color:#eaeaea; }
-.day.today:hover, .day.future:hover { animation:none; transform: scale(1.12); z-index:10; width:140%; }
-.day-header { display:flex; justify-content:space-between; align-items:center; font-size: var(--days-font); margin-bottom:2px; }
+
+.day-header { display:flex; justify-content:space-between; font-size: var(--days-font); margin-bottom:2px; }
 .day .date { font-weight:600; font-size: var(--days-font); }
-.events { flex:1 1 auto; display:flex; flex-direction: column; gap:2px; overflow:hidden; }
-.event { display:flex; align-items:center; gap:4px; padding:2px 4px; font-size: var(--event-font); border-radius:6px; background: rgba(0,0,0,0.3); cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition: background 0.25s ease; }
-.event:hover { background: rgba(0,0,0,0.5); }
-.event .time { min-width:50px; font-weight:600; font-size:11px; }
-.event.allDay .time { display:none; }
-.event.more { font-size:12px; color:var(--muted); padding-left:6px; }
-.event .title { text-align:left; }
-.c-reception { color:#109c53; }
-.c-smr { color:#5768cb; }
+.events { flex:1; display:flex; flex-direction: column; gap:2px; overflow:hidden; }
+.event { display:flex; align-items:center; gap:4px; padding:2px 4px; font-size: var(--event-font); border-radius:6px; background: rgba(0,0,0,0.3); cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.c-reception { color:#109c53; } /* vert */
+.c-smr { color:#3644b3; } /* bleu */
+
 #popup {
   position:fixed;
   top:50%; left:50%;
@@ -113,12 +106,13 @@ header h1 { font-size: 24px; color: var(--accent); text-align:center; }
 }
 #popup h3 { margin-bottom:8px; }
 #popup .close { position:absolute; top:8px; right:12px; cursor:pointer; font-weight:bold; font-size:18px; }
+
 @media(max-width:900px){ .grid{ grid-template-columns: repeat(2,1fr); } }
 @media(max-width:520px){ .grid{ grid-template-columns: repeat(1,1fr); } }
-@keyframes todayPulse { 0%,100%{ transform: scale(1.08); } 50%{ transform: scale(1.12); } }
 </style>
 </head>
 <body>
+
 <div class="container">
   <header>
     <h1 id="month-title">Mois</h1>
@@ -144,19 +138,13 @@ header h1 { font-size: 24px; color: var(--accent); text-align:center; }
 </div>
 
 <script>
-/* =====================
-   CONFIGURATION
-===================== */
+/* ==== CONFIGURATION ==== */
 const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
 const CALENDARS = [
   { id:'receptionroulier@gmail.com', key:'reception', css:'c-reception'},
   { id:'smr.programme@gmail.com', key:'smr', css:'c-smr'}
 ];
-const CACHE_TTL = 120000; // 120 sec
-
-const CACHE_PAYLOAD_KEY = 'cal_cache_payload_v1';
-const CACHE_HASH_KEY    = 'cal_cache_hash_v1';
-const CACHE_TS_KEY      = 'cal_cache_ts_v1';
+const CACHE_TTL = 120000;
 
 let WEEKS = 4;
 let gridStartDate;
@@ -170,15 +158,12 @@ const prevBtn = document.getElementById('prev-week');
 const nextBtn = document.getElementById('next-week');
 const todayBtn = document.getElementById('today-btn');
 
-/* =====================
-   UTILITAIRES
-===================== */
 const fmtDate = d => d.toISOString().split('T')[0];
 const pad = n => n<10?'0'+n:n;
 const fmtTime = dt => dt?pad(new Date(dt).getHours())+':'+pad(new Date(dt).getMinutes()):'';
 const shortTitle = (s,max=60)=> s.length>max?s.slice(0,max-1)+'…':s;
 
-/* Calcul lundi courant */
+/* ==== DATE DE DÉBUT ==== */
 const computeGridStart = refDate => {
   const d = new Date(refDate);
   d.setHours(0,0,0,0);
@@ -188,82 +173,18 @@ const computeGridStart = refDate => {
   return mondayThisWeek;
 };
 
-/* =====================
-   SHA256 helper
-===================== */
-async function sha256Hex(str){
-  const enc = new TextEncoder().encode(str);
-  const hashBuf = await crypto.subtle.digest('SHA-256', enc);
-  const hashArray = Array.from(new Uint8Array(hashBuf));
-  return hashArray.map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-
-/* =====================
-   CACHE
-===================== */
-function loadCachePayload(){
-  try{
-    const raw = localStorage.getItem(CACHE_PAYLOAD_KEY);
-    if(!raw) return null;
-    const ts = parseInt(localStorage.getItem(CACHE_TS_KEY)||'0',10);
-    if(!ts || (Date.now()-ts)>CACHE_TTL) return null;
-    return JSON.parse(raw);
-  }catch{return null;}
-}
-function saveCachePayload(payload){
-  try{
-    localStorage.setItem(CACHE_PAYLOAD_KEY, JSON.stringify(payload));
-    localStorage.setItem(CACHE_TS_KEY, Date.now().toString());
-  }catch{}
-}
-function getStoredHash(){ return localStorage.getItem(CACHE_HASH_KEY); }
-function saveStoredHash(h){ try{ localStorage.setItem(CACHE_HASH_KEY,h); }catch{} }
-function updateCacheTimestamp(){ try{ localStorage.setItem(CACHE_TS_KEY,Date.now().toString()); }catch{} }
-
-/* =====================
-   FETCH EVENTS
-===================== */
-async function getEvents(timeMin,timeMax){
-  const cached = loadCachePayload();
-  if(cached){ return cached; }
-  const allEvents = {};
-  for(const cal of CALENDARS){
-    try{
-      const items = await fetchEventsForCalendar(cal.id,timeMin,timeMax);
-      allEvents[cal.key] = items||[];
-    }catch{ allEvents[cal.key]=[]; }
-  }
-  const stable={}; Object.keys(allEvents).sort().forEach(k=> stable[k]=allEvents[k]);
-  const payloadStr = JSON.stringify(stable);
-  const newHash = await sha256Hex(payloadStr);
-  const oldHash = getStoredHash();
-  if(oldHash && oldHash===newHash){
-    const existing = (()=>{ try{ const raw=localStorage.getItem(CACHE_PAYLOAD_KEY); return raw?JSON.parse(raw):null;}catch{return null;} })();
-    if(existing){ updateCacheTimestamp(); return existing; }
-  }
-  saveCachePayload(allEvents);
-  saveStoredHash(newHash);
-  return allEvents;
-}
-async function fetchEventsForCalendar(calId,timeMin,timeMax){
-  const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime&maxResults=2500`;
-  const res = await fetch(url);
-  if(!res.ok) throw new Error(res.status);
-  const data = await res.json();
-  return data.items||[];
-}
-
-/* =====================
-   RENDER CALENDAR
-===================== */
+/* ==== CALENDAR RENDER ==== */
 async function renderCalendar(){
   const dates=[];
   for(let w=0; w<WEEKS; w++){
     for(let i=0;i<7;i++){
-      const d=new Date(gridStartDate); d.setDate(d.getDate()+w*7+i); dates.push(d);
+      const d=new Date(gridStartDate); d.setDate(d.getDate()+w*7+i);
+      dates.push(d);
     }
   }
-  gridEl.style.gridTemplateRows=`repeat(${WEEKS},1fr)`; gridEl.innerHTML='';
+
+  gridEl.style.gridTemplateRows=`repeat(${WEEKS},1fr)`;
+  gridEl.innerHTML='';
   const dayNames=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
   dates.forEach(d=>{
     const dayEl=document.createElement('div');
@@ -273,86 +194,19 @@ async function renderCalendar(){
     gridEl.appendChild(dayEl);
   });
 
-  const timeMin=new Date(dates[0]); timeMin.setHours(0,0,0,0);
-  const timeMax=new Date(dates[dates.length-1]); timeMax.setHours(23,59,59,999);
-  const eventsByDay={}; const fetched = await getEvents(timeMin.toISOString(),timeMax.toISOString());
-  const seen = new Set();
-
-  for(const key in fetched){
-    for(const it of fetched[key]){
-      const dedupeKey = it.iCalUID||it.id||it.summary; if(seen.has(dedupeKey)) continue; seen.add(dedupeKey);
-      const start = it.start?.dateTime || it.start?.date;
-      const end = it.end?.dateTime || it.end?.date;
-      const allDay = !!it.start?.date;
-      const cal = CALENDARS.find(c=>c.key===key)||{key:key};
-      if(allDay){
-        let s=new Date(start+'T00:00:00'); let e=new Date(end+'T00:00:00');
-        for(let d=new Date(s); d<e; d.setDate(d.getDate()+1)){
-          const keyD = fmtDate(d);
-          eventsByDay[keyD] = eventsByDay[keyD]||[];
-          eventsByDay[keyD].push({title:it.summary||'(sans titre)',start:null,end:null,allDay:true,calendarKey:cal.key});
-        }
-      } else {
-        const keyD = fmtDate(new Date(start));
-        eventsByDay[keyD] = eventsByDay[keyD]||[];
-        eventsByDay[keyD].push({title:it.summary||'(sans titre)',start:start,end:end,allDay:false,calendarKey:cal.key});
-      }
-    }
-  }
-
-  document.querySelectorAll('.day').forEach(dayEl=>{
-    const date = dayEl.dataset.date;
-    const evList = eventsByDay[date]||[];
-    const eventsContainer = dayEl.querySelector('.events'); eventsContainer.innerHTML='';
-    evList.slice(0,6).forEach(ev=>{
-      const evEl=document.createElement('div');
-      const calMeta = CALENDARS.find(c=>c.key===ev.calendarKey);
-      evEl.className='event '+(ev.allDay?'allDay':'')+(calMeta?` ${calMeta.css}`:'');
-      evEl.innerHTML=`<div class="time">${ev.allDay?'':fmtTime(ev.start)}</div><div class="title">${shortTitle(ev.title,80)}</div>`;
-      evEl.onclick = ()=>{
-        let startText = ev.allDay?'Toute la journée':fmtTime(ev.start);
-        let endText = ev.allDay?'':fmtTime(ev.end);
-        popupTitle.textContent = ev.title;
-        popupTime.textContent = ev.allDay?'Toute la journée':`${startText} → ${endText}`;
-        popup.style.display='block';
-      };
-      eventsContainer.appendChild(evEl);
-    });
-    if(evList.length>6){
-      const more=document.createElement('div');
-      more.className='event more';
-      more.textContent=`+ ${evList.length-6} autres`;
-      eventsContainer.appendChild(more);
-    }
-  });
-
-  const todayStr = fmtDate(new Date());
-  document.querySelectorAll('.day').forEach(dayEl=>{
-    const date = dayEl.dataset.date;
-    dayEl.classList.remove('past','future','today');
-    if(date===todayStr) dayEl.classList.add('today');
-    else if(date<todayStr) dayEl.classList.add('past');
-    else dayEl.classList.add('future');
-  });
-
   const monthNames=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
   monthTitle.textContent = monthNames[dates[0].getMonth()]+' '+dates[0].getFullYear();
 }
 
-/* =====================
-   NAVIGATION
-===================== */
+/* ==== NAVIGATION ==== */
 prevBtn.onclick = ()=>{ gridStartDate.setDate(gridStartDate.getDate()-7); renderCalendar(); };
 nextBtn.onclick = ()=>{ gridStartDate.setDate(gridStartDate.getDate()+7); renderCalendar(); };
 todayBtn.onclick = ()=>{ gridStartDate = computeGridStart(new Date()); renderCalendar(); };
 weeksSelect.onchange = e => { WEEKS = parseInt(e.target.value); renderCalendar(); };
 
-/* =====================
-   INIT
-===================== */
 gridStartDate = computeGridStart(new Date());
 renderCalendar();
-setInterval(renderCalendar,60000);
 </script>
+
 </body>
 </html>
