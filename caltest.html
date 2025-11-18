@@ -6,141 +6,55 @@
 <title>Calendrier 3-4 semaines - sombre + cache</title>
 <style>
 :root {
-  --bg: #121212;
-  --card: #1c1f23;
-  --border: #555;
-  --text: #eaeaea;
-  --muted: #999;
-  --accent: #00e5ff;
-  --gap: 4px;
-  --days-font: 14px;
-  --event-font: 14px;
+  --bg:#121212;
+  --card:#1c1f23;
+  --border:#555;
+  --text:#eaeaea;
+  --muted:#999;
+  --accent:#00e5ff;
+  --gap:4px;
+  --days-font:14px;
+  --event-font:14px;
 }
-* { box-sizing: border-box; margin:0; padding:0; }
-body {
-  font-family: Inter, system-ui, Arial, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-.container {
-  flex:1;
-  display: flex;
-  flex-direction: column;
-  padding:16px;
-}
-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-  gap: 20px;
-  flex-wrap: wrap;
-}
-header h1 { font-size: 24px; color: var(--accent); text-align:center; }
-.nav-buttons {
-  display: flex;
-  gap:8px;
-  align-items: center;
-}
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:Inter, system-ui, Arial, sans-serif; background:var(--bg); color:var(--text); height:100vh; display:flex; flex-direction:column; }
+.container { flex:1; display:flex; flex-direction:column; padding:16px; }
+header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:20px; flex-wrap:wrap; }
+header h1 { font-size:24px; color:var(--accent); text-align:center; }
+.nav-buttons { display:flex; gap:8px; align-items:center; }
+.nav-buttons button, .nav-buttons select { background:none; border:none; color:var(--accent); font-size:16px; cursor:pointer; padding:4px 8px; transition: all 0.35s ease; }
+.nav-buttons button:hover, .nav-buttons select:hover { background: rgba(0,229,255,0.2); }
 
-/* Toggle boutons semaines */
-.week-toggle {
-  display: flex;
-  border: 1px solid var(--accent);
-  border-radius: 8px;
-  overflow: hidden;
-  margin-left: 8px;
-}
-.week-toggle button {
-  background: none;
-  border: none;
-  padding: 4px 12px;
-  color: var(--text);
-  cursor: pointer;
-  transition: background 0.25s;
-}
-.week-toggle button.active {
-  background: var(--accent);
-  color: var(--bg);
-}
-.week-toggle button:hover {
-  background: rgba(0,229,255,0.2);
-}
+.calendar { background:var(--card); border-radius:12px; flex:1; display:flex; flex-direction:column; box-shadow:0 6px 18px rgba(0,0,0,0.5); }
+.grid { display:grid; grid-template-columns:repeat(7,1fr); gap:var(--gap); flex:1; }
 
-.nav-buttons button {
-  background:none;
-  border:none;
-  color: var(--accent);
-  font-size:16px;
-  cursor:pointer;
-  padding:4px 8px;
-  transition: all 0.35s ease;
-}
-.nav-buttons button:hover { background: rgba(0,229,255,0.2); }
-
-.calendar {
-  background: var(--card);
-  border-radius: 12px;
-  padding:0;
-  flex:1;
-  display:flex;
-  flex-direction: column;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.5);
-}
-.grid {
-  display:grid;
-  grid-template-columns: repeat(7,1fr);
-  gap: var(--gap);
-  flex:1;
-}
-.day {
-  background:#141619;
-  border-radius:12px;
-  padding:6px;
-  border:1px solid var(--border);
-  display:flex;
-  flex-direction: column;
-  overflow:hidden;
-  position:relative;
-  transition: transform 0.35s ease, width 0.35s ease, background 0.25s, box-shadow 0.35s, border-color 0.25s;
-}
-.day.today { transform: scale(1.08); animation: todayPulse 3s infinite ease-in-out; background:#1f2226; border:2px solid var(--accent); z-index:2; }
+.day { background:#141619; border-radius:12px; padding:6px; border:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; position:relative; transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s; }
+.day.today { background:#1f2226; border:2px solid var(--accent); z-index:2; animation: todayPulse 3s infinite ease-in-out; }
 .day.today::after { content:""; position:absolute; inset:0; border-radius:12px; pointer-events:none; box-shadow:0 0 20px 8px rgba(0,229,255,0.5); }
-.day.past { background:#0f1113; color:#555; transform: scale(0.95); }
+.day.past { background:#0f1113; color:#555; }
 .day.future { background:#1c1f23; color:#eaeaea; }
-.day.today:hover, .day.future:hover { animation:none; transform: scale(1.12); z-index:10; width:140%; }
-.day-header { display:flex; justify-content:space-between; align-items:center; font-size: var(--days-font); margin-bottom:2px; }
-.day .date { font-weight:600; font-size: var(--days-font); }
-.events { flex:1 1 auto; display:flex; flex-direction: column; gap:2px; overflow:hidden; }
-.event { display:flex; align-items:center; gap:4px; padding:2px 4px; font-size: var(--event-font); border-radius:6px; background: rgba(0,0,0,0.3); cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition: background 0.25s ease; }
+.day:hover { box-shadow:0 0 25px 10px rgba(0,229,255,0.4); }
+
+.day-header { display:flex; justify-content:space-between; align-items:center; font-size:var(--days-font); margin-bottom:2px; }
+.day .date { font-weight:600; font-size:var(--days-font); }
+.events { flex:1 1 auto; display:flex; flex-direction:column; gap:2px; overflow:hidden; }
+.event { display:flex; align-items:center; gap:4px; padding:2px 4px; font-size:var(--event-font); border-radius:6px; background: rgba(0,0,0,0.3); cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition: background 0.25s ease; }
 .event:hover { background: rgba(0,0,0,0.5); }
 .event .time { min-width:50px; font-weight:600; font-size:11px; }
 .event.allDay .time { display:none; }
 .event.more { font-size:12px; color:var(--muted); padding-left:6px; }
 .event .title { text-align:left; }
+
 .c-reception { color:#109c53; }
 .c-smr { color:#5768cb; }
-#popup {
-  position:fixed;
-  top:50%; left:50%;
-  transform: translate(-50%,-50%);
-  background:#1c1f23;
-  color:#fff;
-  padding:16px;
-  border-radius:12px;
-  box-shadow:0 0 20px rgba(0,0,0,0.8);
-  z-index:20;
-  max-width:90%;
-  min-width:300px;
-  display:none;
-}
+
+#popup { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#1c1f23; color:#fff; padding:16px; border-radius:12px; box-shadow:0 0 20px rgba(0,0,0,0.8); z-index:20; max-width:90%; min-width:300px; display:none; border:3px solid #00e5ff; }
 #popup h3 { margin-bottom:8px; }
 #popup .close { position:absolute; top:8px; right:12px; cursor:pointer; font-weight:bold; font-size:18px; }
+
 @media(max-width:900px){ .grid{ grid-template-columns: repeat(2,1fr); } }
 @media(max-width:520px){ .grid{ grid-template-columns: repeat(1,1fr); } }
+
 @keyframes todayPulse { 0%,100%{ transform: scale(1.08); } 50%{ transform: scale(1.12); } }
 </style>
 </head>
@@ -152,11 +66,10 @@ header h1 { font-size: 24px; color: var(--accent); text-align:center; }
       <button id="prev-week">&lt;</button>
       <button id="today-btn">Aujourd'hui</button>
       <button id="next-week">&gt;</button>
-      <!-- Toggle semaines -->
-      <div class="week-toggle">
-        <button id="btn-3w" class="active">3 semaines</button>
-        <button id="btn-4w">4 semaines</button>
-      </div>
+      <select id="weeks-select">
+        <option value="3" selected>3 semaines</option>
+        <option value="4">4 semaines</option>
+      </select>
     </div>
   </header>
   <div class="calendar">
@@ -171,27 +84,26 @@ header h1 { font-size: 24px; color: var(--accent); text-align:center; }
 </div>
 
 <script>
-/* ===================== CONFIG ===================== */
 const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
 const CALENDARS = [
-  { id:'receptionroulier@gmail.com', key:'reception', css:'c-reception'},
-  { id:'smr.programme@gmail.com', key:'smr', css:'c-smr'}
+  { id:'receptionroulier@gmail.com', key:'reception', css:'c-reception' },
+  { id:'smr.programme@gmail.com', key:'smr', css:'c-smr' }
 ];
-const CACHE_TTL = 120000;
 
-let WEEKS = 3; // par défaut 3 semaines
+let WEEKS = 3;
 let gridStartDate;
+
 const gridEl = document.getElementById('grid');
 const monthTitle = document.getElementById('month-title');
 const popup = document.getElementById('popup');
 const popupTitle = document.getElementById('popup-title');
 const popupTime = document.getElementById('popup-time');
+const weeksSelect = document.getElementById('weeks-select');
+const prevBtn = document.getElementById('prev-week');
+const nextBtn = document.getElementById('next-week');
+const todayBtn = document.getElementById('today-btn');
 
-/* Toggle boutons */
-const btn3 = document.getElementById('btn-3w');
-const btn4 = document.getElementById('btn-4w');
-
-/* ===================== UTIL ===================== */
+/* utilitaires */
 const fmtDate = d => d.toISOString().split('T')[0];
 const pad = n => n<10?'0'+n:n;
 const fmtTime = dt => dt?pad(new Date(dt).getHours())+':'+pad(new Date(dt).getMinutes()):'';
@@ -200,31 +112,12 @@ const shortTitle = (s,max=60)=> s.length>max?s.slice(0,max-1)+'…':s;
 const computeGridStart = refDate => {
   const d = new Date(refDate); d.setHours(0,0,0,0);
   const day = d.getDay();
-  const monday = new Date(d);
-  monday.setDate(d.getDate() - ((day + 6) % 7)); // lundi
-  return monday;
+  const mondayThisWeek = new Date(d);
+  mondayThisWeek.setDate(d.getDate() - ((day+6)%7));
+  return mondayThisWeek;
 };
 
-/* ===================== CACHE ===================== */
-async function sha256Hex(str){
-  const enc = new TextEncoder().encode(str);
-  const hashBuf = await crypto.subtle.digest('SHA-256', enc);
-  return Array.from(new Uint8Array(hashBuf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-function loadCachePayload(){
-  try{ const raw = localStorage.getItem('cal_cache_payload_v1'); 
-    if(!raw) return null;
-    const ts = parseInt(localStorage.getItem('cal_cache_ts_v1')||'0',10);
-    if(!ts || (Date.now()-ts)>CACHE_TTL) return null;
-    return JSON.parse(raw);
-  }catch{return null;}
-}
-function saveCachePayload(payload){
-  try{ localStorage.setItem('cal_cache_payload_v1', JSON.stringify(payload));
-        localStorage.setItem('cal_cache_ts_v1', Date.now().toString()); }catch{}
-}
-
-/* ===================== FETCH ===================== */
+/* fetch events */
 async function fetchEventsForCalendar(calId,timeMin,timeMax){
   const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime&maxResults=2500`;
   const res = await fetch(url);
@@ -232,21 +125,19 @@ async function fetchEventsForCalendar(calId,timeMin,timeMax){
   const data = await res.json();
   return data.items || [];
 }
+
 async function getEvents(timeMin,timeMax){
-  const cached = loadCachePayload();
-  if(cached) return cached;
   const allEvents = {};
   for(const cal of CALENDARS){
     try{
-      const items = await fetchEventsForCalendar(cal.id,timeMin,timeMax);
+      const items = await fetchEventsForCalendar(cal.id, timeMin, timeMax);
       allEvents[cal.key] = items || [];
     }catch{ allEvents[cal.key] = []; }
   }
-  saveCachePayload(allEvents);
   return allEvents;
 }
 
-/* ===================== RENDER ===================== */
+/* render calendar */
 async function renderCalendar(){
   const dates=[];
   for(let w=0; w<WEEKS; w++){
@@ -257,34 +148,37 @@ async function renderCalendar(){
     }
   }
 
-  gridEl.style.gridTemplateRows = `repeat(${WEEKS},1fr)`;
-  gridEl.innerHTML='';
+  // ajustement full-screen
+  const calHeight = document.querySelector('.calendar').clientHeight;
+  gridEl.style.gridTemplateRows = `repeat(${WEEKS}, ${calHeight/WEEKS}px)`;
 
-  const dayNames = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+  gridEl.innerHTML='';
+  const dayNames=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
 
   dates.forEach(d=>{
-    const dayEl=document.createElement('div');
+    const dayEl = document.createElement('div');
     dayEl.className='day';
-    dayEl.dataset.date=fmtDate(d);
+    dayEl.dataset.date = fmtDate(d);
     dayEl.innerHTML = `<div class="day-header"><div>${dayNames[(d.getDay()+6)%7]}</div><div class="date">${d.getDate()}</div></div><div class="events"></div>`;
     gridEl.appendChild(dayEl);
   });
 
   const timeMin = new Date(dates[0]); timeMin.setHours(0,0,0,0);
   const timeMax = new Date(dates[dates.length-1]); timeMax.setHours(23,59,59,999);
-  const eventsByDay = {};
-  const fetched = await getEvents(timeMin.toISOString(),timeMax.toISOString());
-  const seen = new Set();
+  const eventsByDay={};
+  const fetched = await getEvents(timeMin.toISOString(), timeMax.toISOString());
 
+  const seen = new Set();
   for(const key in fetched){
     for(const it of fetched[key]){
       const dedupeKey = it.iCalUID || it.id || it.summary;
       if(seen.has(dedupeKey)) continue;
       seen.add(dedupeKey);
+
       const start = it.start?.dateTime || it.start?.date;
       const end = it.end?.dateTime || it.end?.date;
       const allDay = !!it.start?.date;
-      const cal = CALENDARS.find(c=>c.key===key) || {key:key};
+      const calMeta = CALENDARS.find(c=>c.key===key) || {key:key};
 
       if(allDay){
         let s = new Date(start+'T00:00:00');
@@ -292,12 +186,12 @@ async function renderCalendar(){
         for(let d=new Date(s); d<e; d.setDate(d.getDate()+1)){
           const keyD = fmtDate(d);
           eventsByDay[keyD] = eventsByDay[keyD]||[];
-          eventsByDay[keyD].push({title:it.summary||'(sans titre)',start:null,end:null,allDay:true,calendarKey:cal.key});
+          eventsByDay[keyD].push({title:it.summary||'(sans titre)',start:null,end:null,allDay:true,calendarKey:calMeta.key});
         }
       } else {
         const keyD = fmtDate(new Date(start));
         eventsByDay[keyD] = eventsByDay[keyD]||[];
-        eventsByDay[keyD].push({title:it.summary||'(sans titre)',start:start,end:end,allDay:false,calendarKey:cal.key});
+        eventsByDay[keyD].push({title:it.summary||'(sans titre)',start:start,end:end,allDay:false,calendarKey:calMeta.key});
       }
     }
   }
@@ -305,29 +199,27 @@ async function renderCalendar(){
   document.querySelectorAll('.day').forEach(dayEl=>{
     const date = dayEl.dataset.date;
     const evList = eventsByDay[date]||[];
-    const eventsContainer = dayEl.querySelector('.events');
-    eventsContainer.innerHTML='';
+    const container = dayEl.querySelector('.events');
+    container.innerHTML='';
 
     evList.slice(0,6).forEach(ev=>{
-      const evEl=document.createElement('div');
+      const evEl = document.createElement('div');
       const calMeta = CALENDARS.find(c=>c.key===ev.calendarKey);
-      evEl.className='event '+(ev.allDay?'allDay':'')+(calMeta?` ${calMeta.css}`:'');
-      evEl.innerHTML=`<div class="time">${ev.allDay?'':fmtTime(ev.start)}</div><div class="title">${shortTitle(ev.title,80)}</div>`;
+      evEl.className = 'event '+(ev.allDay?'allDay':'')+(calMeta?` ${calMeta.css}`:'');
+      evEl.innerHTML = `<div class="time">${ev.allDay?'':fmtTime(ev.start)}</div><div class="title">${shortTitle(ev.title,80)}</div>`;
       evEl.onclick = ()=>{
-        let startText = ev.allDay?'Toute la journée':fmtTime(ev.start);
-        let endText = ev.allDay?'':fmtTime(ev.end);
         popupTitle.textContent = ev.title;
-        popupTime.textContent = ev.allDay?'Toute la journée':`${startText} → ${endText}`;
+        popupTime.textContent = ev.allDay?'Toute la journée':`${fmtTime(ev.start)} → ${fmtTime(ev.end)}`;
         popup.style.display='block';
       };
-      eventsContainer.appendChild(evEl);
+      container.appendChild(evEl);
     });
 
     if(evList.length>6){
-      const more=document.createElement('div');
+      const more = document.createElement('div');
       more.className='event more';
       more.textContent=`+ ${evList.length-6} autres`;
-      eventsContainer.appendChild(more);
+      container.appendChild(more);
     }
   });
 
@@ -344,28 +236,13 @@ async function renderCalendar(){
   monthTitle.textContent = monthNames[dates[0].getMonth()]+' '+dates[0].getFullYear();
 }
 
-/* ===================== NAVIGATION ===================== */
-document.getElementById('prev-week').onclick = ()=>{ gridStartDate.setDate(gridStartDate.getDate()-7); renderCalendar(); };
-document.getElementById('next-week').onclick = ()=>{ gridStartDate.setDate(gridStartDate.getDate()+7); renderCalendar(); };
-document.getElementById('today-btn').onclick = ()=>{ gridStartDate = computeGridStart(new Date()); renderCalendar(); };
+/* navigation */
+prevBtn.onclick = ()=>{ gridStartDate.setDate(gridStartDate.getDate()-7); renderCalendar(); };
+nextBtn.onclick = ()=>{ gridStartDate.setDate(gridStartDate.getDate()+7); renderCalendar(); };
+todayBtn.onclick = ()=>{ gridStartDate = computeGridStart(new Date()); renderCalendar(); };
+weeksSelect.onchange = e => { WEEKS=parseInt(e.target.value); renderCalendar(); };
 
-/* Toggle boutons semaines */
-btn3.onclick = ()=>{
-  WEEKS = 3;
-  btn3.classList.add('active');
-  btn4.classList.remove('active');
-  gridStartDate = computeGridStart(new Date());
-  renderCalendar();
-};
-btn4.onclick = ()=>{
-  WEEKS = 4;
-  btn4.classList.add('active');
-  btn3.classList.remove('active');
-  gridStartDate = computeGridStart(new Date());
-  renderCalendar();
-};
-
-/* ===================== INIT ===================== */
+/* init */
 gridStartDate = computeGridStart(new Date());
 renderCalendar();
 setInterval(renderCalendar,60000);
