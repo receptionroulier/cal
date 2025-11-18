@@ -1,20 +1,151 @@
-<div class="right">
-  <h2>Calendrier</h2>
-  <div id="calendar-wrapper"></div>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Ponts HAROPA & Calendrier Temps Réel</title>
+
+<style>
+body {
+    margin:0; font-family:Arial,sans-serif; background:#101010; color:#eaeaea;
+}
+.container {
+    display:flex; flex:1; flex-wrap:nowrap; height:100vh;
+}
+
+/* ===== COLONNE PONTS ===== */
+.left {
+    background:#252525; width:22%; min-width:200px; padding:8px;
+    overflow-y:auto; box-sizing:border-box; border-right:2px solid #222;
+}
+h2 { text-align:center; color:#00e5ff; margin:0 0 10px; font-size:1.2em; }
+#ponts-table { display:flex; flex-direction:column; gap:8px; }
+
+.pont-card {
+    background:#1f1f1f; border-radius:8px; padding:6px 8px;
+    box-shadow:0 0 4px rgba(0,0,0,0.4); font-size:0.85em;
+    display:flex; flex-direction:column; gap:2px;
+    border-left-width:4px; border-left-style:solid;
+    transition: transform 0.15s ease, box-shadow 0.3s ease;
+}
+.pont-card:hover { transform: scale(1.02); }
+.pont-card.ferme { border-left-color:#ff4040; }
+.pont-card.ouvert { border-left-color:#58ff58; }
+.pont-card.manoeuvre { border-left-color:#1c3cff; animation:pulse 1.2s infinite; }
+
+.pastille { width:10px; height:10px; border-radius:50%; margin-right:6px; display:inline-block; }
+.ferme .pastille{background:#ff4040;} .ouvert .pastille{background:#58ff58;} .manoeuvre .pastille{background:#1c3cff;}
+.pont-nom{font-weight:bold; display:flex; align-items:center;}
+
+@keyframes pulse{
+ 0%{box-shadow:0 0 5px rgba(28,60,255,0.4);transform:scale(1);}
+ 50%{box-shadow:0 0 20px rgba(28,60,255,0.7);transform:scale(1.02);}
+ 100%{box-shadow:0 0 5px rgba(28,60,255,0.4);transform:scale(1);}
+}
+
+/* ===== COLONNE CALENDRIER ===== */
+.right {
+    flex:1; background:#181818; padding:8px; overflow-y:auto; box-sizing:border-box;
+}
+#calendar-wrapper { display:flex; flex-direction:column; gap:4px; }
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:900px){
+    .container{flex-direction:column;}
+    .left{width:100%; border-right:none; border-bottom:2px solid #222; max-height:45vh;}
+    .right{width:100%; height:55vh;}
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+    <!-- COLONNE PONTS -->
+    <div class="left">
+        <h2>État des Ponts</h2>
+        <div id="ponts-table">Chargement...</div>
+    </div>
+
+    <!-- COLONNE CALENDRIER -->
+    <div class="right">
+        <h2>Calendrier</h2>
+        <div id="calendar-wrapper">Chargement...</div>
+    </div>
 </div>
 
 <script>
-// ==================== CALENDRIER DANS DASHBOARD ====================
+/* ==================== UTIL SHA-256 ==================== */
+async function sha256Hex(str){
+    const buf = new TextEncoder().encode(str);
+    const digest = await crypto.subtle.digest("SHA-256", buf);
+    return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+/* ==================== PONTS ==================== */
+const CACHE_PONTS_KEY_DATA = "pontsData";
+const CACHE_PONTS_KEY_HASH = "pontsHash";
+const CACHE_PONTS_KEY_TIME = "pontsCacheTime";
+const REFRESH_INTERVAL = 60000;
+
+async function checkAndUpdatePonts(){
+    const now=Date.now();
+    const last=localStorage.getItem(CACHE_PONTS_KEY_TIME);
+    if(last && now-last<CACHE_EXP && localStorage.getItem(CACHE_PONTS_KEY_DATA)){
+        renderPonts(JSON.parse(localStorage.getItem(CACHE_PONTS_KEY_DATA)));
+        return;
+    }
+    await fetchPonts();
+}
+
+async function fetchPonts(){
+    try{
+        const url = encodeURIComponent("https://www.havre-port.com/map/getPonts");
+        const proxy = `https://api.allorigins.win/get?url=${url}`;
+        const res = await fetch(proxy);
+        const raw = await res.json();
+        const content = raw.contents;
+        const newHash = await sha256Hex(content);
+        if(newHash===localStorage.getItem(CACHE_PONTS_KEY_HASH)){
+            renderPonts(JSON.parse(localStorage.getItem(CACHE_PONTS_KEY_DATA)));
+            return;
+        }
+        const ponts = Object.values(JSON.parse(content).data);
+        const unique = Array.from(new Map(ponts.map(p=>[p.nom,p])).values());
+        const ordered = unique.sort((a,b)=>{
+            const score=p=>{const s=p.statutText.toLowerCase(); return s.includes('manoeuvre')?1:s.includes('ouvert')?2:0;}
+            return score(a)-score(b);
+        });
+        localStorage.setItem(CACHE_PONTS_KEY_DATA,JSON.stringify(ordered));
+        localStorage.setItem(CACHE_PONTS_KEY_HASH,newHash);
+        localStorage.setItem(CACHE_PONTS_KEY_TIME,Date.now());
+        renderPonts(ordered);
+    }catch(e){console.error(e); document.getElementById("ponts-table").textContent="Erreur ponts";}
+}
+
+function renderPonts(list){
+    const container=document.getElementById("ponts-table");
+    container.innerHTML=list.map(p=>{
+        const s=p.statutText.toLowerCase();
+        const cls=s.includes("manoeuvre")?"manoeuvre":s.includes("ouvert")?"ouvert":"ferme";
+        const info=p.forceText||`MàJ : ${p.date}`;
+        return `<div class="pont-card ${cls}">
+            <div class="pont-nom"><span class="pastille"></span>${p.nom}</div>
+            <div class="pont-etat">${p.statutText}</div>
+            <div class="pont-infos">${info}</div>
+        </div>`;
+    }).join("");
+}
+
+/* ==================== CALENDRIER ==================== */
 const CACHE_CAL_HTML = "cal_html_cache";
 const CACHE_CAL_HASH = "cal_html_hash";
-const CACHE_EXP_CAL = 120000; // 120 s
+const CACHE_EXP_CAL = 120000;
 
 async function loadCalendarHTML() {
   try {
     const res = await fetch("https://receptionroulier.github.io/cal/calr.html");
     const html = await res.text();
 
-    // hash pour vérifier si le contenu a changé
     const newHash = await sha256Hex(html);
     const oldHash = localStorage.getItem(CACHE_CAL_HASH);
 
@@ -24,7 +155,6 @@ async function loadCalendarHTML() {
       return;
     }
 
-    // Mise à jour du cache
     localStorage.setItem(CACHE_CAL_HTML, html);
     localStorage.setItem(CACHE_CAL_HASH, newHash);
     localStorage.setItem("cal_html_ts", Date.now());
@@ -38,7 +168,13 @@ async function loadCalendarHTML() {
   }
 }
 
-// Refresh automatique toutes les 60 secondes
+/* ==================== INIT ==================== */
+const CACHE_EXP = 120000;
+checkAndUpdatePonts();
 loadCalendarHTML();
-setInterval(loadCalendarHTML, 60000);
+setInterval(checkAndUpdatePonts, REFRESH_INTERVAL);
+setInterval(loadCalendarHTML, REFRESH_INTERVAL);
 </script>
+
+</body>
+</html>
