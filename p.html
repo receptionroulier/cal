@@ -54,7 +54,7 @@ h2 span {
     padding: 10px 12px;
     box-shadow: 0 0 5px rgba(0,0,0,0.4);
     border-left: 4px solid #444;
-    transition: transform 0.15s ease;
+    transition: transform 0.15s ease, box-shadow 0.3s ease;
 }
 .pont-card:hover {
     transform: scale(1.02);
@@ -76,13 +76,30 @@ h2 span {
 .ferme .pastille    { background: #ff4040; }
 .ouvert .pastille   { background: #58ff58; }
 .manoeuvre .pastille {
-    background: #1c3cff;
-    animation: blink 1s infinite;
+    background: #1c3cff; /* couleur fixe */
+    animation: none;
 }
 
-@keyframes blink {
-    0%, 100% { opacity: 1; }
-    50%      { opacity: 0.3; }
+/* ==========================================================================
+   PULSE SUR LA CARTE MANOEUVRE
+   ========================================================================== */
+.pont-card.manoeuvre {
+    animation: pulse 1.2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 5px rgba(28, 60, 255, 0.4);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(28, 60, 255, 0.7);
+        transform: scale(1.02);
+    }
+    100% {
+        box-shadow: 0 0 5px rgba(28, 60, 255, 0.4);
+        transform: scale(1);
+    }
 }
 
 .pont-nom {
@@ -170,7 +187,6 @@ async function fetchWithHashControl() {
         const newHash = await sha256(rawContent);
         const oldHash = localStorage.getItem(CACHE_KEY_HASH);
 
-        // Si pas de changement → utiliser cache
         if (newHash === oldHash) {
             const cached = localStorage.getItem(CACHE_KEY_DATA);
             if (cached) {
@@ -180,7 +196,6 @@ async function fetchWithHashControl() {
             }
         }
 
-        // Mise à jour complète
         const ponts = Object.values(JSON.parse(rawContent).data);
         const unique = Array.from(new Map(ponts.map(p => [p.nom, p])).values());
 
@@ -191,7 +206,6 @@ async function fetchWithHashControl() {
             return score(a) - score(b);
         });
 
-        // Sauvegarde en cache
         localStorage.setItem(CACHE_KEY_DATA, JSON.stringify(ordered));
         localStorage.setItem(CACHE_KEY_HASH, newHash);
         localStorage.setItem(CACHE_KEY_TIME, Date.now());
