@@ -24,7 +24,7 @@ body {
 
 /* ================= LEFT PANEL ================= */
 #ponts-panel {
-    flex: 0 0 280px; /* largeur fixe pour colonne ponts */
+    flex: 0 0 280px; /* colonne plus étroite */
     padding: 16px;
     box-sizing: border-box;
     overflow-y: auto;
@@ -71,7 +71,7 @@ body {
 
 /* ================= RIGHT PANEL (CALENDAR) ================= */
 #calendar-panel {
-    flex: 1; /* prend le reste de l'espace */
+    flex: 1;
     display: flex;
     flex-direction: column;
     padding: 16px;
@@ -148,16 +148,12 @@ body {
 .day.today { transform: scale(1.08); animation: todayPulse 3s infinite ease-in-out; background:#1f2226; border:2px solid #00e5ff; z-index:2; }
 .day.today::after { content:""; position:absolute; inset:0; border-radius:12px; pointer-events:none; box-shadow:0 0 20px 8px rgba(0,229,255,0.5); }
 .day.past { background:#0f1113; color:#555; transform: scale(0.95); }
-.day.future { background:#1c1f23; color:#eaeaea; }
-.day.today:hover,
-.day.future:hover { transform: scale(1.12); z-index:10; }
-.day.future:hover { animation: todayPulse 3s infinite ease-in-out; }
-.day.future:hover::after { content:""; position:absolute; inset:0; border-radius:12px; pointer-events:none; box-shadow:0 0 18px 6px rgba(0,229,255,0.18); }
+.day.future { background:#1c1f23; color:#eaeaea; animation: futurePulse 3s infinite ease-in-out; }
 
 .day-header { display:flex; justify-content:space-between; align-items:center; font-size:14px; margin-bottom:2px; }
 .day .date { font-weight:600; font-size:14px; }
 .events { flex:1 1 auto; display:flex; flex-direction: column; gap:2px; overflow:hidden; }
-.event { display:flex; align-items:center; gap:4px; padding:2px 4px; font-size:14px; border-radius:6px; background: rgba(0,0,0,0.3); cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition: background 0.25s ease; }
+.event { display:flex; align-items:center; gap:4px; padding:2px 4px; font-size:14px; border-radius:6px; background: rgba(0,0,0,0.3); cursor:pointer; white-space:normal; overflow-wrap:break-word; transition: background 0.25s ease; }
 .event:hover { background: rgba(0,0,0,0.5); }
 .event .time { min-width:50px; font-weight:600; font-size:11px; }
 .event.allDay .time { display:none; }
@@ -184,11 +180,12 @@ body {
 #popup .close { position:absolute; top:8px; right:12px; cursor:pointer; font-weight:bold; font-size:18px; }
 
 @keyframes todayPulse { 0%,100%{ transform: scale(1.08); } 50%{ transform: scale(1.12); } }
+@keyframes futurePulse { 0%,100%{ transform: scale(1); } 50%{ transform: scale(1.02); } }
 
 @media(max-width:1200px) {
     .container { flex-direction: column; }
     #calendar-panel { order:2; }
-    #ponts-panel { order:1; border-right:none; border-bottom:1px solid #555; flex: none; }
+    #ponts-panel { order:1; border-right:none; border-bottom:1px solid #555; }
 }
 </style>
 </head>
@@ -250,10 +247,12 @@ async function fetchPonts() {
         const rawContent = raw.contents;
         const newHash = await sha256(rawContent);
         const oldHash = localStorage.getItem(CACHE_KEY_HASH);
+
         if (newHash === oldHash) {
             const cached = localStorage.getItem(CACHE_KEY_DATA);
             if (cached) { renderPonts(JSON.parse(cached)); return; }
         }
+
         const ponts = Object.values(JSON.parse(rawContent).data);
         const unique = Array.from(new Map(ponts.map(p => [p.nom, p])).values());
         const ordered = unique.sort((a,b)=>{
@@ -265,10 +264,12 @@ async function fetchPonts() {
             };
             return score(a)-score(b);
         });
+
         localStorage.setItem(CACHE_KEY_DATA, JSON.stringify(ordered));
         localStorage.setItem(CACHE_KEY_HASH, newHash);
         localStorage.setItem(CACHE_KEY_TIME, Date.now());
         renderPonts(ordered);
+
     } catch(err){
         console.error("Erreur Ponts:", err);
         document.getElementById("ponts-table").textContent = "Impossible de récupérer les ponts.";
@@ -294,6 +295,7 @@ function renderPonts(list){
 async function checkAndUpdatePonts() {
     const now = Date.now();
     const last = localStorage.getItem(CACHE_KEY_TIME);
+
     if(last && now - last < CACHE_EXPIRATION){
         const cached = localStorage.getItem(CACHE_KEY_DATA);
         if(cached){ renderPonts(JSON.parse(cached)); return; }
@@ -307,16 +309,11 @@ setInterval(checkAndUpdatePonts, REFRESH_INTERVAL);
 /* ===================== CALENDAR ===================== */
 document.addEventListener('DOMContentLoaded', () => {
 
-const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
+const API_KEY = 'YOUR_GOOGLE_API_KEY';
 const CALENDARS = [
   { id:'receptionroulier@gmail.com', key:'reception', css:'c-reception'},
   { id:'smr.programme@gmail.com', key:'smr', css:'c-smr'}
 ];
-const CACHE_TTL = 120000;
-const CACHE_PAYLOAD_KEY = 'cal_cache_payload_v1';
-const CACHE_HASH_KEY    = 'cal_cache_hash_v1';
-const CACHE_TS_KEY      = 'cal_cache_ts_v1';
-
 let WEEKS = 4;
 let gridStartDate;
 const gridEl = document.getElementById('grid');
@@ -329,10 +326,13 @@ const prevBtn = document.getElementById('prev-week');
 const nextBtn = document.getElementById('next-week');
 const todayBtn = document.getElementById('today-btn');
 
-const fmtDate = d => d.toISOString().split('T')[0];
 const pad = n => n<10?'0'+n:n;
+const fmtDate = d => {
+    if (!(d instanceof Date)) d = new Date(d);
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+};
 const fmtTime = dt => dt?pad(new Date(dt).getHours())+':'+pad(new Date(dt).getMinutes()):'';
-const shortTitle = (s,max=60)=> s.length>max?s.slice(0,max-1)+'…':s;
+const shortTitle = (s,max=80)=> s.length>max?s.slice(0,max-1)+'…':s;
 
 const computeGridStart = refDate=>{
   const d = new Date(refDate); d.setHours(0,0,0,0);
@@ -351,6 +351,12 @@ async function sha256Hex(str){
   return hashArray.map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 
+// --- Events cache ---
+const CACHE_TTL = 120000;
+const CACHE_PAYLOAD_KEY = 'cal_cache_payload_v1';
+const CACHE_HASH_KEY    = 'cal_cache_hash_v1';
+const CACHE_TS_KEY      = 'cal_cache_ts_v1';
+
 function loadCachePayload(){ try{ const raw = localStorage.getItem(CACHE_PAYLOAD_KEY); if(!raw) return null; const ts = parseInt(localStorage.getItem(CACHE_TS_KEY)||'0',10); if(!ts||(Date.now()-ts)>CACHE_TTL) return null; return JSON.parse(raw); }catch{return null;} }
 function saveCachePayload(payload){ try{ localStorage.setItem(CACHE_PAYLOAD_KEY, JSON.stringify(payload)); localStorage.setItem(CACHE_TS_KEY, Date.now().toString()); }catch{} }
 function getStoredHash(){ return localStorage.getItem(CACHE_HASH_KEY); }
@@ -367,15 +373,10 @@ async function getEvents(timeMin,timeMax){
       allEvents[cal.key] = items||[];
     }catch{ allEvents[cal.key]=[]; }
   }
-  const stable = {};
-  Object.keys(allEvents).sort().forEach(k=> stable[k]=allEvents[k]);
-  const payloadStr = JSON.stringify(stable);
+  const payloadStr = JSON.stringify(allEvents);
   const newHash = await sha256Hex(payloadStr);
   const oldHash = getStoredHash();
-  if(oldHash && oldHash===newHash){
-    const existing = (()=>{ try{ const raw = localStorage.getItem(CACHE_PAYLOAD_KEY); return raw?JSON.parse(raw):null; }catch{return null;} })();
-    if(existing){ updateCacheTimestamp(); return existing; }
-  }
+  if(oldHash && oldHash===newHash){ updateCacheTimestamp(); return cached || allEvents; }
   saveCachePayload(allEvents);
   saveStoredHash(newHash);
   return allEvents;
@@ -419,55 +420,57 @@ async function renderCalendar(){
   const eventsByDay = {};
   const fetched = await getEvents(timeMin.toISOString(),timeMax.toISOString());
   const seen = new Set();
+  
   for(const key in fetched){
     for(const it of fetched[key]){
       const dedupeKey = it.iCalUID||it.id||it.summary;
       if(seen.has(dedupeKey)) continue;
       seen.add(dedupeKey);
-      const start = it.start?.dateTime || it.start?.date;
-      const end = it.end?.dateTime || it.end?.date;
+
       const allDay = !!it.start?.date;
-      const cal = CALENDARS.find(c=>c.key===key) || {key:key};
+      let start = allDay ? new Date(it.start.date) : new Date(it.start.dateTime);
+      let end = allDay ? new Date(it.end.date) : new Date(it.end.dateTime);
+
       if(allDay){
-        let s = new Date(start+'T00:00:00'); let e = new Date(end+'T00:00:00');
-        for(let d=new Date(s); d<e; d.setDate(d.getDate()+1)){
+        for(let d = new Date(start); d < end; d.setDate(d.getDate()+1)){
           const keyD = fmtDate(d);
           eventsByDay[keyD] = eventsByDay[keyD]||[];
-          eventsByDay[keyD].push({title:it.summary||'(sans titre)',start:null,end:null,allDay:true,calendarKey:cal.key});
+          eventsByDay[keyD].push({title:it.summary||'(sans titre)',start:start,end:end,allDay:true,calendarKey:key});
         }
       } else {
-        const keyD = fmtDate(new Date(start));
-        eventsByDay[keyD] = eventsByDay[keyD]||[];
-        eventsByDay[keyD].push({title:it.summary||'(sans titre)',start:start,end:end,allDay:false,calendarKey:cal.key});
+        // Evenement multi-jours (non allDay)
+        let cur = new Date(start);
+        while(cur <= end){
+          const keyD = fmtDate(cur);
+          eventsByDay[keyD] = eventsByDay[keyD]||[];
+          eventsByDay[keyD].push({title:it.summary||'(sans titre)',start:start,end:end,allDay:false,calendarKey:key});
+          cur.setDate(cur.getDate()+1);
+        }
       }
     }
   }
 
+  // Render
   document.querySelectorAll('.day').forEach(dayEl=>{
     const date = dayEl.dataset.date;
     const evList = eventsByDay[date]||[];
     const eventsContainer = dayEl.querySelector('.events');
     eventsContainer.innerHTML='';
-    evList.slice(0,6).forEach(ev=>{
-      const evEl = document.createElement('div');
+    evList.forEach(ev=>{
       const calMeta = CALENDARS.find(c=>c.key===ev.calendarKey);
+      const evEl = document.createElement('div');
       evEl.className='event '+(ev.allDay?'allDay':'')+(calMeta?` ${calMeta.css}`:'');
-      evEl.innerHTML=`<div class="time">${ev.allDay?'':fmtTime(ev.start)}</div><div class="title">${shortTitle(ev.title,80)}</div>`;
-      evEl.onclick = ()=>{ 
-        const startText = ev.allDay?'Toute la journée':fmtTime(ev.start);
-        const endText = ev.allDay?'':fmtTime(ev.end);
+      evEl.innerHTML=`<div class="time">${ev.allDay?'':fmtTime(ev.start)}</div><div class="title">${ev.title}</div>`;
+      evEl.onclick = ()=>{
+        const startStr = `${ev.start.getDate()}/${ev.start.getMonth()+1}/${ev.start.getFullYear()}`;
+        const endStr = `${ev.end.getDate()}/${ev.end.getMonth()+1}/${ev.end.getFullYear()}`;
+        const timeStr = ev.allDay ? 'Toute la journée' : `${fmtTime(ev.start)} → ${fmtTime(ev.end)}`;
         popupTitle.textContent = ev.title;
-        popupTime.textContent = ev.allDay?'Toute la journée':`${startText} → ${endText}`;
+        popupTime.innerHTML = `<b>Début:</b> ${startStr} <br> <b>Fin:</b> ${endStr} <br> <b>Heure:</b> ${timeStr}`;
         popup.style.display='block';
       };
       eventsContainer.appendChild(evEl);
     });
-    if(evList.length>6){
-      const more=document.createElement('div');
-      more.className='event more';
-      more.textContent=`+ ${evList.length-6} autres`;
-      eventsContainer.appendChild(more);
-    }
   });
 
   const todayStr = fmtDate(new Date());
