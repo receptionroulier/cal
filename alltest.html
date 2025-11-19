@@ -6,9 +6,6 @@
 <title>Ponts HAROPA – Monitoring + Calendrier</title>
 
 <style>
-/* =======================================================
-   💠 GLOBAL
-======================================================= */
 :root{
   --bg:#101010; 
   --panel:#1a1a1a; 
@@ -28,9 +25,7 @@ html,body{
   overflow:hidden;
 }
 
-/* =======================================================
-   💠 LEFT : PONTS
-======================================================= */
+/* LEFT : PONTS */
 .left{
   flex:0 0 20%;
   border-right:1px solid #444;
@@ -45,7 +40,7 @@ html,body{
   margin:0 0 12px
 }
 
-/* ---- pont cards ---- */
+/* pont cards */
 .pont-card{
   background:#1f1f1f;
   border-radius:8px;
@@ -74,9 +69,7 @@ html,body{
 .pont-etat{color:var(--muted);font-size:0.95em;margin-top:6px}
 .pont-infos{color:#bbb;font-size:0.85em;margin-top:6px}
 
-/* =======================================================
-   💠 RIGHT : CALENDRIER
-======================================================= */
+/* RIGHT : CALENDRIER */
 .right{
   flex:1;
   display:flex;
@@ -125,7 +118,7 @@ html,body{
   box-sizing:border-box;
 }
 
-/* ---- cellule du calendrier ---- */
+/* cellule calendrier */
 .calendar-cell{
   background:var(--panel);
   padding:8px;
@@ -142,7 +135,7 @@ html,body{
   font-size:13px;
 }
 
-/* ---- événements ---- */
+/* événements */
 .event{
   padding:4px 6px;
   border-radius:4px;
@@ -159,7 +152,7 @@ html,body{
   border-left:3px solid #3644b3;
 }
 
-/* 🔧 Heure modifiée : petite et pas en gras */
+/* heure modifiée : petite et pas en gras */
 .event-time{
   font-weight:normal;
   font-size:11px;
@@ -167,7 +160,7 @@ html,body{
   color:#ddd;
 }
 
-/* ---- animations ---- */
+/* animations */
 @keyframes pulse-blue{
   0%,100%{box-shadow:0 0 5px rgba(28,60,255,0.3)}
   50%{box-shadow:0 0 18px rgba(28,60,255,0.6)}
@@ -177,23 +170,19 @@ html,body{
   50%{box-shadow:0 0 18px rgba(255,165,0,0.6)}
 }
 
-/* ---- responsive ---- */
 @media (max-width:900px){ .left{flex-basis:26%} }
 @media (max-width:700px){ .left{display:none} }
-
 </style>
 </head>
 <body>
 
 <div class="app">
 
-  <!-- LEFT : PONTS -->
   <div class="left">
     <h2>État des Ponts</h2>
     <div id="ponts-table">Chargement…</div>
   </div>
 
-  <!-- RIGHT : CALENDAR -->
   <div class="right">
 
     <div id="calendar-header">
@@ -212,15 +201,13 @@ html,body{
 
 
 <script>
-/* =======================================================
-   🔧 CONFIG
-======================================================= */
+/* CONFIGURATION */
 const CAL_POLL_INTERVAL_MS = 30000;
 const API_KEY = "AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo";
 const CAL_RECEPTION = "receptionroulier@gmail.com";
 const CAL_NAVIRE = "smr.programme@gmail.com";
 
-/* Ponts */
+/* PONTS */
 const CACHE_KEY_DATA="pontsData",
       CACHE_KEY_HASH="pontsHash",
       CACHE_KEY_TIME="pontsCacheTime",
@@ -234,10 +221,7 @@ const PROXIES=[
 ];
 const PROXY_TIMEOUT_MS = 3000;
 
-
-/* =======================================================
-   🔧 DATE UTILITIES
-======================================================= */
+/* DATES */
 function getStartMonday(date){
   const d = new Date(date);
   const day = d.getDay();
@@ -261,10 +245,7 @@ function formatMonthRange(start,end){
   return (m1===m2&&y1===y2)?`${m1} ${y1}`:`${m1} — ${m2} ${y2}`;
 }
 
-
-/* =======================================================
-   🔧 CALENDAR (POLLING)
-======================================================= */
+/* CALENDAR */
 let offsetWeeks=0;
 let viewDays=28;
 
@@ -291,7 +272,6 @@ async function renderCalendar(){
   document.getElementById("calendar-title").textContent =
     formatMonthRange(start,end);
 
-  /* Build grid */
   const grid=document.getElementById("calendar-grid");
   grid.innerHTML="";
   grid.style.gridTemplateColumns="repeat(7,1fr)";
@@ -316,14 +296,8 @@ async function renderCalendar(){
 
   function addEvents(evts,type){
     for(const ev of evts){
-      let dateKey = null;
-      // ✅ Corrected: handle all-day vs timed events without UTC shift
-      if(ev.start.date){
-        dateKey = ev.start.date; // all-day, keep as-is
-      } else if(ev.start.dateTime){
-        const dt=new Date(ev.start.dateTime);
-        dateKey = dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0")+"-"+String(dt.getDate()).padStart(2,"0");
-      }
+      // ✅ ORIGINAL logic: no new Date for dateKey, fixes one-day shift
+      const dateKey = ev.start.date || (ev.start.dateTime ? ev.start.dateTime.split('T')[0] : null);
       if(!dateKey) continue;
       const cell=document.querySelector(`.calendar-cell[data-date="${dateKey}"]`);
       if(!cell) continue;
@@ -352,18 +326,13 @@ function startCalendarPolling(){
 }
 startCalendarPolling();
 
-/* Navigation */
 document.getElementById("prev-btn").onclick=()=>{ offsetWeeks-=(viewDays===21?3:4); startCalendarPolling(); };
 document.getElementById("next-btn").onclick=()=>{ offsetWeeks+=(viewDays===21?3:4); startCalendarPolling(); };
 document.getElementById("today-btn").onclick=()=>{ offsetWeeks=0; startCalendarPolling(); };
 document.getElementById("view-3w").onclick=()=>{ viewDays=21; offsetWeeks=0; startCalendarPolling(); };
 document.getElementById("view-4w").onclick=()=>{ viewDays=28; offsetWeeks=0; startCalendarPolling(); };
 
-
-/* =======================================================
-   🔧 PONTS (multi-proxy)
-   ✅ Aucun changement par rapport à ton code précédent
-======================================================= */
+/* PONTS HAROPA - identique */
 async function sha256hex(str){
   const data=new TextEncoder().encode(str);
   const hash=await crypto.subtle.digest("SHA-256",data);
@@ -378,7 +347,6 @@ async function fetchWithProxies(url){
       const timer=setTimeout(()=>controller.abort(),PROXY_TIMEOUT_MS);
       const r=await fetch(proxy+encodeURIComponent(url),{signal:controller.signal});
       clearTimeout(timer);
-
       if(!r.ok) continue;
       const d=await r.json();
       return d.contents?d.contents:d;
