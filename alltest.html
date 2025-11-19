@@ -5,105 +5,49 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ponts HAROPA – Monitoring + Calendrier</title>
 <style>
-/* =====================
-   GLOBAL
-===================== */
 body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: #101010;
-    color: #eaeaea;
-    display: flex;
-    height: 100vh;
-    overflow: hidden;
+    margin:0;
+    font-family: Arial,sans-serif;
+    background:#101010;
+    color:#eaeaea;
+    display:flex;
+    height:100vh;
+    overflow:hidden;
 }
-.left { 
-    flex: 0 0 20%;
-    border-right: 1px solid #444; 
-    padding: 14px; 
-    overflow-y: auto; 
-    box-sizing: border-box;
-}
-.right { 
-    flex: 1;  
-    padding: 10px; 
-    overflow-y: auto; 
-}
-h2 {
-    text-align: center;
-    color: #00e5ff;
-    margin: 0 0 15px;
-}
+.left{flex:0 0 20%;border-right:1px solid #444;padding:14px;overflow-y:auto;box-sizing:border-box;}
+.right{flex:1;padding:10px;overflow-y:auto;}
+h2{text-align:center;color:#00e5ff;margin:0 0 15px;}
+#calendar-container{overflow-x:auto;white-space:nowrap;padding-bottom:10px;}
 
-/* =====================
-   CARTES PONTS
-===================== */
-#ponts-table { display: flex; flex-direction: column; gap: 10px; }
-.pont-card {
-    background: #1f1f1f;
-    border-radius: 8px;
-    padding: 10px 12px;
-    box-shadow: 0 0 5px rgba(0,0,0,0.4);
-    border-left: 4px solid #444;
-    transition: transform 0.15s ease, box-shadow 0.3s ease;
-}
-.pont-card:hover { transform: scale(1.02); }
-.pont-card.ferme { border-left-color: #ff4040; }
-.pont-card.fermeture { border-left-color: orange; animation: pulse-orange 1.2s infinite; }
-.pont-card.manoeuvre { border-left-color: #1c3cff; animation: pulse-blue 1.2s infinite; }
-.pont-card.ouvert { border-left-color: #58ff58; }
-.pastille { width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; display: inline-block; }
-.ferme .pastille    { background: #ff4040; }
-.fermeture .pastille { background: orange; }
-.manoeuvre .pastille { background: #1c3cff; }
-.ouvert .pastille   { background: #58ff58; }
-.pont-nom { font-weight: bold; display: flex; align-items: center; }
-@keyframes pulse-blue { 0%,100% { box-shadow:0 0 5px rgba(28,60,255,0.4); transform: scale(1); } 50% { box-shadow:0 0 20px rgba(28,60,255,0.7); transform: scale(1.02); } }
-@keyframes pulse-orange { 0%,100% { box-shadow:0 0 5px rgba(255,165,0,0.4); transform: scale(1); } 50% { box-shadow:0 0 20px rgba(255,165,0,0.7); transform: scale(1.02); } }
+/* ===== PONTS ===== */
+#ponts-table{display:flex;flex-direction:column;gap:10px;}
+.pont-card{background:#1f1f1f;border-radius:8px;padding:10px 12px;box-shadow:0 0 5px rgba(0,0,0,0.4);border-left:4px solid #444;transition: transform 0.15s ease, box-shadow 0.3s ease;}
+.pont-card:hover{transform:scale(1.02);}
+.pont-card.ferme{border-left-color:#ff4040;}
+.pont-card.fermeture{border-left-color:orange;animation:pulse-orange 1.2s infinite;}
+.pont-card.manoeuvre{border-left-color:#1c3cff;animation:pulse-blue 1.2s infinite;}
+.pont-card.ouvert{border-left-color:#58ff58;}
+.pastille{width:10px;height:10px;border-radius:50%;margin-right:6px;display:inline-block;}
+.ferme .pastille{background:#ff4040;}
+.fermeture .pastille{background:orange;}
+.manoeuvre .pastille{background:#1c3cff;}
+.ouvert .pastille{background:#58ff58;}
+.pont-nom{font-weight:bold;display:flex;align-items:center;}
+@keyframes pulse-blue{0%,100%{box-shadow:0 0 5px rgba(28,60,255,0.4);transform:scale(1);}50%{box-shadow:0 0 20px rgba(28,60,255,0.7);transform:scale(1.02);}}
+@keyframes pulse-orange{0%,100%{box-shadow:0 0 5px rgba(255,165,0,0.4);transform:scale(1);}50%{box-shadow:0 0 20px rgba(255,165,0,0.7);transform:scale(1.02);}}
 
-/* =====================
-   CALENDRIER STYLE
-===================== */
-#calendar-container {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 5px;
-    height: 100%;
-    overflow-y: auto;
-    padding: 5px;
-}
-.day-column {
-    background: #1a1a1a;
-    border-radius: 6px;
-    padding: 5px;
-    display: flex;
-    flex-direction: column;
-}
-.day-header {
-    font-weight: bold;
-    color: #00e5ff;
-    text-align: center;
-    margin-bottom: 5px;
-    font-size: 0.9em;
-}
-.event-card {
-    background: #2a2a2a;
-    margin-bottom: 5px;
-    border-left: 4px solid #00e5ff;
-    border-radius: 4px;
-    padding: 4px 6px;
-    font-size: 0.8em;
-}
-.event-reception { border-left-color: #00e5ff; }
-.event-navire { border-left-color: orange; }
-.event-time { color: #ccc; font-size:0.75em; }
+/* ===== CALENDRIER MULTI-SEMAINES ===== */
+.week-container{display:inline-block;vertical-align:top;width:250px;margin-right:10px;}
+.week-header{text-align:center;font-weight:bold;color:#00e5ff;margin-bottom:5px;}
+.day-column{background:#1a1a1a;border-radius:6px;margin-bottom:5px;padding:3px;min-height:150px;}
+.day-header{font-size:0.85em;color:#aaa;text-align:center;margin-bottom:2px;}
+.event-card{margin-bottom:3px;padding:2px 4px;border-radius:3px;font-size:0.8em;}
+.event-reception{background:#109c53;color:#fff;}
+.event-navire{background:#3644b3;color:#fff;}
 </style>
 </head>
 <body>
 
-<!-- =====================
-     COLONNE GAUCHE - PONTS
-===================== -->
 <div class="left">
     <div class="container">
         <h2>État des Ponts</h2>
@@ -111,91 +55,23 @@ h2 {
     </div>
 </div>
 
-<!-- =====================
-     COLONNE DROITE - CALENDRIER
-===================== -->
 <div class="right">
     <h2>Calendrier</h2>
     <div id="calendar-container">Chargement...</div>
 </div>
 
 <script>
-// =====================
-// CONFIGURATION PONTS
-// =====================
-const CACHE_KEY_DATA = "pontsData";
-const CACHE_KEY_HASH = "pontsHash";
-const CACHE_KEY_TIME = "pontsCacheTime";
-const CACHE_EXPIRATION = 120000;
-const REFRESH_INTERVAL = 60000;
-
-const PROXIES = [
-    "https://api.allorigins.win/get?url=",
-    "https://cors-anywhere.herokuapp.com/",
-    "https://thingproxy.freeboard.io/fetch/"
-];
-
-async function sha256(str) {
-    const data = new TextEncoder().encode(str);
-    const digest = await crypto.subtle.digest("SHA-256", data);
-    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2,"0")).join("");
-}
-
-async function fetchWithRandomProxy(url) {
-    const shuffledProxies = [...PROXIES].sort(()=>Math.random()-0.5);
-    for (const proxy of shuffledProxies) {
-        try {
-            const fullUrl = proxy + encodeURIComponent(url);
-            const res = await fetch(fullUrl);
-            if (!res.ok) throw new Error(`Proxy failed: ${res.status}`);
-            const data = await res.json();
-            return data.contents ? data.contents : data;
-        } catch(err) { console.warn(`Échec du proxy ${proxy}:`, err.message); }
-    }
-    throw new Error("Tous les proxys ont échoué");
-}
-
-async function checkAndUpdate() {
-    const now = Date.now();
-    const last = localStorage.getItem(CACHE_KEY_TIME);
-    if (last && now - last < CACHE_EXPIRATION) {
-        const cached = localStorage.getItem(CACHE_KEY_DATA);
-        if (cached) { renderPonts(JSON.parse(cached)); return; }
-    }
-    await fetchWithHashControl();
-}
-
-async function fetchWithHashControl() {
-    try {
-        const rawContent = await fetchWithRandomProxy("https://www.havre-port.com/map/getPonts");
-        const newHash = await sha256(rawContent);
-        const oldHash = localStorage.getItem(CACHE_KEY_HASH);
-        if (newHash===oldHash) {
-            const cached=localStorage.getItem(CACHE_KEY_DATA);
-            if (cached){ renderPonts(JSON.parse(cached)); return; }
-        }
-        const ponts=Object.values(JSON.parse(rawContent).data);
-        const unique=Array.from(new Map(ponts.map(p=>[p.nom,p])).values());
-        const ordered=unique.sort((a,b)=>{
-            const score=p=>{
-                const statut=p.statutText.toLowerCase();
-                if(statut.includes("fermé")) return 1;
-                if(statut.includes("fermeture")) return 2;
-                if(statut.includes("manoeuvre")) return 3;
-                if(statut.includes("ouvert")) return 4;
-                return 5;
-            };
-            return score(a)-score(b);
-        });
-        localStorage.setItem(CACHE_KEY_DATA,JSON.stringify(ordered));
-        localStorage.setItem(CACHE_KEY_HASH,newHash);
-        localStorage.setItem(CACHE_KEY_TIME,Date.now());
-        renderPonts(ordered);
-    } catch(err) {
-        console.error("Erreur récupération ponts:",err);
-        document.getElementById("ponts-table").textContent="Impossible de récupérer les ponts.";
-    }
-}
+// ===== PONTS =====
+const CACHE_KEY_DATA="pontsData";
+const CACHE_KEY_HASH="pontsHash";
+const CACHE_KEY_TIME="pontsCacheTime";
+const CACHE_EXPIRATION=120000;
+const REFRESH_INTERVAL=60000;
+const PROXIES=["https://api.allorigins.win/get?url=","https://cors-anywhere.herokuapp.com/","https://thingproxy.freeboard.io/fetch/"];
+async function sha256(str){const data=new TextEncoder().encode(str);const digest=await crypto.subtle.digest("SHA-256",data);return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");}
+async function fetchWithRandomProxy(url){const shuffled=[...PROXIES].sort(()=>Math.random()-0.5);for(const proxy of shuffled){try{const fullUrl=proxy+encodeURIComponent(url);const res=await fetch(fullUrl);if(!res.ok)throw new Error(`Proxy failed: ${res.status}`);const data=await res.json();return data.contents?data.contents:data;}catch(err){console.warn(`Échec du proxy ${proxy}:`,err.message);}}throw new Error("Tous les proxys ont échoué");}
+async function checkAndUpdate(){const now=Date.now();const last=localStorage.getItem(CACHE_KEY_TIME);if(last&&now-last<CACHE_EXPIRATION){const cached=localStorage.getItem(CACHE_KEY_DATA);if(cached){renderPonts(JSON.parse(cached));return;}}await fetchWithHashControl();}
+async function fetchWithHashControl(){try{const rawContent=await fetchWithRandomProxy("https://www.havre-port.com/map/getPonts");const newHash=await sha256(rawContent);const oldHash=localStorage.getItem(CACHE_KEY_HASH);if(newHash===oldHash){const cached=localStorage.getItem(CACHE_KEY_DATA);if(cached){renderPonts(JSON.parse(cached));return;}}const ponts=Object.values(JSON.parse(rawContent).data);const unique=Array.from(new Map(ponts.map(p=>[p.nom,p])).values());const ordered=unique.sort((a,b)=>{const score=p=>{const statut=p.statutText.toLowerCase();if(statut.includes("fermé"))return 1;if(statut.includes("fermeture"))return 2;if(statut.includes("manoeuvre"))return 3;if(statut.includes("ouvert"))return 4;return 5;};return score(a)-score(b);});localStorage.setItem(CACHE_KEY_DATA,JSON.stringify(ordered));localStorage.setItem(CACHE_KEY_HASH,newHash);localStorage.setItem(CACHE_KEY_TIME,Date.now());renderPonts(ordered);}catch(err){console.error("Erreur récupération ponts:",err);document.getElementById("ponts-table").textContent="Impossible de récupérer les ponts.";}}
 
 function renderPonts(list){
     const container=document.getElementById("ponts-table");
@@ -207,90 +83,89 @@ function renderPonts(list){
         const ferme=statut.includes("fermé");
         const cls=ferme?"ferme":fermeture?"fermeture":move?"manoeuvre":open?"ouvert":"ferme";
         const info=p.forceText||`MàJ : ${p.date}`;
-        return `
-        <div class="pont-card ${cls}">
-            <div class="pont-nom"><span class="pastille"></span>${p.nom}</div>
-            <div class="pont-etat">${p.statutText}</div>
-            <div class="pont-infos">${info}</div>
-        </div>`;
+        return `<div class="pont-card ${cls}"><div class="pont-nom"><span class="pastille"></span>${p.nom}</div><div class="pont-etat">${p.statutText}</div><div class="pont-infos">${info}</div></div>`;
     }).join("");
 }
-checkAndUpdate();
-setInterval(checkAndUpdate,REFRESH_INTERVAL);
 
-// =====================
-// GOOGLE CALENDAR TYPE CALENDAR
-// =====================
+checkAndUpdate();setInterval(checkAndUpdate,REFRESH_INTERVAL);
+
+// ===== CALENDRIER MULTI-SEMAINES =====
 const API_KEY="AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo";
 const CALENDARS=[
-    {id:"receptionroulier@gmail.com",name:"Réception",className:"event-reception"},
-    {id:"smr.programme@gmail.com",name:"Navire",className:"event-navire"}
+    {id:"receptionroulier@gmail.com",className:"event-reception"},
+    {id:"smr.programme@gmail.com",className:"event-navire"}
 ];
 const CALENDAR_CONTAINER=document.getElementById("calendar-container");
 
-function getWeekDays(){
+function getWeeks(numWeeks){
+    const weeks=[];
     const today=new Date();
-    const days=[];
-    for(let i=0;i<7;i++){
-        const d=new Date(today);
-        d.setDate(today.getDate()+i);
-        days.push(d);
+    today.setHours(0,0,0,0);
+    for(let w=-1;w<numWeeks-1;w++){ // semaine passée incluse
+        const firstDay=new Date(today);
+        firstDay.setDate(today.getDate()+w*7-(today.getDay()+6)%7); // lundi
+        const week=[];
+        for(let d=0;d<7;d++){
+            const day=new Date(firstDay);
+            day.setDate(firstDay.getDate()+d);
+            week.push(day);
+        }
+        weeks.push(week);
     }
-    return days;
+    return weeks;
 }
 
-function formatDateTime(dateStr){
-    const date=new Date(dateStr);
-    return date.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
-}
+function formatDay(date){return date.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"});}
+function formatTime(dateStr){const date=new Date(dateStr);return date.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});}
 
 async function fetchEventsForCalendar(calendarId){
     const now=new Date().toISOString();
-    const maxTime=new Date(Date.now()+7*24*60*60*1000).toISOString();
+    const maxTime=new Date(Date.now()+28*24*60*60*1000).toISOString();
     const url=`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?key=${API_KEY}&timeMin=${now}&timeMax=${maxTime}&singleEvents=true&orderBy=startTime`;
-    try{
-        const res=await fetch(url);
-        const data=await res.json();
-        return data.items || [];
-    } catch(err){ console.error(err); return []; }
+    try{const res=await fetch(url);const data=await res.json();return data.items||[];}catch(err){console.error(err);return [];}
 }
 
-async function renderCalendar(){
-    const weekDays=getWeekDays();
-    // Préparer colonnes vides
+async function renderMultiWeekCalendar(numWeeks=4){
+    const weeks=getWeeks(numWeeks);
     let html="";
-    weekDays.forEach(d=>{
-        const dayName=d.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"});
-        html+=`<div class="day-column"><div class="day-header">${dayName}</div></div>`;
+    weeks.forEach((week,i)=>{
+        html+=`<div class="week-container"><div class="week-header">Semaine ${i-0+1}</div>`;
+        week.forEach(day=>{
+            html+=`<div class="day-column"><div class="day-header">${formatDay(day)}</div></div>`;
+        });
+        html+="</div>";
     });
     CALENDAR_CONTAINER.innerHTML=html;
-    // Récupérer événements
+
     let allEvents=[];
     for(const cal of CALENDARS){
         const events=await fetchEventsForCalendar(cal.id);
-        events.forEach(ev=>{ ev.calendarClass=cal.className; });
+        events.forEach(ev=>{ev.calendarClass=cal.className;});
         allEvents=allEvents.concat(events);
     }
-    // Ajouter événements aux bonnes colonnes
-    const columns=CALENDAR_CONTAINER.querySelectorAll(".day-column");
+
+    const weekContainers=CALENDAR_CONTAINER.querySelectorAll(".week-container");
     allEvents.forEach(ev=>{
         const startDate=new Date(ev.start.dateTime||ev.start.date);
-        const today=new Date();
-        today.setHours(0,0,0,0);
-        const diff=Math.floor((startDate-today)/(1000*60*60*24));
-        if(diff>=0 && diff<7){
-            const el=document.createElement("div");
-            el.className=`event-card ${ev.calendarClass}`;
-            const start=formatDateTime(ev.start.dateTime||ev.start.date);
-            const end=formatDateTime(ev.end.dateTime||ev.end.date);
-            el.innerHTML=`<div>${ev.summary||"Sans titre"}</div><div class="event-time">${start} → ${end}</div>`;
-            columns[diff].appendChild(el);
+        for(let w=0;w<weeks.length;w++){
+            const week=weeks[w];
+            week.forEach((day,dIdx)=>{
+                if(day.toDateString()===startDate.toDateString()){
+                    const col=weekContainers[w].querySelectorAll(".day-column")[dIdx];
+                    const el=document.createElement("div");
+                    el.className=`event-card ${ev.calendarClass}`;
+                    const start=formatTime(ev.start.dateTime||ev.start.date);
+                    const end=formatTime(ev.end.dateTime||ev.end.date);
+                    el.innerHTML=`${ev.summary||"Sans titre"}<div class="event-time">${start} → ${end}</div>`;
+                    col.appendChild(el);
+                }
+            });
         }
     });
 }
 
-renderCalendar();
-setInterval(renderCalendar,30000);
+renderMultiWeekCalendar(4);
+setInterval(()=>renderMultiWeekCalendar(4),30000);
 </script>
 
 </body>
