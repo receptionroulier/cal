@@ -30,7 +30,28 @@ body {
 h2{
     text-align:center;
     color:#00e5ff;
-    margin:0 0 15px;
+    margin:0 0 10px;
+}
+
+/* NAVIGATION */
+#calendar-header {
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:25px;
+    margin-bottom:5px;
+}
+.nav-btn {
+    background:#1f1f1f;
+    color:white;
+    border:1px solid #444;
+    padding:6px 12px;
+    font-size:18px;
+    border-radius:6px;
+    cursor:pointer;
+}
+.nav-btn:hover {
+    background:#333;
 }
 
 /* ===== PONTS ===== */
@@ -59,7 +80,7 @@ h2{
 #calendar-grid{
     display:grid;
     grid-template-columns:repeat(7,1fr);
-    grid-template-rows:repeat(4, minmax(60px, 1fr)); /* responsive */
+    grid-template-rows:repeat(4, minmax(60px, 1fr));
     gap:2px;
     background:#1a1a1a;
     border-radius:6px;
@@ -70,12 +91,12 @@ h2{
     border:1px solid #333;
     padding:4px;
     position:relative;
-    overflow:auto; /* scroll interne si trop d’événements */
+    overflow:auto;
 }
 .day-header{
     font-size:0.85em;
     color:#aaa;
-    margin-bottom:2px;
+    margin-bottom:4px;
 }
 .event-card{
     padding:2px 4px;
@@ -83,18 +104,9 @@ h2{
     font-size:0.75em;
     margin-top:2px;
     color:#fff;
-    overflow:hidden;
 }
 .event-reception{background:#109c53;}
 .event-navire{background:#3644b3;}
-.week-label{
-    position:absolute;
-    top:2px;
-    left:4px;
-    font-size:0.8em;
-    color:#ffce00;
-    font-weight:bold;
-}
 </style>
 </head>
 <body>
@@ -107,140 +119,155 @@ h2{
 </div>
 
 <div class="right">
-    <h2>Calendrier 4 semaines</h2>
+    <div id="calendar-header">
+        <button class="nav-btn" id="prev-btn">&lt;</button>
+        <h2 id="calendar-title"></h2>
+        <button class="nav-btn" id="next-btn">&gt;</button>
+    </div>
     <div id="calendar-container"></div>
 </div>
 
+
+
 <script>
-// ===== PONTS =====
+/* ========== LOGIQUE DES PONTS (inchangée) ========== */
 const CACHE_KEY_DATA="pontsData";
 const CACHE_KEY_HASH="pontsHash";
 const CACHE_KEY_TIME="pontsCacheTime";
 const CACHE_EXPIRATION=120000;
 const REFRESH_INTERVAL=60000;
-const PROXIES=["https://api.allorigins.win/get?url=","https://cors-anywhere.herokuapp.com/","https://thingproxy.freeboard.io/fetch/"];
+const PROXIES=[
+    "https://api.allorigins.win/get?url=",
+    "https://cors-anywhere.herokuapp.com/",
+    "https://thingproxy.freeboard.io/fetch/"
+];
 async function sha256(str){const data=new TextEncoder().encode(str);const digest=await crypto.subtle.digest("SHA-256",data);return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");}
-async function fetchWithRandomProxy(url){const shuffled=[...PROXIES].sort(()=>Math.random()-0.5);for(const proxy of shuffled){try{const fullUrl=proxy+encodeURIComponent(url);const res=await fetch(fullUrl);if(!res.ok)throw new Error(`Proxy failed: ${res.status}`);const data=await res.json();return data.contents?data.contents:data;}catch(err){console.warn(`Échec du proxy ${proxy}:`,err.message);}}throw new Error("Tous les proxys ont échoué");}
+async function fetchWithRandomProxy(url){const shuffled=[...PROXIES].sort(()=>Math.random()-0.5);for(const proxy of shuffled){try{const fullUrl=proxy+encodeURIComponent(url);const res=await fetch(fullUrl);if(!res.ok)throw new Error(`Proxy failed`);const data=await res.json();return data.contents?data.contents:data;}catch(err){}}throw new Error("Tous les proxys ont échoué");}
 async function checkAndUpdate(){const now=Date.now();const last=localStorage.getItem(CACHE_KEY_TIME);if(last&&now-last<CACHE_EXPIRATION){const cached=localStorage.getItem(CACHE_KEY_DATA);if(cached){renderPonts(JSON.parse(cached));return;}}await fetchWithHashControl();}
-async function fetchWithHashControl(){try{const rawContent=await fetchWithRandomProxy("https://www.havre-port.com/map/getPonts");const newHash=await sha256(rawContent);const oldHash=localStorage.getItem(CACHE_KEY_HASH);if(newHash===oldHash){const cached=localStorage.getItem(CACHE_KEY_DATA);if(cached){renderPonts(JSON.parse(cached));return;}}const ponts=Object.values(JSON.parse(rawContent).data);const unique=Array.from(new Map(ponts.map(p=>[p.nom,p])).values());const ordered=unique.sort((a,b)=>{const score=p=>{const statut=p.statutText.toLowerCase();if(statut.includes("fermé"))return 1;if(statut.includes("fermeture"))return 2;if(statut.includes("manoeuvre"))return 3;if(statut.includes("ouvert"))return 4;return 5;};return score(a)-score(b);});localStorage.setItem(CACHE_KEY_DATA,JSON.stringify(ordered));localStorage.setItem(CACHE_KEY_HASH,newHash);localStorage.setItem(CACHE_KEY_TIME,Date.now());renderPonts(ordered);}catch(err){console.error("Erreur récupération ponts:",err);document.getElementById("ponts-table").textContent="Impossible de récupérer les ponts.";}}
-
-function renderPonts(list){
-    const container=document.getElementById("ponts-table");
-    container.innerHTML=list.map(p=>{
-        const statut=p.statutText.toLowerCase();
-        const open=statut.includes("ouvert");
-        const move=statut.includes("manoeuvre");
-        const fermeture=statut.includes("fermeture");
-        const ferme=statut.includes("fermé");
-        const cls=ferme?"ferme":fermeture?"fermeture":move?"manoeuvre":open?"ouvert":"ferme";
-        const info=p.forceText||`MàJ : ${p.date}`;
-        return `<div class="pont-card ${cls}"><div class="pont-nom"><span class="pastille"></span>${p.nom}</div><div class="pont-etat">${p.statutText}</div><div class="pont-infos">${info}</div></div>`;
-    }).join("");
-}
+async function fetchWithHashControl(){try{const raw=await fetchWithRandomProxy("https://www.havre-port.com/map/getPonts");const newHash=await sha256(raw);const oldHash=localStorage.getItem(CACHE_KEY_HASH);if(newHash===oldHash){const cached=localStorage.getItem(CACHE_KEY_DATA);if(cached){renderPonts(JSON.parse(cached));return;}}const p=Object.values(JSON.parse(raw).data);const unique=[...new Map(p.map(x=>[x.nom,x])).values()];const ordered=unique.sort((a,b)=>{const s=t=>t.statutText.toLowerCase().includes("fermé")?1:t.statutText.includes("fermeture")?2:t.statutText.includes("manoeuvre")?3:t.statutText.includes("ouvert")?4:5;return s(a)-s(b)});localStorage.setItem(CACHE_KEY_DATA,JSON.stringify(ordered));localStorage.setItem(CACHE_KEY_HASH,newHash);localStorage.setItem(CACHE_KEY_TIME,Date.now());renderPonts(ordered);}catch(err){document.getElementById("ponts-table").textContent="Impossible de récupérer les ponts."}}
+function renderPonts(list){document.getElementById("ponts-table").innerHTML=list.map(p=>{const s=p.statutText.toLowerCase();const cls=s.includes("fermé")?"ferme":s.includes("fermeture")?"fermeture":s.includes("manoeuvre")?"manoeuvre":s.includes("ouvert")?"ouvert":"ferme";return `<div class="pont-card ${cls}"><div class="pont-nom"><span class="pastille"></span>${p.nom}</div><div class="pont-etat">${p.statutText}</div><div class="pont-infos">${p.forceText||("MàJ : "+p.date)}</div></div>`;}).join("")}
 checkAndUpdate();setInterval(checkAndUpdate,REFRESH_INTERVAL);
 
-// ===== CALENDRIER 4x7 SEMAINES =====
+
+/* ========= CALENDRIER GOOGLE ========= */
 const API_KEY="AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo";
 const CALENDARS=[
     {id:"receptionroulier@gmail.com",className:"event-reception"},
     {id:"smr.programme@gmail.com",className:"event-navire"}
 ];
-const CALENDAR_CONTAINER=document.getElementById("calendar-container");
+
+let offsetWeeks = 0; // navigation
 
 function get4Weeks(){
-    const weeks=[];
-    const today=new Date();
-    today.setHours(0,0,0,0);
-    const mondayCurrent=new Date(today);
-    mondayCurrent.setDate(today.getDate() - ((today.getDay()+6)%7));
-    const mondayPast=new Date(mondayCurrent); mondayPast.setDate(mondayCurrent.getDate()-7);
-    const mondayFuture1=new Date(mondayCurrent); mondayFuture1.setDate(mondayCurrent.getDate()+7);
-    const mondayFuture2=new Date(mondayCurrent); mondayFuture2.setDate(mondayCurrent.getDate()+14);
-    weeks.push(mondayPast, mondayCurrent, mondayFuture1, mondayFuture2);
-    return weeks.map(monday=>{
+    const base = new Date();
+    base.setHours(0,0,0,0);
+
+    const monday = new Date(base);
+    monday.setDate(base.getDate() - ((base.getDay()+6)%7) + offsetWeeks*7);
+
+    const weeks = [];
+    for(let w=-1; w<=2; w++){
+        const mondayW = new Date(monday);
+        mondayW.setDate(monday.getDate() + w*7);
+
         const days=[];
         for(let i=0;i<7;i++){
-            const d=new Date(monday);
-            d.setDate(monday.getDate()+i);
+            const d = new Date(mondayW);
+            d.setDate(mondayW.getDate()+i);
             days.push(d);
         }
-        return days;
-    });
+        weeks.push(days);
+    }
+    return weeks;
 }
 
-function formatDay(date){return date.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric"});}
+function updateCalendarTitle(weeks){
+    const titleEl=document.getElementById("calendar-title");
 
-async function fetchEventsForCalendar(calendarId){
-    const weeks=get4Weeks();
-    const firstDay = weeks[0][0]; 
-    const lastDay = weeks[3][6];  
-    const timeMin = firstDay.toISOString();
-    const timeMax = new Date(lastDay.getTime() + 24*60*60*1000).toISOString();
-    const url=`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?key=${API_KEY}&timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime`;
+    const months = new Set(
+        weeks.flat().map(d =>
+            d.toLocaleDateString("fr-FR", { month:"long", year:"numeric" })
+        )
+    );
+
+    const arr = Array.from(months);
+    let title = arr.length===1 ? arr[0] : arr[0] + " — " + arr[arr.length-1];
+
+    titleEl.textContent = title.charAt(0).toUpperCase()+title.slice(1);
+}
+
+function formatDay(date){
+    return date.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric"});
+}
+
+async function fetchEvents(calendarId, tMin, tMax){
+    const url=`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?key=${API_KEY}&timeMin=${tMin}&timeMax=${tMax}&singleEvents=true&orderBy=startTime`;
     try{
-        const res = await fetch(url);
-        const data = await res.json();
-        return data.items || [];
-    } catch(err){
-        console.error(err);
+        const r = await fetch(url);
+        const d = await r.json();
+        return d.items || [];
+    }catch{
         return [];
     }
 }
 
-async function renderCalendar4x7Weeks(){
+async function renderCalendar(){
     const weeks=get4Weeks();
+    updateCalendarTitle(weeks);
+
     const grid=document.createElement("div");
     grid.id="calendar-grid";
 
     weeks.forEach(week=>{
         week.forEach(day=>{
-            const cell=document.createElement("div");
-            cell.className="day-cell";
-            const header=document.createElement("div");
-            header.className="day-header";
-            header.textContent=formatDay(day);
-            cell.appendChild(header);
-            grid.appendChild(cell);
+            const c=document.createElement("div");
+            c.className="day-cell";
+            c.innerHTML=`<div class="day-header">${formatDay(day)}</div>`;
+            grid.appendChild(c);
         });
     });
 
-    CALENDAR_CONTAINER.innerHTML="";
-    CALENDAR_CONTAINER.appendChild(grid);
+    const container=document.getElementById("calendar-container");
+    container.innerHTML="";
+    container.appendChild(grid);
 
-    let allEvents=[];
+    const tMin = weeks[0][0].toISOString();
+    const tMax = new Date(weeks[3][6].getTime()+86400000).toISOString();
+
+    let events=[];
     for(const cal of CALENDARS){
-        const events=await fetchEventsForCalendar(cal.id);
-        events.forEach(ev=>{ev.calendarClass=cal.className;});
-        allEvents=allEvents.concat(events);
+        let e = await fetchEvents(cal.id, tMin, tMax);
+        e.forEach(ev=>ev.calendarClass=cal.className);
+        events = events.concat(e);
     }
 
-    allEvents.forEach(ev=>{
+    events.forEach(ev=>{
         const start=new Date(ev.start.dateTime||ev.start.date);
-        for(let week of weeks){
-            const dayIndex=week.findIndex(d=>d.toDateString()===start.toDateString());
-            if(dayIndex>=0){
-                const weekGlobalIdx=weeks.indexOf(week);
-                const gridCell=grid.children[weekGlobalIdx*7+dayIndex];
-                const eventDiv=document.createElement("div");
-                eventDiv.className=`event-card ${ev.calendarClass}`;
+        weeks.forEach((week,wIndex)=>{
+            const dIndex = week.findIndex(d=>d.toDateString()===start.toDateString());
+            if(dIndex>=0){
+                const cell = grid.children[wIndex*7+dIndex];
+                const card=document.createElement("div");
+                card.className=`event-card ${ev.calendarClass}`;
 
-                // afficher hh:mm si heure disponible
-                let timeStr="";
+                let time = "";
                 if(ev.start.dateTime){
                     const h=start.getHours().toString().padStart(2,"0");
                     const m=start.getMinutes().toString().padStart(2,"0");
-                    timeStr = `${h}:${m} `;
+                    time = h+":"+m+" ";
                 }
-
-                eventDiv.textContent=`${timeStr}${ev.summary||"Sans titre"}`;
-                gridCell.appendChild(eventDiv);
+                card.textContent = time + (ev.summary||"Sans titre");
+                cell.appendChild(card);
             }
-        }
+        });
     });
 }
 
-renderCalendar4x7Weeks();
-setInterval(renderCalendar4x7Weeks,30000);
+document.getElementById("prev-btn").onclick = ()=>{ offsetWeeks -= 4; renderCalendar(); };
+document.getElementById("next-btn").onclick = ()=>{ offsetWeeks += 4; renderCalendar(); };
+
+renderCalendar();
+setInterval(renderCalendar,30000);
 </script>
 
 </body>
