@@ -67,13 +67,13 @@ body {
 .view-btn { cursor:pointer; font-size:14px; padding:4px 10px; background:#222; border-radius:6px; border:1px solid #333; color:#00e5ff; }
 .view-btn:hover { background:#333; }
 
-#calendar-grid { flex:1 1 auto; display:grid; gap:1px; background:#333; overflow:hidden; box-sizing:border-box; position:relative; }
-.calendar-cell { background:#1a1a1a; padding:6px; border:1px solid #222; overflow:hidden; position:relative; }
+#calendar-grid { flex:1 1 auto; display:grid; gap:1px; background:#333; overflow:hidden; box-sizing:border-box; }
+.calendar-cell { background:#1a1a1a; padding:6px; border:1px solid #222; overflow:hidden; }
 .date-label { font-size:12px; font-weight:normal; margin-bottom:4px; color:#ffffff; }
-.event { padding:3px 5px; border-radius:4px; font-size:12px; margin-bottom:2px; position:absolute; left:0; right:0; }
+.event { padding:3px 5px; border-radius:4px; font-size:12px; margin-bottom:4px; }
 .event.reception { background:#109c5344; border-left:3px solid #109c53; }
 .event.navire { background:#3644b344; border-left:3px solid #3644b3; }
-.event-time { font-size:12px; font-weight:normal; margin-right:4px; }
+.event-time { font-size:12px;font-weight:normal; margin-right:4px; }
 
 /* =====================
    ANIMATIONS
@@ -161,52 +161,15 @@ async function loadCalendar(){
 }
 
 function renderEvents(events,type){
-    const gridCells = Array.from(document.querySelectorAll(".calendar-cell"));
-    const cellLines = {};
-    gridCells.forEach(cell => { cellLines[cell.dataset.date] = []; });
-
-    events.forEach(ev => {
-        let startDate = ev.start.date || ev.start.dateTime?.split("T")[0];
-        let endDate = ev.end.date || ev.end.dateTime?.split("T")[0];
-        if(!startDate || !endDate) return;
-
-        const startD = new Date(startDate);
-        const endD = new Date(endDate);
-
-        // Calculer row disponible
-        let row = 0;
-        for(let d=new Date(startD); d < endD; d.setDate(d.getDate()+1)){
-            const dateKey = formatDate(d);
-            const lines = cellLines[dateKey];
-            if(!lines) continue;
-            while(lines.includes(row)) row++;
-        }
-
-        // Ajouter l'événement à toutes les cellules concernées
-        for(let d=new Date(startD); d < endD; d.setDate(d.getDate()+1)){
-            const dateKey = formatDate(d);
-            const cell = document.querySelector(`[data-date="${dateKey}"]`);
-            if(!cell) continue;
-
-            const div = document.createElement("div"); 
-            div.className = `event ${type}`;
-            div.style.top = `${row * 18}px`; 
-
-            let timeStr = "";
-            if(ev.start.dateTime && d.getTime() === startD.getTime()){
-                const t = ev.start.dateTime.split("T")[1].substring(0,5);
-                timeStr = `<span class="event-time">${t}</span>`;
-            }
-            if(ev.end.dateTime && d.getTime() === endD.getTime() - 86400000){ // dernier jour
-                const t = ev.end.dateTime.split("T")[1].substring(0,5);
-                timeStr += `<span class="event-time"> - ${t}</span>`;
-            }
-
-            div.innerHTML = `${timeStr}${ev.summary || "(Sans titre)"}`;
-            cell.appendChild(div);
-
-            cellLines[dateKey].push(row);
-        }
+    events.forEach(ev=>{
+        const date=ev.start.date||ev.start.dateTime?.split("T")[0];
+        const cell=document.querySelector(`[data-date="${date}"]`);
+        if(!cell) return;
+        const div=document.createElement("div"); div.className=`event ${type}`;
+        let timeStr="";
+        if(ev.start.dateTime){const t=ev.start.dateTime.split("T")[1].substring(0,5); timeStr=`<span class="event-time">${t}</span>`;}
+        div.innerHTML=`${timeStr}${ev.summary||"(Sans titre)"}`;
+        cell.appendChild(div);
     });
 }
 
@@ -221,7 +184,7 @@ document.getElementById("view-4w").onclick=()=>{viewDays=28;loadCalendar();}
 loadCalendar();
 
 // =====================
-// PONTS HAROPA (inchangé)
+// PONTS HAROPA
 // =====================
 const CACHE_KEY_DATA="pontsData",CACHE_KEY_HASH="pontsHash",CACHE_KEY_TIME="pontsCacheTime",CACHE_EXPIRATION=120000,REFRESH_INTERVAL=60000;
 const PROXIES=["https://api.allorigins.win/get?url=","https://cors-anywhere.herokuapp.com/","https://thingproxy.freeboard.io/fetch/"];
