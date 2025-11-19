@@ -151,11 +151,23 @@ function get4Weeks(){
 }
 
 function formatDay(date){return date.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric"});}
+
+// Récupérer tous les événements jusqu'à la dernière semaine
 async function fetchEventsForCalendar(calendarId){
-    const now=new Date().toISOString();
-    const maxTime=new Date(Date.now()+28*24*60*60*1000).toISOString();
-    const url=`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?key=${API_KEY}&timeMin=${now}&timeMax=${maxTime}&singleEvents=true&orderBy=startTime`;
-    try{const res=await fetch(url);const data=await res.json();return data.items||[];}catch(err){console.error(err);return [];}
+    const weeks=get4Weeks();
+    const firstDay = weeks[0][0]; // lundi semaine passée
+    const lastDay = weeks[3][6];  // dimanche 4ème semaine
+    const timeMin = firstDay.toISOString();
+    const timeMax = new Date(lastDay.getTime() + 24*60*60*1000).toISOString(); // inclure dernier jour
+    const url=`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?key=${API_KEY}&timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime`;
+    try{
+        const res = await fetch(url);
+        const data = await res.json();
+        return data.items || [];
+    } catch(err){
+        console.error(err);
+        return [];
+    }
 }
 
 async function renderCalendar4x7Weeks(){
