@@ -3,238 +3,264 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Calendrier Google - caltest</title>
+<title>Ponts HAROPA – Monitoring + Calendrier</title>
 <style>
-  /* ===== RESET ET BASE ===== */
-  * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
-  body { background-color: #121212; color: #fff; overflow-x: hidden; }
-  button, select { cursor: pointer; }
-
-  /* ===== HEADER & NAVIGATION ===== */
-  .calendar-header {
+/* =====================
+   GLOBAL
+===================== */
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #101010;
+    color: #eaeaea;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 20px;
-    flex-wrap: wrap;
-  }
-  .calendar-title { font-size: 2rem; text-align: center; color: #f39c12; flex: 1; margin: 10px 0; }
-  .calendar-nav, .calendar-options { display: flex; align-items: center; gap: 5px; }
-  .calendar-nav button {
-    background: none; border: 1px solid #f39c12; color: #f39c12; padding: 5px 15px;
-    border-radius: 5px; transition: 0.3s;
-  }
-  .calendar-nav button:hover { background: #f39c12; color: #121212; }
-  .calendar-options select {
-    background-color: #1e1e1e; color: #fff; border: 1px solid #f39c12; padding: 5px 10px; border-radius: 5px;
-  }
+    height: 100vh;
+    overflow: hidden;
+}
+.left { 
+    flex: 0 0 20%;
+    border-right: 1px solid #444; 
+    padding: 14px; 
+    overflow-y: auto; 
+    box-sizing: border-box;
+}
+.right { 
+    flex: 1;  
+    padding: 10px; 
+    overflow-y: auto; 
+}
+.container { height: 100%; }
+h2 {
+    text-align: center;
+    color: #00e5ff;
+    margin: 0 0 15px;
+}
+#calendar-container { height: 100%; overflow-y: auto; }
 
-  /* ===== GRILLE CALENDRIER ===== */
-  .calendar-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 5px;
-    padding: 0 20px 20px;
-  }
-  .day-cell {
-    background-color: #1e1e1e;
-    border-radius: 10px;
+/* =====================
+   CARTES PONTS
+===================== */
+#ponts-table { display: flex; flex-direction: column; gap: 10px; }
+.pont-card {
+    background: #1f1f1f;
+    border-radius: 8px;
+    padding: 10px 12px;
+    box-shadow: 0 0 5px rgba(0,0,0,0.4);
+    border-left: 4px solid #444;
+    transition: transform 0.15s ease, box-shadow 0.3s ease;
+}
+.pont-card:hover { transform: scale(1.02); }
+.pont-card.ferme { border-left-color: #ff4040; }
+.pont-card.fermeture { border-left-color: orange; animation: pulse-orange 1.2s infinite; }
+.pont-card.manoeuvre { border-left-color: #1c3cff; animation: pulse-blue 1.2s infinite; }
+.pont-card.ouvert { border-left-color: #58ff58; }
+.pastille { width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; display: inline-block; }
+.ferme .pastille    { background: #ff4040; }
+.fermeture .pastille { background: orange; }
+.manoeuvre .pastille { background: #1c3cff; }
+.ouvert .pastille   { background: #58ff58; }
+.pont-nom { font-weight: bold; display: flex; align-items: center; }
+@keyframes pulse-blue {
+    0%,100% { box-shadow: 0 0 5px rgba(28,60,255,0.4); transform: scale(1); }
+    50% { box-shadow: 0 0 20px rgba(28,60,255,0.7); transform: scale(1.02); }
+}
+@keyframes pulse-orange {
+    0%,100% { box-shadow: 0 0 5px rgba(255,165,0,0.4); transform: scale(1); }
+    50% { box-shadow: 0 0 20px rgba(255,165,0,0.7); transform: scale(1.02); }
+}
+
+/* =====================
+   CARTES ÉVÉNEMENTS CALENDRIER
+===================== */
+.event-card {
+    background: #1f1f1f;
+    border-radius: 8px;
     padding: 10px;
-    min-height: 100px;
-    position: relative;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    animation: fadeIn 0.3s ease forwards;
-    border: 1px solid transparent;
-    transition: transform 0.2s;
-  }
-  .day-cell.past { transform: scale(0.9); opacity: 0.7; }
-  .day-cell.today { transform: scale(1.1); box-shadow: 0 0 20px #f39c12; z-index: 2; }
-  .day-cell.future { border: 2px solid #f39c12; }
-
-  /* ===== ANIMATIONS ===== */
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-  .pulse { animation: pulseAnim 2s infinite; }
-  @keyframes pulseAnim { 0% { transform: scale(1); } 50% { transform: scale(1.03); } 100% { transform: scale(1); } }
-
-  /* ===== EVENEMENTS ===== */
-  .event {
-    margin: 2px 0;
-    padding: 2px 5px;
-    border-radius: 5px;
-    font-size: 0.85rem;
-    cursor: pointer;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    transition: transform 0.2s;
-  }
-  .event.reception { background-color: #109c53; color: #fff; }
-  .event.navire { background-color: #3644b3; color: #fff; }
-  .event.multi-day { color: #fff; position: absolute; top: 0; left: 0; width: 100%; text-align: center; }
-
-  /* ===== SURVOL ===== */
-  .day-cell:hover { transform: scale(1.05); z-index: 3; }
-  .day-cell.today:hover { transform: scale(1.15); }
-  .day-cell.future:hover { transform: scale(1.1); }
-
-  /* ===== POPUP ===== */
-  .popup {
-    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0);
-    background-color: #f39c12; color: #fff; padding: 20px; border-radius: 15px;
-    box-shadow: 0 0 20px #f39c12; z-index: 100; transition: transform 0.3s ease;
-    pointer-events: none;
-  }
-  .popup.show { transform: translate(-50%, -50%) scale(1); pointer-events: auto; }
+    margin-bottom: 10px;
+    box-shadow: 0 0 5px rgba(0,0,0,0.4);
+}
+.event-title { font-weight: bold; color: #00e5ff; }
+.event-time { font-size: 0.9em; color: #ccc; margin-top: 4px; }
 </style>
 </head>
 <body>
 
-<div class="calendar-header">
-  <div class="calendar-options">
-    <label for="weekSelect">Nombre de semaines :</label>
-    <select id="weekSelect">
-      <option value="3">3 semaines</option>
-      <option value="4" selected>4 semaines</option>
-    </select>
-  </div>
-  <div class="calendar-title" id="calendarTitle">Novembre 2025</div>
-  <div class="calendar-nav">
-    <button id="prevWeek">&lt;</button>
-    <button id="today">Aujourd'hui</button>
-    <button id="nextWeek">&gt;</button>
-  </div>
+<!-- =====================
+     COLONNE GAUCHE - PONTS
+===================== -->
+<div class="left">
+    <div class="container">
+        <h2>État des Ponts</h2>
+        <div id="ponts-table">Chargement...</div>
+    </div>
 </div>
 
-<div class="calendar-grid" id="calendarGrid"></div>
-
-<div class="popup" id="eventPopup">
-  <div id="popupTitle"></div>
-  <div id="popupDate"></div>
+<!-- =====================
+     COLONNE DROITE - CALENDRIER
+===================== -->
+<div class="right">
+    <h2>Calendrier</h2>
+    <div id="calendar-container">Chargement...</div>
 </div>
 
 <script>
-  const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
-  const CALENDAR_IDS = {
-    reception: 'receptionroulier@gmail.com',
-    navire: 'smr.programme@gmail.com'
-  };
+// =====================
+// CONFIGURATION PONTS
+// =====================
+const CACHE_KEY_DATA = "pontsData";
+const CACHE_KEY_HASH = "pontsHash";
+const CACHE_KEY_TIME = "pontsCacheTime";
+const CACHE_EXPIRATION = 120000;
+const REFRESH_INTERVAL = 60000;
 
-  const CACHE_KEY = 'calendarCache';
-  const CACHE_DURATION = 120 * 1000; // 120 secondes
+const PROXIES = [
+    "https://api.allorigins.win/get?url=",
+    "https://cors-anywhere.herokuapp.com/",
+    "https://thingproxy.freeboard.io/fetch/"
+];
 
-  let currentDate = new Date();
-  let NUM_WEEKS = 4;
+async function sha256(str) {
+    const data = new TextEncoder().encode(str);
+    const digest = await crypto.subtle.digest("SHA-256", data);
+    return Array.from(new Uint8Array(digest))
+        .map(b => b.toString(16).padStart(2, "0"))
+        .join("");
+}
 
-  const weekSelect = document.getElementById('weekSelect');
-  weekSelect.addEventListener('change', () => {
-    NUM_WEEKS = parseInt(weekSelect.value);
-    init();
-  });
-
-  /* ===== UTILS ===== */
-  function formatDate(date) { return date.toISOString().slice(0,10); }
-
-  function fetchEvents(calendarId) {
-    return fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?key=${API_KEY}`)
-      .then(res => res.json())
-      .then(data => data.items || []);
-  }
-
-  function getHash(str) {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      hash = ((hash << 5) - hash) + str.charCodeAt(i);
-      hash |= 0;
-    }
-    return hash;
-  }
-
-  /* ===== CACHE ===== */
-  async function getCachedEvents() {
-    const cache = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
-    if (cache.timestamp && (Date.now() - cache.timestamp < CACHE_DURATION)) return cache.data;
-    return null;
-  }
-
-  function setCache(data) { localStorage.setItem(CACHE_KEY, JSON.stringify({timestamp: Date.now(), data})); }
-
-  /* ===== RENDER CALENDRIER ===== */
-  function renderCalendar(events) {
-    const grid = document.getElementById('calendarGrid');
-    grid.innerHTML = '';
-    const startOfWeek = new Date(currentDate);
-    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay() - 7);
-
-    for (let i = 0; i < NUM_WEEKS * 7; i++) {
-      const day = new Date(startOfWeek);
-      day.setDate(startOfWeek.getDate() + i);
-      const cell = document.createElement('div');
-      cell.className = 'day-cell';
-      if (formatDate(day) === formatDate(new Date())) cell.classList.add('today');
-      else if (day < new Date()) cell.classList.add('past');
-      else cell.classList.add('future');
-
-      const dayNumber = document.createElement('div');
-      dayNumber.textContent = day.getDate();
-      cell.appendChild(dayNumber);
-
-      events.forEach(event => {
-        const start = new Date(event.start.dateTime || event.start.date);
-        const end = new Date(event.end.dateTime || event.end.date);
-        if (day >= start && day < end) {
-          const ev = document.createElement('div');
-          ev.className = 'event ' + (event.summary.toLowerCase().includes('reception') ? 'reception' : 'navire');
-          ev.textContent = event.summary;
-          ev.onclick = e => showPopup(event);
-          cell.appendChild(ev);
+async function fetchWithRandomProxy(url) {
+    const shuffledProxies = [...PROXIES].sort(() => Math.random() - 0.5);
+    for (const proxy of shuffledProxies) {
+        try {
+            const fullUrl = proxy + encodeURIComponent(url);
+            const res = await fetch(fullUrl);
+            if (!res.ok) throw new Error(`Proxy failed: ${res.status}`);
+            const data = await res.json();
+            return data.contents ? data.contents : data;
+        } catch (err) {
+            console.warn(`Échec du proxy ${proxy}:`, err.message);
         }
-      });
-
-      grid.appendChild(cell);
     }
+    throw new Error("Tous les proxys ont échoué");
+}
 
-    const monthName = startOfWeek.toLocaleString('fr-FR', {month:'long', year:'numeric'});
-    document.getElementById('calendarTitle').textContent = monthName;
-  }
-
-  /* ===== POPUP ===== */
-  function showPopup(event) {
-    const popup = document.getElementById('eventPopup');
-    popup.querySelector('#popupTitle').textContent = event.summary;
-    const start = new Date(event.start.dateTime || event.start.date);
-    const end = new Date(event.end.dateTime || event.end.date);
-    popup.querySelector('#popupDate').textContent = `Du ${start.toLocaleString()} Au ${end.toLocaleString()}`;
-    popup.classList.add('show');
-  }
-
-  document.body.addEventListener('click', e => {
-    if (!e.target.closest('.event')) document.getElementById('eventPopup').classList.remove('show');
-  });
-
-  /* ===== NAVIGATION ===== */
-  document.getElementById('prevWeek').addEventListener('click', () => { currentDate.setDate(currentDate.getDate() - 7); init(); });
-  document.getElementById('nextWeek').addEventListener('click', () => { currentDate.setDate(currentDate.getDate() + 7); init(); });
-  document.getElementById('today').addEventListener('click', () => { currentDate = new Date(); init(); });
-
-  /* ===== INITIALISATION ===== */
-  async function init() {
-    let cached = await getCachedEvents();
-    if (cached) renderCalendar(cached);
-    else {
-      const [eventsReception, eventsNavire] = await Promise.all([
-        fetchEvents(CALENDAR_IDS.reception),
-        fetchEvents(CALENDAR_IDS.navire)
-      ]);
-      const allEvents = [...eventsReception, ...eventsNavire];
-      setCache(allEvents);
-      renderCalendar(allEvents);
+async function checkAndUpdate() {
+    const now = Date.now();
+    const last = localStorage.getItem(CACHE_KEY_TIME);
+    if (last && now - last < CACHE_EXPIRATION) {
+        const cached = localStorage.getItem(CACHE_KEY_DATA);
+        if (cached) { renderPonts(JSON.parse(cached)); return; }
     }
-  }
+    await fetchWithHashControl();
+}
 
-  init();
+async function fetchWithHashControl() {
+    try {
+        const rawContent = await fetchWithRandomProxy("https://www.havre-port.com/map/getPonts");
+        const newHash = await sha256(rawContent);
+        const oldHash = localStorage.getItem(CACHE_KEY_HASH);
+
+        if (newHash === oldHash) {
+            const cached = localStorage.getItem(CACHE_KEY_DATA);
+            if (cached) { renderPonts(JSON.parse(cached)); return; }
+        }
+
+        const ponts = Object.values(JSON.parse(rawContent).data);
+        const unique = Array.from(new Map(ponts.map(p => [p.nom, p])).values());
+        const ordered = unique.sort((a, b) => {
+            const score = p => {
+                const statut = p.statutText.toLowerCase();
+                if (statut.includes("fermé")) return 1;
+                if (statut.includes("fermeture")) return 2;
+                if (statut.includes("manoeuvre")) return 3;
+                if (statut.includes("ouvert")) return 4;
+                return 5;
+            };
+            return score(a) - score(b);
+        });
+
+        localStorage.setItem(CACHE_KEY_DATA, JSON.stringify(ordered));
+        localStorage.setItem(CACHE_KEY_HASH, newHash);
+        localStorage.setItem(CACHE_KEY_TIME, Date.now());
+        renderPonts(ordered);
+
+    } catch (err) {
+        console.error("Erreur récupération ponts:", err);
+        document.getElementById("ponts-table").textContent = "Impossible de récupérer les ponts.";
+    }
+}
+
+function renderPonts(list) {
+    const container = document.getElementById("ponts-table");
+    container.innerHTML = list.map(p => {
+        const statut = p.statutText.toLowerCase();
+        const open = statut.includes("ouvert");
+        const move = statut.includes("manoeuvre");
+        const fermeture = statut.includes("fermeture");
+        const ferme = statut.includes("fermé");
+        const cls = ferme ? "ferme" : fermeture ? "fermeture" : move ? "manoeuvre" : open ? "ouvert" : "ferme";
+        const info = p.forceText || `MàJ : ${p.date}`;
+
+        return `
+            <div class="pont-card ${cls}">
+                <div class="pont-nom">
+                    <span class="pastille"></span>${p.nom}
+                </div>
+                <div class="pont-etat">${p.statutText}</div>
+                <div class="pont-infos">${info}</div>
+            </div>
+        `;
+    }).join("");
+}
+
+checkAndUpdate();
+setInterval(checkAndUpdate, REFRESH_INTERVAL);
+
+// =====================
+// GOOGLE CALENDAR API
+// =====================
+const API_KEY = "AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo";
+const CALENDAR_ID = "cmVjZXB0aW9ucm91bGllckBnbWFpbC5jb20"; // exemple calendrier public
+const CALENDAR_CONTAINER = document.getElementById("calendar-container");
+
+function formatDate(dateStr) {
+    const date = new Date(dateStr);
+    return date.toLocaleString("fr-FR", { 
+        weekday: "short", year:"numeric", month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" 
+    });
+}
+
+async function fetchEvents() {
+    const now = new Date().toISOString();
+    const maxTime = new Date(Date.now() + 7*24*60*60*1000).toISOString(); // 7 jours
+    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events?key=${API_KEY}&timeMin=${now}&timeMax=${maxTime}&singleEvents=true&orderBy=startTime`;
+
+    try {
+        const res = await fetch(url);
+        const data = await res.json();
+        return data.items || [];
+    } catch (err) {
+        console.error("Erreur API Google Calendar:", err);
+        return [];
+    }
+}
+
+async function renderEvents() {
+    const events = await fetchEvents();
+    CALENDAR_CONTAINER.innerHTML = events.map(ev => {
+        const start = formatDate(ev.start.dateTime || ev.start.date);
+        const end = formatDate(ev.end.dateTime || ev.end.date);
+        return `
+            <div class="event-card">
+                <div class="event-title">${ev.summary || "Sans titre"}</div>
+                <div class="event-time">${start} → ${end}</div>
+            </div>
+        `;
+    }).join("");
+}
+
+// Rafraîchissement automatique toutes les 30 secondes
+renderEvents();
+setInterval(renderEvents, 30000);
 </script>
 
 </body>
