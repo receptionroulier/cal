@@ -29,20 +29,33 @@ body {
     box-sizing: border-box;
 }
 .left h2 { color: #00e5ff; text-align: center; }
-#ponts-table .pont-card { background: #1f1f1f; border-radius: 8px; padding: 10px 12px; box-shadow: 0 0 5px rgba(0,0,0,0.4); border-left: 4px solid #444; transition: transform 0.15s ease, box-shadow 0.3s ease; margin-bottom: 8px; }
+
+/* =====================
+   CARTES PONTS
+===================== */
+.pont-card {
+    background: #1f1f1f;
+    border-radius: 8px;
+    padding: 10px 12px;
+    box-shadow: 0 0 5px rgba(0,0,0,0.4);
+    border-left: 4px solid #444;
+    transition: transform 0.15s ease, box-shadow 0.3s ease;
+    margin-bottom: 8px;
+}
 .pont-card:hover { transform: scale(1.02); }
+
 .pont-card.ferme { border-left-color: #ff4040; }
 .pont-card.fermeture { border-left-color: orange; animation: pulse-orange 1.2s infinite; }
 .pont-card.manoeuvre { border-left-color: #1c3cff; animation: pulse-blue 1.2s infinite; }
 .pont-card.ouvert { border-left-color: #58ff58; }
+
 .pastille { width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; display: inline-block; }
-.ferme .pastille { background: #ff4040; }
-.fermeture .pastille { background: orange; }
-.manoeuvre .pastille { background: #1c3cff; }
-.ouvert .pastille { background: #58ff58; }
+.ferme .pastille      { background: #ff4040; }
+.fermeture .pastille  { background: orange; }
+.manoeuvre .pastille  { background: #1c3cff; }
+.ouvert .pastille     { background: #58ff58; }
+
 .pont-nom { font-weight: bold; display: flex; align-items: center; }
-@keyframes pulse-blue {0%,100% { box-shadow: 0 0 5px rgba(28,60,255,0.4); transform: scale(1); }50% { box-shadow: 0 0 20px rgba(28,60,255,0.7); transform: scale(1.02); } }
-@keyframes pulse-orange {0%,100% { box-shadow: 0 0 5px rgba(255,165,0,0.4); transform: scale(1); }50% { box-shadow: 0 0 20px rgba(255,165,0,0.7); transform: scale(1.02); } }
 
 /* =====================
    COLONNE DROITE (CALENDRIER)
@@ -61,6 +74,12 @@ body {
 .event.reception { background:#109c5344; border-left:3px solid #109c53; }
 .event.navire { background:#3644b344; border-left:3px solid #3644b3; }
 .event-time { font-weight:bold; margin-right:4px; }
+
+/* =====================
+   ANIMATIONS
+===================== */
+@keyframes pulse-blue {0%,100% { box-shadow: 0 0 5px rgba(28,60,255,0.4); transform: scale(1); }50% { box-shadow: 0 0 20px rgba(28,60,255,0.7); transform: scale(1.02); } }
+@keyframes pulse-orange {0%,100% { box-shadow: 0 0 5px rgba(255,165,0,0.4); transform: scale(1); }50% { box-shadow: 0 0 20px rgba(255,165,0,0.7); transform: scale(1.02); } }
 </style>
 </head>
 <body>
@@ -84,7 +103,7 @@ body {
 
 <script>
 // =====================
-// CONFIGURATION
+// CONFIGURATION CALENDRIER
 // =====================
 const API_KEY = "AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo";
 const CAL_RECEPTION = "receptionroulier@gmail.com";
@@ -106,7 +125,9 @@ function dayName(date){return ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"][date.g
 // =====================
 async function fetchEvents(calendarId,timeMin,timeMax){
     const url=`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
-    const res=await fetch(url); const data=await res.json(); return data.items||[];
+    const res=await fetch(url);
+    const data=await res.json();
+    return data.items||[];
 }
 
 // =====================
