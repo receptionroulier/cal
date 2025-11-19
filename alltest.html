@@ -13,9 +13,25 @@ body {
     display:flex;
     height:100vh;
 }
-.left{flex:0 0 20%;border-right:1px solid #444;padding:14px;overflow-y:auto;box-sizing:border-box;}
-.right{flex:1;padding:10px;overflow:auto;}
-h2{text-align:center;color:#00e5ff;margin:0 0 15px;}
+.left{
+    flex:0 0 20%;
+    border-right:1px solid #444;
+    padding:14px;
+    overflow-y:auto;
+    box-sizing:border-box;
+}
+.right{
+    flex:1;
+    padding:10px;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+}
+h2{
+    text-align:center;
+    color:#00e5ff;
+    margin:0 0 15px;
+}
 
 /* ===== PONTS ===== */
 #ponts-table{display:flex;flex-direction:column;gap:10px;}
@@ -35,20 +51,26 @@ h2{text-align:center;color:#00e5ff;margin:0 0 15px;}
 @keyframes pulse-orange{0%,100%{box-shadow:0 0 5px rgba(255,165,0.4);transform:scale(1);}50%{box-shadow:0 0 20px rgba(255,165,0.7);transform:scale(1.02);}}
 
 /* ===== CALENDRIER 4x7 ===== */
+#calendar-container {
+    flex:1;
+    display:flex;
+    flex-direction:column;
+}
 #calendar-grid{
     display:grid;
     grid-template-columns:repeat(7,1fr);
-    grid-template-rows:repeat(4,120px);
+    grid-template-rows:repeat(4,1fr);
     gap:2px;
     background:#1a1a1a;
     border-radius:6px;
+    height:100%; /* prend toute la hauteur dispo */
 }
 .day-cell{
     background:#222;
     border:1px solid #333;
     padding:4px;
     position:relative;
-    overflow:hidden;
+    overflow:auto; /* scroll interne si trop d’événements */
 }
 .day-header{
     font-size:0.85em;
@@ -125,7 +147,6 @@ const CALENDARS=[
 ];
 const CALENDAR_CONTAINER=document.getElementById("calendar-container");
 
-// Retourne les 4 semaines : semaine passée, actuelle, futures
 function get4Weeks(){
     const weeks=[];
     const today=new Date();
@@ -149,7 +170,6 @@ function get4Weeks(){
 
 function formatDay(date){return date.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric"});}
 
-// Récupérer tous les événements jusqu'à la dernière semaine
 async function fetchEventsForCalendar(calendarId){
     const weeks=get4Weeks();
     const firstDay = weeks[0][0]; 
@@ -172,8 +192,8 @@ async function renderCalendar4x7Weeks(){
     const grid=document.createElement("div");
     grid.id="calendar-grid";
 
-    weeks.forEach((week,weekIdx)=>{
-        week.forEach((day,dayIdx)=>{
+    weeks.forEach(week=>{
+        week.forEach(day=>{
             const cell=document.createElement("div");
             cell.className="day-cell";
             const header=document.createElement("div");
