@@ -15,7 +15,7 @@ body {
     overflow:hidden;
 }
 .left{flex:0 0 20%;border-right:1px solid #444;padding:14px;overflow-y:auto;box-sizing:border-box;}
-.right{flex:1;padding:10px;overflow-y:auto;}
+.right{flex:1;padding:10px;overflow-x:auto;overflow-y:auto;}
 h2{text-align:center;color:#00e5ff;margin:0 0 15px;}
 
 /* ===== PONTS ===== */
@@ -33,12 +33,11 @@ h2{text-align:center;color:#00e5ff;margin:0 0 15px;}
 .ouvert .pastille{background:#58ff58;}
 .pont-nom{font-weight:bold;display:flex;align-items:center;}
 @keyframes pulse-blue{0%,100%{box-shadow:0 0 5px rgba(28,60,255,0.4);transform:scale(1);}50%{box-shadow:0 0 20px rgba(28,60,255,0.7);transform:scale(1.02);}}
-@keyframes pulse-orange{0%,100%{box-shadow:0 0 5px rgba(255,165,0,0.4);transform:scale(1);}50%{box-shadow:0 0 20px rgba(255,165,0,0.7);transform:scale(1.02);}}
+@keyframes pulse-orange{0%,100%{box-shadow:0 0 5px rgba(255,165,0.4);transform:scale(1);}50%{box-shadow:0 0 20px rgba(255,165,0.7);transform:scale(1.02);}}
 
-/* ===== CALENDRIER VERTICAL ===== */
+/* ===== CALENDRIER HORIZONTAL ===== */
 #calendar-container{display:flex;gap:10px;overflow-x:auto;padding-bottom:10px;}
 .week-column{background:#1a1a1a;border-radius:6px;padding:5px;display:flex;flex-direction:column;min-width:200px;}
-.week-header{text-align:center;font-weight:bold;color:#00e5ff;margin-bottom:5px;}
 .day-column{border-top:1px solid #333;padding:4px;margin-bottom:4px;}
 .day-header{font-size:0.85em;color:#aaa;margin-bottom:2px;}
 .event-card{margin-bottom:3px;padding:2px 4px;border-radius:3px;font-size:0.8em;}
@@ -88,7 +87,7 @@ function renderPonts(list){
 }
 checkAndUpdate();setInterval(checkAndUpdate,REFRESH_INTERVAL);
 
-// ===== CALENDRIER VERTICAL MULTI-SEMAINES =====
+// ===== CALENDRIER HORIZONTAL MULTI-SEMAINES =====
 const API_KEY="AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo";
 const CALENDARS=[
     {id:"receptionroulier@gmail.com",className:"event-reception"},
@@ -127,8 +126,8 @@ async function fetchEventsForCalendar(calendarId){
 async function renderMultiWeekCalendar(numWeeks=4){
     const weeks=getWeeks(numWeeks);
     let html="";
-    weeks.forEach((week,i)=>{
-        html+=`<div class="week-column"><div class="week-header">Semaine ${i+1}</div>`;
+    weeks.forEach(week=>{
+        html+=`<div class="week-column">`;
         week.forEach(day=>{
             html+=`<div class="day-column"><div class="day-header">${formatDay(day)}</div></div>`;
         });
