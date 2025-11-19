@@ -130,12 +130,9 @@ function get4Weeks(){
     const weeks=[];
     const today=new Date();
     today.setHours(0,0,0,0);
-    // lundi de la semaine actuelle
     const mondayCurrent=new Date(today);
     mondayCurrent.setDate(today.getDate() - ((today.getDay()+6)%7));
-    // semaine passée
     const mondayPast=new Date(mondayCurrent); mondayPast.setDate(mondayCurrent.getDate()-7);
-    // semaines futures
     const mondayFuture1=new Date(mondayCurrent); mondayFuture1.setDate(mondayCurrent.getDate()+7);
     const mondayFuture2=new Date(mondayCurrent); mondayFuture2.setDate(mondayCurrent.getDate()+14);
     weeks.push(mondayPast, mondayCurrent, mondayFuture1, mondayFuture2);
@@ -155,10 +152,10 @@ function formatDay(date){return date.toLocaleDateString("fr-FR",{weekday:"short"
 // Récupérer tous les événements jusqu'à la dernière semaine
 async function fetchEventsForCalendar(calendarId){
     const weeks=get4Weeks();
-    const firstDay = weeks[0][0]; // lundi semaine passée
-    const lastDay = weeks[3][6];  // dimanche 4ème semaine
+    const firstDay = weeks[0][0]; 
+    const lastDay = weeks[3][6];  
     const timeMin = firstDay.toISOString();
-    const timeMax = new Date(lastDay.getTime() + 24*60*60*1000).toISOString(); // inclure dernier jour
+    const timeMax = new Date(lastDay.getTime() + 24*60*60*1000).toISOString();
     const url=`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?key=${API_KEY}&timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime`;
     try{
         const res = await fetch(url);
@@ -175,7 +172,6 @@ async function renderCalendar4x7Weeks(){
     const grid=document.createElement("div");
     grid.id="calendar-grid";
 
-    // créer les 28 cases
     weeks.forEach((week,weekIdx)=>{
         week.forEach((day,dayIdx)=>{
             const cell=document.createElement("div");
@@ -184,9 +180,6 @@ async function renderCalendar4x7Weeks(){
             header.className="day-header";
             header.textContent=formatDay(day);
             cell.appendChild(header);
-            if(weekIdx===0) cell.dataset.week="Semaine passée";
-            else if(weekIdx===1) cell.dataset.week="Semaine actuelle";
-            else cell.dataset.week="Semaine future";
             grid.appendChild(cell);
         });
     });
@@ -194,7 +187,6 @@ async function renderCalendar4x7Weeks(){
     CALENDAR_CONTAINER.innerHTML="";
     CALENDAR_CONTAINER.appendChild(grid);
 
-    // fetch events
     let allEvents=[];
     for(const cal of CALENDARS){
         const events=await fetchEventsForCalendar(cal.id);
@@ -202,7 +194,6 @@ async function renderCalendar4x7Weeks(){
         allEvents=allEvents.concat(events);
     }
 
-    // placer les events
     allEvents.forEach(ev=>{
         const start=new Date(ev.start.dateTime||ev.start.date);
         for(let week of weeks){
@@ -212,7 +203,16 @@ async function renderCalendar4x7Weeks(){
                 const gridCell=grid.children[weekGlobalIdx*7+dayIndex];
                 const eventDiv=document.createElement("div");
                 eventDiv.className=`event-card ${ev.calendarClass}`;
-                eventDiv.textContent=ev.summary||"Sans titre";
+
+                // afficher hh:mm si heure disponible
+                let timeStr="";
+                if(ev.start.dateTime){
+                    const h=start.getHours().toString().padStart(2,"0");
+                    const m=start.getMinutes().toString().padStart(2,"0");
+                    timeStr = `${h}:${m} `;
+                }
+
+                eventDiv.textContent=`${timeStr}${ev.summary||"Sans titre"}`;
                 gridCell.appendChild(eventDiv);
             }
         }
