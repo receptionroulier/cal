@@ -9,6 +9,7 @@
 /* =====================
    GLOBAL
 ===================== */
+
 body {
     margin: 0;
     font-family: Arial, sans-serif;
@@ -19,6 +20,10 @@ body {
     overflow: hidden;
 }
 
+/* =====================
+   COLONNE GAUCHE (PONTS)
+===================== */
+
 .left {
     flex: 0 0 20%;
     border-right: 1px solid #444;
@@ -27,20 +32,26 @@ body {
     box-sizing: border-box;
 }
 
-.right {
-    flex: 1;
-    padding: 0;
-    overflow-y: auto;
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
+.left h2 {
+    color: #00e5ff !important;
+    text-align: center;
 }
 
 /* =====================
-   CALENDRIER
+   COLONNE DROITE (CALENDRIER)
 ===================== */
 
+.right {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden; /* empêche débordement */
+}
+
+/* Header calendrier */
 #calendar-header {
+    flex: 0 0 auto;
     padding: 12px;
     text-align: center;
     font-size: 22px;
@@ -79,18 +90,37 @@ body {
     background: #333;
 }
 
+/* Jours de la semaine */
+#calendar-weekdays {
+    flex: 0 0 32px; 
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    background: #181818;
+    text-align: center;
+    padding: 6px 0;
+    border-bottom: 1px solid #333;
+    font-size: 14px;
+    color: #ccc;
+}
+
+/* =====================
+   GRILLE CALENDRIER
+===================== */
+
 #calendar-grid {
-    flex: 1;
+    flex: 1 1 auto;
     display: grid;
     gap: 1px;
     background: #333;
+    overflow: hidden; /* ne jamais dépasser l’écran */
+    box-sizing: border-box;
 }
 
 .calendar-cell {
     background: #1a1a1a;
     padding: 6px;
     border: 1px solid #222;
-    overflow-y: auto;
+    overflow-y: auto; /* scroll interne */
 }
 
 .date-label {
@@ -145,12 +175,22 @@ body {
         <span class="nav-btn" id="today-btn" style="font-size:18px;">Aujourd’hui</span>
     </div>
 
+    <div id="calendar-weekdays">
+        <div>Lun</div>
+        <div>Mar</div>
+        <div>Mer</div>
+        <div>Jeu</div>
+        <div>Ven</div>
+        <div>Sam</div>
+        <div>Dim</div>
+    </div>
+
     <div id="calendar-grid"></div>
 </div>
 
 <script>
 // -----------------------------
-// CONFIGURATION GOOGLE CALENDAR
+// CONFIG GOOGLE CALENDAR
 // -----------------------------
 const API_KEY = "AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo";
 
@@ -158,10 +198,10 @@ const CAL_RECEPTION = "receptionroulier@gmail.com";
 const CAL_NAVIRE = "smr.programme@gmail.com";
 
 let offsetWeeks = 0;
-let viewDays = 28; // 28 par défaut (4 semaines)
+let viewDays = 28; // défaut : 4 semaines
 
 // -----------------------------
-// FONCTIONS CALENDRIER
+// OUTILS DATES
 // -----------------------------
 
 function getStartMonday(date) {
@@ -183,32 +223,28 @@ function formatDate(d) {
 }
 
 function formatMonthRange(start, end) {
-    const months = [
-        "Janvier","Février","Mars","Avril","Mai","Juin",
-        "Juillet","Août","Septembre","Octobre","Novembre","Décembre"
-    ];
-
+    const months = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
     const m1 = months[start.getMonth()];
     const m2 = months[end.getMonth()];
-
     const y1 = start.getFullYear();
     const y2 = end.getFullYear();
-
     if (m1 === m2 && y1 === y2) return `${m1} ${y1}`;
     return `${m1} — ${m2} ${y2}`;
 }
 
+// -----------------------------
+// FETCH EVENTS
+// -----------------------------
 async function fetchEvents(calendarId, timeMin, timeMax) {
-    const url =
-        `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events` +
-        `?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}` +
-        `&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
-
+    const url = `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
     const res = await fetch(url);
     const data = await res.json();
     return data.items || [];
 }
 
+// -----------------------------
+// CHARGEMENT DU CALENDRIER
+// -----------------------------
 async function loadCalendar() {
 
     const today = new Date();
@@ -219,8 +255,7 @@ async function loadCalendar() {
     const start = new Date(monday);
     const end = addDays(start, viewDays - 1);
 
-    document.getElementById("calendar-title").textContent =
-        formatMonthRange(start, end);
+    document.getElementById("calendar-title").textContent = formatMonthRange(start, end);
 
     const grid = document.getElementById("calendar-grid");
 
@@ -234,10 +269,8 @@ async function loadCalendar() {
         const cell = document.createElement("div");
         cell.className = "calendar-cell";
         const d = addDays(start, i);
-
         cell.innerHTML = `<div class="date-label">${d.getDate()}</div>`;
         cell.dataset.date = formatDate(d);
-
         grid.appendChild(cell);
     }
 
@@ -251,21 +284,21 @@ async function loadCalendar() {
     renderEvents(navEvents, "navire");
 }
 
+// -----------------------------
+// RENDU DES ÉVÉNEMENTS
+// -----------------------------
 function renderEvents(events, type) {
     events.forEach(ev => {
         const date = ev.start.date || ev.start.dateTime?.split("T")[0];
         const cell = document.querySelector(`[data-date="${date}"]`);
         if (!cell) return;
-
         const div = document.createElement("div");
         div.className = `event ${type}`;
-
         let timeStr = "";
         if (ev.start.dateTime) {
             const t = ev.start.dateTime.split("T")[1].substring(0,5);
             timeStr = `<span class="event-time">${t}</span>`;
         }
-
         div.innerHTML = `${timeStr}${ev.summary || "(Sans titre)"}`;
         cell.appendChild(div);
     });
