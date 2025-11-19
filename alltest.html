@@ -1,437 +1,251 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ponts HAROPA – Monitoring + Calendrier</title>
-
 <style>
-:root{
-  --bg:#101010; 
-  --panel:#1a1a1a; 
-  --muted:#aaa; 
-  --accent:#00e5ff;
-}
-html,body{
-  height:100%;
-  margin:0;
-  font-family:Arial,Helvetica,sans-serif;
-  background:var(--bg);
-  color:#eaeaea
-}
-.app{
-  display:flex;
-  height:100vh;
-  overflow:hidden;
+/* =====================
+   GLOBAL
+===================== */
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #101010;
+    color: #eaeaea;
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
 }
 
-/* LEFT : PONTS */
-.left{
-  flex:0 0 20%;
-  border-right:1px solid #444;
-  padding:14px;
-  background:#0e0e0e;
-  box-sizing:border-box;
-  overflow-y:auto;
+/* =====================
+   COLONNE GAUCHE
+===================== */
+.left {
+    flex: 0 0 20%;
+    border-right: 1px solid #444;
+    padding: 14px;
+    overflow-y: auto;
+    box-sizing: border-box;
 }
-.left h2{
-  color:var(--accent);
-  text-align:center;
-  margin:0 0 12px
-}
+.left h2 { color: #00e5ff; text-align: center; }
 
-/* pont cards */
-.pont-card{
-  background:#1f1f1f;
-  border-radius:8px;
-  padding:10px 12px;
-  margin-bottom:10px;
-  border-left:4px solid #444;
-  box-shadow:0 0 5px rgba(0,0,0,0.4);
-  transition:transform .12s ease;
+/* =====================
+   CARTES PONTS
+===================== */
+.pont-card {
+    background: #1f1f1f;
+    border-radius: 8px;
+    padding: 10px 12px;
+    box-shadow: 0 0 5px rgba(0,0,0,0.4);
+    border-left: 4px solid #444;
+    transition: transform 0.15s ease, box-shadow 0.3s ease;
+    margin-bottom: 8px;
 }
-.pont-card:hover{ transform:scale(1.01) }
+.pont-card:hover { transform: scale(1.02); }
 
-.pont-card.ferme{      border-left-color:#ff4040 }
-.pont-card.fermeture{  border-left-color:orange;    animation:pulse-orange 1.2s infinite }
-.pont-card.manoeuvre{  border-left-color:#1c3cff;   animation:pulse-blue 1.2s infinite }
-.pont-card.ouvert{     border-left-color:#58ff58 }
+.pont-card.ferme { border-left-color: #ff4040; }
+.pont-card.fermeture { border-left-color: orange; animation: pulse-orange 1.2s infinite; }
+.pont-card.manoeuvre { border-left-color: #1c3cff; animation: pulse-blue 1.2s infinite; }
+.pont-card.ouvert { border-left-color: #58ff58; }
 
-.pastille{
-  width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:8px
-}
-.ferme .pastille{background:#ff4040}
-.fermeture .pastille{background:orange}
-.manoeuvre .pastille{background:#1c3cff}
-.ouvert .pastille{background:#58ff58}
+.pastille { width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; display: inline-block; }
+.ferme .pastille      { background: #ff4040; }
+.fermeture .pastille  { background: orange; }
+.manoeuvre .pastille  { background: #1c3cff; }
+.ouvert .pastille     { background: #58ff58; }
 
-.pont-nom{display:flex;align-items:center;font-weight:700}
-.pont-etat{color:var(--muted);font-size:0.95em;margin-top:6px}
-.pont-infos{color:#bbb;font-size:0.85em;margin-top:6px}
+.pont-nom { font-weight: bold; display: flex; align-items: center; }
 
-/* RIGHT : CALENDRIER */
-.right{
-  flex:1;
-  display:flex;
-  flex-direction:column;
-  height:100%;
-  overflow:hidden;
-}
+/* =====================
+   COLONNE DROITE (CALENDRIER)
+===================== */
+.right { flex:1; display:flex; flex-direction:column; height:100%; overflow:hidden; }
+#calendar-header { flex:0 0 auto; padding:12px; text-align:center; font-size:22px; color:#00e5ff; border-bottom:1px solid #333; display:flex; justify-content:center; align-items:center; gap:18px; }
+.nav-btn { cursor:pointer; color:#ccc; font-size:26px; padding:4px 10px; border-radius:6px; transition:0.2s; }
+.nav-btn:hover { background:#222; }
+.view-btn { cursor:pointer; font-size:14px; padding:4px 10px; background:#222; border-radius:6px; border:1px solid #333; color:#ccc; }
+.view-btn:hover { background:#333; }
 
-#calendar-header{
-  flex:0 0 auto;
-  padding:12px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:14px;
-  border-bottom:1px solid #333;
-  color:var(--accent);
-  font-size:20px;
-}
+#calendar-grid { flex:1 1 auto; display:grid; gap:1px; background:#333; overflow:hidden; box-sizing:border-box; }
+.calendar-cell { background:#1a1a1a; padding:6px; border:1px solid #222; overflow:hidden; }
+.date-label { font-size:14px; font-weight:bold; margin-bottom:4px; color:#00e5ff; }
+.event { padding:3px 5px; border-radius:4px; font-size:13px; margin-bottom:4px; }
+.event.reception { background:#109c5344; border-left:3px solid #109c53; }
+.event.navire { background:#3644b344; border-left:3px solid #3644b3; }
+.event-time { font-weight:bold; margin-right:4px; }
 
-.nav-btn{
-  cursor:pointer;
-  color:#ccc;
-  font-size:22px;
-  padding:6px 10px;
-  border-radius:6px;
-}
-.nav-btn:hover{ background:#222 }
-
-.view-btn{
-  cursor:pointer;
-  background:#222;
-  border:1px solid #333;
-  color:#ccc;
-  padding:4px 8px;
-  border-radius:6px;
-}
-
-#calendar-grid{
-  flex:1 1 auto;
-  display:grid;
-  gap:1px;
-  background:#333;
-  padding:6px;
-  overflow:hidden;
-  box-sizing:border-box;
-}
-
-/* cellule calendrier */
-.calendar-cell{
-  background:var(--panel);
-  padding:8px;
-  border:1px solid #202020;
-  display:flex;
-  flex-direction:column;
-  overflow:hidden;
-}
-
-.date-label{
-  color:var(--accent);
-  font-weight:700;
-  margin-bottom:6px;
-  font-size:13px;
-}
-
-/* événements */
-.event{
-  padding:4px 6px;
-  border-radius:4px;
-  font-size:13px;
-  margin-bottom:6px;
-  overflow:hidden
-}
-.event.reception{
-  background:rgba(16,156,83,0.18);
-  border-left:3px solid #109c53;
-}
-.event.navire{
-  background:rgba(54,68,179,0.14);
-  border-left:3px solid #3644b3;
-}
-
-/* heure : petite et non gras */
-.event-time{
-  font-weight:normal;
-  font-size:11px;
-  margin-right:6px;
-  color:#ddd;
-}
-
-/* animations */
-@keyframes pulse-blue{
-  0%,100%{box-shadow:0 0 5px rgba(28,60,255,0.3)}
-  50%{box-shadow:0 0 18px rgba(28,60,255,0.6)}
-}
-@keyframes pulse-orange{
-  0%,100%{box-shadow:0 0 5px rgba(255,165,0,0.3)}
-  50%{box-shadow:0 0 18px rgba(255,165,0,0.6)}
-}
-
-@media (max-width:900px){ .left{flex-basis:26%} }
-@media (max-width:700px){ .left{display:none} }
+/* =====================
+   ANIMATIONS
+===================== */
+@keyframes pulse-blue {0%,100% { box-shadow: 0 0 5px rgba(28,60,255,0.4); transform: scale(1); }50% { box-shadow: 0 0 20px rgba(28,60,255,0.7); transform: scale(1.02); } }
+@keyframes pulse-orange {0%,100% { box-shadow: 0 0 5px rgba(255,165,0,0.4); transform: scale(1); }50% { box-shadow: 0 0 20px rgba(255,165,0,0.7); transform: scale(1.02); } }
 </style>
 </head>
 <body>
 
-<div class="app">
-
-  <div class="left">
+<div class="left">
     <h2>État des Ponts</h2>
     <div id="ponts-table">Chargement…</div>
-  </div>
-
-  <div class="right">
-
-    <div id="calendar-header">
-      <span class="nav-btn" id="prev-btn">‹</span>
-      <span id="calendar-title">Chargement…</span>
-      <span class="nav-btn" id="next-btn">›</span>
-      <button class="view-btn" id="view-3w">3 semaines</button>
-      <button class="view-btn" id="view-4w">4 semaines</button>
-      <span class="nav-btn" id="today-btn" style="font-size:14px;padding:6px 8px">Aujourd’hui</span>
-    </div>
-
-    <div id="calendar-grid"></div>
-
-  </div>
 </div>
 
+<div class="right">
+    <div id="calendar-header">
+        <span class="nav-btn" id="prev-btn">‹</span>
+        <span id="calendar-title">Chargement…</span>
+        <span class="nav-btn" id="next-btn">›</span>
+        <span class="view-btn" id="view-3w">3 semaines</span>
+        <span class="view-btn" id="view-4w">4 semaines</span>
+        <span class="nav-btn" id="today-btn" style="font-size:18px;">Aujourd’hui</span>
+    </div>
+    <div id="calendar-grid"></div>
+</div>
 
 <script>
-/* CONFIGURATION */
-const CAL_POLL_INTERVAL_MS = 30000;
+// =====================
+// CONFIGURATION CALENDRIER
+// =====================
 const API_KEY = "AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo";
 const CAL_RECEPTION = "receptionroulier@gmail.com";
 const CAL_NAVIRE = "smr.programme@gmail.com";
+let offsetWeeks = 0;
+let viewDays = 28;
 
-/* PONTS */
-const CACHE_KEY_DATA="pontsData",
-      CACHE_KEY_HASH="pontsHash",
-      CACHE_KEY_TIME="pontsCacheTime",
-      CACHE_EXPIRATION=120000,
-      REFRESH_INTERVAL=60000;
+// =====================
+// OUTILS DATES
+// =====================
+function getStartMonday(date){const d=new Date(date); const day=d.getDay(); const diff=(day===0?-6:1)-day; d.setDate(d.getDate()+diff); return d;}
+function addDays(date,n){const d=new Date(date); d.setDate(d.getDate()+n); return d;}
+function formatDate(d){return d.toISOString().split("T")[0];}
+function formatMonthRange(start,end){const months=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];const m1=months[start.getMonth()];const m2=months[end.getMonth()];const y1=start.getFullYear();const y2=end.getFullYear();return (m1===m2&&y1===y2)?`${m1} ${y1}`:`${m1} — ${m2} ${y2}`;}
+function dayName(date){return ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"][date.getDay()];}
 
-const PROXIES=[
-  "https://api.allorigins.win/get?url=",
-  "https://cors-anywhere.herokuapp.com/",
-  "https://thingproxy.freeboard.io/fetch/"
-];
-const PROXY_TIMEOUT_MS = 3000;
-
-/* DATES */
-function getStartMonday(date){
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = (day===0?-6:1)-day;
-  d.setDate(d.getDate()+diff);
-  d.setHours(0,0,0,0);
-  return d;
-}
-function addDays(d,n){
-  const x=new Date(d);
-  x.setDate(x.getDate()+n);
-  x.setHours(0,0,0,0);
-  return x;
-}
-function formatISODate(d){ return d.toISOString().split("T")[0]; }
-function dayShortName(d){ return ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"][d.getDay()]; }
-function formatMonthRange(start,end){
-  const m=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
-  const m1=m[start.getMonth()], m2=m[end.getMonth()];
-  const y1=start.getFullYear(), y2=end.getFullYear();
-  return (m1===m2&&y1===y2)?`${m1} ${y1}`:`${m1} — ${m2} ${y2}`;
+// =====================
+// FETCH GOOGLE CALENDAR
+// =====================
+async function fetchEvents(calendarId,timeMin,timeMax){
+    const url=`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
+    const res=await fetch(url);
+    const data=await res.json();
+    return data.items||[];
 }
 
-/* CALENDAR */
-let offsetWeeks=0;
-let viewDays=28;
-
-async function fetchCalendarEvents(calId,timeMin,timeMax){
-  const url=`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
-  try{
-    const r=await fetch(url);
-    if(!r.ok) return [];
-    const j=await r.json();
-    return j.items||[];
-  }catch{
-    return [];
-  }
-}
-
-async function renderCalendar(){
-  const today=new Date();
-  const monday=getStartMonday(today);
-  monday.setDate(monday.getDate()-7 + offsetWeeks*7);
-
-  const start=new Date(monday);
-  const end=addDays(start,viewDays-1);
-
-  document.getElementById("calendar-title").textContent =
-    formatMonthRange(start,end);
-
-  const grid=document.getElementById("calendar-grid");
-  grid.innerHTML="";
-  grid.style.gridTemplateColumns="repeat(7,1fr)";
-  grid.style.gridTemplateRows=`repeat(${viewDays===21?3:4},1fr)`;
-
-  for(let i=0;i<viewDays;i++){
-    const d=addDays(start,i);
-    const cell=document.createElement("div");
-    cell.className="calendar-cell";
-    cell.dataset.date=formatISODate(d);
-    cell.innerHTML=`<div class="date-label">${dayShortName(d)} ${d.getDate()}</div>`;
-    grid.appendChild(cell);
-  }
-
-  const timeMin=start.toISOString();
-  const timeMax=addDays(start,viewDays).toISOString();
-
-  const [rec,nav]=await Promise.all([
-    fetchCalendarEvents(CAL_RECEPTION,timeMin,timeMax),
-    fetchCalendarEvents(CAL_NAVIRE,timeMin,timeMax)
-  ]);
-
-  function addEvents(evts,type){
-    for(const ev of evts){
-      // ✅ prend directement date ISO pour dateKey → plus de décalage
-      const dateKey = ev.start.date || (ev.start.dateTime ? ev.start.dateTime.split('T')[0] : null);
-      if(!dateKey) continue;
-      const cell=document.querySelector(`.calendar-cell[data-date="${dateKey}"]`);
-      if(!cell) continue;
-
-      const div=document.createElement("div");
-      div.className=`event ${type}`;
-      let timeHtml="";
-      if(ev.start.dateTime){
-        const dt = new Date(ev.start.dateTime);
-        const hh = dt.getHours().toString().padStart(2,"0");
-        const mm = dt.getMinutes().toString().padStart(2,"0");
-        timeHtml = `<span class="event-time">${hh}:${mm}</span>`;
-      }
-      div.innerHTML = `${timeHtml}${ev.summary||"(Sans titre)"}`;
-      cell.appendChild(div);
+// =====================
+// AFFICHAGE CALENDRIER
+// =====================
+async function loadCalendar(){
+    const today=new Date();
+    const monday=getStartMonday(today);
+    monday.setDate(monday.getDate()-7 + offsetWeeks*7);
+    const start=new Date(monday);
+    const end=addDays(start,viewDays-1);
+    document.getElementById("calendar-title").textContent=formatMonthRange(start,end);
+    const grid=document.getElementById("calendar-grid");
+    const rows=(viewDays===21)?3:4;
+    grid.style.gridTemplateRows=`repeat(${rows},1fr)`;
+    grid.style.gridTemplateColumns=`repeat(7,1fr)`;
+    grid.innerHTML="";
+    for(let i=0;i<viewDays;i++){
+        const cell=document.createElement("div"); cell.className="calendar-cell";
+        const d=addDays(start,i);
+        cell.innerHTML=`<div class="date-label">${dayName(d)} ${d.getDate()}</div>`;
+        cell.dataset.date=formatDate(d);
+        grid.appendChild(cell);
     }
-  }
-
-  addEvents(rec,"reception");
-  addEvents(nav,"navire");
+    const timeMin=start.toISOString();
+    const timeMax=addDays(start,viewDays).toISOString();
+    const recEvents=await fetchEvents(CAL_RECEPTION,timeMin,timeMax);
+    const navEvents=await fetchEvents(CAL_NAVIRE,timeMin,timeMax);
+    renderEvents(recEvents,"reception");
+    renderEvents(navEvents,"navire");
 }
 
-let calendarInterval=null;
-function startCalendarPolling(){
-  renderCalendar();
-  if(calendarInterval) clearInterval(calendarInterval);
-  calendarInterval=setInterval(renderCalendar,CAL_POLL_INTERVAL_MS);
-}
-startCalendarPolling();
-
-document.getElementById("prev-btn").onclick=()=>{ offsetWeeks-=(viewDays===21?3:4); startCalendarPolling(); };
-document.getElementById("next-btn").onclick=()=>{ offsetWeeks+=(viewDays===21?3:4); startCalendarPolling(); };
-document.getElementById("today-btn").onclick=()=>{ offsetWeeks=0; startCalendarPolling(); };
-document.getElementById("view-3w").onclick=()=>{ viewDays=21; offsetWeeks=0; startCalendarPolling(); };
-document.getElementById("view-4w").onclick=()=>{ viewDays=28; offsetWeeks=0; startCalendarPolling(); };
-
-/* PONTS HAROPA - inchangé */
-async function sha256hex(str){
-  const data=new TextEncoder().encode(str);
-  const hash=await crypto.subtle.digest("SHA-256",data);
-  return [...new Uint8Array(hash)].map(b=>b.toString(16).padStart(2,"0")).join("");
+function renderEvents(events,type){
+    events.forEach(ev=>{
+        const date=ev.start.date||ev.start.dateTime?.split("T")[0];
+        const cell=document.querySelector(`[data-date="${date}"]`);
+        if(!cell) return;
+        const div=document.createElement("div"); div.className=`event ${type}`;
+        let timeStr="";
+        if(ev.start.dateTime){const t=ev.start.dateTime.split("T")[1].substring(0,5); timeStr=`<span class="event-time">${t}</span>`;}
+        div.innerHTML=`${timeStr}${ev.summary||"(Sans titre)"}`;
+        cell.appendChild(div);
+    });
 }
 
-async function fetchWithProxies(url){
-  const list=[...PROXIES].sort(()=>Math.random()-0.5);
-  for(const proxy of list){
-    try{
-      const controller=new AbortController();
-      const timer=setTimeout(()=>controller.abort(),PROXY_TIMEOUT_MS);
-      const r=await fetch(proxy+encodeURIComponent(url),{signal:controller.signal});
-      clearTimeout(timer);
-      if(!r.ok) continue;
-      const d=await r.json();
-      return d.contents?d.contents:d;
-    }catch{}
-  }
-  throw new Error("All proxies failed");
+// =====================
+// NAVIGATION CALENDRIER
+// =====================
+document.getElementById("prev-btn").onclick=()=>{offsetWeeks-=1;loadCalendar();}
+document.getElementById("next-btn").onclick=()=>{offsetWeeks+=1;loadCalendar();}
+document.getElementById("today-btn").onclick=()=>{offsetWeeks=0;loadCalendar();}
+document.getElementById("view-3w").onclick=()=>{viewDays=21;loadCalendar();}
+document.getElementById("view-4w").onclick=()=>{viewDays=28;loadCalendar();}
+loadCalendar();
+
+// =====================
+// PONTS HAROPA
+// =====================
+const CACHE_KEY_DATA="pontsData",CACHE_KEY_HASH="pontsHash",CACHE_KEY_TIME="pontsCacheTime",CACHE_EXPIRATION=120000,REFRESH_INTERVAL=60000;
+const PROXIES=["https://api.allorigins.win/get?url=","https://cors-anywhere.herokuapp.com/","https://thingproxy.freeboard.io/fetch/"];
+
+async function sha256(str){const data=new TextEncoder().encode(str); const digest=await crypto.subtle.digest("SHA-256",data); return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");}
+
+async function fetchWithRandomProxy(url){
+    const shuffled=[...PROXIES].sort(()=>Math.random()-0.5);
+    for(const proxy of shuffled){
+        try{
+            const fullUrl=proxy+encodeURIComponent(url);
+            const controller=new AbortController();
+            const timeout=setTimeout(()=>controller.abort(),3000);
+            const res=await fetch(fullUrl,{signal:controller.signal});
+            clearTimeout(timeout);
+            if(!res.ok) throw new Error(`Proxy failed: ${res.status}`);
+            const data=await res.json();
+            return data.contents?data.contents:data;
+        }catch(err){console.warn(`Proxy ${proxy} échoué : ${err.message}`);}
+    }
+    throw new Error("Tous les proxys ont échoué");
 }
 
-async function updatePonts(){
-  try{
+async function checkAndUpdate(){
     const now=Date.now();
     const last=localStorage.getItem(CACHE_KEY_TIME);
+    if(last && now-last<CACHE_EXPIRATION){const cached=localStorage.getItem(CACHE_KEY_DATA); if(cached){renderPonts(JSON.parse(cached)); return;}}
+    await fetchWithHashControl();
+}
 
-    if(last && now-last < CACHE_EXPIRATION){
-      const cached=localStorage.getItem(CACHE_KEY_DATA);
-      if(cached){ renderPonts(JSON.parse(cached)); return; }
-    }
-
-    const raw=await fetchWithProxies("https://www.havre-port.com/map/getPonts");
-    const hash=await sha256hex(raw);
-    const prev=localStorage.getItem(CACHE_KEY_HASH);
-
-    if(hash===prev){
-      const cached=localStorage.getItem(CACHE_KEY_DATA);
-      if(cached){
-        renderPonts(JSON.parse(cached));
+async function fetchWithHashControl(){
+    try{
+        const rawContent=await fetchWithRandomProxy("https://www.havre-port.com/map/getPonts");
+        const newHash=await sha256(rawContent);
+        const oldHash=localStorage.getItem(CACHE_KEY_HASH);
+        if(newHash===oldHash){const cached=localStorage.getItem(CACHE_KEY_DATA); if(cached){renderPonts(JSON.parse(cached)); return;}}
+        const ponts=Object.values(JSON.parse(rawContent).data);
+        const unique=Array.from(new Map(ponts.map(p=>[p.nom,p])).values());
+        const ordered=unique.sort((a,b)=>{
+            const score=p=>{const s=p.statutText.toLowerCase(); if(s.includes("fermé"))return 1; if(s.includes("fermeture"))return 2; if(s.includes("manoeuvre"))return 3; if(s.includes("ouvert"))return 4; return 5;}; return score(a)-score(b);
+        });
+        localStorage.setItem(CACHE_KEY_DATA,JSON.stringify(ordered));
+        localStorage.setItem(CACHE_KEY_HASH,newHash);
         localStorage.setItem(CACHE_KEY_TIME,Date.now());
-        return;
-      }
-    }
-
-    const j=JSON.parse(raw);
-    const ponts = Object.values(j.data||{});
-    const unique = Array.from(new Map(ponts.map(p=>[p.nom,p])).values());
-
-    const ordered = unique.sort((a,b)=>{
-      const s=x=>{
-        const t=(x.statutText||"").toLowerCase();
-        if(t.includes("fermé")) return 1;
-        if(t.includes("fermeture")) return 2;
-        if(t.includes("manoeuvre")||t.includes("manœuvre")) return 3;
-        if(t.includes("ouvert")) return 4;
-        return 5;
-      };
-      return s(a)-s(b);
-    });
-
-    localStorage.setItem(CACHE_KEY_DATA,JSON.stringify(ordered));
-    localStorage.setItem(CACHE_KEY_HASH,hash);
-    localStorage.setItem(CACHE_KEY_TIME,Date.now());
-
-    renderPonts(ordered);
-
-  }catch(err){
-    document.getElementById("ponts-table").textContent="Impossible de récupérer les ponts.";
-  }
+        renderPonts(ordered);
+    }catch(err){console.error("Erreur récupération ponts:",err); document.getElementById("ponts-table").textContent="Impossible de récupérer les ponts.";}
 }
 
-function renderPonts(arr){
-  const box=document.getElementById("ponts-table");
-  box.innerHTML = arr.map(p=>{
-    const st=(p.statutText||"").toLowerCase();
-    const cls =
-      st.includes("fermé")     ? "ferme" :
-      st.includes("fermeture") ? "fermeture" :
-      st.includes("manoeuvre") || st.includes("manœuvre") ? "manoeuvre" :
-      st.includes("ouvert")    ? "ouvert" :
-      "ferme";
-
-    const info=p.forceText||(`MàJ : ${p.date||""}`);
-
-    return `
-      <div class="pont-card ${cls}">
-        <div class="pont-nom"><span class="pastille"></span>${p.nom}</div>
-        <div class="pont-etat">${p.statutText||""}</div>
-        <div class="pont-infos">${info}</div>
-      </div>`;
-  }).join("");
+function renderPonts(list){
+    const container=document.getElementById("ponts-table");
+    container.innerHTML=list.map(p=>{
+        const statut=p.statutText.toLowerCase();
+        const open=statut.includes("ouvert"), move=statut.includes("manoeuvre"), fermeture=statut.includes("fermeture"), ferme=statut.includes("fermé");
+        const cls=ferme?"ferme":fermeture?"fermeture":move?"manoeuvre":open?"ouvert":"ferme";
+        const info=p.forceText||`MàJ : ${p.date}`;
+        return `<div class="pont-card ${cls}"><div class="pont-nom"><span class="pastille"></span>${p.nom}</div><div class="pont-etat">${p.statutText}</div><div class="pont-infos">${info}</div></div>`;
+    }).join("");
 }
 
-updatePonts();
-setInterval(updatePonts,REFRESH_INTERVAL);
-
+checkAndUpdate();
+setInterval(checkAndUpdate,REFRESH_INTERVAL);
 </script>
 </body>
 </html>
