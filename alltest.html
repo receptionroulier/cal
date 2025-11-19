@@ -17,7 +17,6 @@ body {
 .left{flex:0 0 20%;border-right:1px solid #444;padding:14px;overflow-y:auto;box-sizing:border-box;}
 .right{flex:1;padding:10px;overflow-y:auto;}
 h2{text-align:center;color:#00e5ff;margin:0 0 15px;}
-#calendar-container{overflow-x:auto;white-space:nowrap;padding-bottom:10px;}
 
 /* ===== PONTS ===== */
 #ponts-table{display:flex;flex-direction:column;gap:10px;}
@@ -36,11 +35,12 @@ h2{text-align:center;color:#00e5ff;margin:0 0 15px;}
 @keyframes pulse-blue{0%,100%{box-shadow:0 0 5px rgba(28,60,255,0.4);transform:scale(1);}50%{box-shadow:0 0 20px rgba(28,60,255,0.7);transform:scale(1.02);}}
 @keyframes pulse-orange{0%,100%{box-shadow:0 0 5px rgba(255,165,0,0.4);transform:scale(1);}50%{box-shadow:0 0 20px rgba(255,165,0,0.7);transform:scale(1.02);}}
 
-/* ===== CALENDRIER MULTI-SEMAINES ===== */
-.week-container{display:inline-block;vertical-align:top;width:250px;margin-right:10px;}
+/* ===== CALENDRIER VERTICAL ===== */
+#calendar-container{display:flex;gap:10px;overflow-x:auto;padding-bottom:10px;}
+.week-column{background:#1a1a1a;border-radius:6px;padding:5px;display:flex;flex-direction:column;min-width:200px;}
 .week-header{text-align:center;font-weight:bold;color:#00e5ff;margin-bottom:5px;}
-.day-column{background:#1a1a1a;border-radius:6px;margin-bottom:5px;padding:3px;min-height:150px;}
-.day-header{font-size:0.85em;color:#aaa;text-align:center;margin-bottom:2px;}
+.day-column{border-top:1px solid #333;padding:4px;margin-bottom:4px;}
+.day-header{font-size:0.85em;color:#aaa;margin-bottom:2px;}
 .event-card{margin-bottom:3px;padding:2px 4px;border-radius:3px;font-size:0.8em;}
 .event-reception{background:#109c53;color:#fff;}
 .event-navire{background:#3644b3;color:#fff;}
@@ -86,10 +86,9 @@ function renderPonts(list){
         return `<div class="pont-card ${cls}"><div class="pont-nom"><span class="pastille"></span>${p.nom}</div><div class="pont-etat">${p.statutText}</div><div class="pont-infos">${info}</div></div>`;
     }).join("");
 }
-
 checkAndUpdate();setInterval(checkAndUpdate,REFRESH_INTERVAL);
 
-// ===== CALENDRIER MULTI-SEMAINES =====
+// ===== CALENDRIER VERTICAL MULTI-SEMAINES =====
 const API_KEY="AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo";
 const CALENDARS=[
     {id:"receptionroulier@gmail.com",className:"event-reception"},
@@ -103,7 +102,7 @@ function getWeeks(numWeeks){
     today.setHours(0,0,0,0);
     for(let w=-1;w<numWeeks-1;w++){ // semaine passée incluse
         const firstDay=new Date(today);
-        firstDay.setDate(today.getDate()+w*7-(today.getDay()+6)%7); // lundi
+        firstDay.setDate(today.getDate()+w*7-(today.getDay()+6)%7);
         const week=[];
         for(let d=0;d<7;d++){
             const day=new Date(firstDay);
@@ -129,7 +128,7 @@ async function renderMultiWeekCalendar(numWeeks=4){
     const weeks=getWeeks(numWeeks);
     let html="";
     weeks.forEach((week,i)=>{
-        html+=`<div class="week-container"><div class="week-header">Semaine ${i-0+1}</div>`;
+        html+=`<div class="week-column"><div class="week-header">Semaine ${i+1}</div>`;
         week.forEach(day=>{
             html+=`<div class="day-column"><div class="day-header">${formatDay(day)}</div></div>`;
         });
@@ -144,14 +143,14 @@ async function renderMultiWeekCalendar(numWeeks=4){
         allEvents=allEvents.concat(events);
     }
 
-    const weekContainers=CALENDAR_CONTAINER.querySelectorAll(".week-container");
+    const weekColumns=CALENDAR_CONTAINER.querySelectorAll(".week-column");
     allEvents.forEach(ev=>{
         const startDate=new Date(ev.start.dateTime||ev.start.date);
         for(let w=0;w<weeks.length;w++){
             const week=weeks[w];
             week.forEach((day,dIdx)=>{
                 if(day.toDateString()===startDate.toDateString()){
-                    const col=weekContainers[w].querySelectorAll(".day-column")[dIdx];
+                    const col=weekColumns[w].querySelectorAll(".day-column")[dIdx];
                     const el=document.createElement("div");
                     el.className=`event-card ${ev.calendarClass}`;
                     const start=formatTime(ev.start.dateTime||ev.start.date);
