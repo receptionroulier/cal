@@ -85,18 +85,11 @@ iframe { width: 100%; height: 100%; border: none; }
 <!-- =====================
      COLONNE DROITE - CALENDRIER
 ===================== -->
-<div style="filter: invert(1) hue-rotate(180deg); width: 800px;">
-  <div style="filter: invert(1) hue-rotate(180deg); width: 800px;">
-  <iframe 
-    src="https://calendar.google.com/calendar/embed?height=600&wkst=2&ctz=Europe%2FParis&showPrint=0&showTitle=0&showCalendars=0&showTz=0&src=c21yLnByb2dyYW1tZUBnbWFpbC5jb20&color=%233f51b5" 
-    style="border-width:0; width:800px; height:600px;" 
-    frameborder="0" 
-    scrolling="no">
-  </iframe>
-</div>
+<div class="right">
+    <iframe id="calendar-frame" src="https://calendar.google.com/calendar/embed?height=800&wkst=2&ctz=Europe%2FParis&showPrint=0&showTitle=0&showTz=0&showCalendars=0&src=c21yLnByb2dyYW1tZUBnbWFpbC5jb20&color=%233f51b5" style="border-width:0" width="1000" height="800" frameborder="0" scrolling="no"></iframe>
+   </div>
 
-</div>
-   <script>
+<script>
 // =====================
 // CONFIGURATION
 // =====================
@@ -219,6 +212,16 @@ function renderPonts(list) {
 // =====================
 checkAndUpdate();
 setInterval(checkAndUpdate, REFRESH_INTERVAL);
+
+// =====================
+// RAFRAÎCHISSEMENT IFRAME CALENDRIER
+// =====================
+const calendarIframe = document.getElementById("calendar-frame");
+setInterval(() => {
+    const src = calendarIframe.src;
+    calendarIframe.src = src; // recharge l'iframe
+    console.log("📅 Calendrier mis à jour");
+}, 300000); // toutes les 5 minutes
 
 </script>
 </body>
