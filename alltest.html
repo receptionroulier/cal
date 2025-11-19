@@ -65,6 +65,14 @@ h2{text-align:center;color:#00e5ff;margin:0 0 15px;}
 }
 .event-reception{background:#109c53;}
 .event-navire{background:#3644b3;}
+.week-label{
+    position:absolute;
+    top:2px;
+    left:4px;
+    font-size:0.8em;
+    color:#ffce00;
+    font-weight:bold;
+}
 </style>
 </head>
 <body>
@@ -77,7 +85,7 @@ h2{text-align:center;color:#00e5ff;margin:0 0 15px;}
 </div>
 
 <div class="right">
-    <h2>Calendrier 28 jours</h2>
+    <h2>Calendrier 4 semaines</h2>
     <div id="calendar-container"></div>
 </div>
 
@@ -109,7 +117,7 @@ function renderPonts(list){
 }
 checkAndUpdate();setInterval(checkAndUpdate,REFRESH_INTERVAL);
 
-// ===== CALENDRIER 4x7 =====
+// ===== CALENDRIER 4x7 SEMAINES =====
 const API_KEY="AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo";
 const CALENDARS=[
     {id:"receptionroulier@gmail.com",className:"event-reception"},
@@ -117,18 +125,29 @@ const CALENDARS=[
 ];
 const CALENDAR_CONTAINER=document.getElementById("calendar-container");
 
-function get28DaysGrid(){
-    const days=[];
+// Retourne les 4 semaines : semaine passée, actuelle, futures
+function get4Weeks(){
+    const weeks=[];
     const today=new Date();
     today.setHours(0,0,0,0);
-    const start=new Date(today);
-    start.setDate(today.getDate()-today.getDay()+1); // lundi
-    for(let i=0;i<28;i++){
-        const d=new Date(start);
-        d.setDate(start.getDate()+i);
-        days.push(d);
-    }
-    return days;
+    // lundi de la semaine actuelle
+    const mondayCurrent=new Date(today);
+    mondayCurrent.setDate(today.getDate() - ((today.getDay()+6)%7));
+    // semaine passée
+    const mondayPast=new Date(mondayCurrent); mondayPast.setDate(mondayCurrent.getDate()-7);
+    // semaines futures
+    const mondayFuture1=new Date(mondayCurrent); mondayFuture1.setDate(mondayCurrent.getDate()+7);
+    const mondayFuture2=new Date(mondayCurrent); mondayFuture2.setDate(mondayCurrent.getDate()+14);
+    weeks.push(mondayPast, mondayCurrent, mondayFuture1, mondayFuture2);
+    return weeks.map(monday=>{
+        const days=[];
+        for(let i=0;i<7;i++){
+            const d=new Date(monday);
+            d.setDate(monday.getDate()+i);
+            days.push(d);
+        }
+        return days;
+    });
 }
 
 function formatDay(date){return date.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric"});}
@@ -139,21 +158,26 @@ async function fetchEventsForCalendar(calendarId){
     try{const res=await fetch(url);const data=await res.json();return data.items||[];}catch(err){console.error(err);return [];}
 }
 
-async function renderCalendar4x7(){
-    const days=get28DaysGrid();
+async function renderCalendar4x7Weeks(){
+    const weeks=get4Weeks();
     const grid=document.createElement("div");
     grid.id="calendar-grid";
 
     // créer les 28 cases
-    for(let i=0;i<28;i++){
-        const cell=document.createElement("div");
-        cell.className="day-cell";
-        const header=document.createElement("div");
-        header.className="day-header";
-        header.textContent=formatDay(days[i]);
-        cell.appendChild(header);
-        grid.appendChild(cell);
-    }
+    weeks.forEach((week,weekIdx)=>{
+        week.forEach((day,dayIdx)=>{
+            const cell=document.createElement("div");
+            cell.className="day-cell";
+            const header=document.createElement("div");
+            header.className="day-header";
+            header.textContent=formatDay(day);
+            cell.appendChild(header);
+            if(weekIdx===0) cell.dataset.week="Semaine passée";
+            else if(weekIdx===1) cell.dataset.week="Semaine actuelle";
+            else cell.dataset.week="Semaine future";
+            grid.appendChild(cell);
+        });
+    });
 
     CALENDAR_CONTAINER.innerHTML="";
     CALENDAR_CONTAINER.appendChild(grid);
@@ -169,18 +193,22 @@ async function renderCalendar4x7(){
     // placer les events
     allEvents.forEach(ev=>{
         const start=new Date(ev.start.dateTime||ev.start.date);
-        const dayIndex=days.findIndex(d=>d.toDateString()===start.toDateString());
-        if(dayIndex<0) return;
-        const cell=grid.children[dayIndex];
-        const eventDiv=document.createElement("div");
-        eventDiv.className=`event-card ${ev.calendarClass}`;
-        eventDiv.textContent=ev.summary||"Sans titre";
-        cell.appendChild(eventDiv);
+        for(let week of weeks){
+            const dayIndex=week.findIndex(d=>d.toDateString()===start.toDateString());
+            if(dayIndex>=0){
+                const weekGlobalIdx=weeks.indexOf(week);
+                const gridCell=grid.children[weekGlobalIdx*7+dayIndex];
+                const eventDiv=document.createElement("div");
+                eventDiv.className=`event-card ${ev.calendarClass}`;
+                eventDiv.textContent=ev.summary||"Sans titre";
+                gridCell.appendChild(eventDiv);
+            }
+        }
     });
 }
 
-renderCalendar4x7();
-setInterval(renderCalendar4x7,30000);
+renderCalendar4x7Weeks();
+setInterval(renderCalendar4x7Weeks,30000);
 </script>
 
 </body>
