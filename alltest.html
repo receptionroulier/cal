@@ -159,7 +159,7 @@ html,body{
   border-left:3px solid #3644b3;
 }
 
-/* 🔧 Nouvelle version demandée : heure petite, pas en gras */
+/* 🔧 Heure modifiée : petite et pas en gras */
 .event-time{
   font-weight:normal;
   font-size:11px;
@@ -316,20 +316,25 @@ async function renderCalendar(){
 
   function addEvents(evts,type){
     for(const ev of evts){
-      const key = ev.start.date || (ev.start.dateTime ? ev.start.dateTime.split("T")[0] : null);
-      if(!key) continue;
-      const cell=document.querySelector(`.calendar-cell[data-date="${key}"]`);
+      let dateKey = null;
+      // ✅ Corrected: handle all-day vs timed events without UTC shift
+      if(ev.start.date){
+        dateKey = ev.start.date; // all-day, keep as-is
+      } else if(ev.start.dateTime){
+        const dt=new Date(ev.start.dateTime);
+        dateKey = dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0")+"-"+String(dt.getDate()).padStart(2,"0");
+      }
+      if(!dateKey) continue;
+      const cell=document.querySelector(`.calendar-cell[data-date="${dateKey}"]`);
       if(!cell) continue;
 
       const div=document.createElement("div");
       div.className=`event ${type}`;
-
       let timeHtml="";
       if(ev.start.dateTime){
         const hhmm = ev.start.dateTime.split("T")[1].substring(0,5);
         timeHtml=`<span class="event-time">${hhmm}</span>`;
       }
-
       div.innerHTML = `${timeHtml}${ev.summary||"(Sans titre)"}`;
       cell.appendChild(div);
     }
@@ -357,6 +362,7 @@ document.getElementById("view-4w").onclick=()=>{ viewDays=28; offsetWeeks=0; sta
 
 /* =======================================================
    🔧 PONTS (multi-proxy)
+   ✅ Aucun changement par rapport à ton code précédent
 ======================================================= */
 async function sha256hex(str){
   const data=new TextEncoder().encode(str);
