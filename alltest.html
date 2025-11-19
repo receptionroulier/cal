@@ -81,6 +81,7 @@ h2 {
 }
 .event-title { font-weight: bold; color: #00e5ff; }
 .event-time { font-size: 0.9em; color: #ccc; margin-top: 4px; }
+.event-calendar { font-size: 0.8em; color: #aaa; margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -219,7 +220,10 @@ setInterval(checkAndUpdate, REFRESH_INTERVAL);
 // GOOGLE CALENDAR API
 // =====================
 const API_KEY = "AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo";
-const CALENDAR_ID = "cmVjZXB0aW9ucm91bGllckBnbWFpbC5jb20"; // exemple calendrier public
+const CALENDARS = [
+    { id: "receptionroulier@gmail.com", name: "Réception" },
+    { id: "smr.programme@gmail.com", name: "Navire" }
+];
 const CALENDAR_CONTAINER = document.getElementById("calendar-container");
 
 function formatDate(dateStr) {
@@ -229,33 +233,43 @@ function formatDate(dateStr) {
     });
 }
 
-async function fetchEvents() {
+async function fetchEventsForCalendar(calendarId) {
     const now = new Date().toISOString();
     const maxTime = new Date(Date.now() + 7*24*60*60*1000).toISOString(); // 7 jours
-    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events?key=${API_KEY}&timeMin=${now}&timeMax=${maxTime}&singleEvents=true&orderBy=startTime`;
+    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?key=${API_KEY}&timeMin=${now}&timeMax=${maxTime}&singleEvents=true&orderBy=startTime`;
 
     try {
         const res = await fetch(url);
         const data = await res.json();
         return data.items || [];
     } catch (err) {
-        console.error("Erreur API Google Calendar:", err);
+        console.error(`Erreur API Google Calendar pour ${calendarId}:`, err);
         return [];
     }
 }
 
 async function renderEvents() {
-    const events = await fetchEvents();
-    CALENDAR_CONTAINER.innerHTML = events.map(ev => {
-        const start = formatDate(ev.start.dateTime || ev.start.date);
-        const end = formatDate(ev.end.dateTime || ev.end.date);
-        return `
-            <div class="event-card">
-                <div class="event-title">${ev.summary || "Sans titre"}</div>
-                <div class="event-time">${start} → ${end}</div>
-            </div>
-        `;
-    }).join("");
+    let html = "";
+    for (const cal of CALENDARS) {
+        const events = await fetchEventsForCalendar(cal.id);
+        html += `<h3 style="color:#00e5ff">${cal.name}</h3>`;
+        if (events.length === 0) {
+            html += `<div style="margin-bottom:10px; color:#aaa;">Aucun événement à venir</div>`;
+        } else {
+            html += events.map(ev => {
+                const start = formatDate(ev.start.dateTime || ev.start.date);
+                const end = formatDate(ev.end.dateTime || ev.end.date);
+                return `
+                    <div class="event-card">
+                        <div class="event-title">${ev.summary || "Sans titre"}</div>
+                        <div class="event-time">${start} → ${end}</div>
+                        <div class="event-calendar">${cal.name}</div>
+                    </div>
+                `;
+            }).join("");
+        }
+    }
+    CALENDAR_CONTAINER.innerHTML = html;
 }
 
 // Rafraîchissement automatique toutes les 30 secondes
