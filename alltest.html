@@ -59,11 +59,11 @@ h2{
 #calendar-grid{
     display:grid;
     grid-template-columns:repeat(7,1fr);
-    grid-template-rows:repeat(4,1fr);
+    grid-template-rows:repeat(4, minmax(60px, 1fr)); /* responsive */
     gap:2px;
     background:#1a1a1a;
     border-radius:6px;
-    height:100%; /* prend toute la hauteur dispo */
+    height:100%;
 }
 .day-cell{
     background:#222;
