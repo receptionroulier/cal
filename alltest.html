@@ -186,7 +186,7 @@ loadCalendar();
 // =====================
 // PONTS HAROPA
 // =====================
-const CACHE_KEY_DATA="pontsData",CACHE_KEY_HASH="pontsHash",CACHE_KEY_TIME="pontsCacheTime",CACHE_EXPIRATION=60000,REFRESH_INTERVAL=60000;
+const CACHE_KEY_DATA="pontsData",CACHE_KEY_HASH="pontsHash",CACHE_KEY_TIME="pontsCacheTime",CACHE_EXPIRATION=60000,REFRESH_INTERVAL=10000;
 const PROXIES=["https://api.allorigins.win/get?url=","https://cors-anywhere.herokuapp.com/","https://thingproxy.freeboard.io/fetch/"];
 
 async function sha256(str){const data=new TextEncoder().encode(str); const digest=await crypto.subtle.digest("SHA-256",data); return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");}
