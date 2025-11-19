@@ -3,41 +3,36 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ponts HAROPA – Monitoring</title>
+<title>Ponts HAROPA – Monitoring + Calendrier</title>
 <style>
-/* =====================
-   GLOBAL
-===================== */
 body {
     margin: 0;
     font-family: Arial, sans-serif;
     background: #101010;
     color: #eaeaea;
     display: flex;
-    justify-content: center;
     height: 100vh;
     overflow: hidden;
 }
-.container {
-    width: 25%;
-    padding: 14px;
+.left { 
+    flex: 0 0 30%;  /* Colonne gauche plus étroite */
+    border-right: 1px solid #444; 
+    padding: 14px; 
+    overflow-y: auto; 
     box-sizing: border-box;
-    overflow-y: auto;
 }
+.right { 
+    flex: 1;  
+    padding: 0; 
+    overflow-y: auto; 
+}
+.container { height: 100%; }
 h2 {
     text-align: center;
     color: #00e5ff;
     margin: 0 0 15px;
 }
-
-/* =====================
-   CARTES PONTS
-===================== */
-#ponts-table {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
+#ponts-table { display: flex; flex-direction: column; gap: 10px; }
 .pont-card {
     background: #1f1f1f;
     border-radius: 8px;
@@ -56,8 +51,6 @@ h2 {
 .fermeture .pastille { background: orange; }
 .manoeuvre .pastille { background: #1c3cff; }
 .ouvert .pastille   { background: #58ff58; }
-.pont-nom { font-weight: bold; display: flex; align-items: center; }
-
 @keyframes pulse-blue {
     0%,100% { box-shadow: 0 0 5px rgba(28,60,255,0.4); transform: scale(1); }
     50% { box-shadow: 0 0 20px rgba(28,60,255,0.7); transform: scale(1.02); }
@@ -66,13 +59,21 @@ h2 {
     0%,100% { box-shadow: 0 0 5px rgba(255,165,0,0.4); transform: scale(1); }
     50% { box-shadow: 0 0 20px rgba(255,165,0,0.7); transform: scale(1.02); }
 }
+.pont-nom { font-weight: bold; display: flex; align-items: center; }
+iframe { width: 100%; height: 100%; border: none; }
 </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>État des Ponts</h2>
-    <div id="ponts-table">Chargement...</div>
+<div class="left">
+    <div class="container">
+        <h2>État des Ponts</h2>
+        <div id="ponts-table">Chargement...</div>
+    </div>
+</div>
+
+<div class="right">
+    <iframe src="https://receptionroulier.github.io/cal/calr.html"></iframe>
 </div>
 
 <script>
@@ -82,9 +83,10 @@ h2 {
 const CACHE_KEY_DATA = "pontsData";
 const CACHE_KEY_HASH = "pontsHash";
 const CACHE_KEY_TIME = "pontsCacheTime";
-const CACHE_EXPIRATION = 120000; // cache 2 minutes
-const REFRESH_INTERVAL = 60000; // refresh chaque minute
+const CACHE_EXPIRATION = 120000;
+const REFRESH_INTERVAL = 60000;
 
+// Liste de proxys pour fallback
 const PROXIES = [
     "https://api.allorigins.win/get?url=",
     "https://cors-anywhere.herokuapp.com/",
@@ -103,11 +105,10 @@ async function sha256(str) {
 }
 
 // =====================
-// FETCH MULTI-PROXY ALÉATOIRE
+// FETCH AVEC MULTI-PROXY
 // =====================
-async function fetchWithRandomProxy(url) {
-    const shuffledProxies = [...PROXIES].sort(() => Math.random() - 0.5);
-    for (const proxy of shuffledProxies) {
+async function fetchWithProxies(url) {
+    for (const proxy of PROXIES) {
         try {
             const fullUrl = proxy + encodeURIComponent(url);
             const res = await fetch(fullUrl);
@@ -136,7 +137,7 @@ async function checkAndUpdate() {
 
 async function fetchWithHashControl() {
     try {
-        const rawContent = await fetchWithRandomProxy("https://www.havre-port.com/map/getPonts");
+        const rawContent = await fetchWithProxies("https://www.havre-port.com/map/getPonts");
         const newHash = await sha256(rawContent);
         const oldHash = localStorage.getItem(CACHE_KEY_HASH);
 
@@ -193,12 +194,9 @@ function renderPonts(list) {
     }).join("");
 }
 
-// =====================
-// INITIALISATION
-// =====================
 checkAndUpdate();
 setInterval(checkAndUpdate, REFRESH_INTERVAL);
-
 </script>
+
 </body>
 </html>
