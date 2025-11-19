@@ -12,10 +12,9 @@ body {
     color:#eaeaea;
     display:flex;
     height:100vh;
-    overflow:hidden;
 }
 .left{flex:0 0 20%;border-right:1px solid #444;padding:14px;overflow-y:auto;box-sizing:border-box;}
-.right{flex:1;padding:10px;overflow-x:auto;overflow-y:auto;}
+.right{flex:1;padding:10px;overflow:auto;}
 h2{text-align:center;color:#00e5ff;margin:0 0 15px;}
 
 /* ===== PONTS ===== */
@@ -35,14 +34,14 @@ h2{text-align:center;color:#00e5ff;margin:0 0 15px;}
 @keyframes pulse-blue{0%,100%{box-shadow:0 0 5px rgba(28,60,255,0.4);transform:scale(1);}50%{box-shadow:0 0 20px rgba(28,60,255,0.7);transform:scale(1.02);}}
 @keyframes pulse-orange{0%,100%{box-shadow:0 0 5px rgba(255,165,0.4);transform:scale(1);}50%{box-shadow:0 0 20px rgba(255,165,0.7);transform:scale(1.02);}}
 
-/* ===== CALENDRIER HORIZONTAL ===== */
-#calendar-container{display:flex;gap:10px;overflow-x:auto;padding-bottom:10px;}
-.week-column{background:#1a1a1a;border-radius:6px;padding:5px;display:flex;flex-direction:column;min-width:200px;}
-.day-column{border-top:1px solid #333;padding:4px;margin-bottom:4px;}
-.day-header{font-size:0.85em;color:#aaa;margin-bottom:2px;}
-.event-card{margin-bottom:3px;padding:2px 4px;border-radius:3px;font-size:0.8em;}
-.event-reception{background:#109c53;color:#fff;}
-.event-navire{background:#3644b3;color:#fff;}
+/* ===== CALENDRIER STYLE GOOGLE AGENDA ===== */
+#calendar-grid{display:grid;grid-template-columns:50px repeat(7*4,1fr);grid-auto-rows:40px;background:#1a1a1a;border-radius:6px;}
+.hour-cell{border-top:1px solid #333;border-right:1px solid #333;font-size:0.75em;color:#aaa;padding:2px;text-align:right;}
+.day-header{background:#222;padding:2px 4px;text-align:center;border-right:1px solid #333;font-weight:bold;}
+.event-card{position:absolute;padding:2px 4px;border-radius:3px;font-size:0.75em;overflow:hidden;color:#fff;}
+.event-reception{background:#109c53;}
+.event-navire{background:#3644b3;}
+.grid-container{position:relative;}
 </style>
 </head>
 <body>
@@ -55,8 +54,8 @@ h2{text-align:center;color:#00e5ff;margin:0 0 15px;}
 </div>
 
 <div class="right">
-    <h2>Calendrier</h2>
-    <div id="calendar-container">Chargement...</div>
+    <h2>Calendrier 28 jours</h2>
+    <div id="calendar-container" style="overflow:auto;position:relative;height:90%;"></div>
 </div>
 
 <script>
@@ -87,7 +86,7 @@ function renderPonts(list){
 }
 checkAndUpdate();setInterval(checkAndUpdate,REFRESH_INTERVAL);
 
-// ===== CALENDRIER HORIZONTAL MULTI-SEMAINES =====
+// ===== CALENDRIER STYLE GOOGLE AGENDA =====
 const API_KEY="AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo";
 const CALENDARS=[
     {id:"receptionroulier@gmail.com",className:"event-reception"},
@@ -95,22 +94,18 @@ const CALENDARS=[
 ];
 const CALENDAR_CONTAINER=document.getElementById("calendar-container");
 
-function getWeeks(numWeeks){
-    const weeks=[];
+function get28DaysGrid(){
+    const days=[];
     const today=new Date();
     today.setHours(0,0,0,0);
-    for(let w=-1;w<numWeeks-1;w++){ // semaine passée incluse
-        const firstDay=new Date(today);
-        firstDay.setDate(today.getDate()+w*7-(today.getDay()+6)%7);
-        const week=[];
-        for(let d=0;d<7;d++){
-            const day=new Date(firstDay);
-            day.setDate(firstDay.getDate()+d);
-            week.push(day);
-        }
-        weeks.push(week);
+    const start=new Date(today);
+    start.setDate(today.getDate()-today.getDay()+1); // lundi de la semaine actuelle
+    for(let i=0;i<28;i++){
+        const d=new Date(start);
+        d.setDate(start.getDate()+i);
+        days.push(d);
     }
-    return weeks;
+    return days;
 }
 
 function formatDay(date){return date.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"});}
@@ -123,18 +118,43 @@ async function fetchEventsForCalendar(calendarId){
     try{const res=await fetch(url);const data=await res.json();return data.items||[];}catch(err){console.error(err);return [];}
 }
 
-async function renderMultiWeekCalendar(numWeeks=4){
-    const weeks=getWeeks(numWeeks);
-    let html="";
-    weeks.forEach(week=>{
-        html+=`<div class="week-column">`;
-        week.forEach(day=>{
-            html+=`<div class="day-column"><div class="day-header">${formatDay(day)}</div></div>`;
-        });
-        html+="</div>";
-    });
-    CALENDAR_CONTAINER.innerHTML=html;
+async function renderGoogleStyleCalendar(){
+    const days=get28DaysGrid();
+    const grid=document.createElement("div");
+    grid.id="calendar-grid";
+    grid.className="grid-container";
+    grid.style.position="relative";
 
+    // Header ligne heures
+    const hourColumn=document.createElement("div");
+    hourColumn.className="hour-cell";
+    hourColumn.style.gridRow="1 / 2";
+    grid.appendChild(hourColumn);
+
+    // Header jours
+    days.forEach((day,i)=>{
+        const cell=document.createElement("div");
+        cell.className="day-header";
+        cell.style.gridColumn=(i+2)+"/"+(i+3);
+        cell.style.gridRow="1/2";
+        cell.textContent=formatDay(day);
+        grid.appendChild(cell);
+    });
+
+    // lignes heures
+    for(let h=0;h<24;h++){
+        const hourCell=document.createElement("div");
+        hourCell.className="hour-cell";
+        hourCell.style.gridRow=(h+2)+"/"+(h+3);
+        hourCell.style.gridColumn="1/2";
+        hourCell.textContent=(h+":00");
+        grid.appendChild(hourCell);
+    }
+
+    CALENDAR_CONTAINER.innerHTML="";
+    CALENDAR_CONTAINER.appendChild(grid);
+
+    // fetch events
     let allEvents=[];
     for(const cal of CALENDARS){
         const events=await fetchEventsForCalendar(cal.id);
@@ -142,28 +162,28 @@ async function renderMultiWeekCalendar(numWeeks=4){
         allEvents=allEvents.concat(events);
     }
 
-    const weekColumns=CALENDAR_CONTAINER.querySelectorAll(".week-column");
+    // placer les events
     allEvents.forEach(ev=>{
-        const startDate=new Date(ev.start.dateTime||ev.start.date);
-        for(let w=0;w<weeks.length;w++){
-            const week=weeks[w];
-            week.forEach((day,dIdx)=>{
-                if(day.toDateString()===startDate.toDateString()){
-                    const col=weekColumns[w].querySelectorAll(".day-column")[dIdx];
-                    const el=document.createElement("div");
-                    el.className=`event-card ${ev.calendarClass}`;
-                    const start=formatTime(ev.start.dateTime||ev.start.date);
-                    const end=formatTime(ev.end.dateTime||ev.end.date);
-                    el.innerHTML=`${ev.summary||"Sans titre"}<div class="event-time">${start} → ${end}</div>`;
-                    col.appendChild(el);
-                }
-            });
-        }
+        const start=new Date(ev.start.dateTime||ev.start.date);
+        const end=new Date(ev.end.dateTime||ev.end.date);
+        const dayIndex=days.findIndex(d=>d.toDateString()===start.toDateString());
+        if(dayIndex<0) return;
+        const top=(start.getHours()+start.getMinutes()/60)*40+40; // hauteur ligne 40px
+        const height=((end-start)/1000/3600)*40;
+        const left=dayIndex*200+50;
+        const eventDiv=document.createElement("div");
+        eventDiv.className=`event-card ${ev.calendarClass}`;
+        eventDiv.style.top=top+"px";
+        eventDiv.style.left=left+"px";
+        eventDiv.style.height=height+"px";
+        eventDiv.style.width="190px";
+        eventDiv.textContent=ev.summary||"Sans titre";
+        grid.appendChild(eventDiv);
     });
 }
 
-renderMultiWeekCalendar(4);
-setInterval(()=>renderMultiWeekCalendar(4),30000);
+renderGoogleStyleCalendar();
+setInterval(renderGoogleStyleCalendar,30000);
 </script>
 
 </body>
