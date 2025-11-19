@@ -65,11 +65,23 @@ body {
     background: #222;
 }
 
+.view-btn {
+    cursor: pointer;
+    font-size: 14px;
+    padding: 4px 10px;
+    background: #222;
+    border-radius: 6px;
+    border: 1px solid #333;
+    color: #ccc;
+}
+
+.view-btn:hover {
+    background: #333;
+}
+
 #calendar-grid {
     flex: 1;
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    grid-template-rows: repeat(4, 1fr);
     gap: 1px;
     background: #333;
 }
@@ -126,6 +138,10 @@ body {
         <span class="nav-btn" id="prev-btn">‹</span>
         <span id="calendar-title">Chargement…</span>
         <span class="nav-btn" id="next-btn">›</span>
+
+        <span class="view-btn" id="view-3w">3 semaines</span>
+        <span class="view-btn" id="view-4w">4 semaines</span>
+
         <span class="nav-btn" id="today-btn" style="font-size:18px;">Aujourd’hui</span>
     </div>
 
@@ -142,6 +158,7 @@ const CAL_RECEPTION = "receptionroulier@gmail.com";
 const CAL_NAVIRE = "smr.programme@gmail.com";
 
 let offsetWeeks = 0;
+let viewDays = 28; // 28 par défaut (4 semaines)
 
 // -----------------------------
 // FONCTIONS CALENDRIER
@@ -200,15 +217,20 @@ async function loadCalendar() {
     monday.setDate(monday.getDate() - 7 + offsetWeeks * 7);
 
     const start = new Date(monday);
-    const end = addDays(start, 27);
+    const end = addDays(start, viewDays - 1);
 
     document.getElementById("calendar-title").textContent =
         formatMonthRange(start, end);
 
     const grid = document.getElementById("calendar-grid");
+
+    const rows = viewDays === 21 ? 3 : 4;
+    grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+    grid.style.gridTemplateColumns = `repeat(7, 1fr)`;
+
     grid.innerHTML = "";
 
-    for (let i = 0; i < 28; i++) {
+    for (let i = 0; i < viewDays; i++) {
         const cell = document.createElement("div");
         cell.className = "calendar-cell";
         const d = addDays(start, i);
@@ -220,7 +242,7 @@ async function loadCalendar() {
     }
 
     const timeMin = start.toISOString();
-    const timeMax = addDays(start, 28).toISOString();
+    const timeMax = addDays(start, viewDays).toISOString();
 
     const recEvents = await fetchEvents(CAL_RECEPTION, timeMin, timeMax);
     const navEvents = await fetchEvents(CAL_NAVIRE, timeMin, timeMax);
@@ -264,6 +286,19 @@ document.getElementById("next-btn").onclick = () => {
 
 document.getElementById("today-btn").onclick = () => {
     offsetWeeks = 0;
+    loadCalendar();
+};
+
+// -----------------------------
+// CHANGEMENT DE VUE
+// -----------------------------
+document.getElementById("view-3w").onclick = () => {
+    viewDays = 21;
+    loadCalendar();
+};
+
+document.getElementById("view-4w").onclick = () => {
+    viewDays = 28;
     loadCalendar();
 };
 
