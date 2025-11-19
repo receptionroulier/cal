@@ -296,7 +296,7 @@ async function renderCalendar(){
 
   function addEvents(evts,type){
     for(const ev of evts){
-      // ✅ ORIGINAL logic: no new Date for dateKey, fixes one-day shift
+      // ✅ prend directement date ISO pour dateKey → plus de décalage
       const dateKey = ev.start.date || (ev.start.dateTime ? ev.start.dateTime.split('T')[0] : null);
       if(!dateKey) continue;
       const cell=document.querySelector(`.calendar-cell[data-date="${dateKey}"]`);
@@ -306,8 +306,10 @@ async function renderCalendar(){
       div.className=`event ${type}`;
       let timeHtml="";
       if(ev.start.dateTime){
-        const hhmm = ev.start.dateTime.split("T")[1].substring(0,5);
-        timeHtml=`<span class="event-time">${hhmm}</span>`;
+        const dt = new Date(ev.start.dateTime);
+        const hh = dt.getHours().toString().padStart(2,"0");
+        const mm = dt.getMinutes().toString().padStart(2,"0");
+        timeHtml = `<span class="event-time">${hh}:${mm}</span>`;
       }
       div.innerHTML = `${timeHtml}${ev.summary||"(Sans titre)"}`;
       cell.appendChild(div);
@@ -332,7 +334,7 @@ document.getElementById("today-btn").onclick=()=>{ offsetWeeks=0; startCalendarP
 document.getElementById("view-3w").onclick=()=>{ viewDays=21; offsetWeeks=0; startCalendarPolling(); };
 document.getElementById("view-4w").onclick=()=>{ viewDays=28; offsetWeeks=0; startCalendarPolling(); };
 
-/* PONTS HAROPA - identique */
+/* PONTS HAROPA - inchangé */
 async function sha256hex(str){
   const data=new TextEncoder().encode(str);
   const hash=await crypto.subtle.digest("SHA-256",data);
@@ -431,6 +433,5 @@ updatePonts();
 setInterval(updatePonts,REFRESH_INTERVAL);
 
 </script>
-
 </body>
 </html>
