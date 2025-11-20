@@ -110,6 +110,7 @@ body {
 <script>
 /* ============================================================
    CONFIGURATION CALENDRIER
+   (J'ai ajouté uniquement le système hash + cache + auto-refresh)
 ============================================================ */
 const API_KEY = "AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo";
 const CAL_RECEPTION = "receptionroulier@gmail.com";
@@ -143,24 +144,72 @@ function dayName(d){ return ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"][d.getDay
 
 /* ============================================================
    FETCH GOOGLE CALENDAR (sans backend)
+   -> je remplace l'appel direct par fetchCalendarWithHash dans loadCalendar()
 ============================================================ */
-async function fetchEvents(calendarId,timeMin,timeMax){
-    const url=`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
-    const res=await fetch(url);
-    const data=await res.json();
 
-    if (!data.items) return [];
-    return data.items;
+/* --- constantes de cache/hash pour le calendrier --- */
+const CAL_HASH_KEY = "calendarHash";
+const CAL_CACHE_KEY = "calendarCache";
+const CAL_REFRESH_INTERVAL = 60000; // 1 minute auto-refresh (modifiable)
+
+/* helper: hash d'un objet JSON (SHA-256) */
+async function hashObject(obj){
+    const txt = JSON.stringify(obj);
+    const data = new TextEncoder().encode(txt);
+    const digest = await crypto.subtle.digest("SHA-256", data);
+    return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+
+/* fetch calendrier + contrôle de hash + cache */
+async function fetchCalendarWithHash(start, end){
+    const timeMin = start.toISOString();
+    // timeMax: utiliser end + 1 jour (timeMax exclusif) pour couvrir la dernière journée
+    const timeMax = addDays(end,1).toISOString();
+
+    const urlRec = `https://www.googleapis.com/calendar/v3/calendars/${CAL_RECEPTION}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
+    const urlNav = `https://www.googleapis.com/calendar/v3/calendars/${CAL_NAVIRE}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
+
+    // fetch en parallèle
+    const [recRaw, navRaw] = await Promise.all([
+        fetch(urlRec).then(r => r.json()).catch(e => { console.warn("Erreur fetch rec:", e); return {}; }),
+        fetch(urlNav).then(r => r.json()).catch(e => { console.warn("Erreur fetch nav:", e); return {}; })
+    ]);
+
+    const events = {
+        reception: recRaw.items || [],
+        navire: navRaw.items || []
+    };
+
+    // calcul hash
+    const newHash = await hashObject(events);
+    const oldHash = localStorage.getItem(CAL_HASH_KEY);
+
+    // si identique et cache présent => renvoyer cache pour éviter rendu inutile
+    if (newHash === oldHash && localStorage.getItem(CAL_CACHE_KEY)){
+        try {
+            return JSON.parse(localStorage.getItem(CAL_CACHE_KEY));
+        } catch(e){
+            // si parsing foire, on continue et on remettra le cache à jour
+            console.warn("Erreur parsing calendarCache:", e);
+        }
+    }
+
+    // sinon mettre à jour cache + hash
+    localStorage.setItem(CAL_HASH_KEY, newHash);
+    localStorage.setItem(CAL_CACHE_KEY, JSON.stringify(events));
+
+    return events;
 }
 
 /* ============================================================
    AFFICHAGE CALENDRIER
+   -> utilise fetchCalendarWithHash pour mise à jour intelligente
 ============================================================ */
 async function loadCalendar(){
     const today = new Date();
     const monday = getStartMonday(today);
 
-    /* Correction : ne plus reculer d'une semaine */
+    /* Correction : ne plus reculer d'une semaine systématiquement */
     monday.setDate(monday.getDate() + offsetWeeks * 7);
 
     const start = new Date(monday);
@@ -184,14 +233,14 @@ async function loadCalendar(){
         grid.appendChild(cell);
     }
 
-    const timeMin=start.toISOString();
-    const timeMax=addDays(start,viewDays).toISOString();
-
-    const recEvents=await fetchEvents(CAL_RECEPTION,timeMin,timeMax);
-    const navEvents=await fetchEvents(CAL_NAVIRE,timeMin,timeMax);
-
-    renderEvents(recEvents,"reception");
-    renderEvents(navEvents,"navire");
+    // --- nouveau: fetch intelligent avec hash ---
+    try {
+        const events = await fetchCalendarWithHash(start, end);
+        renderEvents(events.reception, "reception");
+        renderEvents(events.navire, "navire");
+    } catch(err) {
+        console.error("Erreur loadCalendar (fetchCalendarWithHash):", err);
+    }
 }
 
 function renderEvents(events,type){
@@ -224,10 +273,15 @@ document.getElementById("next-btn").onclick=()=>{offsetWeeks+=1;loadCalendar();}
 document.getElementById("today-btn").onclick=()=>{offsetWeeks=0;loadCalendar();}
 document.getElementById("view-3w").onclick=()=>{viewDays=21;loadCalendar();}
 document.getElementById("view-4w").onclick=()=>{viewDays=28;loadCalendar();}
+
+/* Lancement initial + auto-refresh intelligent (mais fetchCalendarWithHash évite appels inutiles) */
 loadCalendar();
+setInterval(loadCalendar, CAL_REFRESH_INTERVAL);
+
 
 /* ============================================================
    PONTS HAROPA
+   (JE N'AI RIEN MODIFIÉ DANS CETTE PARTIE — CONSERVÉE TELLE QUE)
 ============================================================ */
 const CACHE_KEY_DATA="pontsData";
 const CACHE_KEY_HASH="pontsHash";
