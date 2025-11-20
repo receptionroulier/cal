@@ -17,46 +17,20 @@ body {
     height: 100vh;
     overflow: hidden;
 }
-
-/* =====================
-   COLONNE GAUCHE
-===================== */
-.left {
-    flex: 0 0 20%;
-    border-right: 1px solid #444;
-    padding: 14px;
-    overflow-y: auto;
-    box-sizing: border-box;
-}
+.left { flex: 0 0 20%; border-right: 1px solid #444; padding: 14px; overflow-y: auto; box-sizing: border-box; }
 .left h2 { color: #00e5ff; text-align: center; }
-
-/* =====================
-   CARTES PONTS
-===================== */
-.pont-card {
-    background: #1f1f1f;
-    border-radius: 8px;
-    padding: 10px 12px;
-    box-shadow: 0 0 5px rgba(0,0,0,0.4);
-    border-left: 4px solid #444;
-    transition: transform 0.15s ease, box-shadow 0.3s ease;
-    margin-bottom: 8px;
-}
+.pont-card { background: #1f1f1f; border-radius: 8px; padding: 10px 12px; box-shadow: 0 0 5px rgba(0,0,0,0.4); border-left: 4px solid #444; transition: transform 0.15s ease, box-shadow 0.3s ease; margin-bottom: 8px; }
 .pont-card:hover { transform: scale(1.02); }
 .pont-card.ferme { border-left-color: #ff4040; }
 .pont-card.fermeture { border-left-color: orange; animation: pulse-orange 1.2s infinite; }
 .pont-card.manoeuvre { border-left-color: #1c3cff; animation: pulse-blue 1.2s infinite; }
 .pont-card.ouvert { border-left-color: #58ff58; }
 .pastille { width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; display: inline-block; }
-.ferme .pastille      { background: #ff4040; }
-.fermeture .pastille  { background: orange; }
-.manoeuvre .pastille  { background: #1c3cff; }
-.ouvert .pastille     { background: #58ff58; }
+.ferme .pastille { background: #ff4040; }
+.fermeture .pastille { background: orange; }
+.manoeuvre .pastille { background: #1c3cff; }
+.ouvert .pastille { background: #58ff58; }
 .pont-nom { font-weight: bold; display: flex; align-items: center; }
-
-/* =====================
-   COLONNE DROITE (CALENDRIER)
-===================== */
 .right { flex:1; display:flex; flex-direction:column; height:100%; overflow:hidden; }
 #calendar-header { flex:0 0 auto; padding:12px; text-align:center; font-size:22px; color:#00e5ff; border-bottom:1px solid #333; display:flex; justify-content:center; align-items:center; gap:18px; }
 .nav-btn { cursor:pointer; color:#00e5ff; font-size:26px; padding:4px 10px; border-radius:6px; transition:0.2s; }
@@ -70,136 +44,87 @@ body {
 .event.reception { background:#109c5344; border-left:3px solid #109c53; }
 .event.navire { background:#3644b344; border-left:3px solid #3644b3; }
 .event-time { font-size:12px;font-weight:normal; margin-right:4px; }
-
-/* =====================
-   MULTI-DAY EVENT BARS
-===================== */
-.event.multi {
-    position: absolute;
-    left: 0;
-    width: 100%;
-    height: 16px;
-    padding: 0 6px;
-    display: flex;
-    align-items: center;
-    box-sizing: border-box;
-    font-size: 11px;
-    color: #fff;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.multi.start { border-top-left-radius: 6px; border-bottom-left-radius: 6px; }
-.multi.end { border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
+.event.multi { position:absolute; left:0; width:100%; height:16px; padding:0 6px; display:flex; align-items:center; box-sizing:border-box; font-size:11px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.multi.start { border-top-left-radius: 6px; border-bottom-left-radius:6px; }
+.multi.end { border-top-right-radius:6px; border-bottom-right-radius:6px; }
 .multi.reception { background: rgba(16,156,83,0.85); border-left:4px solid #109c53; }
 .multi.navire { background: rgba(54,68,179,0.85); border-left:4px solid #3644b3; }
 .event-endtime { margin-left:auto; opacity:0.9; font-size:10px; }
-
-/* =====================
-   ANIMATIONS
-===================== */
-@keyframes pulse-blue {0%,100% { box-shadow: 0 0 5px rgba(28,60,255,0.4); transform: scale(1); }50% { box-shadow: 0 0 20px rgba(28,60,255,0.7); transform: scale(1.02); } }
-@keyframes pulse-orange {0%,100% { box-shadow: 0 0 5px rgba(255,165,0,0.4); transform: scale(1); }50% { box-shadow: 0 0 20px rgba(255,165,0,0.7); transform: scale(1.02); } }
+@keyframes pulse-blue {0%,100%{box-shadow:0 0 5px rgba(28,60,255,0.4);transform:scale(1);}50%{box-shadow:0 0 20px rgba(28,60,255,0.7);transform:scale(1.02);}}
+@keyframes pulse-orange {0%,100%{box-shadow:0 0 5px rgba(255,165,0,0.4);transform:scale(1);}50%{box-shadow:0 0 20px rgba(255,165,0,0.7);transform:scale(1.02);}}
 </style>
 </head>
 <body>
-
 <div class="left">
-    <h2>État des Ponts</h2>
-    <div id="ponts-table">Chargement…</div>
+<h2>État des Ponts</h2>
+<div id="ponts-table">Chargement…</div>
 </div>
-
 <div class="right">
-    <div id="calendar-header">
-        <span class="nav-btn" id="prev-btn">‹</span>
-        <span id="calendar-title">Chargement…</span>
-        <span class="nav-btn" id="next-btn">›</span>
-        <span class="view-btn" id="view-3w">3 semaines</span>
-        <span class="view-btn" id="view-4w">4 semaines</span>
-        <span class="nav-btn" id="today-btn" style="font-size:18px;">Aujourd’hui</span>
-    </div>
-    <div id="calendar-grid"></div>
+<div id="calendar-header">
+<span class="nav-btn" id="prev-btn">‹</span>
+<span id="calendar-title">Chargement…</span>
+<span class="nav-btn" id="next-btn">›</span>
+<span class="view-btn" id="view-3w">3 semaines</span>
+<span class="view-btn" id="view-4w">4 semaines</span>
+<span class="nav-btn" id="today-btn" style="font-size:18px;">Aujourd’hui</span>
 </div>
-
+<div id="calendar-grid"></div>
+</div>
 <script>
-// =====================
-// CALENDAR DATE UTILITIES
-// =====================
-function getStartMonday(date){ const d=new Date(date); const day=d.getDay(); const diff=(day===0?-6:1)-day; d.setDate(d.getDate()+diff); return d; }
-function addDays(date,n){ const d=new Date(date); d.setDate(d.getDate()+n); return d; }
-function formatDate(d){ return d.toISOString().split("T")[0]; }
-function formatMonthRange(start,end){ const months=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"]; const m1=months[start.getMonth()]; const m2=months[end.getMonth()]; const y1=start.getFullYear(); const y2=end.getFullYear(); return (m1===m2&&y1===y2)?`${m1} ${y1}`:`${m1} — ${m2} ${y2}`; }
-function dayName(date){return ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"][date.getDay()];}
-
-// =====================
-// RENDER SINGLE AND MULTI-DAY EVENTS
-// =====================
-function insertSingleDayEvent(dateStr, ev, type){
-    const cell=document.querySelector(`[data-date="${dateStr}"]`);
-    if(!cell) return;
-    const d=document.createElement("div");
-    d.className=`event single ${type}`;
-    let time="";
-    if(ev.start.dateTime){ time = ev.start.dateTime.split("T")[1].substring(0,5) + " - "; }
-    d.textContent = time + (ev.summary || "(Sans titre)");
-    cell.appendChild(d);
+const API_KEY="AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo";
+const CAL_RECEPTION="receptionroulier@gmail.com";
+const CAL_NAVIRE="smr.programme@gmail.com";
+let offsetWeeks=0,viewDays=28;
+function getStartMonday(date){const d=new Date(date);const day=d.getDay();const diff=(day===0?-6:1)-day;d.setDate(d.getDate()+diff);return d;}
+function addDays(date,n){const d=new Date(date);d.setDate(d.getDate()+n);return d;}
+function formatDate(d){return d.toISOString().split("T")[0];}
+function formatMonthRange(start,end){const months=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];const m1=months[start.getMonth()];const m2=months[end.getMonth()];const y1=start.getFullYear();const y2=end.getFullYear();return (m1===m2&&y1===y2)?`${m1} ${y1}`:`${m1} — ${m2} ${y2}`;}
+function dayName(date){return["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"][date.getDay()];}
+async function fetchEvents(calendarId,timeMin,timeMax){const url=`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;const res=await fetch(url);const data=await res.json();return data.items||[];}
+async function loadCalendar(){
+const today=new Date();
+const monday=getStartMonday(today);
+monday.setDate(monday.getDate()-7+offsetWeeks*7);
+const start=new Date(monday);
+const end=addDays(start,viewDays-1);
+document.getElementById("calendar-title").textContent=formatMonthRange(start,end);
+const grid=document.getElementById("calendar-grid");
+const rows=(viewDays===21)?3:4;
+grid.style.gridTemplateRows=`repeat(${rows},1fr)`;
+grid.style.gridTemplateColumns=`repeat(7,1fr)`;
+grid.innerHTML="";
+for(let i=0;i<viewDays;i++){const cell=document.createElement("div");cell.className="calendar-cell";const d=addDays(start,i);cell.innerHTML=`<div class="date-label">${dayName(d)} ${d.getDate()}</div>`;cell.dataset.date=formatDate(d);grid.appendChild(cell);}
+const timeMin=start.toISOString();
+const timeMax=addDays(start,viewDays).toISOString();
+const recEvents=await fetchEvents(CAL_RECEPTION,timeMin,timeMax);
+const navEvents=await fetchEvents(CAL_NAVIRE,timeMin,timeMax);
+renderEvents(recEvents,"reception");
+renderEvents(navEvents,"navire");}
+function insertSingleDayEvent(dateStr,ev,type){const cell=document.querySelector(`[data-date="${dateStr}"]`);if(!cell)return;const d=document.createElement("div");d.className=`event single ${type}`;let time="";if(ev.start.dateTime){time=ev.start.dateTime.split("T")[1].substring(0,5)+" - ";}d.textContent=time+(ev.summary||"(Sans titre)");cell.appendChild(d);}
+function computeMultiDayLevels(multiEvents,startDate,viewDays){const daySlots=Array.from({length:viewDays},()=>[]);const eventPositions=new Map();multiEvents.forEach(ev)=>{const startStr=ev.start.date||ev.start.dateTime.split("T")[0];const endStr=ev.end.date||ev.end.dateTime.split("T")[0];let s=new Date(startStr);let e=new Date(endStr);e.setDate(e.getDate()-1);let startIndex=Math.floor((s-startDate)/86400000);if(startIndex<0)startIndex=0;let endIndex=Math.floor((e-startDate)/86400000);if(endIndex>=viewDays)endIndex=viewDays-1;let level=0;while(true){let conflict=false;for(let i=startIndex;i<=endIndex;i++){if(daySlots[i][level]){conflict=true;break;}}if(!conflict)break;level++;}for(let i=startIndex;i<=endIndex;i++)daySlots[i][level]=ev;eventPositions.set(ev,{startIndex,endIndex,level});});return eventPositions;}
+function renderEvents(events,type){const firstCell=document.querySelector(".calendar-cell");if(!firstCell)return;const startDate=new Date(firstCell.dataset.date);const single=[],multi=[];events.forEach(ev)=>{const s=ev.start.date||ev.start.dateTime?.split("T")[0];const e=ev.end.date||ev.end.dateTime?.split("T")[0];if(!e||s===e)single.push(ev);else multi.push(ev);});single.forEach(ev)=>{const ds=ev.start.date||ev.start.dateTime.split("T")[0];insertSingleDayEvent(ds,ev,type);});const levels=computeMultiDayLevels(multi,startDate,viewDays);const baseTop=26,rowHeight=18;multi.forEach(ev)=>{const pos=levels.get(ev);const {startIndex,endIndex,level}=pos;for(let i=startIndex;i<=endIndex;i++){const dateStr=formatDate(addDays(startDate,i));const cell=document.querySelector(`[data-date="${dateStr}"]`);if(!cell)continue;const bar=document.createElement("div");bar.className=`event multi ${type}`;bar.style.top=(baseTop+level*rowHeight)+"px";if(i===startIndex)bar.classList.add("start");if(i===endIndex)bar.classList.add("end");if(i===startIndex)bar.textContent=ev.summary||"(Sans titre)";if(i===endIndex&&ev.end.dateTime){const et=ev.end.dateTime.split("T")[1].substring(0,5);bar.innerHTML+=`<span class="event-endtime">→ ${et}</span>`;}cell.appendChild(bar);}});
 }
-
-function computeMultiDayLevels(multiEvents, startDate, viewDays) {
-    const daySlots = Array.from({length: viewDays}, () => []);
-    const eventPositions = new Map();
-    multiEvents.forEach(ev => {
-        const startStr = ev.start.date || ev.start.dateTime.split("T")[0];
-        const endStr   = ev.end.date   || ev.end.dateTime.split("T")[0];
-        let s = new Date(startStr);
-        let e = new Date(endStr); e.setDate(e.getDate()-1);
-        let startIndex = Math.floor((s - startDate)/86400000); if(startIndex<0) startIndex=0;
-        let endIndex   = Math.floor((e - startDate)/86400000); if(endIndex>=viewDays) endIndex=viewDays-1;
-        let level=0;
-        while(true){
-            let conflict=false;
-            for(let i=startIndex;i<=endIndex;i++){ if(daySlots[i][level]){ conflict=true; break; }}
-            if(!conflict) break;
-            level++;
-        }
-        for(let i=startIndex;i<=endIndex;i++) daySlots[i][level]=ev;
-        eventPositions.set(ev,{startIndex,endIndex,level});
-    });
-    return eventPositions;
-}
-
-function renderEvents(events, type){
-    const firstCell = document.querySelector(".calendar-cell");
-    if(!firstCell) return;
-    const startDate = new Date(firstCell.dataset.date);
-    const single=[], multi=[];
-    events.forEach(ev=>{
-        const s = ev.start.date || ev.start.dateTime?.split("T")[0];
-        const e = ev.end.date   || ev.end.dateTime?.split("T")[0];
-        if(!e || s===e) single.push(ev); else multi.push(ev);
-    });
-    single.forEach(ev=>{
-        const ds = ev.start.date || ev.start.dateTime.split("T")[0];
-        insertSingleDayEvent(ds, ev, type);
-    });
-    const levels = computeMultiDayLevels(multi,startDate,viewDays);
-    const baseTop=26, rowHeight=18;
-    multi.forEach(ev=>{
-        const pos = levels.get(ev); const {startIndex,endIndex,level}=pos;
-        for(let i=startIndex;i<=endIndex;i++){
-            const dateStr = formatDate(addDays(startDate,i));
-            const cell = document.querySelector(`[data-date="${dateStr}"]`); if(!cell) continue;
-            const bar=document.createElement("div");
-            bar.className=`event multi ${type}`;
-            bar.style.top=(baseTop+level*rowHeight)+"px";
-            if(i===startIndex) bar.classList.add("start");
-            if(i===endIndex) bar.classList.add("end");
-            if(i===startIndex) bar.textContent = ev.summary||"(Sans titre)";
-            if(i===endIndex && ev.end.dateTime){ const et=ev.end.dateTime.split("T")[1].substring(0,5); bar.innerHTML += `<span class="event-endtime">→ ${et}</span>`; }
-            cell.appendChild(bar);
-        }
-    });
-}
+document.getElementById("prev-btn").onclick=()=>{offsetWeeks-=1;loadCalendar();}
+document.getElementById("next-btn").onclick=()=>{offsetWeeks+=1;loadCalendar();}
+document.getElementById("today-btn").onclick=()=>{offsetWeeks=0;loadCalendar();}
+document.getElementById("view-3w").onclick=()=>{viewDays=21;loadCalendar();}
+document.getElementById("view-4w").onclick=()=>{viewDays=28;loadCalendar();}
+loadCalendar();
+// PONTS HAROPA
+const CACHE_KEY_DATA="pontsData",CACHE_KEY_HASH="pontsHash",CACHE_KEY_TIME="pontsCacheTime",CACHE_EXPIRATION=60000,REFRESH_INTERVAL=10000;
+const PROXIES=["https://api.allorigins.win/get?url=","https://cors-anywhere.herokuapp.com/","https://thingproxy.freeboard.io/fetch/"];
+async function sha256(str){const data=new TextEncoder().encode(str);const digest=await crypto.subtle.digest("SHA-256",data);return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");}
+async function fetchWithRandomProxy(url){const shuffled=[...PROXIES].sort(()=>Math.random()-0.5);for(const proxy of shuffled){try{const fullUrl=proxy+encodeURIComponent(url);const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),3000);const res=await fetch(fullUrl,{signal:controller.signal});clearTimeout(timeout);if(!res.ok)throw new Error(`Proxy failed: ${res.status}`);const data=await res.json();return data.contents?data.contents:data;}catch(err){console.warn(`Proxy ${proxy} échoué : ${err.message}`);}}throw new Error("Tous les proxys ont échoué");}
+async function checkAndUpdate(){const now=Date.now();const last=localStorage.getItem(CACHE_KEY_TIME);if(last&&now-last<CACHE_EXPIRATION){const cached=localStorage.getItem(CACHE_KEY_DATA);if(cached){renderPonts(JSON.parse(cached));return;}}await fetchWithHashControl();}
+async function fetchWithHashControl(){try{const rawContent=await fetchWithRandomProxy("https://www.havre-port.com/map/getPonts");const newHash=await sha256(rawContent);const oldHash=localStorage.getItem(CACHE_KEY_HASH);if(newHash===oldHash){const cached=localStorage.getItem(CACHE_KEY_DATA);if(cached){renderPonts(JSON.parse(cached));return;}}const ponts=Object.values(JSON.parse(rawContent).data);const unique=Array.from(new Map(ponts.map(p=>[p.nom,p])).values());const ordered=unique.sort((a,b)=>{const score=p=>{const s=p.statutText.toLowerCase();if(s.includes("fermé"))return 1;if(s.includes("fermeture"))return 2;if(s.includes("manoeuvre"))return 3;if(s.includes("ouvert"))return 4;return 5;};return score(a)-score(b);});
+localStorage.setItem(CACHE_KEY_DATA,JSON.stringify(ordered));
+localStorage.setItem(CACHE_KEY_HASH,newHash);
+localStorage.setItem(CACHE_KEY_TIME,Date.now());
+renderPonts(ordered);
+}catch(err){console.error("Erreur récupération ponts:",err);document.getElementById("ponts-table").textContent="Impossible de récupérer les ponts.";}}
+function renderPonts(list){const container=document.getElementById("ponts-table");container.innerHTML=list.map(p=>{const statut=p.statutText.toLowerCase();const open=statut.includes("ouvert"),move=statut.includes("manoeuvre"),fermeture=statut.includes("fermeture"),ferme=statut.includes("fermé");const cls=ferme?"ferme":fermeture?"fermeture":move?"manoeuvre":open?"ouvert":"ferme";const info=p.forceText||`MàJ : ${p.date}`;return `<div class="pont-card ${cls}"><div class="pont-nom"><span class="pastille"></span>${p.nom}</div><div class="pont-etat">${p.statutText}</div><div class="pont-infos">${info}</div></div>`;}).join("");}
+checkAndUpdate();
+setInterval(checkAndUpdate,REFRESH_INTERVAL);
 </script>
 </body>
 </html>
