@@ -5,9 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ponts HAROPA – Monitoring + Calendrier</title>
 <style>
-/* =====================
-   GLOBAL
-===================== */
+/* ===================== GLOBAL ===================== */
 body {
     margin: 0;
     font-family: Arial, sans-serif;
@@ -18,9 +16,7 @@ body {
     overflow: hidden;
 }
 
-/* =====================
-   COLONNE GAUCHE (PONTS)
-===================== */
+/* ===================== COLONNE GAUCHE (PONTS) ===================== */
 .left {
     flex: 0 0 20%;
     border-right: 1px solid #444;
@@ -28,11 +24,12 @@ body {
     overflow-y: auto;
     box-sizing: border-box;
 }
-.left h2 { color: #00e5ff; text-align: center; }
+.left h2 { 
+    color: #00e5ff; 
+    text-align: center; 
+}
 
-/* =====================
-   CARTES PONTS
-===================== */
+/* ===================== CARTES PONTS ===================== */
 .pont-card {
     background: #1f1f1f;
     border-radius: 8px;
@@ -57,9 +54,7 @@ body {
 
 .pont-nom { font-weight: bold; display: flex; align-items: center; }
 
-/* =====================
-   COLONNE DROITE (CALENDRIER)
-===================== */
+/* ===================== COLONNE DROITE (CALENDRIER) ===================== */
 .right { flex:1; display:flex; flex-direction:column; height:100%; overflow:hidden; }
 
 #calendar-header {
@@ -95,9 +90,7 @@ body {
 .event.navire { background:#3644b344; border-left:3px solid #3644b3; }
 .event-time { font-size:12px;font-weight:normal; margin-right:4px; }
 
-/* =====================
-   ANIMATIONS
-===================== */
+/* ===================== ANIMATIONS ===================== */
 @keyframes pulse-blue {
     0%,100% { box-shadow: 0 0 5px rgba(28,60,255,0.4); transform: scale(1); }
     50% { box-shadow: 0 0 20px rgba(28,60,255,0.7); transform: scale(1.02); }
@@ -128,18 +121,14 @@ body {
 </div>
 
 <script>
-// =====================
-// CONFIGURATION CALENDRIER
-// =====================
+// ===================== CONFIGURATION =====================
 const API_KEY = "AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo";
-const CAL_SM = "smr.programme@smr-france.com";
+const CAL_SM = "smr.programme@gmail.com"; // affichage uniquement de ce calendrier
 
 let offsetWeeks = 0;
 let viewDays = 28;
 
-// =====================
-// OUTILS DATES
-// =====================
+// ===================== OUTILS DATES =====================
 function getStartMonday(date){
     const d = new Date(date);
     const day = d.getDay();
@@ -157,9 +146,7 @@ function formatMonthRange(start,end){
 }
 function dayName(date){ return ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"][date.getDay()]; }
 
-// =====================
-// FETCH GOOGLE CALENDAR
-// =====================
+// ===================== FETCH GOOGLE CALENDAR =====================
 async function fetchEvents(calendarId, timeMin, timeMax){
     const url=`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
     const res = await fetch(url);
@@ -167,9 +154,7 @@ async function fetchEvents(calendarId, timeMin, timeMax){
     return data.items || [];
 }
 
-// =====================
-// AFFICHAGE CALENDRIER
-// =====================
+// ===================== AFFICHAGE CALENDRIER =====================
 async function loadCalendar(){
     const today = new Date();
     const monday = getStartMonday(today);
@@ -219,18 +204,14 @@ function renderEvents(events, type){
     });
 }
 
-// =====================
-// NAVIGATION CALENDRIER
-// =====================
+// ===================== NAVIGATION CALENDRIER =====================
 document.getElementById("prev-btn").onclick = ()=>{ offsetWeeks--; loadCalendar(); };
 document.getElementById("next-btn").onclick = ()=>{ offsetWeeks++; loadCalendar(); };
 document.getElementById("today-btn").onclick = ()=>{ offsetWeeks=0; loadCalendar(); };
 document.getElementById("view-3w").onclick = ()=>{ viewDays=21; loadCalendar(); };
 document.getElementById("view-4w").onclick = ()=>{ viewDays=28; loadCalendar(); };
 
-// =====================
-// PONTS HAROPA
-// =====================
+// ===================== PONTS HAROPA =====================
 const CACHE_KEY_DATA="pontsData",CACHE_KEY_HASH="pontsHash",CACHE_KEY_TIME="pontsCacheTime";
 const CACHE_EXPIRATION=60000,REFRESH_INTERVAL=10000;
 const PROXIES=["https://api.allorigins.win/get?url=","https://cors-anywhere.herokuapp.com/","https://thingproxy.freeboard.io/fetch/"];
@@ -282,13 +263,13 @@ async function fetchWithHashControl(){
         const ponts = Object.values(JSON.parse(rawContent).data);
         const unique = Array.from(new Map(ponts.map(p=>[p.nom,p])).values());
         const ordered = unique.sort((a,b)=>{
-            const score=p=>{
+            const stateOrder = {fermé:1, fermeture:2, manoeuvre:3, ouvert:4};
+            const score = p => {
                 const s = p.statutText.toLowerCase();
-                if(s.includes("fermé")) return 1;
-                if(s.includes("fermeture")) return 2;
-                if(s.includes("manoeuvre")) return 3;
-                if(s.includes("ouvert")) return 4;
-                return 5;
+                return stateOrder[s.includes("fermé")?"fermé":
+                                  s.includes("fermeture")?"fermeture":
+                                  s.includes("manoeuvre")?"manoeuvre":
+                                  s.includes("ouvert")?"ouvert":"ferme"] || 5;
             };
             return score(a)-score(b);
         });
@@ -318,12 +299,11 @@ function renderPonts(list){
     }).join("");
 }
 
-// =====================
-// INITIALISATION
-// =====================
+// ===================== INITIALISATION =====================
 loadCalendar();
 checkAndUpdate();
 setInterval(checkAndUpdate, REFRESH_INTERVAL);
+
 </script>
 </body>
 </html>
