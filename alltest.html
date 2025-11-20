@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Ponts HAROPA – Monitoring + Calendrier</title>
 
 <style>
@@ -69,26 +69,35 @@ body {
 .view-btn:hover { background:#333; }
 
 #calendar-grid { flex:1 1 auto; display:grid; gap:1px; background:#333; overflow:hidden; box-sizing:border-box; }
-.calendar-cell { background:#1a1a1a; padding:6px; border:1px solid #222; overflow:hidden; }
-.date-label { font-size:12px; font-weight:normal; margin-bottom:4px; color:#ffffff; }
-.event { padding:3px 5px; border-radius:4px; font-size:12px; margin-bottom:4px; }
-.event.reception { background:#109c5344; border-left:3px solid #109c53; }
-.event.navire { background:#3644b344; border-left:3px solid #3644b3; }
-.event-time { font-size:12px;font-weight:normal; margin-right:4px; }
+.calendar-cell { background:#1a1a1a; padding:6px; border:1px solid #222; overflow:hidden; display:flex; flex-direction:column; }
+.date-label { font-size:12px; font-weight:normal; margin-bottom:6px; color:#ffffff; }
+
+/* single-day events */
+.event { padding:4px 6px; border-radius:6px; font-size:12px; margin-bottom:6px; display:block; box-sizing:border-box; color:#fff; }
+.event.reception { background:#109c5344; border-left:3px solid #109c53; color:#eaf6ea; }
+.event.navire { background:#3644b344; border-left:3px solid #3644b3; color:#eef0ff; }
+.event-time { font-size:12px;font-weight:normal; margin-right:6px; }
 
 /* =====================
    MULTI-DAY EVENT BAR
+   (barre continue sur plusieurs cellules)
 ===================== */
 .event.multi {
-    position: relative;
-    padding: 3px 6px;
-    font-size: 12px;
-    border-radius: 0;
-    height: 10px;
-    margin: 2px 0;
-    overflow: visible;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    padding: 0 8px;
+    height: 22px;
+    font-size: 13px;
+    margin: 4px 0;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
+/* débuts / fins avec arrondis */
 .event.multi.start {
     border-top-left-radius: 6px;
     border-bottom-left-radius: 6px;
@@ -99,24 +108,21 @@ body {
     border-bottom-right-radius: 6px;
 }
 
-.event.multi:not(.start):not(.end) {
-    border-radius: 0;
-}
-
+/* couleurs et bord gauche */
 .event.multi.reception {
-    background: #109c53aa;
-    border-left: 3px solid #109c53;
+    background: linear-gradient(90deg, rgba(16,156,83,0.85), rgba(16,156,83,0.7));
+    border-left: 4px solid #109c53;
 }
 
 .event.multi.navire {
-    background: #3644b3aa;
-    border-left: 3px solid #3644b3;
+    background: linear-gradient(90deg, rgba(54,68,179,0.85), rgba(54,68,179,0.7));
+    border-left: 4px solid #3644b3;
 }
 
 .event-endtime {
     font-size: 11px;
-    margin-left: 6px;
-    opacity: 0.85;
+    margin-left: auto;
+    opacity: 0.95;
 }
 
 /* =====================
@@ -147,9 +153,8 @@ body {
 
 <script>
 /* ----------------------------------------------
-   CONFIGURATION CALENDRIER
+   CONFIGURATION CALENDRIER (inchangée)
 ---------------------------------------------- */
-
 const API_KEY = "AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo";
 const CAL_RECEPTION = "receptionroulier@gmail.com";
 const CAL_NAVIRE = "smr.programme@gmail.com";
@@ -158,9 +163,8 @@ let offsetWeeks = 0;
 let viewDays = 28;
 
 /* ----------------------------------------------
-   OUTILS DATES
+   OUTILS DATES (inchangés)
 ---------------------------------------------- */
-
 function getStartMonday(date){
     const d=new Date(date);
     const day=d.getDay();
@@ -168,17 +172,14 @@ function getStartMonday(date){
     d.setDate(d.getDate()+diff);
     return d;
 }
-
 function addDays(date,n){
     const d=new Date(date);
     d.setDate(d.getDate()+n);
     return d;
 }
-
 function formatDate(d){
     return d.toISOString().split("T")[0];
 }
-
 function formatMonthRange(start,end){
     const months=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
     const m1=months[start.getMonth()];
@@ -187,27 +188,23 @@ function formatMonthRange(start,end){
     const y2=end.getFullYear();
     return (m1===m2&&y1===y2)?`${m1} ${y1}`:`${m1} — ${m2} ${y2}`;
 }
-
 function dayName(date){
     return ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"][date.getDay()];
 }
 
 /* ----------------------------------------------
-   FETCH GOOGLE CALENDAR
+   FETCH GOOGLE CALENDAR (inchangé)
 ---------------------------------------------- */
-
 async function fetchEvents(calendarId,timeMin,timeMax){
-    const url=
-`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
+    const url=`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
     const res=await fetch(url);
     const data=await res.json();
     return data.items||[];
 }
 
 /* ----------------------------------------------
-   AFFICHAGE CALENDRIER
+   AFFICHAGE CALENDRIER (structure inchangée)
 ---------------------------------------------- */
-
 async function loadCalendar(){
     const today=new Date();
     const monday=getStartMonday(today);
@@ -219,7 +216,6 @@ async function loadCalendar(){
     document.getElementById("calendar-title").textContent=formatMonthRange(start,end);
 
     const grid=document.getElementById("calendar-grid");
-
     const rows=(viewDays===21)?3:4;
     grid.style.gridTemplateRows=`repeat(${rows},1fr)`;
     grid.style.gridTemplateColumns=`repeat(7,1fr)`;
@@ -244,10 +240,14 @@ async function loadCalendar(){
     renderEvents(navEvents,"navire");
 }
 
-/* --------------------------------------------------
-   NOUVEAU SYSTÈME D'AFFICHAGE DES ÉVÉNEMENTS
--------------------------------------------------- */
+/* ----------------------------------------------
+   AFFICHAGE ÉVÉNEMENTS : version corrigée et robuste
+   (SEULE PARTIE MODIFIÉE / AMÉLIORÉE)
+---------------------------------------------- */
 
+/**
+ * Insert single-day event (unchanged behavior)
+ */
 function insertSingleDayEvent(dateStr, ev, type) {
     const cell = document.querySelector(`[data-date="${dateStr}"]`);
     if (!cell) return;
@@ -265,63 +265,111 @@ function insertSingleDayEvent(dateStr, ev, type) {
     cell.appendChild(div);
 }
 
-function insertMultiDayBar(startStr, endStr, ev, type) {
+/**
+ * Insert multi-day bar across all cells between start and end (inclusive).
+ * - Correct handling of ev.end.date vs ev.end.dateTime
+ * - If end.date exists (all-day) Google uses exclusive end → subtract 1 day
+ * - If end.dateTime exists but time is 00:00 → it's exclusive → subtract 1 day
+ */
+function insertMultiDayBar(ev, type) {
+    // compute start date object
+    const startDate = ev.start.date ? new Date(ev.start.date) : new Date(ev.start.dateTime);
+    // compute end date object (we'll adjust for exclusivity)
+    const rawEnd = ev.end.date ? new Date(ev.end.date) : new Date(ev.end.dateTime);
 
+    // If end comes from end.date (all-day), Google uses exclusive end => include previous day
+    if (ev.end.date) {
+        rawEnd.setDate(rawEnd.getDate() - 1);
+    } else {
+        // end is dateTime: if end time is exactly 00:00, treat as exclusive end -> include previous day
+        const h = rawEnd.getHours();
+        const m = rawEnd.getMinutes();
+        if (h === 0 && m === 0 && rawEnd.getSeconds() === 0) {
+            rawEnd.setDate(rawEnd.getDate() - 1);
+        }
+    }
+
+    // if after adjustment the end is before start, treat as single-day
+    if (rawEnd < startDate) {
+        // fallback to inserting as single-day on start
+        insertSingleDayEvent(formatDate(startDate), ev, type);
+        return;
+    }
+
+    // Collect date-string list
     const days = [];
-    let cur = new Date(startStr);
-    const end = new Date(endStr);
-
-    end.setDate(end.getDate() - 1);
-
-    while (cur <= end) {
-        days.push(cur.toISOString().split("T")[0]);
+    const cur = new Date(startDate);
+    while (cur <= rawEnd) {
+        days.push(formatDate(cur));
         cur.setDate(cur.getDate() + 1);
     }
 
-    days.forEach((date, i) => {
-        const cell = document.querySelector(`[data-date="${date}"]`);
+    // Create bars: text only on first cell, end time on last cell (if end.dateTime present and not all-day)
+    days.forEach((dateStr, idx) => {
+        const cell = document.querySelector(`[data-date="${dateStr}"]`);
         if (!cell) return;
 
-        const div = document.createElement("div");
-        div.className = `event multi ${type}`;
+        const bar = document.createElement("div");
+        bar.className = `event multi ${type}`;
 
-        if (i === 0) div.classList.add("start");
-        if (i === days.length - 1) div.classList.add("end");
+        if (idx === 0) bar.classList.add("start");
+        if (idx === days.length - 1) bar.classList.add("end");
 
-        if (i === 0) {
-            div.textContent = ev.summary || "(Sans titre)";
-        } else if (i === days.length - 1 && ev.end.dateTime) {
-            const endTime = ev.end.dateTime.split("T")[1].substring(0, 5);
-            div.innerHTML = `<span class="event-endtime">→ ${endTime}</span>`;
+        // text only on first cell
+        if (idx === 0) {
+            // include start time if available (optional): keep simple -> just title
+            bar.textContent = ev.summary || "(Sans titre)";
+            // If you want start time shown too, you could prepend it here.
+        } else if (idx === days.length - 1) {
+            // show end time on last cell if there is an end.dateTime (not for all-day)
+            if (ev.end.dateTime) {
+                const endTime = ev.end.dateTime.split("T")[1].substring(0, 5);
+                const span = document.createElement("span");
+                span.className = "event-endtime";
+                span.textContent = `→ ${endTime}`;
+                bar.appendChild(span);
+            } else {
+                // keep an empty bar but ensure spacing
+                bar.innerHTML = "&nbsp;";
+            }
         } else {
-            div.innerHTML = "&nbsp;";
+            // middle cells: empty placeholder so bar looks continuous
+            bar.innerHTML = "&nbsp;";
         }
 
-        cell.appendChild(div);
+        cell.appendChild(bar);
     });
 }
 
+/**
+ * Main renderer for events (keeps behavior for single-day events,
+ * uses insertMultiDayBar for multi-day)
+ */
 function renderEvents(events, type) {
+    if (!events || !events.forEach) return;
     events.forEach(ev => {
+        // compute start and end date strings for quick check
+        const startStr = ev.start.date || ev.start.dateTime?.split("T")[0];
+        const endStr = ev.end.date || ev.end.dateTime?.split("T")[0];
 
-        const start = ev.start.date || ev.start.dateTime?.split("T")[0];
-        const end = ev.end.date || ev.end.dateTime?.split("T")[0];
+        if (!startStr) return;
 
-        if (!start) return;
-
-        if (!end || start === end) {
-            insertSingleDayEvent(start, ev, type);
+        // If end is absent or same day -> single day event
+        // Note: for all-day events Google often sets end = start+1 (exclusive),
+        // so these will NOT be single-day and will be handled by insertMultiDayBar.
+        if (!endStr || startStr === endStr) {
+            insertSingleDayEvent(startStr, ev, type);
             return;
         }
 
-        insertMultiDayBar(start, end, ev, type);
+        // Otherwise multi-day: build continuous bar
+        insertMultiDayBar(ev, type);
     });
 }
 
 /* ----------------------------------------------
-   NAVIGATION CALENDRIER
+   NAVIGATION CALENDRIER (inchangé)
 ---------------------------------------------- */
-
 document.getElementById("prev-btn").onclick=()=>{offsetWeeks-=1;loadCalendar();}
 document.getElementById("next-btn").onclick=()=>{offsetWeeks+=1;loadCalendar();}
 document.getElementById("today-btn").onclick=()=>{offsetWeeks=0;loadCalendar();}
@@ -331,32 +379,13 @@ document.getElementById("view-4w").onclick=()=>{viewDays=28;loadCalendar();}
 loadCalendar();
 
 /* ----------------------------------------------
-   PONTS HAROPA
+   PONTS HAROPA (inchangé)
 ---------------------------------------------- */
-
-const CACHE_KEY_DATA="pontsData",
-CACHE_KEY_HASH="pontsHash",
-CACHE_KEY_TIME="pontsCacheTime",
-CACHE_EXPIRATION=60000,
-REFRESH_INTERVAL=10000;
-
-const PROXIES=[
-    "https://api.allorigins.win/get?url=",
-    "https://cors-anywhere.herokuapp.com/",
-    "https://thingproxy.freeboard.io/fetch/"
-];
-
-async function sha256(str){
-    const data=new TextEncoder().encode(str);
-    const digest=await crypto.subtle.digest("SHA-256",data);
-    return Array.from(new Uint8Array(digest))
-        .map(b=>b.toString(16).padStart(2,"0"))
-        .join("");
-}
-
+const CACHE_KEY_DATA="pontsData",CACHE_KEY_HASH="pontsHash",CACHE_KEY_TIME="pontsCacheTime",CACHE_EXPIRATION=60000,REFRESH_INTERVAL=10000;
+const PROXIES=["https://api.allorigins.win/get?url=","https://cors-anywhere.herokuapp.com/","https://thingproxy.freeboard.io/fetch/"];
+async function sha256(str){const data=new TextEncoder().encode(str); const digest=await crypto.subtle.digest("SHA-256",data); return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");}
 async function fetchWithRandomProxy(url){
     const shuffled=[...PROXIES].sort(()=>Math.random()-0.5);
-
     for(const proxy of shuffled){
         try{
             const fullUrl=proxy+encodeURIComponent(url);
@@ -367,68 +396,34 @@ async function fetchWithRandomProxy(url){
             if(!res.ok) throw new Error(`Proxy failed: ${res.status}`);
             const data=await res.json();
             return data.contents?data.contents:data;
-        }catch(err){
-            console.warn(`Proxy ${proxy} échoué : ${err.message}`);
-        }
+        }catch(err){console.warn(`Proxy ${proxy} échoué : ${err.message}`);}
     }
     throw new Error("Tous les proxys ont échoué");
 }
-
 async function checkAndUpdate(){
     const now=Date.now();
     const last=localStorage.getItem(CACHE_KEY_TIME);
-
-    if(last && now-last < CACHE_EXPIRATION){
-        const cached=localStorage.getItem(CACHE_KEY_DATA);
-        if(cached){
-            renderPonts(JSON.parse(cached));
-            return;
-        }
-    }
+    if(last && now-last<CACHE_EXPIRATION){const cached=localStorage.getItem(CACHE_KEY_DATA); if(cached){renderPonts(JSON.parse(cached)); return;}}
     await fetchWithHashControl();
 }
-
 async function fetchWithHashControl(){
     try{
         const rawContent=await fetchWithRandomProxy("https://www.havre-port.com/map/getPonts");
         const newHash=await sha256(rawContent);
         const oldHash=localStorage.getItem(CACHE_KEY_HASH);
-
-        if(newHash===oldHash){
-            const cached=localStorage.getItem(CACHE_KEY_DATA);
-            if(cached){
-                renderPonts(JSON.parse(cached));
-                return;
-            }
-        }
-
+        if(newHash===oldHash){const cached=localStorage.getItem(CACHE_KEY_DATA); if(cached){renderPonts(JSON.parse(cached)); return;}}
         const ponts=Object.values(JSON.parse(rawContent).data);
         const unique=Array.from(new Map(ponts.map(p=>[p.nom,p])).values());
-
         const ordered=unique.sort((a,b)=>{
-            const score=p=>{
-                const s=p.statutText.toLowerCase();
-                if(s.includes("fermé"))return 1;
-                if(s.includes("fermeture"))return 2;
-                if(s.includes("manoeuvre"))return 3;
-                if(s.includes("ouvert"))return 4;
-                return 5;
-            };
+            const score=p=>{const s=p.statutText.toLowerCase(); if(s.includes("fermé"))return 1; if(s.includes("fermeture"))return 2; if(s.includes("manoeuvre"))return 3; if(s.includes("ouvert"))return 4; return 5;};
             return score(a)-score(b);
         });
-
         localStorage.setItem(CACHE_KEY_DATA,JSON.stringify(ordered));
         localStorage.setItem(CACHE_KEY_HASH,newHash);
         localStorage.setItem(CACHE_KEY_TIME,Date.now());
-
         renderPonts(ordered);
-
-    }catch(err){
-        console.error("Erreur récupération ponts:",err);
-        document.getElementById("ponts-table").textContent="Impossible de récupérer les ponts.";
-    }
+    }catch(err){console.error("Erreur récupération ponts:",err); document.getElementById("ponts-table").textContent="Impossible de récupérer les ponts.";}
 }
-
 function renderPonts(list){
     const container=document.getElementById("ponts-table");
     container.innerHTML=list.map(p=>{
@@ -437,24 +432,11 @@ function renderPonts(list){
               move=statut.includes("manoeuvre"),
               fermeture=statut.includes("fermeture"),
               ferme=statut.includes("fermé");
-
-        const cls=ferme?"ferme":
-                  fermeture?"fermeture":
-                  move?"manoeuvre":
-                  open?"ouvert":"ferme";
-
+        const cls=ferme?"ferme":fermeture?"fermeture":move?"manoeuvre":open?"ouvert":"ferme";
         const info=p.forceText||`MàJ : ${p.date}`;
-
-        return `
-            <div class="pont-card ${cls}">
-                <div class="pont-nom"><span class="pastille"></span>${p.nom}</div>
-                <div class="pont-etat">${p.statutText}</div>
-                <div class="pont-infos">${info}</div>
-            </div>
-        `;
+        return `<div class="pont-card ${cls}"><div class="pont-nom"><span class="pastille"></span>${p.nom}</div><div class="pont-etat">${p.statutText}</div><div class="pont-infos">${info}</div></div>`;
     }).join("");
 }
-
 checkAndUpdate();
 setInterval(checkAndUpdate,REFRESH_INTERVAL);
 </script>
