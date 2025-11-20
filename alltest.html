@@ -1,204 +1,205 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8" />
-<title>Calendrier Multi-jours</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ponts HAROPA – Monitoring + Calendrier</title>
 <style>
-/* === BASE CALENDAR STRUCTURE === */
-.calendar {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+/* =====================
+   GLOBAL
+===================== */
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #101010;
+    color: #eaeaea;
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
 }
-.calendar-cell {
-  position: relative;
-  border: 1px solid #ccc;
-  min-height: 90px;
-  padding: 4px;
-  font-size: 12px;
-}
-.event {
-  margin-top: 2px;
-  padding: 2px 4px;
-  border-radius: 4px;
-  font-size: 12px;
-}
-.event.single.reception { background: #109c53; color:#fff; }
-.event.single.navire { background: #3644b3; color:#fff; }
 
-/* === MULTI-DAY EVENTS WITH LEVEL STACKING === */
+/* =====================
+   COLONNE GAUCHE
+===================== */
+.left {
+    flex: 0 0 20%;
+    border-right: 1px solid #444;
+    padding: 14px;
+    overflow-y: auto;
+    box-sizing: border-box;
+}
+.left h2 { color: #00e5ff; text-align: center; }
+
+/* =====================
+   CARTES PONTS
+===================== */
+.pont-card {
+    background: #1f1f1f;
+    border-radius: 8px;
+    padding: 10px 12px;
+    box-shadow: 0 0 5px rgba(0,0,0,0.4);
+    border-left: 4px solid #444;
+    transition: transform 0.15s ease, box-shadow 0.3s ease;
+    margin-bottom: 8px;
+}
+.pont-card:hover { transform: scale(1.02); }
+.pont-card.ferme { border-left-color: #ff4040; }
+.pont-card.fermeture { border-left-color: orange; animation: pulse-orange 1.2s infinite; }
+.pont-card.manoeuvre { border-left-color: #1c3cff; animation: pulse-blue 1.2s infinite; }
+.pont-card.ouvert { border-left-color: #58ff58; }
+.pastille { width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; display: inline-block; }
+.ferme .pastille      { background: #ff4040; }
+.fermeture .pastille  { background: orange; }
+.manoeuvre .pastille  { background: #1c3cff; }
+.ouvert .pastille     { background: #58ff58; }
+.pont-nom { font-weight: bold; display: flex; align-items: center; }
+
+/* =====================
+   COLONNE DROITE (CALENDRIER)
+===================== */
+.right { flex:1; display:flex; flex-direction:column; height:100%; overflow:hidden; }
+#calendar-header { flex:0 0 auto; padding:12px; text-align:center; font-size:22px; color:#00e5ff; border-bottom:1px solid #333; display:flex; justify-content:center; align-items:center; gap:18px; }
+.nav-btn { cursor:pointer; color:#00e5ff; font-size:26px; padding:4px 10px; border-radius:6px; transition:0.2s; }
+.nav-btn:hover { background:#222; }
+.view-btn { cursor:pointer; font-size:14px; padding:4px 10px; background:#222; border-radius:6px; border:1px solid #333; color:#00e5ff; }
+.view-btn:hover { background:#333; }
+#calendar-grid { flex:1 1 auto; display:grid; gap:1px; background:#333; overflow:hidden; box-sizing:border-box; }
+.calendar-cell { background:#1a1a1a; padding:6px; border:1px solid #222; overflow:hidden; position:relative; }
+.date-label { font-size:12px; font-weight:normal; margin-bottom:4px; color:#ffffff; }
+.event { padding:3px 5px; border-radius:4px; font-size:12px; margin-bottom:4px; }
+.event.reception { background:#109c5344; border-left:3px solid #109c53; }
+.event.navire { background:#3644b344; border-left:3px solid #3644b3; }
+.event-time { font-size:12px;font-weight:normal; margin-right:4px; }
+
+/* =====================
+   MULTI-DAY EVENT BARS
+===================== */
 .event.multi {
-  position: absolute;
-  left: 0;
-  width: 100%;
-  height: 16px;
-  padding: 0 6px;
-  display: flex;
-  align-items: center;
-  box-sizing: border-box;
-  font-size: 11px;
-  color: #fff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 16px;
+    padding: 0 6px;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    font-size: 11px;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .multi.start { border-top-left-radius: 6px; border-bottom-left-radius: 6px; }
 .multi.end { border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
+.multi.reception { background: rgba(16,156,83,0.85); border-left:4px solid #109c53; }
+.multi.navire { background: rgba(54,68,179,0.85); border-left:4px solid #3644b3; }
+.event-endtime { margin-left:auto; opacity:0.9; font-size:10px; }
 
-.multi.reception {
-  background: rgba(16,156,83,0.85);
-  border-left: 4px solid #109c53;
-}
-.multi.navire {
-  background: rgba(54,68,179,0.85);
-  border-left: 4px solid #3644b3;
-}
-.event-endtime {
-  margin-left: auto;
-  opacity: 0.9;
-  font-size: 10px;
-}
+/* =====================
+   ANIMATIONS
+===================== */
+@keyframes pulse-blue {0%,100% { box-shadow: 0 0 5px rgba(28,60,255,0.4); transform: scale(1); }50% { box-shadow: 0 0 20px rgba(28,60,255,0.7); transform: scale(1.02); } }
+@keyframes pulse-orange {0%,100% { box-shadow: 0 0 5px rgba(255,165,0,0.4); transform: scale(1); }50% { box-shadow: 0 0 20px rgba(255,165,0,0.7); transform: scale(1.02); } }
 </style>
 </head>
 <body>
 
-<div id="calendar" class="calendar"></div>
+<div class="left">
+    <h2>État des Ponts</h2>
+    <div id="ponts-table">Chargement…</div>
+</div>
+
+<div class="right">
+    <div id="calendar-header">
+        <span class="nav-btn" id="prev-btn">‹</span>
+        <span id="calendar-title">Chargement…</span>
+        <span class="nav-btn" id="next-btn">›</span>
+        <span class="view-btn" id="view-3w">3 semaines</span>
+        <span class="view-btn" id="view-4w">4 semaines</span>
+        <span class="nav-btn" id="today-btn" style="font-size:18px;">Aujourd’hui</span>
+    </div>
+    <div id="calendar-grid"></div>
+</div>
 
 <script>
-/* ===========================
-   GENERIC UTILITIES
-=========================== */
-function addDays(date, d){ const r=new Date(date); r.setDate(r.getDate()+d); return r; }
+// =====================
+// CALENDAR DATE UTILITIES
+// =====================
+function getStartMonday(date){ const d=new Date(date); const day=d.getDay(); const diff=(day===0?-6:1)-day; d.setDate(d.getDate()+diff); return d; }
+function addDays(date,n){ const d=new Date(date); d.setDate(d.getDate()+n); return d; }
 function formatDate(d){ return d.toISOString().split("T")[0]; }
+function formatMonthRange(start,end){ const months=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"]; const m1=months[start.getMonth()]; const m2=months[end.getMonth()]; const y1=start.getFullYear(); const y2=end.getFullYear(); return (m1===m2&&y1===y2)?`${m1} ${y1}`:`${m1} — ${m2} ${y2}`; }
+function dayName(date){return ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"][date.getDay()];}
 
-/* ===========================
-   BUILD CALENDAR
-=========================== */
-let viewDays = 35;
-let startDate = new Date(); startDate.setDate(1);
-
-function buildCalendar(){
-  const cal = document.getElementById("calendar");
-  cal.innerHTML = "";
-  for(let i=0;i<viewDays;i++){
-    const d = addDays(startDate,i);
-    const cell = document.createElement("div");
-    cell.className = "calendar-cell";
-    cell.dataset.date = formatDate(d);
-    cell.innerHTML = `<strong>${d.getDate()}</strong>`;
-    cal.appendChild(cell);
-  }
-}
-buildCalendar();
-
-/* ===========================
-   MULTI-DAY LEVEL CALC ENGINE
-=========================== */
-function computeMultiDayLevels(multiEvents, startDate, viewDays) {
-  const daySlots = Array.from({length: viewDays}, () => []);
-  const eventPositions = new Map();
-
-  multiEvents.forEach(ev => {
-    const startStr = ev.start.date || ev.start.dateTime.split("T")[0];
-    const endStr   = ev.end.date   || ev.end.dateTime.split("T")[0];
-
-    let s = new Date(startStr);
-    let e = new Date(endStr);
-    e.setDate(e.getDate()-1);
-
-    let startIndex = Math.floor((s - startDate) / 86400000);
-    let endIndex   = Math.floor((e - startDate) / 86400000);
-    if(startIndex < 0) startIndex = 0;
-    if(endIndex >= viewDays) endIndex = viewDays-1;
-
-    let level = 0;
-    while(true){
-      let conflict = false;
-      for(let i=startIndex;i<=endIndex;i++){
-        if(daySlots[i][level]){ conflict=true; break; }
-      }
-      if(!conflict) break;
-      level++;
-    }
-    for(let i=startIndex;i<=endIndex;i++) daySlots[i][level]=ev;
-    eventPositions.set(ev,{ startIndex, endIndex, level });
-  });
-  return eventPositions;
-}
-
-/* ===========================
-   RENDER EVENTS
-=========================== */
+// =====================
+// RENDER SINGLE AND MULTI-DAY EVENTS
+// =====================
 function insertSingleDayEvent(dateStr, ev, type){
-  const cell=document.querySelector(`[data-date="${dateStr}"]`);
-  if(!cell) return;
-  const d=document.createElement("div");
-  d.className=`event single ${type}`;
-  let time="";
-  if(ev.start.dateTime){ time = ev.start.dateTime.split("T")[1].substring(0,5) + " - "; }
-  d.textContent = time + (ev.summary || "(Sans titre)");
-  cell.appendChild(d);
+    const cell=document.querySelector(`[data-date="${dateStr}"]`);
+    if(!cell) return;
+    const d=document.createElement("div");
+    d.className=`event single ${type}`;
+    let time="";
+    if(ev.start.dateTime){ time = ev.start.dateTime.split("T")[1].substring(0,5) + " - "; }
+    d.textContent = time + (ev.summary || "(Sans titre)");
+    cell.appendChild(d);
+}
+
+function computeMultiDayLevels(multiEvents, startDate, viewDays) {
+    const daySlots = Array.from({length: viewDays}, () => []);
+    const eventPositions = new Map();
+    multiEvents.forEach(ev => {
+        const startStr = ev.start.date || ev.start.dateTime.split("T")[0];
+        const endStr   = ev.end.date   || ev.end.dateTime.split("T")[0];
+        let s = new Date(startStr);
+        let e = new Date(endStr); e.setDate(e.getDate()-1);
+        let startIndex = Math.floor((s - startDate)/86400000); if(startIndex<0) startIndex=0;
+        let endIndex   = Math.floor((e - startDate)/86400000); if(endIndex>=viewDays) endIndex=viewDays-1;
+        let level=0;
+        while(true){
+            let conflict=false;
+            for(let i=startIndex;i<=endIndex;i++){ if(daySlots[i][level]){ conflict=true; break; }}
+            if(!conflict) break;
+            level++;
+        }
+        for(let i=startIndex;i<=endIndex;i++) daySlots[i][level]=ev;
+        eventPositions.set(ev,{startIndex,endIndex,level});
+    });
+    return eventPositions;
 }
 
 function renderEvents(events, type){
-  const firstCell = document.querySelector(".calendar-cell");
-  const startDate = new Date(firstCell.dataset.date);
-
-  const single=[], multi=[];
-  events.forEach(ev=>{
-    const s = ev.start.date || ev.start.dateTime?.split("T")[0];
-    const e = ev.end.date   || ev.end.dateTime?.split("T")[0];
-    if(!e || s===e) single.push(ev);
-    else multi.push(ev);
-  });
-
-  single.forEach(ev=>{
-    const ds = ev.start.date || ev.start.dateTime.split("T")[0];
-    insertSingleDayEvent(ds,ev,type);
-  });
-
-  const levels = computeMultiDayLevels(multi,startDate,viewDays);
-  const baseTop=26, rowHeight=18;
-
-  multi.forEach(ev=>{
-    const pos = levels.get(ev);
-    const { startIndex, endIndex, level } = pos;
-
-    for(let i=startIndex;i<=endIndex;i++){
-      const dateStr = formatDate(addDays(startDate,i));
-      const cell = document.querySelector(`[data-date="${dateStr}"]`);
-      if(!cell) continue;
-      const bar=document.createElement("div");
-      bar.className=`event multi ${type}`;
-      bar.style.top = (baseTop + level*rowHeight) + "px";
-      if(i===startIndex) bar.classList.add("start");
-      if(i===endIndex) bar.classList.add("end");
-
-      if(i===startIndex) bar.textContent = ev.summary || "(Sans titre)";
-      if(i===endIndex && ev.end.dateTime){
-        const et = ev.end.dateTime.split("T")[1].substring(0,5);
-        bar.innerHTML += `<span class="event-endtime">→ ${et}</span>`;
-      }
-
-      cell.appendChild(bar);
-    }
-  });
+    const firstCell = document.querySelector(".calendar-cell");
+    if(!firstCell) return;
+    const startDate = new Date(firstCell.dataset.date);
+    const single=[], multi=[];
+    events.forEach(ev=>{
+        const s = ev.start.date || ev.start.dateTime?.split("T")[0];
+        const e = ev.end.date   || ev.end.dateTime?.split("T")[0];
+        if(!e || s===e) single.push(ev); else multi.push(ev);
+    });
+    single.forEach(ev=>{
+        const ds = ev.start.date || ev.start.dateTime.split("T")[0];
+        insertSingleDayEvent(ds, ev, type);
+    });
+    const levels = computeMultiDayLevels(multi,startDate,viewDays);
+    const baseTop=26, rowHeight=18;
+    multi.forEach(ev=>{
+        const pos = levels.get(ev); const {startIndex,endIndex,level}=pos;
+        for(let i=startIndex;i<=endIndex;i++){
+            const dateStr = formatDate(addDays(startDate,i));
+            const cell = document.querySelector(`[data-date="${dateStr}"]`); if(!cell) continue;
+            const bar=document.createElement("div");
+            bar.className=`event multi ${type}`;
+            bar.style.top=(baseTop+level*rowHeight)+"px";
+            if(i===startIndex) bar.classList.add("start");
+            if(i===endIndex) bar.classList.add("end");
+            if(i===startIndex) bar.textContent = ev.summary||"(Sans titre)";
+            if(i===endIndex && ev.end.dateTime){ const et=ev.end.dateTime.split("T")[1].substring(0,5); bar.innerHTML += `<span class="event-endtime">→ ${et}</span>`; }
+            cell.appendChild(bar);
+        }
+    });
 }
-
-/* ===========================
-   DEMO EVENTS (you can replace)
-=========================== */
-const eventsReception = [
-  { summary:"Salon Pro", start:{date:"2025-11-03"}, end:{date:"2025-11-06"} },
-  { summary:"Congrès Médical", start:{date:"2025-11-04"}, end:{date:"2025-11-10"} }
-];
-const eventsNavire = [
-  { summary:"Navire A", start:{dateTime:"2025-11-05T08:00"}, end:{dateTime:"2025-11-05T14:00"} },
-  { summary:"Navire B", start:{date:"2025-11-06"}, end:{date:"2025-11-09"} }
-];
-
-renderEvents(eventsReception, "reception");
-renderEvents(eventsNavire, "navire");
 </script>
 </body>
 </html>
