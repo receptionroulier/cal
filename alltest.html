@@ -110,14 +110,13 @@ body {
 <script>
 /* ============================================================
    CONFIGURATION CALENDRIER
-   (J'ai ajouté uniquement le système hash + cache + auto-refresh)
 ============================================================ */
 const API_KEY = "AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo";
 const CAL_RECEPTION = "receptionroulier@gmail.com";
 const CAL_NAVIRE = "smr.programme@gmail.com";
 
-let offsetWeeks = 0;
-let viewDays = 28;
+let viewDays = 21; // par défaut 3 semaines
+let offsetWeeks = 0; // décalage par rapport à la semaine actuelle
 
 /* ============================================================
    FONCTIONS DATES
@@ -129,30 +128,23 @@ function getStartMonday(date){
     d.setDate(d.getDate() + diff);
     return d;
 }
-
 function addDays(date,n){ const d=new Date(date); d.setDate(d.getDate()+n); return d; }
 function formatDate(d){ return d.toISOString().split("T")[0]; }
-
 function formatMonthRange(start,end){
     const m=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
     const m1=m[start.getMonth()], m2=m[end.getMonth()];
     const y1=start.getFullYear(), y2=end.getFullYear();
     return (m1===m2 && y1===y2)?`${m1} ${y1}`:`${m1} — ${m2} ${y2}`;
 }
-
 function dayName(d){ return ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"][d.getDay()]; }
 
 /* ============================================================
-   FETCH GOOGLE CALENDAR (sans backend)
-   -> je remplace l'appel direct par fetchCalendarWithHash dans loadCalendar()
+   FETCH GOOGLE CALENDAR + hash/cache
 ============================================================ */
-
-/* --- constantes de cache/hash pour le calendrier --- */
 const CAL_HASH_KEY = "calendarHash";
 const CAL_CACHE_KEY = "calendarCache";
-const CAL_REFRESH_INTERVAL = 60000; // 1 minute auto-refresh (modifiable)
+const CAL_REFRESH_INTERVAL = 60000; // 1 min auto-refresh
 
-/* helper: hash d'un objet JSON (SHA-256) */
 async function hashObject(obj){
     const txt = JSON.stringify(obj);
     const data = new TextEncoder().encode(txt);
@@ -160,19 +152,16 @@ async function hashObject(obj){
     return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");
 }
 
-/* fetch calendrier + contrôle de hash + cache */
 async function fetchCalendarWithHash(start, end){
     const timeMin = start.toISOString();
-    // timeMax: utiliser end + 1 jour (timeMax exclusif) pour couvrir la dernière journée
-    const timeMax = addDays(end,1).toISOString();
+    const timeMax = addDays(end,1).toISOString(); // timeMax exclusif
 
     const urlRec = `https://www.googleapis.com/calendar/v3/calendars/${CAL_RECEPTION}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
     const urlNav = `https://www.googleapis.com/calendar/v3/calendars/${CAL_NAVIRE}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
 
-    // fetch en parallèle
     const [recRaw, navRaw] = await Promise.all([
-        fetch(urlRec).then(r => r.json()).catch(e => { console.warn("Erreur fetch rec:", e); return {}; }),
-        fetch(urlNav).then(r => r.json()).catch(e => { console.warn("Erreur fetch nav:", e); return {}; })
+        fetch(urlRec).then(r=>r.json()).catch(()=>({items:[]})),
+        fetch(urlNav).then(r=>r.json()).catch(()=>({items:[]}))
     ]);
 
     const events = {
@@ -180,49 +169,38 @@ async function fetchCalendarWithHash(start, end){
         navire: navRaw.items || []
     };
 
-    // calcul hash
     const newHash = await hashObject(events);
     const oldHash = localStorage.getItem(CAL_HASH_KEY);
 
-    // si identique et cache présent => renvoyer cache pour éviter rendu inutile
-    if (newHash === oldHash && localStorage.getItem(CAL_CACHE_KEY)){
-        try {
-            return JSON.parse(localStorage.getItem(CAL_CACHE_KEY));
-        } catch(e){
-            // si parsing foire, on continue et on remettra le cache à jour
-            console.warn("Erreur parsing calendarCache:", e);
-        }
+    if(newHash === oldHash && localStorage.getItem(CAL_CACHE_KEY)){
+        try { return JSON.parse(localStorage.getItem(CAL_CACHE_KEY)); } catch{}
     }
 
-    // sinon mettre à jour cache + hash
-    localStorage.setItem(CAL_HASH_KEY, newHash);
-    localStorage.setItem(CAL_CACHE_KEY, JSON.stringify(events));
+    localStorage.setItem(CAL_HASH_KEY,newHash);
+    localStorage.setItem(CAL_CACHE_KEY,JSON.stringify(events));
 
     return events;
 }
 
 /* ============================================================
-   AFFICHAGE CALENDRIER
-   -> utilise fetchCalendarWithHash pour mise à jour intelligente
+   AFFICHAGE CALENDRIER (avec semaine passée / actuelle / future)
 ============================================================ */
 async function loadCalendar(){
     const today = new Date();
-    const monday = getStartMonday(today);
+    const mondayCurrent = getStartMonday(today);
 
-    /* Correction : ne plus reculer d'une semaine systématiquement */
-    monday.setDate(monday.getDate() + offsetWeeks * 7);
+    // début = lundi semaine passée + offsetWeeks
+    const start = new Date(mondayCurrent);
+    start.setDate(start.getDate() - 7 + offsetWeeks*7);
 
-    const start = new Date(monday);
-    const end = addDays(start,viewDays-1);
-
+    const end = addDays(start, viewDays-1);
     document.getElementById("calendar-title").textContent = formatMonthRange(start,end);
 
-    const grid=document.getElementById("calendar-grid");
+    const grid = document.getElementById("calendar-grid");
     const rows = (viewDays===21)?3:4;
-
-    grid.style.gridTemplateRows=`repeat(${rows},1fr)`;
-    grid.style.gridTemplateColumns=`repeat(7,1fr)`;
-    grid.innerHTML="";
+    grid.style.gridTemplateRows = `repeat(${rows},1fr)`;
+    grid.style.gridTemplateColumns = `repeat(7,1fr)`;
+    grid.innerHTML = "";
 
     for(let i=0;i<viewDays;i++){
         const d = addDays(start,i);
@@ -233,33 +211,23 @@ async function loadCalendar(){
         grid.appendChild(cell);
     }
 
-    // --- nouveau: fetch intelligent avec hash ---
     try {
         const events = await fetchCalendarWithHash(start, end);
-        renderEvents(events.reception, "reception");
-        renderEvents(events.navire, "navire");
-    } catch(err) {
-        console.error("Erreur loadCalendar (fetchCalendarWithHash):", err);
-    }
+        renderEvents(events.reception,"reception");
+        renderEvents(events.navire,"navire");
+    } catch(err){ console.error(err); }
 }
 
 function renderEvents(events,type){
     events.forEach(ev=>{
         const date = ev.start?.date || ev.start?.dateTime?.split("T")[0];
         if(!date) return;
-
         const cell=document.querySelector(`[data-date="${date}"]`);
         if(!cell) return;
-
         const div=document.createElement("div");
         div.className=`event ${type}`;
-
         let timeStr="";
-        if(ev.start?.dateTime){
-            const t = ev.start.dateTime.split("T")[1].substring(0,5);
-            timeStr = `<span class="event-time">${t}</span>`;
-        }
-
+        if(ev.start?.dateTime){timeStr=`<span class="event-time">${ev.start.dateTime.split("T")[1].substring(0,5)}</span>`;}
         div.innerHTML = `${timeStr}${ev.summary || "(Sans titre)"}`;
         cell.appendChild(div);
     });
@@ -268,20 +236,17 @@ function renderEvents(events,type){
 /* =====================
    NAVIGATION CALENDRIER
 ===================== */
-document.getElementById("prev-btn").onclick=()=>{offsetWeeks-=1;loadCalendar();}
-document.getElementById("next-btn").onclick=()=>{offsetWeeks+=1;loadCalendar();}
-document.getElementById("today-btn").onclick=()=>{offsetWeeks=0;loadCalendar();}
-document.getElementById("view-3w").onclick=()=>{viewDays=21;loadCalendar();}
-document.getElementById("view-4w").onclick=()=>{viewDays=28;loadCalendar();}
+document.getElementById("prev-btn").onclick = ()=>{ offsetWeeks-=1; loadCalendar(); };
+document.getElementById("next-btn").onclick = ()=>{ offsetWeeks+=1; loadCalendar(); };
+document.getElementById("today-btn").onclick = ()=>{ offsetWeeks=0; loadCalendar(); };
+document.getElementById("view-3w").onclick = ()=>{ viewDays=21; offsetWeeks=0; loadCalendar(); };
+document.getElementById("view-4w").onclick = ()=>{ viewDays=28; offsetWeeks=0; loadCalendar(); };
 
-/* Lancement initial + auto-refresh intelligent (mais fetchCalendarWithHash évite appels inutiles) */
 loadCalendar();
-setInterval(loadCalendar, CAL_REFRESH_INTERVAL);
-
+setInterval(loadCalendar,CAL_REFRESH_INTERVAL);
 
 /* ============================================================
-   PONTS HAROPA
-   (JE N'AI RIEN MODIFIÉ DANS CETTE PARTIE — CONSERVÉE TELLE QUE)
+   PONTS HAROPA (inchangé)
 ============================================================ */
 const CACHE_KEY_DATA="pontsData";
 const CACHE_KEY_HASH="pontsHash";
@@ -298,55 +263,34 @@ const PROXIES=[
 async function sha256(str){
     const data=new TextEncoder().encode(str);
     const digest=await crypto.subtle.digest("SHA-256",data);
-    return Array.from(new Uint8Array(digest))
-        .map(b=>b.toString(16).padStart(2,"0"))
-        .join("");
+    return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");
 }
 
-/* Correction : fonction compatible avec différents proxys */
 async function fetchWithRandomProxy(url) {
     const shuffled = [...PROXIES].sort(() => Math.random() - 0.5);
-
     for (const proxy of shuffled) {
         try {
             const fullUrl = proxy + encodeURIComponent(url);
             const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 3000);
-
-            const res = await fetch(fullUrl, { signal: controller.signal });
+            const timeout = setTimeout(()=>controller.abort(),3000);
+            const res = await fetch(fullUrl,{signal:controller.signal});
             clearTimeout(timeout);
-            if (!res.ok) throw new Error(`Proxy failed: ${res.status}`);
-
+            if(!res.ok) throw new Error(`Proxy failed: ${res.status}`);
             let txt = await res.text();
-
-            // allOrigins format
-            try {
-                const parsed = JSON.parse(txt);
-                if (parsed.contents) return parsed.contents;
-            } catch {}
-
+            try { const parsed=JSON.parse(txt); if(parsed.contents) return parsed.contents; } catch{}
             return txt;
-        }
-        catch(err){
-            console.warn(`Proxy ${proxy} échoué : ${err.message}`);
-        }
+        } catch(err){ console.warn(`Proxy ${proxy} échoué : ${err.message}`); }
     }
-
     throw new Error("Tous les proxys ont échoué");
 }
 
 async function checkAndUpdate(){
     const now = Date.now();
     const last = localStorage.getItem(CACHE_KEY_TIME);
-
-    if (last && now-last < CACHE_EXPIRATION){
+    if(last && now-last < CACHE_EXPIRATION){
         const cached = localStorage.getItem(CACHE_KEY_DATA);
-        if (cached){
-            renderPonts(JSON.parse(cached));
-            return;
-        }
+        if(cached){ renderPonts(JSON.parse(cached)); return; }
     }
-
     await fetchWithHashControl();
 }
 
@@ -355,15 +299,11 @@ async function fetchWithHashControl(){
         const rawContent = await fetchWithRandomProxy("https://www.havre-port.com/map/getPonts");
         const newHash = await sha256(rawContent);
         const oldHash = localStorage.getItem(CACHE_KEY_HASH);
-
-        if (newHash === oldHash && localStorage.getItem(CACHE_KEY_DATA)){
+        if(newHash===oldHash && localStorage.getItem(CACHE_KEY_DATA)){
             renderPonts(JSON.parse(localStorage.getItem(CACHE_KEY_DATA)));
             return;
         }
-
         const ponts = Object.values(JSON.parse(rawContent).data);
-
-        /* Correction tri */
         const unique = Array.from(new Map(ponts.map(p=>[p.nom,p])).values());
         const ordered = unique.sort((a,b)=>{
             const score=p=>{
@@ -376,14 +316,11 @@ async function fetchWithHashControl(){
             };
             return score(a)-score(b);
         });
-
         localStorage.setItem(CACHE_KEY_DATA,JSON.stringify(ordered));
         localStorage.setItem(CACHE_KEY_HASH,newHash);
         localStorage.setItem(CACHE_KEY_TIME,Date.now());
-
         renderPonts(ordered);
-    }
-    catch(err){
+    } catch(err){
         console.error("Erreur récupération ponts:",err);
         document.getElementById("ponts-table").textContent="Impossible de récupérer les ponts.";
     }
@@ -393,21 +330,16 @@ function renderPonts(list){
     const container=document.getElementById("ponts-table");
     container.innerHTML=list.map(p=>{
         const s=p.statutText.toLowerCase();
-
         const cls =
             s.includes("fermeture") ? "fermeture" :
             s.includes("fermé")      ? "ferme" :
             s.includes("manoeuvre")  ? "manoeuvre" :
             s.includes("ouvert")     ? "ouvert" : "ferme";
-
         const info = p.forceText || `MàJ : ${p.date}`;
-
-        return `
-            <div class="pont-card ${cls}">
-                <div class="pont-nom"><span class="pastille"></span>${p.nom}</div>
-                <div class="pont-etat">${p.statutText}</div>
-                <div class="pont-infos">${info}</div>
-            </div>`;
+        return `<div class="pont-card ${cls}">
+            <div class="pont-nom"><span class="pastille"></span>${p.nom}</div>
+            <div class="pont-etat">${p.statutText}</div>
+            <div class="pont-infos">${info}</div></div>`;
     }).join("");
 }
 
