@@ -15,11 +15,11 @@ body {
     color: #eaeaea;
     display: flex;
     justify-content: center;
-    height: 100vh;
-    overflow: hidden;
+    padding: 20px;
 }
 .container {
-    width: 100%;
+    width: 25%;
+    max-width: 400px;
     padding: 14px;
     box-sizing: border-box;
     overflow-y: auto;
@@ -28,6 +28,13 @@ h2 {
     text-align: center;
     color: #00e5ff;
     margin: 0 0 15px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .container {
+        width: 90%;
+    }
 }
 
 /* =====================
@@ -57,6 +64,7 @@ h2 {
 .manoeuvre .pastille { background: #1c3cff; }
 .ouvert .pastille   { background: #58ff58; }
 .pont-nom { font-weight: bold; display: flex; align-items: center; }
+.pont-infos { font-size: 0.85em; color: #ccc; }
 
 @keyframes pulse-blue {
     0%,100% { box-shadow: 0 0 5px rgba(28,60,255,0.4); transform: scale(1); }
@@ -65,6 +73,11 @@ h2 {
 @keyframes pulse-orange {
     0%,100% { box-shadow: 0 0 5px rgba(255,165,0,0.4); transform: scale(1); }
     50% { box-shadow: 0 0 20px rgba(255,165,0,0.7); transform: scale(1.02); }
+}
+.error-message {
+    text-align: center;
+    color: #ff4040;
+    font-weight: bold;
 }
 </style>
 </head>
@@ -82,12 +95,11 @@ h2 {
 const CACHE_KEY_DATA = "pontsData";
 const CACHE_KEY_HASH = "pontsHash";
 const CACHE_KEY_TIME = "pontsCacheTime";
-const CACHE_EXPIRATION = 120000; // cache 2 minutes
-const REFRESH_INTERVAL = 60000; // refresh chaque minute
+const CACHE_EXPIRATION = 120000; // 2 minutes
+const REFRESH_INTERVAL = 60000; // 1 minute
 
 const PROXIES = [
     "https://api.allorigins.win/get?url=",
-    "https://cors-anywhere.herokuapp.com/",
     "https://thingproxy.freeboard.io/fetch/"
 ];
 
@@ -100,6 +112,19 @@ async function sha256(str) {
     return Array.from(new Uint8Array(digest))
         .map(b => b.toString(16).padStart(2, "0"))
         .join("");
+}
+
+// Tri et normalisation pour hash
+function normalizeData(data) {
+    return JSON.stringify(data
+        .map(p => ({
+            nom: p.nom,
+            statutText: p.statutText,
+            date: p.date,
+            forceText: p.forceText || ""
+        }))
+        .sort((a, b) => a.nom.localeCompare(b.nom))
+    );
 }
 
 // =====================
@@ -127,51 +152,59 @@ async function fetchWithRandomProxy(url) {
 async function checkAndUpdate() {
     const now = Date.now();
     const last = localStorage.getItem(CACHE_KEY_TIME);
+    const container = document.getElementById("ponts-table");
+
     if (last && now - last < CACHE_EXPIRATION) {
         const cached = localStorage.getItem(CACHE_KEY_DATA);
         if (cached) { renderPonts(JSON.parse(cached)); console.log("⚡ Cache utilisé"); return; }
     }
-    await fetchWithHashControl();
-}
 
-async function fetchWithHashControl() {
     try {
         const rawContent = await fetchWithRandomProxy("https://www.havre-port.com/map/getPonts");
-        const newHash = await sha256(rawContent);
-        const oldHash = localStorage.getItem(CACHE_KEY_HASH);
+        const json = JSON.parse(rawContent).data;
+        if (!json) throw new Error("Données API manquantes");
 
-        if (newHash === oldHash) {
-            const cached = localStorage.getItem(CACHE_KEY_DATA);
-            if (cached) { renderPonts(JSON.parse(cached)); return; }
-        }
-
-        const ponts = Object.values(JSON.parse(rawContent).data);
+        const ponts = Object.values(json);
         const unique = Array.from(new Map(ponts.map(p => [p.nom, p])).values());
+
+        // Tri priorité: fermé -> fermeture -> manœuvre -> ouvert
         const ordered = unique.sort((a, b) => {
             const score = p => {
-                const statut = p.statutText.toLowerCase();
-                if (statut.includes("fermé")) return 1;
-                if (statut.includes("fermeture")) return 2;
-                if (statut.includes("manoeuvre")) return 3;
-                if (statut.includes("ouvert")) return 4;
+                const s = p.statutText.toLowerCase();
+                if (s.includes("fermé")) return 1;
+                if (s.includes("fermeture")) return 2;
+                if (s.includes("manoeuvre")) return 3;
+                if (s.includes("ouvert")) return 4;
                 return 5;
             };
             return score(a) - score(b);
         });
 
-        localStorage.setItem(CACHE_KEY_DATA, JSON.stringify(ordered));
-        localStorage.setItem(CACHE_KEY_HASH, newHash);
+        // Hash basé sur données normalisées
+        const norm = normalizeData(ordered);
+        const newHash = await sha256(norm);
+        const oldHash = localStorage.getItem(CACHE_KEY_HASH);
+
+        if (newHash !== oldHash) {
+            localStorage.setItem(CACHE_KEY_DATA, JSON.stringify(ordered));
+            localStorage.setItem(CACHE_KEY_HASH, newHash);
+        }
         localStorage.setItem(CACHE_KEY_TIME, Date.now());
         renderPonts(ordered);
 
     } catch (err) {
         console.error("Erreur récupération ponts:", err);
-        document.getElementById("ponts-table").textContent = "Impossible de récupérer les ponts.";
+        container.innerHTML = `<div class="error-message">Impossible de récupérer les ponts.<br>${err.message}</div>`;
     }
 }
 
 function renderPonts(list) {
     const container = document.getElementById("ponts-table");
+    if (!list || !list.length) {
+        container.innerHTML = '<div class="error-message">Aucun pont disponible.</div>';
+        return;
+    }
+
     container.innerHTML = list.map(p => {
         const statut = p.statutText.toLowerCase();
         const open = statut.includes("ouvert");
@@ -184,7 +217,7 @@ function renderPonts(list) {
         return `
             <div class="pont-card ${cls}">
                 <div class="pont-nom">
-                    <span class="pastille"></span>${p.nom}
+                    <span class="pastille" aria-label="Statut: ${p.statutText}"></span>${p.nom}
                 </div>
                 <div class="pont-etat">${p.statutText}</div>
                 <div class="pont-infos">${info}</div>
@@ -198,7 +231,6 @@ function renderPonts(list) {
 // =====================
 checkAndUpdate();
 setInterval(checkAndUpdate, REFRESH_INTERVAL);
-
 </script>
 </body>
 </html>
