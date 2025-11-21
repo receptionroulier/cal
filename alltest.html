@@ -67,73 +67,24 @@ body {
 .view-btn { cursor:pointer; font-size:14px; padding:4px 10px; background:#222; border-radius:6px; border:1px solid #333; color:#00e5ff; }
 .view-btn:hover { background:#333; }
 
-#calendar-grid { flex:1 1 auto; display:grid; gap:1px; background:#333; overflow:auto; box-sizing:border-box; padding:6px; }
-
-/* chaque case relative pour positionnement absolu des bandes */
-.calendar-cell {
-    background:#1a1a1a;
-    padding:6px;
-    border:1px solid #222;
-    overflow:visible;
-    position:relative;
-    min-height:70px;
-    box-sizing:border-box;
-}
+#calendar-grid { flex:1 1 auto; display:grid; gap:1px; background:#333; overflow:hidden; box-sizing:border-box; }
+.calendar-cell { background:#1a1a1a; padding:6px; border:1px solid #222; overflow:hidden; }
 .date-label { font-size:12px; font-weight:normal; margin-bottom:4px; color:#ffffff; }
-
-/* événements ponctuels (au-dessus des bandes) */
-.event {
-    position:relative;
-    z-index: 3; /* au-dessus des bandes multi-jours */
-    padding:3px 5px;
-    border-radius:4px;
-    font-size:12px;
-    margin-bottom:4px;
-    background: rgba(255,255,255,0.03);
-}
-
-/* =====================
-   BANDES MULTI-JOURS (Option B : bande fine en haut)
-   Elles sont affichées en dessous des événements (z-index:1)
-===================== */
-.multi-band {
-  position:absolute;
-  height: 14px;
-  border-radius:4px;
-  padding:0 6px;
-  font-size:12px;
-  line-height:14px;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  box-sizing:border-box;
-  top:0;
-  z-index: 1; /* dessous */
-  left:6px;
-  right:6px;
-}
-
-/* couleurs par calendrier (plein) */
-.multi-band.reception { background: #109c53; color: #ffffff; }
-.multi-band.navire    { background: #3644b3; color: #ffffff; }
-
-/* small mid bar style */
-.multi-mid {
-  height: 8px;
-  top:3px;
-  border-radius:3px;
-  opacity:0.95;
-}
+.event { padding:3px 5px; border-radius:4px; font-size:12px; margin-bottom:4px; }
+.event.reception { background:#109c5344; border-left:3px solid #109c53; }
+.event.navire { background:#3644b344; border-left:3px solid #3644b3; }
+.event-time { font-size:12px;font-weight:normal; margin-right:4px; }
 
 /* =====================
    ANIMATIONS
 ===================== */
-@keyframes pulse-blue {0%,100% { box-shadow: 0 0 5px rgba(28,60,255,0.4); transform: scale(1);}50% { box-shadow: 0 0 20px rgba(28,60,255,0.7); transform: scale(1.02);} }
-@keyframes pulse-orange {0%,100% { box-shadow: 0 0 5px rgba(255,165,0,0.4); transform: scale(1);}50% { box-shadow: 0 0 20px rgba(255,165,0,0.7); transform: scale(1.02);} }
-
-@media (max-width:900px){
-  .left { flex:0 0 30%; }
-  .calendar-cell { min-height:90px; }
+@keyframes pulse-blue {
+ 0%,100% { box-shadow: 0 0 5px rgba(28,60,255,0.4); transform: scale(1); }
+ 50% { box-shadow: 0 0 20px rgba(28,60,255,0.7); transform: scale(1.02); }
+}
+@keyframes pulse-orange {
+ 0%,100% { box-shadow: 0 0 5px rgba(255,165,0,0.4); transform: scale(1); }
+ 50% { box-shadow: 0 0 20px rgba(255,165,0,0.7); transform: scale(1.02); }
 }
 </style>
 </head>
@@ -158,37 +109,18 @@ body {
 
 <script>
 /* ============================================================
-   CONFIGURATION CALENDRIER + PONTS (toujours conservés)
+   CONFIGURATION CALENDRIER
 ============================================================ */
-
-/* CALENDAR */
 const API_KEY = "AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo";
 const CAL_RECEPTION = "receptionroulier@gmail.com";
 const CAL_NAVIRE = "smr.programme@gmail.com";
 
 let viewDays = 21; // par défaut 3 semaines
-let offsetWeeks = 0;
+let offsetWeeks = 0; // décalage par rapport à la semaine actuelle
 
-const CAL_HASH_KEY = "calendarHash";
-const CAL_CACHE_KEY = "calendarCache";
-const CAL_REFRESH_INTERVAL = 60000; // 1 min
-
-/* PONTS - inchangés */
-const CACHE_KEY_DATA="pontsData";
-const CACHE_KEY_HASH="pontsHash";
-const CACHE_KEY_TIME="pontsCacheTime";
-const CACHE_EXPIRATION=60000;
-const REFRESH_INTERVAL=10000;
-
-const PROXIES=[
-    "https://api.allorigins.win/get?url=",
-    "https://cors-anywhere.herokuapp.com/",
-    "https://thingproxy.freeboard.io/fetch/"
-];
-
-/* =====================
-   UTIL DATES
-===================== */
+/* ============================================================
+   FONCTIONS DATES
+============================================================ */
 function getStartMonday(date){
     const d = new Date(date);
     const day = d.getDay();
@@ -206,9 +138,13 @@ function formatMonthRange(start,end){
 }
 function dayName(d){ return ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"][d.getDay()]; }
 
-/* =====================
-   HASH UTIL
-===================== */
+/* ============================================================
+   FETCH GOOGLE CALENDAR + hash/cache
+============================================================ */
+const CAL_HASH_KEY = "calendarHash";
+const CAL_CACHE_KEY = "calendarCache";
+const CAL_REFRESH_INTERVAL = 60000; // 1 min auto-refresh
+
 async function hashObject(obj){
     const txt = JSON.stringify(obj);
     const data = new TextEncoder().encode(txt);
@@ -216,294 +152,154 @@ async function hashObject(obj){
     return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");
 }
 
-/* =====================
-   FETCH CALENDARS (avec hash/cache)
-===================== */
 async function fetchCalendarWithHash(start, end){
     const timeMin = start.toISOString();
-    const timeMax = addDays(end,1).toISOString();
+    const timeMax = addDays(end,1).toISOString(); // timeMax exclusif
 
     const urlRec = `https://www.googleapis.com/calendar/v3/calendars/${CAL_RECEPTION}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
     const urlNav = `https://www.googleapis.com/calendar/v3/calendars/${CAL_NAVIRE}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
 
     const [recRaw, navRaw] = await Promise.all([
         fetch(urlRec).then(r=>r.json()).catch(()=>({items:[]})),
-        fetch(urlNav).then(r=>r.json()).catch(()=>({items:[]})),
+        fetch(urlNav).then(r=>r.json()).catch(()=>({items:[]}))
     ]);
 
-    const events = { reception: recRaw.items || [], navire: navRaw.items || [] };
+    const events = {
+        reception: recRaw.items || [],
+        navire: navRaw.items || []
+    };
 
     const newHash = await hashObject(events);
     const oldHash = localStorage.getItem(CAL_HASH_KEY);
 
     if(newHash === oldHash && localStorage.getItem(CAL_CACHE_KEY)){
-        try { return JSON.parse(localStorage.getItem(CAL_CACHE_KEY)); } catch {}
+        try { return JSON.parse(localStorage.getItem(CAL_CACHE_KEY)); } catch{}
     }
 
     localStorage.setItem(CAL_HASH_KEY,newHash);
     localStorage.setItem(CAL_CACHE_KEY,JSON.stringify(events));
+
     return events;
 }
 
 /* ============================================================
-   NORMALISATION (corrige décalage all-day)
-   -> retourne 'YYYY-MM-DD' strings
-============================================================ */
-function getLocalDateFromGoogleEventStart(ev){
-    if(ev.start?.date){
-        // all-day: already a local YYYY-MM-DD
-        return ev.start.date;
-    }
-    if(ev.start?.dateTime){
-        const d = new Date(ev.start.dateTime);
-        // convert to local date in ISO yyyy-mm-dd
-        const local = new Date(d.getTime() - d.getTimezoneOffset()*60000);
-        return local.toISOString().split('T')[0];
-    }
-    return null;
-}
-function getLocalDateFromGoogleEventEnd(ev){
-    if(ev.end?.date){
-        // Google end.date is exclusive for all-day events: subtract 1 day to get last included day
-        const d = new Date(ev.end.date);
-        d.setDate(d.getDate() - 1);
-        return d.toISOString().split('T')[0];
-    }
-    if(ev.end?.dateTime){
-        const d = new Date(ev.end.dateTime);
-        const local = new Date(d.getTime() - d.getTimezoneOffset()*60000);
-        return local.toISOString().split('T')[0];
-    }
-    return null;
-}
-
-/* ============================================================
-   GRID CREATION
-============================================================ */
-function createGrid(start, viewDays){
-    const grid = document.getElementById('calendar-grid');
-    const rows = (viewDays===21)?3:4;
-    grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
-    grid.style.gridTemplateColumns = `repeat(7, 1fr)`;
-    grid.innerHTML = '';
-    for(let i=0;i<viewDays;i++){
-        const d = addDays(start,i);
-        const cell = document.createElement('div');
-        cell.className = 'calendar-cell';
-        cell.dataset.date = formatDate(d);
-        cell.dataset.index = i;
-        cell.innerHTML = `<div class="date-label">${dayName(d)} ${d.getDate()}</div>`;
-        grid.appendChild(cell);
-    }
-}
-
-/* ============================================================
-   ALLOCATION NIVEAUX (anticollision)
-============================================================ */
-function allocateLevel(occupied, dayIndexes){
-    let level = 0;
-    while(true){
-        let ok = true;
-        for(const di of dayIndexes){
-            const row = occupied[di] || [];
-            if(row[level]) { ok = false; break; }
-        }
-        if(ok){
-            for(const di of dayIndexes){
-                occupied[di] = occupied[di] || [];
-                occupied[di][level] = true;
-            }
-            return level;
-        }
-        level++;
-    }
-}
-
-/* ============================================================
-   RENDERING: multi-day bands then single-day events (so bands are under)
-============================================================ */
-function renderMultiDayBands(allEvents, start, viewDays){
-    const cells = Array.from(document.querySelectorAll('.calendar-cell'));
-    const dateToIndex = {};
-    cells.forEach(c => dateToIndex[c.dataset.date] = parseInt(c.dataset.index,10));
-    const occupied = {};
-
-    // collect multi-day events
-    const multi = [];
-    ['reception','navire'].forEach(type=>{
-        (allEvents[type]||[]).forEach(it=>{
-            const sStr = getLocalDateFromGoogleEventStart(it);
-            const eStr = getLocalDateFromGoogleEventEnd(it);
-            if(!sStr || !eStr) return;
-            const sDate = new Date(sStr + 'T00:00:00');
-            const eDate = new Date(eStr + 'T00:00:00');
-            const span = Math.round((eDate - sDate)/86400000) + 1;
-            if(span >= 2){
-                multi.push({ type, original: it, summary: it.summary || '(Sans titre)', sDate, eDate, sStr, eStr });
-            }
-        });
-    });
-
-    multi.forEach(ev=>{
-        const dayIndexes = [];
-        for(let d = new Date(ev.sDate); d <= ev.eDate; d = addDays(d,1)){
-            const key = formatDate(d);
-            if(key in dateToIndex) dayIndexes.push(dateToIndex[key]);
-        }
-        if(dayIndexes.length === 0) return;
-        const level = allocateLevel(occupied, dayIndexes);
-
-        dayIndexes.forEach((di, idx) => {
-            const cell = document.querySelector(`.calendar-cell[data-index="${di}"]`);
-            if(!cell) return;
-
-            const top = 18 + level * 20; // spacing under date label
-            const band = document.createElement('div');
-            band.className = `multi-band ${ev.type}`;
-            band.style.top = top + 'px';
-            // content
-            if(idx === 0){
-                // show start time if time present + title
-                let tstr = '';
-                if(ev.original.start?.dateTime){
-                    const d = new Date(ev.original.start.dateTime);
-                    tstr = d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0') + ' ';
-                }
-                band.textContent = tstr + ev.summary;
-                band.title = ev.summary + ' — début: ' + ev.sDate.toLocaleString();
-            } else if(idx === dayIndexes.length - 1){
-                // show end time aligned right (preceded by '>')
-                let tend = '';
-                if(ev.original.end?.dateTime){
-                    const d = new Date(ev.original.end.dateTime);
-                    tend = '>' + d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
-                }
-                band.textContent = tend;
-                band.title = ev.summary + ' — fin: ' + ev.eDate.toLocaleString();
-            } else {
-                // middle segment: make smaller height for visual continuity
-                band.classList.add('multi-mid');
-                band.style.height = '8px';
-                band.style.top = (top + 3) + 'px';
-                band.textContent = '';
-            }
-
-            cell.appendChild(band);
-        });
-    });
-}
-
-function renderSingleDayEvents(allEvents){
-    ['reception','navire'].forEach(type=>{
-        (allEvents[type] || []).forEach(it=>{
-            // determine start/end local day strings
-            const sStr = getLocalDateFromGoogleEventStart(it);
-            const eStr = getLocalDateFromGoogleEventEnd(it);
-            if(!sStr || !eStr) return;
-            const sDate = new Date(sStr + 'T00:00:00');
-            const eDate = new Date(eStr + 'T00:00:00');
-            const span = Math.round((eDate - sDate)/86400000) + 1;
-
-            if(span === 1){
-                const cell = document.querySelector(`.calendar-cell[data-date="${sStr}"]`);
-                if(!cell) return;
-                const div = document.createElement('div');
-                div.className = 'event ' + type;
-                // time if dateTime
-                let timeStr = '';
-                if(it.start?.dateTime){
-                    const d = new Date(it.start.dateTime);
-                    timeStr = d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0') + ' ';
-                }
-                div.innerHTML = `${timeStr}${it.summary || '(Sans titre)'}`;
-                cell.appendChild(div);
-            }
-        });
-    });
-}
-
-/* ============================================================
-   MAIN LOAD: build grid, fetch events, render bands then events
+   AFFICHAGE CALENDRIER (avec semaine passée / actuelle / future)
 ============================================================ */
 async function loadCalendar(){
     const today = new Date();
     const mondayCurrent = getStartMonday(today);
+
+    // début = lundi semaine passée + offsetWeeks
     const start = new Date(mondayCurrent);
     start.setDate(start.getDate() - 7 + offsetWeeks*7);
-    const end = addDays(start, viewDays - 1);
-    document.getElementById('calendar-title').textContent = formatMonthRange(start, end);
 
-    createGrid(start, viewDays);
+    const end = addDays(start, viewDays-1);
+    document.getElementById("calendar-title").textContent = formatMonthRange(start,end);
+
+    const grid = document.getElementById("calendar-grid");
+    const rows = (viewDays===21)?3:4;
+    grid.style.gridTemplateRows = `repeat(${rows},1fr)`;
+    grid.style.gridTemplateColumns = `repeat(7,1fr)`;
+    grid.innerHTML = "";
+
+    for(let i=0;i<viewDays;i++){
+        const d = addDays(start,i);
+        const cell = document.createElement("div");
+        cell.className="calendar-cell";
+        cell.dataset.date=formatDate(d);
+        cell.innerHTML=`<div class="date-label">${dayName(d)} ${d.getDate()}</div>`;
+        grid.appendChild(cell);
+    }
 
     try {
         const events = await fetchCalendarWithHash(start, end);
+        renderEvents(events.reception,"reception");
+        renderEvents(events.navire,"navire");
+    } catch(err){ console.error(err); }
+}
 
-        // first draw multi-day bands (under)
-        renderMultiDayBands(events, start, viewDays);
-
-        // then draw single-day events (above)
-        renderSingleDayEvents(events);
-
-    } catch(err){
-        console.error('Erreur loadCalendar:', err);
-    }
+function renderEvents(events,type){
+    events.forEach(ev=>{
+        const date = ev.start?.date || ev.start?.dateTime?.split("T")[0];
+        if(!date) return;
+        const cell=document.querySelector(`[data-date="${date}"]`);
+        if(!cell) return;
+        const div=document.createElement("div");
+        div.className=`event ${type}`;
+        let timeStr="";
+        if(ev.start?.dateTime){timeStr=`<span class="event-time">${ev.start.dateTime.split("T")[1].substring(0,5)}</span>`;}
+        div.innerHTML = `${timeStr}${ev.summary || "(Sans titre)"}`;
+        cell.appendChild(div);
+    });
 }
 
 /* =====================
-   NAVIGATION
+   NAVIGATION CALENDRIER
 ===================== */
-document.getElementById("prev-btn").onclick = ()=>{ offsetWeeks -= 1; loadCalendar(); };
-document.getElementById("next-btn").onclick = ()=>{ offsetWeeks += 1; loadCalendar(); };
-document.getElementById("today-btn").onclick = ()=>{ offsetWeeks = 0; loadCalendar(); };
-document.getElementById("view-3w").onclick = ()=>{ viewDays = 21; offsetWeeks = 0; loadCalendar(); };
-document.getElementById("view-4w").onclick = ()=>{ viewDays = 28; offsetWeeks = 0; loadCalendar(); };
+document.getElementById("prev-btn").onclick = ()=>{ offsetWeeks-=1; loadCalendar(); };
+document.getElementById("next-btn").onclick = ()=>{ offsetWeeks+=1; loadCalendar(); };
+document.getElementById("today-btn").onclick = ()=>{ offsetWeeks=0; loadCalendar(); };
+document.getElementById("view-3w").onclick = ()=>{ viewDays=21; offsetWeeks=0; loadCalendar(); };
+document.getElementById("view-4w").onclick = ()=>{ viewDays=28; offsetWeeks=0; loadCalendar(); };
 
 loadCalendar();
-setInterval(loadCalendar, CAL_REFRESH_INTERVAL);
+setInterval(loadCalendar,CAL_REFRESH_INTERVAL);
 
 /* ============================================================
-   PONTS HAROPA (inchangée : repris mot pour mot et conservée)
+   PONTS HAROPA (inchangé)
 ============================================================ */
+const CACHE_KEY_DATA="pontsData";
+const CACHE_KEY_HASH="pontsHash";
+const CACHE_KEY_TIME="pontsCacheTime";
+const CACHE_EXPIRATION=60000;
+const REFRESH_INTERVAL=10000;
+
+const PROXIES=[
+    "https://api.allorigins.win/get?url=",
+    "https://cors-anywhere.herokuapp.com/",
+    "https://thingproxy.freeboard.io/fetch/"
+];
+
 async function sha256(str){
     const data=new TextEncoder().encode(str);
     const digest=await crypto.subtle.digest("SHA-256",data);
     return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");
 }
+
 async function fetchWithRandomProxy(url) {
     const shuffled = [...PROXIES].sort(() => Math.random() - 0.5);
     for (const proxy of shuffled) {
         try {
             const fullUrl = proxy + encodeURIComponent(url);
             const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 3000);
-            const res = await fetch(fullUrl, { signal: controller.signal });
+            const timeout = setTimeout(()=>controller.abort(),3000);
+            const res = await fetch(fullUrl,{signal:controller.signal});
             clearTimeout(timeout);
-            if (!res.ok) throw new Error(`Proxy failed: ${res.status}`);
+            if(!res.ok) throw new Error(`Proxy failed: ${res.status}`);
             let txt = await res.text();
-            try { const parsed = JSON.parse(txt); if (parsed.contents) return parsed.contents; } catch {}
+            try { const parsed=JSON.parse(txt); if(parsed.contents) return parsed.contents; } catch{}
             return txt;
-        }
-        catch(err){
-            console.warn(`Proxy ${proxy} échoué : ${err.message}`);
-        }
+        } catch(err){ console.warn(`Proxy ${proxy} échoué : ${err.message}`); }
     }
     throw new Error("Tous les proxys ont échoué");
 }
+
 async function checkAndUpdate(){
     const now = Date.now();
     const last = localStorage.getItem(CACHE_KEY_TIME);
-    if (last && now-last < CACHE_EXPIRATION){
+    if(last && now-last < CACHE_EXPIRATION){
         const cached = localStorage.getItem(CACHE_KEY_DATA);
-        if (cached){ renderPonts(JSON.parse(cached)); return; }
+        if(cached){ renderPonts(JSON.parse(cached)); return; }
     }
     await fetchWithHashControl();
 }
+
 async function fetchWithHashControl(){
     try{
         const rawContent = await fetchWithRandomProxy("https://www.havre-port.com/map/getPonts");
         const newHash = await sha256(rawContent);
         const oldHash = localStorage.getItem(CACHE_KEY_HASH);
-        if (newHash === oldHash && localStorage.getItem(CACHE_KEY_DATA)){
+        if(newHash===oldHash && localStorage.getItem(CACHE_KEY_DATA)){
             renderPonts(JSON.parse(localStorage.getItem(CACHE_KEY_DATA)));
             return;
         }
@@ -524,12 +320,12 @@ async function fetchWithHashControl(){
         localStorage.setItem(CACHE_KEY_HASH,newHash);
         localStorage.setItem(CACHE_KEY_TIME,Date.now());
         renderPonts(ordered);
-    }
-    catch(err){
+    } catch(err){
         console.error("Erreur récupération ponts:",err);
         document.getElementById("ponts-table").textContent="Impossible de récupérer les ponts.";
     }
 }
+
 function renderPonts(list){
     const container=document.getElementById("ponts-table");
     container.innerHTML=list.map(p=>{
@@ -540,14 +336,13 @@ function renderPonts(list){
             s.includes("manoeuvre")  ? "manoeuvre" :
             s.includes("ouvert")     ? "ouvert" : "ferme";
         const info = p.forceText || `MàJ : ${p.date}`;
-        return `
-            <div class="pont-card ${cls}">
-                <div class="pont-nom"><span class="pastille"></span>${p.nom}</div>
-                <div class="pont-etat">${p.statutText}</div>
-                <div class="pont-infos">${info}</div>
-            </div>`;
+        return `<div class="pont-card ${cls}">
+            <div class="pont-nom"><span class="pastille"></span>${p.nom}</div>
+            <div class="pont-etat">${p.statutText}</div>
+            <div class="pont-infos">${info}</div></div>`;
     }).join("");
 }
+
 checkAndUpdate();
 setInterval(checkAndUpdate,REFRESH_INTERVAL);
 </script>
