@@ -13,7 +13,8 @@
       align-items: center;
       height: 100vh;
       margin: 0;
-      background: #121212; color: #ffffff;
+      background: #121212; 
+      color: #ffffff;
     }
     h1 {
       margin-bottom: 30px;
@@ -21,6 +22,8 @@
     .links {
       display: flex;
       gap: 20px;
+      flex-wrap: wrap; /* pour que ça passe sur petits écrans */
+      justify-content: center;
     }
     a {
       padding: 15px 25px;
@@ -37,6 +40,16 @@
       background: #3a3a3a;
       box-shadow: 0 6px 16px rgba(0,0,0,0.6);
     }
+    a:focus {
+      outline: 2px dashed #ffffff;
+      outline-offset: 4px;
+    }
+    @media (max-width: 500px) {
+      .links {
+        flex-direction: column;
+        gap: 15px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -44,6 +57,7 @@
   <div class="links">
     <a href="https://receptionroulier.github.io/cal/r.html">Calendrier Réception</a>
     <a href="https://receptionroulier.github.io/cal/n.html">Calendrier Navires</a>
+    <a href="https://receptionroulier.github.io/cal/p.html">État des ponts</a>
   </div>
 </body>
 </html>
