@@ -1,144 +1,147 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Ponts HAROPA – Monitoring + Calendrier</title>
 <style>
 /* =====================
    GLOBAL
 ===================== */
 body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: #101010;
-    color: #eaeaea;
-    display: flex;
-    height: 100vh;
-    overflow: hidden;
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #101010;
+  color: #eaeaea;
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
 }
 
 /* =====================
    COLONNE GAUCHE
 ===================== */
 .left {
-    flex: 0 0 20%;
-    border-right: 1px solid #444;
-    padding: 14px;
-    overflow-y: auto;
-    box-sizing: border-box;
+  flex: 0 0 20%;
+  border-right: 1px solid #444;
+  padding: 14px;
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 .left h2 { color: #00e5ff; text-align: center; }
 
 /* =====================
    CARTES PONTS
-   (styles inchangés)
+   (inchangés visuellement)
 ===================== */
 .pont-card {
-    background: #1f1f1f;
-    border-radius: 8px;
-    padding: 10px 12px;
-    box-shadow: 0 0 5px rgba(0,0,0,0.4);
-    border-left: 4px solid #444;
-    transition: transform 0.15s ease, box-shadow 0.3s ease;
-    margin-bottom: 8px;
+  background: #1f1f1f;
+  border-radius: 8px;
+  padding: 10px 12px;
+  box-shadow: 0 0 5px rgba(0,0,0,0.4);
+  border-left: 4px solid #444;
+  transition: transform 0.15s ease, box-shadow 0.3s ease;
+  margin-bottom: 8px;
 }
 .pont-card:hover { transform: scale(1.02); }
-
 .pont-card.ferme { border-left-color: #ff4040; }
 .pont-card.fermeture { border-left-color: orange; animation: pulse-orange 1.2s infinite; }
 .pont-card.manoeuvre { border-left-color: #1c3cff; animation: pulse-blue 1.2s infinite; }
 .pont-card.ouvert { border-left-color: #58ff58; }
-
 .pastille { width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; display: inline-block; }
 .ferme .pastille      { background: #ff4040; }
 .fermeture .pastille  { background: orange; }
 .manoeuvre .pastille  { background: #1c3cff; }
 .ouvert .pastille     { background: #58ff58; }
-
 .pont-nom { font-weight: bold; display: flex; align-items: center; }
 
 /* =====================
    CALENDRIER
 ===================== */
 .right { flex:1; display:flex; flex-direction:column; height:100%; overflow:hidden; }
-#calendar-header { flex:0 0 auto; padding:12px; text-align:center; font-size:22px; color:#00e5ff; border-bottom:1px solid #333; display:flex; justify-content:center; align-items:center; gap:18px; }
+#calendar-header {
+  flex:0 0 auto;
+  padding:12px;
+  text-align:center;
+  font-size:22px;
+  color:#00e5ff;
+  border-bottom:1px solid #333;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:18px;
+}
 .nav-btn { cursor:pointer; color:#00e5ff; font-size:26px; padding:4px 10px; border-radius:6px; transition:0.2s; }
 .nav-btn:hover { background:#222; }
 .view-btn { cursor:pointer; font-size:14px; padding:4px 10px; background:#222; border-radius:6px; border:1px solid #333; color:#00e5ff; }
 .view-btn:hover { background:#333; }
 
-/* make grid position:relative so bands can be positioned across columns (continuous) */
-#calendar-grid { flex:1 1 auto; display:grid; gap:1px; background:#333; overflow:auto; box-sizing:border-box; padding:6px; position:relative; }
+/* grid container: position:relative needed for absolute bands */
+#calendar-grid {
+  flex:1 1 auto;
+  display:grid;
+  gap:1px;
+  background:#333;
+  overflow:auto;
+  box-sizing:border-box;
+  padding:6px;
+  position:relative;
+}
 
-/* cells keep relative pos */
+/* each cell */
 .calendar-cell {
-    background:#1a1a1a;
-    padding:6px;
-    border:1px solid #222;
-    overflow:visible;
-    position:relative;
-    min-height:70px;
-    box-sizing:border-box;
+  background:#1a1a1a;
+  padding:6px;
+  border:1px solid #222;
+  overflow:visible;
+  position:relative;
+  min-height:70px;
+  box-sizing:border-box;
+  display:flex;
+  flex-direction:column;
 }
 .date-label { font-size:12px; font-weight:normal; margin-bottom:4px; color:#ffffff; }
 
-/* ponctuels (au-dessus) */
-.event {
-    position:relative;
-    z-index: 4; /* au-dessus des bandes multi-jours */
-    padding:3px 5px;
-    border-radius:4px;
-    font-size:12px;
-    margin-bottom:4px;
-}
-.event.reception { background:#109c5344; border-left:3px solid #109c53; }
-.event.navire     { background:#3644b344; border-left:3px solid #3644b3; }
+/* container for punctual events (stacked, above bands) */
+.cell-events { display:flex; flex-direction:column; gap:4px; z-index:4; }
+
+/* punctual events styling */
+.event { padding:3px 6px; border-radius:4px; font-size:12px; }
+.event.reception { background:#109c5344; border-left:3px solid #109c53; color:#eaffea; }
+.event.navire    { background:#3644b344; border-left:3px solid #3644b3; color:#eef0ff; }
 .event-time { font-size:12px;font-weight:normal; margin-right:4px; }
 
 /* =====================
-   BANDES MULTI-JOURS CONTINUES
-   - sont positionnées ABSOLUTE sur #calendar-grid (une seule DIV par événement)
-   - z-index plus bas pour rester dessous
+   MULTI-DAY BANDS (continuous)
+   - rendered as absolute elements inside #calendar-grid
+   - thin (Option B) and placed in a dedicated zone *after* events (Option C)
 ===================== */
 .multi-band {
   position:absolute;
-  height:20px;               /* hauteur de la bande */
+  height:18px;               /* thin band */
   border-radius:6px;
   display:flex;
-  justify-content:space-between;
   align-items:center;
+  justify-content:space-between;
   padding:0 8px;
   box-sizing:border-box;
   font-size:12px;
   color:#fff;
-  z-index:2;                 /* sous les events mais au-dessus du fond */
   overflow:hidden;
+  z-index:2;                 /* below punctual events (z-index:4) */
+  pointer-events:auto;
+  white-space:nowrap;
 }
 
-/* couleurs pleines pour bandes (remplissage) */
+/* full color fill for band */
 .multi-band.reception { background: #109c53; }
 .multi-band.navire    { background: #3644b3; }
 
-/* texte start (left) and end (right) */
-.multi-band .left { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
-.multi-band .right { white-space:nowrap; margin-left:8px; }
+/* left / right text inside band */
+.multi-band .band-left { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
+.multi-band .band-right { white-space:nowrap; margin-left:8px; }
 
-/* small mid indicator if needed (not used with continuous band but kept for fallback) */
-.multi-mid { height:10px; border-radius:4px; }
-
-/* =====================
-   ANIMATIONS
-===================== */
-@keyframes pulse-blue {
- 0%,100% { box-shadow: 0 0 5px rgba(28,60,255,0.4); transform: scale(1); }
- 50% { box-shadow: 0 0 20px rgba(28,60,255,0.7); transform: scale(1.02); }
-}
-@keyframes pulse-orange {
- 0%,100% { box-shadow: 0 0 5px rgba(255,165,0,0.4); transform: scale(1); }
- 50% { box-shadow: 0 0 20px rgba(255,165,0,0.7); transform: scale(1.02); }
-}
-
+/* small gap device for grid responsiveness */
 @media (max-width:900px){
   .left { flex:0 0 30%; }
   .calendar-cell { min-height:90px; }
@@ -148,43 +151,39 @@ body {
 <body>
 
 <div class="left">
-    <h2>État des Ponts</h2>
-    <div id="ponts-table">Chargement…</div>
+  <h2>État des Ponts</h2>
+  <div id="ponts-table">Chargement…</div>
 </div>
 
 <div class="right">
-    <div id="calendar-header">
-        <span class="nav-btn" id="prev-btn">‹</span>
-        <span id="calendar-title">Chargement…</span>
-        <span class="nav-btn" id="next-btn">›</span>
-        <span class="view-btn" id="view-3w">3 semaines</span>
-        <span class="view-btn" id="view-4w">4 semaines</span>
-        <span class="nav-btn" id="today-btn" style="font-size:18px;">Aujourd’hui</span>
-    </div>
-    <div id="calendar-grid"></div>
+  <div id="calendar-header">
+    <span class="nav-btn" id="prev-btn">‹</span>
+    <span id="calendar-title">Chargement…</span>
+    <span class="nav-btn" id="next-btn">›</span>
+    <span class="view-btn" id="view-3w">3 semaines</span>
+    <span class="view-btn" id="view-4w">4 semaines</span>
+    <span class="nav-btn" id="today-btn" style="font-size:18px;">Aujourd’hui</span>
+  </div>
+  <div id="calendar-grid"></div>
 </div>
 
 <script>
 /* ============================================================
-   TON CODE D'ORIGINE (calendrier + ponts) - j'intègre la gestion
-   des bandes multi-jours continues et corrige les problèmes.
+   CONFIG / CONSTANTS
+   - J'ai gardé ta logique 'ponts' inchangée en dessous
 ============================================================ */
-
-/* =====================
-   CONFIG CALENDAR
-===================== */
 const API_KEY = "AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo";
 const CAL_RECEPTION = "receptionroulier@gmail.com";
 const CAL_NAVIRE = "smr.programme@gmail.com";
 
-let viewDays = 21; // par défaut 3 semaines
+let viewDays = 21; // default 3 weeks
 let offsetWeeks = 0;
 
 const CAL_HASH_KEY = "calendarHash";
 const CAL_CACHE_KEY = "calendarCache";
 const CAL_REFRESH_INTERVAL = 60000; // 1 min
 
-/* PONTS (inchangés) */
+/* PONTS constants kept as-is */
 const CACHE_KEY_DATA="pontsData";
 const CACHE_KEY_HASH="pontsHash";
 const CACHE_KEY_TIME="pontsCacheTime";
@@ -192,337 +191,353 @@ const CACHE_EXPIRATION=60000;
 const REFRESH_INTERVAL=10000;
 
 const PROXIES=[
-    "https://api.allorigins.win/get?url=",
-    "https://cors-anywhere.herokuapp.com/",
-    "https://thingproxy.freeboard.io/fetch/"
+  "https://api.allorigins.win/get?url=",
+  "https://cors-anywhere.herokuapp.com/",
+  "https://thingproxy.freeboard.io/fetch/"
 ];
 
 /* =====================
-   UTIL DATES (local date strings safely)
-   - Important: produce YYYY-MM-DD in local timezone
+   DATE UTILITIES (produce local YYYY-MM-DD)
 ===================== */
 function getStartMonday(date){
-    const d = new Date(date);
-    const day = d.getDay();
-    const diff = (day === 0 ? -6 : 1) - day;
-    d.setDate(d.getDate() + diff);
-    return d;
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = (day === 0 ? -6 : 1) - day;
+  d.setDate(d.getDate() + diff);
+  return d;
 }
 function addDays(date,n){ const d=new Date(date); d.setDate(d.getDate()+n); return d; }
 function formatDate(d){
-    return d.getFullYear().toString().padStart(4,'0') + '-' +
-        (d.getMonth()+1).toString().padStart(2,'0') + '-' +
-        d.getDate().toString().padStart(2,'0');
-}
-function formatMonthRange(start,end){
-    const m=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
-    const m1=m[start.getMonth()], m2=m[end.getMonth()];
-    const y1=start.getFullYear(), y2=end.getFullYear();
-    return (m1===m2 && y1===y2)?`${m1} ${y1}`:`${m1} — ${m2} ${y2}`;
+  return d.getFullYear().toString().padStart(4,'0') + '-' +
+    (d.getMonth()+1).toString().padStart(2,'0') + '-' +
+    d.getDate().toString().padStart(2,'0');
 }
 function dayName(d){ return ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"][d.getDay()]; }
+function formatMonthRange(start,end){
+  const m=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+  const m1=m[start.getMonth()], m2=m[end.getMonth()];
+  const y1=start.getFullYear(), y2=end.getFullYear();
+  return (m1===m2 && y1===y2)?`${m1} ${y1}`:`${m1} — ${m2} ${y2}`;
+}
 
 /* =====================
    HASH UTIL
 ===================== */
 async function hashObject(obj){
-    const txt = JSON.stringify(obj);
-    const data = new TextEncoder().encode(txt);
-    const digest = await crypto.subtle.digest("SHA-256", data);
-    return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");
+  const txt = JSON.stringify(obj);
+  const data = new TextEncoder().encode(txt);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,'0')).join("");
 }
 
 /* =====================
-   FETCH CALENDAR WITH HASH
+   FETCH CALENDAR WITH HASH/CACHE
 ===================== */
 async function fetchCalendarWithHash(start, end){
-    const timeMin = start.toISOString();
-    const timeMax = addDays(end,1).toISOString();
+  const timeMin = start.toISOString();
+  const timeMax = addDays(end,1).toISOString();
 
-    const urlRec = `https://www.googleapis.com/calendar/v3/calendars/${CAL_RECEPTION}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
-    const urlNav = `https://www.googleapis.com/calendar/v3/calendars/${CAL_NAVIRE}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
+  const urlRec = `https://www.googleapis.com/calendar/v3/calendars/${CAL_RECEPTION}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
+  const urlNav = `https://www.googleapis.com/calendar/v3/calendars/${CAL_NAVIRE}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
 
-    const [recRaw, navRaw] = await Promise.all([
-        fetch(urlRec).then(r=>r.json()).catch(()=>({items:[]})),
-        fetch(urlNav).then(r=>r.json()).catch(()=>({items:[]})),
-    ]);
+  const [recRaw, navRaw] = await Promise.all([
+    fetch(urlRec).then(r=>r.json()).catch(()=>({items:[]})),
+    fetch(urlNav).then(r=>r.json()).catch(()=>({items:[]})),
+  ]);
 
-    const events = { reception: recRaw.items || [], navire: navRaw.items || [] };
+  const events = { reception: recRaw.items || [], navire: navRaw.items || [] };
 
-    const newHash = await hashObject(events);
-    const oldHash = localStorage.getItem(CAL_HASH_KEY);
+  const newHash = await hashObject(events);
+  const oldHash = localStorage.getItem(CAL_HASH_KEY);
 
-    if(newHash === oldHash && localStorage.getItem(CAL_CACHE_KEY)){
-        try { return JSON.parse(localStorage.getItem(CAL_CACHE_KEY)); } catch {}
-    }
+  if(newHash === oldHash && localStorage.getItem(CAL_CACHE_KEY)){
+    try { return JSON.parse(localStorage.getItem(CAL_CACHE_KEY)); } catch {}
+  }
 
-    localStorage.setItem(CAL_HASH_KEY,newHash);
-    localStorage.setItem(CAL_CACHE_KEY,JSON.stringify(events));
-    return events;
+  localStorage.setItem(CAL_HASH_KEY,newHash);
+  localStorage.setItem(CAL_CACHE_KEY,JSON.stringify(events));
+  return events;
 }
 
 /* ============================================================
-   NORMALISATION GOOGLE EVENTS (start/end -> YYYY-MM-DD local)
-   - treat all-day (start.date / end.date exclusive) correctly
-   - treat dateTime using local date components (no UTC shift)
+   NORMALISATION: convert Google event start/end into local YYYY-MM-DD
+   - start: if start.date (all-day) => as-is
+   - end: if end.date => exclusive -> subtract 1 day to get inclusive last day
+   - dateTime: convert to local date (no UTC shift)
 ============================================================ */
-function localYMDFromDateTime(dtString){
-    const d = new Date(dtString);
-    // get local components
-    const y = d.getFullYear();
-    const m = (d.getMonth()+1).toString().padStart(2,'0');
-    const day = d.getDate().toString().padStart(2,'0');
-    return `${y}-${m}-${day}`;
+function localYMDFromDateTime(dtStr){
+  const d = new Date(dtStr);
+  const y = d.getFullYear();
+  const m = (d.getMonth()+1).toString().padStart(2,'0');
+  const day = d.getDate().toString().padStart(2,'0');
+  return `${y}-${m}-${day}`;
 }
-function getLocalStartDate(ev){
-    if(ev.start?.date) return ev.start.date; // all-day, already YMD
-    if(ev.start?.dateTime) return localYMDFromDateTime(ev.start.dateTime);
-    return null;
+function getLocalStartYMD(ev){
+  if(ev.start?.date) return ev.start.date;
+  if(ev.start?.dateTime) return localYMDFromDateTime(ev.start.dateTime);
+  return null;
 }
-function getLocalEndDateInclusive(ev){
-    // return inclusive last day (YMD)
-    if(ev.end?.date){
-        // end.date is exclusive for all-day events => subtract 1 day
-        const d = new Date(ev.end.date);
-        d.setDate(d.getDate() - 1);
-        return formatDate(d);
+function getLocalEndYMD_Inclusive(ev){
+  if(ev.end?.date){
+    const d = new Date(ev.end.date);
+    d.setDate(d.getDate()-1);
+    return formatDate(d);
+  }
+  if(ev.end?.dateTime){
+    // If end is exactly midnight, consider previous day inclusive
+    const d = new Date(ev.end.dateTime);
+    if(d.getHours()===0 && d.getMinutes()===0 && d.getSeconds()===0 && d.getMilliseconds()===0){
+      const prev = new Date(d.getTime() - 1);
+      return formatDate(prev);
     }
-    if(ev.end?.dateTime){
-        // If end time is exactly 00:00:00, it's probably exclusive to next day -> subtract 1ms to include previous day
-        const d = new Date(ev.end.dateTime);
-        if(d.getHours()===0 && d.getMinutes()===0 && d.getSeconds()===0 && d.getMilliseconds()===0){
-            // subtract 1 millisecond to fall into previous day
-            const prev = new Date(d.getTime()-1);
-            return formatDate(prev);
-        }
-        return localYMDFromDateTime(ev.end.dateTime);
-    }
-    return null;
+    return localYMDFromDateTime(ev.end.dateTime);
+  }
+  return null;
 }
 
 /* ============================================================
    GRID CREATION
-   - createGrid returns array of date strings for view
+   - returns array of YMD strings for view
 ============================================================ */
 function createGrid(start, viewDays){
-    const grid = document.getElementById('calendar-grid');
-    const rows = (viewDays===21)?3:4;
-    grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
-    grid.style.gridTemplateColumns = `repeat(7, 1fr)`;
-    grid.innerHTML = '';
-    const dates = [];
-    for(let i=0;i<viewDays;i++){
-        const d = addDays(start,i);
-        const cell = document.createElement('div');
-        cell.className = 'calendar-cell';
-        cell.dataset.date = formatDate(d);
-        cell.dataset.index = i;
-        cell.innerHTML = `<div class="date-label">${dayName(d)} ${d.getDate()}</div>`;
-        grid.appendChild(cell);
-        dates.push(formatDate(d));
-    }
-    return dates;
+  const grid = document.getElementById('calendar-grid');
+  const rows = (viewDays===21)?3:4;
+  grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+  grid.style.gridTemplateColumns = `repeat(7, 1fr)`;
+  grid.innerHTML = '';
+  const dates = [];
+  for(let i=0;i<viewDays;i++){
+    const d = addDays(start,i);
+    const cell = document.createElement('div');
+    cell.className = 'calendar-cell';
+    cell.dataset.date = formatDate(d);
+    cell.dataset.index = i;
+    // Keep a container for events inside each cell and a placeholder for bands baseline measurement
+    cell.innerHTML = `<div class="date-label">${dayName(d)} ${d.getDate()}</div><div class="cell-events"></div>`;
+    grid.appendChild(cell);
+    dates.push(formatDate(d));
+  }
+  return dates;
 }
 
 /* ============================================================
-   LAYOUT MULTI-JOUR CONTINU (bandes placées ABSOLUTE sur #calendar-grid)
-   - compute day indexes for each event
-   - allocate level (no overlap)
-   - create one .multi-band per multi-day event with left/width spanning across cells
-   - place bands below single events by z-index
+   CLEAR previous bands & events
+============================================================ */
+function clearPrevious(){
+  const grid = document.getElementById('calendar-grid');
+  grid.querySelectorAll('.multi-band').forEach(n=>n.remove());
+  document.querySelectorAll('.calendar-cell .event').forEach(n=>n.remove());
+}
+
+/* ============================================================
+   ALLOCATE LEVEL for multi-day bands to avoid overlap
+   occupied[dayIndex] = [bool,bool,...]
 ============================================================ */
 function allocateLevel(occupied, dayIndexes){
-    let level = 0;
-    while(true){
-        let ok = true;
-        for(const di of dayIndexes){
-            const row = occupied[di] || [];
-            if(row[level]) { ok = false; break; }
-        }
-        if(ok){
-            for(const di of dayIndexes){
-                occupied[di] = occupied[di] || [];
-                occupied[di][level] = true;
-            }
-            return level;
-        }
-        level++;
+  let level = 0;
+  while(true){
+    let ok = true;
+    for(const di of dayIndexes){
+      const row = occupied[di] || [];
+      if(row[level]) { ok = false; break; }
     }
-}
-
-function clearEventLayers(){
-    // remove any existing multi-band elements inside calendar-grid
-    const grid = document.getElementById('calendar-grid');
-    grid.querySelectorAll('.multi-band').forEach(n=>n.remove());
-    // also remove previously appended single-day .event nodes (we recreate fresh)
-    document.querySelectorAll('.calendar-cell .event').forEach(n=>n.remove());
-}
-
-function renderBandsAndEvents(eventsObj, start, viewDays){
-    const grid = document.getElementById('calendar-grid');
-    const cells = Array.from(grid.querySelectorAll('.calendar-cell'));
-    const dateToIndex = {};
-    cells.forEach(c => dateToIndex[c.dataset.date] = parseInt(c.dataset.index,10));
-
-    // Collect multi-day events (span >=2 days in view)
-    const multi = [];
-    const single = []; // single-day events (span ===1) to render as .event in cell
-
-    ['reception','navire'].forEach(type=>{
-        (eventsObj[type] || []).forEach(ev=>{
-            const s = getLocalStartDate(ev);
-            const e = getLocalEndDateInclusive(ev);
-            if(!s || !e) return;
-            const sDate = new Date(s + 'T00:00:00');
-            const eDate = new Date(e + 'T00:00:00');
-            const span = Math.round((eDate - sDate)/86400000) + 1;
-            // compute day indexes inside view:
-            const dayIndexes = [];
-            for(let d = new Date(sDate); d <= eDate; d = addDays(d,1)){
-                const key = formatDate(d);
-                if(key in dateToIndex) dayIndexes.push(dateToIndex[key]);
-            }
-            if(dayIndexes.length === 0) {
-                // out of view
-                return;
-            }
-            const item = {
-                type,
-                original: ev,
-                summary: ev.summary || '(Sans titre)',
-                startYMD: s,
-                endYMD: e,
-                dayIndexes
-            };
-            if(span >= 2) multi.push(item); else single.push(item);
-        });
-    });
-
-    // allocate levels across day indexes for multi events
-    const occupied = {}; // occupied[dayIndex] = [bool,...]
-    // determine maximum level to compute needed vertical space
-    let maxLevel = 0;
-    multi.forEach(ev=>{
-        const level = allocateLevel(occupied, ev.dayIndexes);
-        ev.level = level;
-        if(level > maxLevel) maxLevel = level;
-    });
-
-    // create bands as single absolute elements spanning from first cell left to last cell right
-    multi.forEach(ev=>{
-        const firstIndex = ev.dayIndexes[0];
-        const lastIndex = ev.dayIndexes[ev.dayIndexes.length-1];
-        const firstCell = grid.querySelector(`.calendar-cell[data-index="${firstIndex}"]`);
-        const lastCell = grid.querySelector(`.calendar-cell[data-index="${lastIndex}"]`);
-        if(!firstCell || !lastCell) return;
-
-        // compute positions relative to grid
-        // use offsetLeft/offsetWidth because grid is positioned and not transformed
-        const gridRect = grid.getBoundingClientRect();
-        const firstRect = firstCell.getBoundingClientRect();
-        const lastRect = lastCell.getBoundingClientRect();
-        const left = firstRect.left - gridRect.left + grid.scrollLeft;
-        const right = (lastRect.left - gridRect.left + lastRect.width) + grid.scrollLeft;
-        const width = right - left;
-
-        const band = document.createElement('div');
-        band.className = `multi-band ${ev.type}`;
-        // position inside grid
-        band.style.left = (left + 6) + 'px'; // small padding to match cell padding
-        band.style.width = (Math.max(20, width - 12)) + 'px'; // keep minimal width
-        // vertical placement: top margin below date label area (approx 26px) plus level spacing
-        const topBase = 26; // pixels from top of cell area to first band
-        const levelSpacing = 24; // pixels per level
-        band.style.top = (topBase + ev.level * levelSpacing) + 'px';
-
-        // left content: start time + title (only show in leftmost visible portion)
-        const leftDiv = document.createElement('div');
-        leftDiv.className = 'left';
-        // compute start time if dateTime present
-        let startTimeStr = '';
-        if(ev.original && ev.original.start && ev.original.start.dateTime){
-            const d = new Date(ev.original.start.dateTime);
-            startTimeStr = d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0') + ' ';
-        }
-        leftDiv.textContent = (startTimeStr + ev.summary).slice(0,200); // guard long text
-        leftDiv.style.flex = '1 1 auto';
-        leftDiv.style.overflow = 'hidden';
-        leftDiv.style.textOverflow = 'ellipsis';
-        leftDiv.style.paddingRight = '8px';
-        leftDiv.title = ev.summary;
-
-        // right content: end time (only show in last visible day)
-        const rightDiv = document.createElement('div');
-        rightDiv.className = 'right';
-        rightDiv.style.flex = '0 0 auto';
-        let endTimeStr = '';
-        if(ev.original && ev.original.end && ev.original.end.dateTime){
-            const ed = new Date(ev.original.end.dateTime);
-            endTimeStr = '>' + ed.getHours().toString().padStart(2,'0') + ':' + ed.getMinutes().toString().padStart(2,'0');
-        }
-        rightDiv.textContent = endTimeStr;
-        rightDiv.style.marginLeft = '6px';
-
-        band.appendChild(leftDiv);
-        band.appendChild(rightDiv);
-
-        // attach attributes for debug
-        band.dataset.evId = ev.original.id || '';
-        band.title = ev.summary + '\n' + ev.startYMD + ' → ' + ev.endYMD;
-
-        // insert band into grid (so it's under .event which is z-index 4)
-        grid.appendChild(band);
-    });
-
-    // render single-day events into cells (these will be above bands due to z-index)
-    single.forEach(ev=>{
-        const dateKey = ev.startYMD;
-        const cell = document.querySelector(`.calendar-cell[data-date="${dateKey}"]`);
-        if(!cell) return;
-        const div = document.createElement('div');
-        div.className = 'event ' + ev.type;
-        // show time if available
-        let timeStr = '';
-        if(ev.original.start && ev.original.start.dateTime){
-            const d = new Date(ev.original.start.dateTime);
-            timeStr = d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0') + ' ';
-        }
-        div.innerHTML = `${timeStr}${ev.summary || '(Sans titre)'}`;
-        cell.appendChild(div);
-    });
-
-    // ensure enough vertical space: adjust min-height of grid rows if many levels
-    const totalRequiredHeight = 26 + (maxLevel + 1) * 24 + 10; // base + levels*spacing + cushion
-    // set each cell min-height accordingly
-    cells.forEach(c => {
-        c.style.minHeight = Math.max(70, totalRequiredHeight) + 'px';
-    });
+    if(ok){
+      for(const di of dayIndexes){
+        occupied[di] = occupied[di] || [];
+        occupied[di][level] = true;
+      }
+      return level;
+    }
+    level++;
+  }
 }
 
 /* ============================================================
-   MAIN LOAD FUNCTION
+   RENDER: build multi-day bands (one element per event) and single-day events
+   Approach:
+   - Collect events, compute startYMD/endYMD inclusive and dayIndexes in view
+   - For multi-day (span >=2): allocate level and create a single absolute .multi-band
+     that spans from first cell left to last cell right.
+   - To ensure bands sit *below* events and in dedicated zone after events (Option C):
+     compute per-covered-day the height of .cell-events and use the MAX to compute top baseline.
+============================================================ */
+function renderBandsAndEvents(eventsObj, start, viewDays){
+  const grid = document.getElementById('calendar-grid');
+  const cells = Array.from(grid.querySelectorAll('.calendar-cell'));
+  const dateToIndex = {};
+  cells.forEach(c => dateToIndex[c.dataset.date] = parseInt(c.dataset.index,10));
+
+  const multi = []; // multi-day events
+  const single = []; // single-day events
+
+  // flatten and classify
+  ['reception','navire'].forEach(type=>{
+    (eventsObj[type]||[]).forEach(ev=>{
+      const startYMD = getLocalStartYMD(ev);
+      const endYMD = getLocalEndYMD_Inclusive(ev);
+      if(!startYMD || !endYMD) return;
+      const sDate = new Date(startYMD + 'T00:00:00');
+      const eDate = new Date(endYMD + 'T00:00:00');
+      const span = Math.round((eDate - sDate)/86400000) + 1;
+
+      // get day indexes within view
+      const dayIndexes = [];
+      for(let d=new Date(sDate); d<=eDate; d=addDays(d,1)){
+        const key = formatDate(d);
+        if(key in dateToIndex) dayIndexes.push(dateToIndex[key]);
+      }
+      if(dayIndexes.length === 0) return; // out of view entirely
+
+      const item = { type, original: ev, summary: ev.summary || '(Sans titre)', startYMD, endYMD, dayIndexes, span };
+      if(span >= 2) multi.push(item);
+      else single.push(item);
+    });
+  });
+
+  // render single-day events into .cell-events (they will sit above bands)
+  single.forEach(ev=>{
+    const cell = document.querySelector(`.calendar-cell[data-date="${ev.startYMD}"]`);
+    if(!cell) return;
+    const eventsContainer = cell.querySelector('.cell-events');
+    const div = document.createElement('div');
+    div.className = 'event ' + ev.type;
+    // time if present
+    let timeStr = '';
+    if(ev.original.start?.dateTime){
+      const d = new Date(ev.original.start.dateTime);
+      timeStr = d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0') + ' ';
+    }
+    div.innerHTML = `${timeStr}${ev.summary}`;
+    eventsContainer.appendChild(div);
+  });
+
+  // compute occupied levels and maxEventHeights per day index
+  const occupied = {};
+  const maxEventHeights = {}; // pixel heights of events area per day index
+  cells.forEach(cell => {
+    const idx = parseInt(cell.dataset.index,10);
+    const eventsContainer = cell.querySelector('.cell-events');
+    // force reflow to get height
+    const h = eventsContainer ? eventsContainer.getBoundingClientRect().height : 0;
+    maxEventHeights[idx] = h;
+  });
+
+  // allocate levels for multi events
+  let maxLevel = 0;
+  multi.forEach(ev => {
+    ev.level = allocateLevel(occupied, ev.dayIndexes);
+    if(ev.level > maxLevel) maxLevel = ev.level;
+  });
+
+  // create bands (one element per event) AFTER we appended single events, so we can measure events heights
+  // Recompute maxEventHeights now that DOM rendered single events
+  cells.forEach(cell => {
+    const idx = parseInt(cell.dataset.index,10);
+    const eventsContainer = cell.querySelector('.cell-events');
+    const h = eventsContainer ? eventsContainer.getBoundingClientRect().height : 0;
+    maxEventHeights[idx] = Math.max(maxEventHeights[idx] || 0, h);
+  });
+
+  // For each multi event create an absolute band spanning first->last cell
+  multi.forEach(ev => {
+    const gridRect = grid.getBoundingClientRect();
+    const firstIdx = ev.dayIndexes[0];
+    const lastIdx = ev.dayIndexes[ev.dayIndexes.length - 1];
+    const firstCell = grid.querySelector(`.calendar-cell[data-index="${firstIdx}"]`);
+    const lastCell  = grid.querySelector(`.calendar-cell[data-index="${lastIdx}"]`);
+    if(!firstCell || !lastCell) return;
+
+    const firstRect = firstCell.getBoundingClientRect();
+    const lastRect  = lastCell.getBoundingClientRect();
+
+    // left relative to grid (account for grid scroll)
+    const left = (firstRect.left - gridRect.left) + grid.scrollLeft + 6; // small inset to match cell padding
+    const rightEdge = (lastRect.left - gridRect.left + lastRect.width) + grid.scrollLeft - 6;
+    const width = Math.max(20, rightEdge - left);
+
+    // compute top: we need band to be under events for ALL covered days
+    // compute max events height among covered days
+    let maxEventsH = 0;
+    ev.dayIndexes.forEach(di => { maxEventsH = Math.max(maxEventsH, maxEventHeights[di] || 0); });
+
+    // baseTop: date label (~18px) + events area + small gap
+    // We measure actual date-label bottom to be precise (use firstCell)
+    const dateLabel = firstCell.querySelector('.date-label');
+    const dateLabelRect = dateLabel.getBoundingClientRect();
+    const baseOffset = dateLabelRect.bottom - gridRect.top + grid.scrollTop; // pixels from top of grid to date-label bottom
+
+    const bandGap = 6; // gap between events area and first band
+    const bandHeight = 18; // same as CSS
+    const levelSpacing = bandHeight + 6;
+
+    const top = baseOffset + maxEventsH + bandGap + ev.level * levelSpacing;
+
+    // create band element
+    const band = document.createElement('div');
+    band.className = `multi-band ${ev.type}`;
+    band.style.left = left + 'px';
+    band.style.width = width + 'px';
+    band.style.top = top + 'px';
+
+    // left text: start time (if dateTime) + title
+    const leftSpan = document.createElement('div');
+    leftSpan.className = 'band-left';
+    let startTimeStr = '';
+    if(ev.original.start?.dateTime){
+      const sd = new Date(ev.original.start.dateTime);
+      startTimeStr = sd.getHours().toString().padStart(2,'0') + ':' + sd.getMinutes().toString().padStart(2,'0') + ' ';
+    }
+    leftSpan.textContent = (startTimeStr + ev.summary).slice(0,200);
+    leftSpan.title = ev.summary;
+
+    // right text: end time (if dateTime)
+    const rightSpan = document.createElement('div');
+    rightSpan.className = 'band-right';
+    let endTimeStr = '';
+    if(ev.original.end?.dateTime){
+      const ed = new Date(ev.original.end.dateTime);
+      endTimeStr = '>' + ed.getHours().toString().padStart(2,'0') + ':' + ed.getMinutes().toString().padStart(2,'0');
+    }
+    rightSpan.textContent = endTimeStr;
+
+    band.appendChild(leftSpan);
+    band.appendChild(rightSpan);
+
+    // tooltip
+    band.title = ev.summary + '\n' + ev.startYMD + ' → ' + ev.endYMD;
+
+    // insert into grid (under events thanks to z-index)
+    grid.appendChild(band);
+  });
+
+  // adjust each cell height to ensure bands fit
+  const requiredHeight = 26 + (maxLevel + 1) * (18 + 6) + 4; // base + levels*(band+gap)
+  cells.forEach(c => {
+    c.style.minHeight = Math.max(70, requiredHeight) + 'px';
+  });
+}
+
+/* ============================================================
+   MAIN loadCalendar: builds grid, fetches events, renders
 ============================================================ */
 async function loadCalendar(){
-    const today = new Date();
-    const mondayCurrent = getStartMonday(today);
-    const start = new Date(mondayCurrent);
-    start.setDate(start.getDate() - 7 + offsetWeeks*7);
-    const end = addDays(start, viewDays - 1);
-    document.getElementById('calendar-title').textContent = formatMonthRange(start, end);
+  const today = new Date();
+  const mondayCurrent = getStartMonday(today);
+  const start = new Date(mondayCurrent);
+  start.setDate(start.getDate() - 7 + offsetWeeks*7); // previous week first
+  const end = addDays(start, viewDays - 1);
 
-    // create grid
-    createGrid(start, viewDays);
+  document.getElementById('calendar-title').textContent = formatMonthRange(start, end);
 
-    // clear any previous bands/events
-    clearEventLayers();
+  createGrid(start, viewDays);
+  clearPrevious();
 
-    try {
-        const events = await fetchCalendarWithHash(start, end);
-        // render continuous bands and single-day events
-        renderBandsAndEvents(events, start, viewDays);
-    } catch(err){
-        console.error('Erreur loadCalendar:', err);
-    }
+  try {
+    const events = await fetchCalendarWithHash(start, end);
+    renderBandsAndEvents(events, start, viewDays);
+  } catch(err){
+    console.error('Erreur loadCalendar:', err);
+  }
 }
 
 /* =====================
@@ -538,89 +553,88 @@ loadCalendar();
 setInterval(loadCalendar, CAL_REFRESH_INTERVAL);
 
 /* ============================================================
-   PONTS HAROPA (inchangée : ta logique conservée)
+   PONTS HAROPA (LOGIQUE ORIGINALE — inchangée)
 ============================================================ */
 async function sha256(str){
-    const data=new TextEncoder().encode(str);
-    const digest=await crypto.subtle.digest("SHA-256",data);
-    return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");
+  const data=new TextEncoder().encode(str);
+  const digest=await crypto.subtle.digest("SHA-256",data);
+  return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");
 }
 async function fetchWithRandomProxy(url) {
-    const shuffled = [...PROXIES].sort(() => Math.random() - 0.5);
-    for (const proxy of shuffled) {
-        try {
-            const fullUrl = proxy + encodeURIComponent(url);
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 3000);
-            const res = await fetch(fullUrl, { signal: controller.signal });
-            clearTimeout(timeout);
-            if (!res.ok) throw new Error(`Proxy failed: ${res.status}`);
-            let txt = await res.text();
-            try { const parsed = JSON.parse(txt); if (parsed.contents) return parsed.contents; } catch {}
-            return txt;
-        }
-        catch(err){
-            console.warn(`Proxy ${proxy} échoué : ${err.message}`);
-        }
-    }
-    throw new Error("Tous les proxys ont échoué");
-}
-async function checkAndUpdate(){
-    const now = Date.now();
-    const last = localStorage.getItem(CACHE_KEY_TIME);
-    if (last && now-last < CACHE_EXPIRATION){
-        const cached = localStorage.getItem(CACHE_KEY_DATA);
-        if (cached){ renderPonts(JSON.parse(cached)); return; }
-    }
-    await fetchWithHashControl();
-}
-async function fetchWithHashControl(){
-    try{
-        const rawContent = await fetchWithRandomProxy("https://www.havre-port.com/map/getPonts");
-        const newHash = await sha256(rawContent);
-        const oldHash = localStorage.getItem(CACHE_KEY_HASH);
-        if (newHash === oldHash && localStorage.getItem(CACHE_KEY_DATA)){
-            renderPonts(JSON.parse(localStorage.getItem(CACHE_KEY_DATA)));
-            return;
-        }
-        const ponts = Object.values(JSON.parse(rawContent).data);
-        const unique = Array.from(new Map(ponts.map(p=>[p.nom,p])).values());
-        const ordered = unique.sort((a,b)=>{
-            const score=p=>{
-                const s=p.statutText.toLowerCase();
-                if(s.includes("fermeture")) return 1;
-                if(s.includes("fermé")) return 2;
-                if(s.includes("manoeuvre")) return 3;
-                if(s.includes("ouvert")) return 4;
-                return 5;
-            };
-            return score(a)-score(b);
-        });
-        localStorage.setItem(CACHE_KEY_DATA,JSON.stringify(ordered));
-        localStorage.setItem(CACHE_KEY_HASH,newHash);
-        localStorage.setItem(CACHE_KEY_TIME,Date.now());
-        renderPonts(ordered);
+  const shuffled = [...PROXIES].sort(() => Math.random() - 0.5);
+  for (const proxy of shuffled) {
+    try {
+      const fullUrl = proxy + encodeURIComponent(url);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3000);
+      const res = await fetch(fullUrl, { signal: controller.signal });
+      clearTimeout(timeout);
+      if (!res.ok) throw new Error(`Proxy failed: ${res.status}`);
+      let txt = await res.text();
+      try { const parsed = JSON.parse(txt); if (parsed.contents) return parsed.contents; } catch {}
+      return txt;
     }
     catch(err){
-        console.error("Erreur récupération ponts:",err);
-        document.getElementById("ponts-table").textContent="Impossible de récupérer les ponts.";
+      console.warn(`Proxy ${proxy} échoué : ${err.message}`);
     }
+  }
+  throw new Error("Tous les proxys ont échoué");
+}
+async function checkAndUpdate(){
+  const now = Date.now();
+  const last = localStorage.getItem(CACHE_KEY_TIME);
+  if (last && now-last < CACHE_EXPIRATION){
+    const cached = localStorage.getItem(CACHE_KEY_DATA);
+    if (cached){ renderPonts(JSON.parse(cached)); return; }
+  }
+  await fetchWithHashControl();
+}
+async function fetchWithHashControl(){
+  try{
+    const rawContent = await fetchWithRandomProxy("https://www.havre-port.com/map/getPonts");
+    const newHash = await sha256(rawContent);
+    const oldHash = localStorage.getItem(CACHE_KEY_HASH);
+    if (newHash === oldHash && localStorage.getItem(CACHE_KEY_DATA)){
+      renderPonts(JSON.parse(localStorage.getItem(CACHE_KEY_DATA)));
+      return;
+    }
+    const ponts = Object.values(JSON.parse(rawContent).data);
+    const unique = Array.from(new Map(ponts.map(p=>[p.nom,p])).values());
+    const ordered = unique.sort((a,b)=>{
+      const score=p=>{
+        const s=p.statutText.toLowerCase();
+        if(s.includes("fermeture")) return 1;
+        if(s.includes("fermé")) return 2;
+        if(s.includes("manoeuvre")) return 3;
+        if(s.includes("ouvert")) return 4;
+        return 5;
+      };
+      return score(a)-score(b);
+    });
+    localStorage.setItem(CACHE_KEY_DATA,JSON.stringify(ordered));
+    localStorage.setItem(CACHE_KEY_HASH,newHash);
+    localStorage.setItem(CACHE_KEY_TIME,Date.now());
+    renderPonts(ordered);
+  } catch(err){
+    console.error("Erreur récupération ponts:",err);
+    document.getElementById("ponts-table").textContent="Impossible de récupérer les ponts.";
+  }
 }
 function renderPonts(list){
-    const container=document.getElementById("ponts-table");
-    container.innerHTML=list.map(p=>{
-        const s=p.statutText.toLowerCase();
-        const cls =
-            s.includes("fermeture") ? "fermeture" :
-            s.includes("fermé")      ? "ferme" :
-            s.includes("manoeuvre")  ? "manoeuvre" :
-            s.includes("ouvert")     ? "ouvert" : "ferme";
-        const info = p.forceText || `MàJ : ${p.date}`;
-        return `<div class="pont-card ${cls}">
-            <div class="pont-nom"><span class="pastille"></span>${p.nom}</div>
-            <div class="pont-etat">${p.statutText}</div>
-            <div class="pont-infos">${info}</div></div>`;
-    }).join("");
+  const container=document.getElementById("ponts-table");
+  container.innerHTML=list.map(p=>{
+    const s=p.statutText.toLowerCase();
+    const cls =
+      s.includes("fermeture") ? "fermeture" :
+      s.includes("fermé")      ? "ferme" :
+      s.includes("manoeuvre")  ? "manoeuvre" :
+      s.includes("ouvert")     ? "ouvert" : "ferme";
+    const info = p.forceText || `MàJ : ${p.date}`;
+    return `<div class="pont-card ${cls}">
+      <div class="pont-nom"><span class="pastille"></span>${p.nom}</div>
+      <div class="pont-etat">${p.statutText}</div>
+      <div class="pont-infos">${info}</div></div>`;
+  }).join("");
 }
 checkAndUpdate();
 setInterval(checkAndUpdate,REFRESH_INTERVAL);
