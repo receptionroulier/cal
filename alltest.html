@@ -159,89 +159,18 @@ body {
 </div>
 
 <script>
-// ===================== PONTS HAROPA (version simplifiée du 2e code) =====================
+// ===================== PONTS HAROPA =====================
 const CACHE_KEY_DATA = "pontsData";
 const CACHE_KEY_HASH = "pontsHash";
 const CACHE_KEY_TIME = "pontsCacheTime";
 const CACHE_EXPIRATION = 120000;
 const REFRESH_INTERVAL = 60000;
-const PROXIES = [
-    "https://api.allorigins.win/get?url=",
-    "https://thingproxy.freeboard.io/fetch/"
-];
-
-async function sha256(str) {
-    const data = new TextEncoder().encode(str);
-    const digest = await crypto.subtle.digest("SHA-256", data);
-    return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");
-}
-function normalizeData(data) {
-    return JSON.stringify(data.map(p=>({nom:p.nom,statutText:p.statutText,date:p.date,forceText:p.forceText||""})).sort((a,b)=>a.nom.localeCompare(b.nom)));
-}
-async function fetchWithRandomProxy(url) {
-    const shuffledProxies = [...PROXIES].sort(()=>Math.random()-0.5);
-    for(const proxy of shuffledProxies){
-        try{
-            const fullUrl = proxy + encodeURIComponent(url);
-            const res = await fetch(fullUrl);
-            if(!res.ok) throw new Error(`Proxy failed: ${res.status}`);
-            const data = await res.json();
-            return data.contents ? data.contents : data;
-        }catch(err){
-            console.warn(`Échec du proxy ${proxy}:`,err.message);
-        }
-    }
-    throw new Error("Tous les proxys ont échoué");
-}
-async function checkAndUpdate(){
-    const now = Date.now();
-    const last = localStorage.getItem(CACHE_KEY_TIME);
-    const container = document.getElementById("ponts-table");
-    if(last && now - last < CACHE_EXPIRATION){
-        const cached = localStorage.getItem(CACHE_KEY_DATA);
-        if(cached){ renderPonts(JSON.parse(cached)); return; }
-    }
-    try{
-        const rawContent = await fetchWithRandomProxy("https://www.havre-port.com/map/getPonts");
-        const json = JSON.parse(rawContent).data;
-        if(!json) throw new Error("Données API manquantes");
-        const ponts = Object.values(json);
-        const unique = Array.from(new Map(ponts.map(p=>[p.nom,p])).values());
-        const ordered = unique.sort((a,b)=>{
-            const score = p=>{
-                const s=p.statutText.toLowerCase();
-                if(s.includes("fermé")) return 1;
-                if(s.includes("fermeture")) return 2;
-                if(s.includes("manoeuvre")) return 3;
-                if(s.includes("ouvert")) return 4;
-                return 5;
-            };
-            return score(a)-score(b);
-        });
-        const norm = normalizeData(ordered);
-        const newHash = await sha256(norm);
-        const oldHash = localStorage.getItem(CACHE_KEY_HASH);
-        if(newHash !== oldHash){
-            localStorage.setItem(CACHE_KEY_DATA,JSON.stringify(ordered));
-            localStorage.setItem(CACHE_KEY_HASH,newHash);
-        }
-        localStorage.setItem(CACHE_KEY_TIME,Date.now());
-        renderPonts(ordered);
-    }catch(err){
-        console.error("Erreur récupération ponts:",err);
-        container.innerHTML = `<div class="error-message">Impossible de récupérer les ponts.<br>${err.message}</div>`;
-    }
-}
-function renderPonts(list){
-    const container = document.getElementById("ponts-table");
-    if(!list||!list.length){ container.innerHTML='<div class="error-message">Aucun pont disponible.</div>'; return; }
-    container.innerHTML = list.map(p=>{
-        const s=p.statutText.toLowerCase();
-        const cls = s.includes("fermé")?"ferme":s.includes("fermeture")?"fermeture":s.includes("manoeuvre")?"manoeuvre":s.includes("ouvert")?"ouvert":"ferme";
-        const info = p.forceText || `MàJ : ${p.date}`;
-        return `<div class="pont-card ${cls}"><div class="pont-nom"><span class="pastille"></span>${p.nom}</div><div class="pont-etat">${p.statutText}</div><div class="pont-infos">${info}</div></div>`;
-    }).join("");
-}
+const PROXIES = ["https://api.allorigins.win/get?url=","https://thingproxy.freeboard.io/fetch/"];
+async function sha256(str){const data=new TextEncoder().encode(str);const digest=await crypto.subtle.digest("SHA-256",data);return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");}
+function normalizeData(data){return JSON.stringify(data.map(p=>({nom:p.nom,statutText:p.statutText,date:p.date,forceText:p.forceText||""})).sort((a,b)=>a.nom.localeCompare(b.nom)));}
+async function fetchWithRandomProxy(url){const shuffledProxies=[...PROXIES].sort(()=>Math.random()-0.5);for(const proxy of shuffledProxies){try{const fullUrl=proxy+encodeURIComponent(url);const res=await fetch(fullUrl);if(!res.ok)throw new Error(`Proxy failed: ${res.status}`);const data=await res.json();return data.contents?data.contents:data;}catch(err){console.warn(`Échec du proxy ${proxy}:`,err.message);}}throw new Error("Tous les proxys ont échoué");}
+async function checkAndUpdate(){const now=Date.now();const last=localStorage.getItem(CACHE_KEY_TIME);const container=document.getElementById("ponts-table");if(last&&now-last<CACHE_EXPIRATION){const cached=localStorage.getItem(CACHE_KEY_DATA);if(cached){renderPonts(JSON.parse(cached));return;}}try{const rawContent=await fetchWithRandomProxy("https://www.havre-port.com/map/getPonts");const json=JSON.parse(rawContent).data;if(!json)throw new Error("Données API manquantes");const ponts=Object.values(json);const unique=Array.from(new Map(ponts.map(p=>[p.nom,p])).values());const ordered=unique.sort((a,b)=>{const score=p=>{const s=p.statutText.toLowerCase();if(s.includes("fermé"))return 1;if(s.includes("fermeture"))return 2;if(s.includes("manoeuvre"))return 3;if(s.includes("ouvert"))return 4;return 5;};return score(a)-score(b);});const norm=normalizeData(ordered);const newHash=await sha256(norm);const oldHash=localStorage.getItem(CACHE_KEY_HASH);if(newHash!==oldHash){localStorage.setItem(CACHE_KEY_DATA,JSON.stringify(ordered));localStorage.setItem(CACHE_KEY_HASH,newHash);}localStorage.setItem(CACHE_KEY_TIME,Date.now());renderPonts(ordered);}catch(err){console.error("Erreur récupération ponts:",err);container.innerHTML=`<div class="error-message">Impossible de récupérer les ponts.<br>${err.message}</div>`;}}
+function renderPonts(list){const container=document.getElementById("ponts-table");if(!list||!list.length){container.innerHTML='<div class="error-message">Aucun pont disponible.</div>';return;}container.innerHTML=list.map(p=>{const s=p.statutText.toLowerCase();const cls=s.includes("fermé")?"ferme":s.includes("fermeture")?"fermeture":s.includes("manoeuvre")?"manoeuvre":s.includes("ouvert")?"ouvert":"ferme";const info=p.forceText||`MàJ : ${p.date}`;return`<div class="pont-card ${cls}"><div class="pont-nom"><span class="pastille"></span>${p.nom}</div><div class="pont-etat">${p.statutText}</div><div class="pont-infos">${info}</div></div>`;}).join("");}
 checkAndUpdate();
 setInterval(checkAndUpdate, REFRESH_INTERVAL);
 
@@ -249,38 +178,33 @@ setInterval(checkAndUpdate, REFRESH_INTERVAL);
 const API_KEY = "AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo";
 const CAL_RECEPTION = "receptionroulier@gmail.com";
 const CAL_NAVIRE = "smr.programme@gmail.com";
-let viewDays=21;
-let offsetWeeks=0;
-const CAL_HASH_KEY="calendarHash";
-const CAL_CACHE_KEY="calendarCache";
-const CAL_REFRESH_INTERVAL=60000;
+let viewDays = 21, offsetWeeks = 0;
+const CAL_HASH_KEY = "calendarHash", CAL_CACHE_KEY = "calendarCache", CAL_REFRESH_INTERVAL_CAL = 60000;
 
 function getStartMonday(date){const d=new Date(date);const day=d.getDay();const diff=(day===0?-6:1)-day;d.setDate(d.getDate()+diff);return d;}
-function addDays(date,n){ const d=new Date(date); d.setDate(d.getDate()+n); return d; }
+function addDays(date,n){const d=new Date(date);d.setDate(d.getDate()+n);return d;}
 function formatDate(d){return d.getFullYear().toString().padStart(4,'0')+'-'+(d.getMonth()+1).toString().padStart(2,'0')+'-'+d.getDate().toString().padStart(2,'0');}
-function dayName(d){return ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"][d.getDay()];}
-function formatMonthRange(start,end){const m=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];const m1=m[start.getMonth()], m2=m[end.getMonth()];const y1=start.getFullYear(), y2=end.getFullYear();return (m1===m2 && y1===y2)?`${m1} ${y1}`:`${m1} — ${m2} ${y2}`;}
+function dayName(d){return["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"][d.getDay()];}
+function formatMonthRange(start,end){const m=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];const m1=m[start.getMonth()],m2=m[end.getMonth()];const y1=start.getFullYear(),y2=end.getFullYear();return(m1===m2&&y1===y2)?`${m1} ${y1}`:`${m1} — ${m2} ${y2}`;}
 async function hashObject(obj){const txt=JSON.stringify(obj);const data=new TextEncoder().encode(txt);const digest=await crypto.subtle.digest("SHA-256",data);return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,'0')).join("");}
-async function fetchCalendarWithHash(start,end){
-  const timeMin=start.toISOString();
-  const timeMax=addDays(end,1).toISOString();
-  const urlRec=`https://www.googleapis.com/calendar/v3/calendars/${CAL_RECEPTION}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
-  const urlNav=`https://www.googleapis.com/calendar/v3/calendars/${CAL_NAVIRE}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
-  const [recRaw,navRaw]=await Promise.all([fetch(urlRec).then(r=>r.json()).catch(()=>({items:[]})), fetch(urlNav).then(r=>r.json()).catch(()=>({items:[]}))]);
-  const events={reception: recRaw.items||[], navire: navRaw.items||[]};
-  const newHash=await hashObject(events);
-  const oldHash=localStorage.getItem(CAL_HASH_KEY);
-  if(newHash===oldHash && localStorage.getItem(CAL_CACHE_KEY)){
-    try{ return JSON.parse(localStorage.getItem(CAL_CACHE_KEY)); } catch{}
-  }
-  localStorage.setItem(CAL_HASH_KEY,newHash);
-  localStorage.setItem(CAL_CACHE_KEY,JSON.stringify(events));
-  return events;
-}
+async function fetchCalendarWithHash(start,end){const timeMin=start.toISOString();const timeMax=addDays(end,1).toISOString();const urlRec=`https://www.googleapis.com/calendar/v3/calendars/${CAL_RECEPTION}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;const urlNav=`https://www.googleapis.com/calendar/v3/calendars/${CAL_NAVIRE}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;const [recRaw,navRaw]=await Promise.all([fetch(urlRec).then(r=>r.json()).catch(()=>({items:[]})),fetch(urlNav).then(r=>r.json()).catch(()=>({items:[]}))]);const events={reception:recRaw.items||[],navire:navRaw.items||[]};const newHash=await hashObject(events);const oldHash=localStorage.getItem(CAL_HASH_KEY);if(newHash===oldHash&&localStorage.getItem(CAL_CACHE_KEY)){try{return JSON.parse(localStorage.getItem(CAL_CACHE_KEY));}catch{}}localStorage.setItem(CAL_HASH_KEY,newHash);localStorage.setItem(CAL_CACHE_KEY,JSON.stringify(events));return events;}
+function localYMDFromDateTime(dtStr){const d=new Date(dtStr);return formatDate(d);}
+function getLocalStartYMD(ev){if(ev.start?.date)return ev.start.date;if(ev.start?.dateTime)return localYMDFromDateTime(ev.start.dateTime);return null;}
+function getLocalEndYMD_Inclusive(ev){if(ev.end?.date){const d=new Date(ev.end.date);d.setDate(d.getDate()-1);return formatDate(d);}if(ev.end?.dateTime){const d=new Date(ev.end.dateTime);if(d.getHours()===0&&d.getMinutes()===0&&d.getSeconds()===0&&d.getMilliseconds()===0){const prev=new Date(d.getTime()-1);return formatDate(prev);}return localYMDFromDateTime(ev.end.dateTime);}return null;}
+function createGrid(start,viewDays){const grid=document.getElementById('calendar-grid');const rows=viewDays===21?3:4;grid.style.gridTemplateRows=`repeat(${rows}, 1fr)`;grid.style.gridTemplateColumns=`repeat(7, 1fr)`;grid.innerHTML='';const dates=[];for(let i=0;i<viewDays;i++){const d=addDays(start,i);const cell=document.createElement('div');cell.className='calendar-cell';cell.dataset.date=formatDate(d);cell.dataset.index=i;cell.innerHTML=`<div class="date-label">${dayName(d)} ${d.getDate()}</div><div class="cell-events"></div>`;grid.appendChild(cell);dates.push(formatDate(d));}return dates;}
+function clearPrevious(){const grid=document.getElementById('calendar-grid');grid.querySelectorAll('.multi-band').forEach(n=>n.remove());document.querySelectorAll('.calendar-cell .event').forEach(n=>n.remove());}
+function allocateLevel(occupied,dayIndexes){let level=0;while(true){let ok=true;for(const di of dayIndexes){const row=occupied[di]||[];if(row[level]){ok=false;break;}}if(ok){for(const di of dayIndexes){occupied[di]=occupied[di]||[];occupied[di][level]=true;}return level;}level++;}}
+function renderBandsAndEvents(eventsObj,start,viewDays){const grid=document.getElementById('calendar-grid');const cells=Array.from(grid.querySelectorAll('.calendar-cell'));const dateToIndex={};cells.forEach(c=>dateToIndex[c.dataset.date]=parseInt(c.dataset.index,10));const multi=[];const single=[];['reception','navire'].forEach(type=>(eventsObj[type]||[]).forEach(ev=>{const startYMD=getLocalStartYMD(ev);const endYMD=getLocalEndYMD_Inclusive(ev);if(!startYMD||!endYMD)return;const sDate=new Date(startYMD+'T00:00:00');const eDate=new Date(endYMD+'T00:00:00');const span=Math.round((eDate-sDate)/86400000)+1;const dayIndexes=[];for(let d=new Date(sDate);d<=eDate;d=addDays(d,1)){const key=formatDate(d);if(key in dateToIndex)dayIndexes.push(dateToIndex[key]);}if(dayIndexes.length===0)return;const item={type,original:ev,summary:ev.summary||'(Sans titre)',startYMD,endYMD,dayIndexes,span};if(span>=2)multi.push(item);else single.push(item);}));single.forEach(ev=>{const cell=document.querySelector(`.calendar-cell[data-date="${ev.startYMD}"]`);if(!cell)return;const eventsContainer=cell.querySelector('.cell-events');const div=document.createElement('div');div.className='event '+ev.type;let timeStr='';if(ev.original.start?.dateTime){const d=new Date(ev.original.start.dateTime);timeStr=d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')+' ';}div.innerHTML=`${timeStr}${ev.summary}`;eventsContainer.appendChild(div);});const occupied={};multi.forEach(ev=>{const level=allocateLevel(occupied,ev.dayIndexes);const startCell=cells[ev.dayIndexes[0]];const endCell=cells[ev.dayIndexes[ev.dayIndexes.length-1]];const band=document.createElement('div');band.className='multi-band '+ev.type;band.style.gridColumnStart=ev.dayIndexes[0]+1;band.style.gridColumnEnd=ev.dayIndexes[ev.dayIndexes.length-1]+2;band.style.top=level*22+'px';band.style.left='0';band.style.right='0';band.innerHTML=`<div class="band-left">${ev.summary}</div><div class="band-right">${ev.startYMD}</div>`;grid.appendChild(band);});}
+async function loadCalendar(){const start=getStartMonday(addDays(new Date(),offsetWeeks*7));const dates=createGrid(start,viewDays);clearPrevious();document.getElementById('calendar-title').innerText=formatMonthRange(start,addDays(start,viewDays-1));const events=await fetchCalendarWithHash(start,addDays(start,viewDays-1));renderBandsAndEvents(events,start,viewDays);}
 
-// Pour la suite, intégration de toutes les fonctions du calendrier (createGrid, clearPrevious, allocateLevel, renderBandsAndEvents, loadCalendar)
-// … afin que le calendrier s'affiche correctement
-// (Pour éviter un message trop long ici, toutes ces fonctions sont celles du premier code et doivent être collées telles quelles)
+document.getElementById("prev-btn").onclick = ()=>{ offsetWeeks -= 1; loadCalendar(); };
+document.getElementById("next-btn").onclick = ()=>{ offsetWeeks += 1; loadCalendar(); };
+document.getElementById("today-btn").onclick = ()=>{ offsetWeeks = 0; loadCalendar(); };
+document.getElementById("view-3w").onclick = ()=>{ viewDays = 21; offsetWeeks = 0; loadCalendar(); };
+document.getElementById("view-4w").onclick = ()=>{ viewDays = 28; offsetWeeks = 0; loadCalendar(); };
+
+loadCalendar();
+setInterval(loadCalendar, CAL_REFRESH_INTERVAL_CAL);
 </script>
 </body>
 </html>
