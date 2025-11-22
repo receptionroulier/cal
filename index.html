@@ -1,63 +1,624 @@
+<!-- uploaded_image: /mnt/data/9553882f-801c-4137-94f8-446fc5b2fa33.png -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Choix de Calendrier</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-      background: #121212; 
-      color: #ffffff;
-    }
-    h1 {
-      margin-bottom: 30px;
-    }
-    .links {
-      display: flex;
-      gap: 20px;
-      flex-wrap: wrap; /* pour que ça passe sur petits écrans */
-      justify-content: center;
-    }
-    a {
-      padding: 15px 25px;
-      background: #2a2a2a;
-      border-radius: 10px;
-      text-decoration: none;
-      color: #ffffff;
-      font-size: 18px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-      transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
-    }
-    a:hover {
-      transform: scale(1.08) rotate(1deg);
-      background: #3a3a3a;
-      box-shadow: 0 6px 16px rgba(0,0,0,0.6);
-    }
-    a:focus {
-      outline: 2px dashed #ffffff;
-      outline-offset: 4px;
-    }
-    @media (max-width: 500px) {
-      .links {
-        flex-direction: column;
-        gap: 15px;
-      }
-    }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Ponts HAROPA – Monitoring + Calendrier</title>
+<style>
+/* =====================
+   GLOBAL
+===================== */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #101010;
+  color: #eaeaea;
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* =====================
+   COLONNE GAUCHE
+===================== */
+.left {
+  flex: 0 0 20%;
+  border-right: 1px solid #444;
+  padding: 14px;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+.left h2 { color: #00e5ff; text-align: center; }
+
+/* =====================
+   CARTES PONTS
+   (styles inchangés)
+===================== */
+.pont-card {
+  background: #1f1f1f;
+  border-radius: 8px;
+  padding: 10px 12px;
+  box-shadow: 0 0 5px rgba(0,0,0,0.4);
+  border-left: 4px solid #444;
+  transition: transform 0.15s ease, box-shadow 0.3s ease;
+  margin-bottom: 8px;
+}
+.pont-card:hover { transform: scale(1.02); }
+.pont-card.ferme { border-left-color: #ff4040; }
+.pont-card.fermeture { border-left-color: orange; animation: pulse-orange 1.2s infinite; }
+.pont-card.manoeuvre { border-left-color: #1c3cff; animation: pulse-blue 1.2s infinite; }
+.pont-card.ouvert { border-left-color: #58ff58; }
+.pastille { width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; display: inline-block; }
+.ferme .pastille      { background: #ff4040; }
+.fermeture .pastille  { background: orange; }
+.manoeuvre .pastille  { background: #1c3cff; }
+.ouvert .pastille     { background: #58ff58; }
+.pont-nom { font-weight: bold; display: flex; align-items: center; }
+
+/* =====================
+   CALENDRIER
+===================== */
+.right { flex:1; display:flex; flex-direction:column; height:100%; overflow:hidden; }
+#calendar-header {
+  flex:0 0 auto;
+  padding:12px;
+  text-align:center;
+  font-size:22px;
+  color:#00e5ff;
+  border-bottom:1px solid #333;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:18px;
+}
+.nav-btn { cursor:pointer; color:#00e5ff; font-size:26px; padding:4px 10px; border-radius:6px; transition:0.2s; }
+.nav-btn:hover { background:#222; }
+.view-btn { cursor:pointer; font-size:14px; padding:4px 10px; background:#222; border-radius:6px; border:1px solid #333; color:#00e5ff; }
+.view-btn:hover { background:#333; }
+
+/* grid container */
+#calendar-grid {
+  flex:1 1 auto;
+  display:grid;
+  gap:1px;
+  background:#333;
+  overflow:auto;
+  box-sizing:border-box;
+  padding:6px;
+  position:relative;
+}
+
+/* cell layout: date / multi-container / events-container */
+.calendar-cell {
+  background:#1a1a1a;
+  padding:6px;
+  border:1px solid #222;
+  overflow:hidden; /* crucial: bands and events stay inside cell */
+  position:relative;
+  min-height:90px;
+  box-sizing:border-box;
+  display:flex;
+  flex-direction:column;
+}
+.date-label { font-size:12px; font-weight:normal; color:#ffffff; margin-bottom:6px; }
+
+/* container for multi-day bands (one row per level inside each cell) */
+.multi-container {
+  flex: 0 0 auto;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  margin-bottom:6px;
+}
+
+/* each band segment inside a cell (part of a multi-day event) */
+.multi-seg {
+  height:18px;
+  border-radius:6px;
+  box-sizing:border-box;
+  padding:0 8px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  color:#fff;
+  font-size:12px;
+  overflow:hidden;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+}
+
+/* rounded corners only on first and last segments (applied via JS) */
+.multi-seg.round-left { border-top-left-radius:6px; border-bottom-left-radius:6px; }
+.multi-seg.round-right { border-top-right-radius:6px; border-bottom-right-radius:6px; }
+
+/* colors identical to event coloring (user chose A) */
+.multi-seg.reception { background: #109c53; }
+.multi-seg.navire    { background: #3644b3; }
+
+/* events area (scrollable if many events) */
+.events-container {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+/* punctual events stay above multi-day bands visually (z-index) */
+.event {
+  padding:6px 8px;
+  border-radius:6px;
+  font-size:12px;
+  z-index:3;
+}
+.event.reception { background:#109c5344; border-left:3px solid #109c53; color:#eaffea; }
+.event.navire    { background:#3644b344; border-left:3px solid #3644b3; color:#eef0ff; }
+.event-time { font-size:12px;font-weight:normal; margin-right:6px; }
+
+/* responsive tweaks */
+@media (max-width:900px){
+  .left { flex:0 0 30%; }
+  .calendar-cell { min-height:110px; }
+}
+</style>
 </head>
 <body>
-  <h1>Choisissez un calendrier et ponts ou ponts seulement</h1>
-  <div class="links">
-    <a href="https://receptionroulier.github.io/cal/r.html">Calendrier Réception</a>
-    <a href="https://receptionroulier.github.io/cal/n.html">Calendrier Navires</a>
-    <a href="https://receptionroulier.github.io/cal/p.html">État des ponts</a>
+
+<div class="left">
+  <h2>État des Ponts</h2>
+  <div id="ponts-table">Chargement…</div>
+</div>
+
+<div class="right">
+  <div id="calendar-header">
+    <span class="nav-btn" id="prev-btn">‹</span>
+    <span id="calendar-title">Chargement…</span>
+    <span class="nav-btn" id="next-btn">›</span>
+    <span class="view-btn" id="view-3w">3 semaines</span>
+    <span class="view-btn" id="view-4w">4 semaines</span>
+    <span class="nav-btn" id="today-btn" style="font-size:18px;">Aujourd’hui</span>
   </div>
+
+  <div id="calendar-grid"></div>
+</div>
+
+<script>
+/* ============================================================
+  CONFIGURATION + UTIL
+  (Je conserve ta logique ponts intacte, j'ajoute la nouvelle
+   structure pour les cellules et les bandes contenues)
+============================================================ */
+
+const API_KEY = "AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo";
+const CAL_RECEPTION = "receptionroulier@gmail.com";
+const CAL_NAVIRE = "smr.programme@gmail.com";
+
+let viewDays = 21; // default 3 weeks
+let offsetWeeks = 0;
+
+const CAL_HASH_KEY = "calendarHash";
+const CAL_CACHE_KEY = "calendarCache";
+const CAL_REFRESH_INTERVAL = 60000; // 1 min
+
+/* PONTS - constants kept unchanged */
+const CACHE_KEY_DATA="pontsData";
+const CACHE_KEY_HASH="pontsHash";
+const CACHE_KEY_TIME="pontsCacheTime";
+const CACHE_EXPIRATION=60000;
+const REFRESH_INTERVAL=10000;
+
+const PROXIES=[
+  "https://api.allorigins.win/get?url=",
+  "https://cors-anywhere.herokuapp.com/",
+  "https://thingproxy.freeboard.io/fetch/"
+];
+
+/* -----------------------
+   date helpers - always produce local YYYY-MM-DD
+------------------------*/
+function addDays(date,n){ const d=new Date(date); d.setDate(d.getDate()+n); return d; }
+function formatDate(d){
+  return d.getFullYear().toString().padStart(4,'0') + '-' +
+    (d.getMonth()+1).toString().padStart(2,'0') + '-' +
+    d.getDate().toString().padStart(2,'0');
+}
+function getStartMonday(date){
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = (day === 0 ? -6 : 1) - day;
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+function dayName(d){ return ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"][d.getDay()]; }
+function formatMonthRange(start,end){
+  const m=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+  const m1=m[start.getMonth()], m2=m[end.getMonth()];
+  const y1=start.getFullYear(), y2=end.getFullYear();
+  return (m1===m2 && y1===y2)?`${m1} ${y1}`:`${m1} — ${m2} ${y2}`;
+}
+
+/* -----------------------
+   hash util
+------------------------*/
+async function hashObject(obj){
+  const txt = JSON.stringify(obj);
+  const data = new TextEncoder().encode(txt);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,'0')).join("");
+}
+
+/* -----------------------
+   fetch calendar with hashing & caching
+------------------------*/
+async function fetchCalendarWithHash(start, end){
+  const timeMin = start.toISOString();
+  const timeMax = addDays(end,1).toISOString();
+
+  const urlRec = `https://www.googleapis.com/calendar/v3/calendars/${CAL_RECEPTION}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
+  const urlNav = `https://www.googleapis.com/calendar/v3/calendars/${CAL_NAVIRE}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
+
+  const [recRaw, navRaw] = await Promise.all([
+    fetch(urlRec).then(r=>r.json()).catch(()=>({items:[]})),
+    fetch(urlNav).then(r=>r.json()).catch(()=>({items:[]})),
+  ]);
+
+  const events = { reception: recRaw.items || [], navire: navRaw.items || [] };
+
+  const newHash = await hashObject(events);
+  const oldHash = localStorage.getItem(CAL_HASH_KEY);
+
+  if(newHash === oldHash && localStorage.getItem(CAL_CACHE_KEY)){
+    try { return JSON.parse(localStorage.getItem(CAL_CACHE_KEY)); } catch {}
+  }
+
+  localStorage.setItem(CAL_HASH_KEY,newHash);
+  localStorage.setItem(CAL_CACHE_KEY,JSON.stringify(events));
+  return events;
+}
+
+/* ============================================================
+   NORMALISATION des dates Google Calendar (évite décalage d'une journée)
+   - start.date => all-day start as-is (YYYY-MM-DD)
+   - end.date   => all-day end is exclusive => subtract 1 day
+   - dateTime   => convert to local date components (no UTC shift)
+============================================================ */
+function localYMDFromDateTime(dt){
+  const d = new Date(dt);
+  return formatDate(d);
+}
+function getLocalStartYMD(ev){
+  if(ev.start?.date) return ev.start.date;
+  if(ev.start?.dateTime) return localYMDFromDateTime(ev.start.dateTime);
+  return null;
+}
+function getLocalEndYMD_Inclusive(ev){
+  if(ev.end?.date){
+    const d=new Date(ev.end.date);
+    d.setDate(d.getDate()-1);
+    return formatDate(d);
+  }
+  if(ev.end?.dateTime){
+    const d=new Date(ev.end.dateTime);
+    if(d.getHours()===0 && d.getMinutes()===0 && d.getSeconds()===0 && d.getMilliseconds()===0){
+      const prev = new Date(d.getTime()-1);
+      return formatDate(prev);
+    }
+    return localYMDFromDateTime(ev.end.dateTime);
+  }
+  return null;
+}
+
+/* ============================================================
+   GRID CREATION (creates cells with .multi-container and .events-container)
+============================================================ */
+function createGrid(start, viewDays){
+  const grid = document.getElementById('calendar-grid');
+  const rows = (viewDays===21)?3:4;
+  grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+  grid.style.gridTemplateColumns = `repeat(7, 1fr)`;
+  grid.innerHTML = '';
+  for(let i=0;i<viewDays;i++){
+    const d = addDays(start,i);
+    const cell = document.createElement('div');
+    cell.className = 'calendar-cell';
+    cell.dataset.date = formatDate(d);
+    cell.dataset.index = i;
+    // structure: date-label / multi-container / events-container (scrollable)
+    cell.innerHTML = `<div class="date-label">${dayName(d)} ${d.getDate()}</div>
+                      <div class="multi-container" aria-hidden="true"></div>
+                      <div class="events-container"></div>`;
+    grid.appendChild(cell);
+  }
+}
+
+/* ============================================================
+   clear previous renders
+============================================================ */
+function clearPrevious(){
+  document.querySelectorAll('.multi-seg').forEach(n=>n.remove());
+  document.querySelectorAll('.calendar-cell .event').forEach(n=>n.remove());
+}
+
+/* ============================================================
+   allocate level for multi-day events (per day indexes)
+   occupied[dayIndex] = [bool,bool,...]
+============================================================ */
+function allocateLevel(occupied, dayIndexes){
+  let level = 0;
+  while(true){
+    let ok = true;
+    for(const di of dayIndexes){
+      const row = occupied[di] || [];
+      if(row[level]) { ok = false; break; }
+    }
+    if(ok){
+      for(const di of dayIndexes){
+        occupied[di] = occupied[di] || [];
+        occupied[di][level] = true;
+      }
+      return level;
+    }
+    level++;
+  }
+}
+
+/* ============================================================
+   Render logic: create multi-day segments per cell (contained)
+   - For each multi-day event allocate a level and create a .multi-seg in each covered cell
+   - First cell gets left text (start time + title) and rounded left corners
+   - Last cell gets right text (>end time) and rounded right corners
+   - Middle cells are plain segments
+   - segments are stacked (levels) to avoid overlap
+   - events-container holds punctual events and scrolls if needed
+============================================================ */
+function renderBandsAndEvents(eventsObj, start, viewDays){
+  const grid = document.getElementById('calendar-grid');
+  const cells = Array.from(grid.querySelectorAll('.calendar-cell'));
+  const dateToIndex = {};
+  cells.forEach(c => dateToIndex[c.dataset.date] = parseInt(c.dataset.index,10));
+
+  const multi = [];
+  const single = [];
+
+  // collect and classify events
+  ['reception','navire'].forEach(type=>{
+    (eventsObj[type]||[]).forEach(ev=>{
+      const sY = getLocalStartYMD(ev);
+      const eY = getLocalEndYMD_Inclusive(ev);
+      if(!sY || !eY) return;
+      const sDate = new Date(sY + 'T00:00:00');
+      const eDate = new Date(eY + 'T00:00:00');
+      const span = Math.round((eDate - sDate)/86400000) + 1;
+
+      // compute dayIndices visible in view
+      const dayIndexes = [];
+      for(let d=new Date(sDate); d<=eDate; d=addDays(d,1)){
+        const key = formatDate(d);
+        if(key in dateToIndex) dayIndexes.push(dateToIndex[key]);
+      }
+      if(dayIndexes.length === 0) return;
+
+      const item = { type, original: ev, summary: ev.summary || '(Sans titre)', startYMD: sY, endYMD: eY, dayIndexes, span };
+      if(span >= 2) multi.push(item); else single.push(item);
+    });
+  });
+
+  // render punctual events into events-container (these stay above bands visually)
+  single.forEach(ev=>{
+    const cell = document.querySelector(`.calendar-cell[data-date="${ev.startYMD}"]`);
+    if(!cell) return;
+    const eventsContainer = cell.querySelector('.events-container');
+    const div = document.createElement('div');
+    div.className = 'event ' + ev.type;
+    let timeStr = '';
+    if(ev.original.start?.dateTime){
+      const d = new Date(ev.original.start.dateTime);
+      timeStr = d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0') + ' ';
+    }
+    div.innerHTML = `${timeStr}${ev.summary}`;
+    eventsContainer.appendChild(div);
+  });
+
+  // allocate levels for multi events
+  const occupied = {};
+  let maxLevel = 0;
+  multi.forEach(ev => {
+    ev.level = allocateLevel(occupied, ev.dayIndexes);
+    if(ev.level > maxLevel) maxLevel = ev.level;
+  });
+
+  // ensure multi-container has enough rows (levels) per cell: create placeholder DIVs to reserve vertical space
+  cells.forEach(cell => {
+    const mc = cell.querySelector('.multi-container');
+    // clear it in case
+    mc.innerHTML = '';
+    for(let l=0;l<=maxLevel;l++){
+      const placeholder = document.createElement('div');
+      placeholder.className = 'multi-row-placeholder';
+      placeholder.style.height = '18px';
+      placeholder.style.marginBottom = '4px';
+      mc.appendChild(placeholder);
+    }
+  });
+
+  // Now create segments for each multi event, placing them in the proper level slot in each covered cell
+  multi.forEach(ev => {
+    ev.dayIndexes.forEach((di, idx) => {
+      const cell = document.querySelector(`.calendar-cell[data-index="${di}"]`);
+      if(!cell) return;
+      const mc = cell.querySelector('.multi-container');
+      // the placeholder for this level is at index ev.level
+      const placeholders = mc.querySelectorAll('.multi-row-placeholder');
+      const slot = placeholders[ev.level];
+      if(!slot) return;
+
+      const seg = document.createElement('div');
+      seg.className = `multi-seg ${ev.type}`;
+      // first / last segment rounding
+      if(idx === 0) seg.classList.add('round-left');
+      if(idx === ev.dayIndexes.length - 1) seg.classList.add('round-right');
+      // content:
+      if(idx === 0){
+        // left: start time + title
+        let startTimeStr = '';
+        if(ev.original.start?.dateTime){
+          const d = new Date(ev.original.start.dateTime);
+          startTimeStr = d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0') + ' ';
+        }
+        seg.innerHTML = `<div style="flex:1;overflow:hidden;text-overflow:ellipsis;padding-right:6px">${startTimeStr}${ev.summary}</div><div style="flex:0 0 auto"></div>`;
+        seg.title = ev.summary + ' — début: ' + ev.startYMD;
+      } else if(idx === ev.dayIndexes.length -1){
+        let endTimeStr = '';
+        if(ev.original.end?.dateTime){
+          const d = new Date(ev.original.end.dateTime);
+          endTimeStr = '>' + d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+        }
+        seg.innerHTML = `<div style="flex:1"></div><div style="flex:0 0 auto">${endTimeStr}</div>`;
+        seg.title = ev.summary + ' — fin: ' + ev.endYMD;
+      } else {
+        seg.innerHTML = `<div style="flex:1"></div>`;
+        seg.title = ev.summary;
+      }
+
+      // replace placeholder with seg (keeps vertical alignment)
+      slot.parentNode.replaceChild(seg, slot);
+      // after placing, re-insert a placeholder after to preserve spacing for other levels? Not necessary.
+    });
+  });
+
+  // If some placeholders remain unfilled, keep them as empty gaps (that's fine)
+  // Ensure events-container scroll works: no extra action needed.
+
+  // adjust cells min-height to accommodate levels if many
+  const requiredHeight = 26 + (maxLevel + 1) * (18 + 4) + 10;
+  cells.forEach(c => {
+    c.style.minHeight = Math.max(90, requiredHeight) + 'px';
+  });
+}
+
+/* ============================================================
+   MAIN loadCalendar flow
+============================================================ */
+async function loadCalendar(){
+  const today = new Date();
+  const mondayCurrent = getStartMonday(today);
+  const start = new Date(mondayCurrent);
+  start.setDate(start.getDate() - 7 + offsetWeeks*7); // previous week first, then current, then future
+  const end = addDays(start, viewDays - 1);
+
+  document.getElementById('calendar-title').textContent = formatMonthRange(start,end);
+
+  createGrid(start, viewDays);
+
+  clearPrevious();
+
+  try {
+    const events = await fetchCalendarWithHash(start, end);
+    renderBandsAndEvents(events, start, viewDays);
+  } catch(err){
+    console.error('Erreur loadCalendar:', err);
+  }
+}
+
+/* =====================
+   NAVIGATION
+===================== */
+document.getElementById("prev-btn").onclick = ()=>{ offsetWeeks -= 1; loadCalendar(); };
+document.getElementById("next-btn").onclick = ()=>{ offsetWeeks += 1; loadCalendar(); };
+document.getElementById("today-btn").onclick = ()=>{ offsetWeeks = 0; loadCalendar(); };
+document.getElementById("view-3w").onclick = ()=>{ viewDays = 21; offsetWeeks = 0; loadCalendar(); };
+document.getElementById("view-4w").onclick = ()=>{ viewDays = 28; offsetWeeks = 0; loadCalendar(); };
+
+loadCalendar();
+setInterval(loadCalendar, CAL_REFRESH_INTERVAL);
+
+/* ============================================================
+   PONTS HAROPA (LOGIQUE ORIGINALE — inchangée)
+============================================================ */
+async function sha256(str){
+  const data=new TextEncoder().encode(str);
+  const digest=await crypto.subtle.digest("SHA-256",data);
+  return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+async function fetchWithRandomProxy(url) {
+  const shuffled = [...PROXIES].sort(() => Math.random() - 0.5);
+  for (const proxy of shuffled) {
+    try {
+      const fullUrl = proxy + encodeURIComponent(url);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3000);
+      const res = await fetch(fullUrl, { signal: controller.signal });
+      clearTimeout(timeout);
+      if (!res.ok) throw new Error(`Proxy failed: ${res.status}`);
+      let txt = await res.text();
+      try { const parsed = JSON.parse(txt); if (parsed.contents) return parsed.contents; } catch {}
+      return txt;
+    }
+    catch(err){
+      console.warn(`Proxy ${proxy} échoué : ${err.message}`);
+    }
+  }
+  throw new Error("Tous les proxys ont échoué");
+}
+async function checkAndUpdate(){
+  const now = Date.now();
+  const last = localStorage.getItem(CACHE_KEY_TIME);
+  if (last && now-last < CACHE_EXPIRATION){
+    const cached = localStorage.getItem(CACHE_KEY_DATA);
+    if (cached){ renderPonts(JSON.parse(cached)); return; }
+  }
+  await fetchWithHashControl();
+}
+async function fetchWithHashControl(){
+  try{
+    const rawContent = await fetchWithRandomProxy("https://www.havre-port.com/map/getPonts");
+    const newHash = await sha256(rawContent);
+    const oldHash = localStorage.getItem(CACHE_KEY_HASH);
+    if (newHash === oldHash && localStorage.getItem(CACHE_KEY_DATA)){
+      renderPonts(JSON.parse(localStorage.getItem(CACHE_KEY_DATA)));
+      return;
+    }
+    const ponts = Object.values(JSON.parse(rawContent).data);
+    const unique = Array.from(new Map(ponts.map(p=>[p.nom,p])).values());
+    const ordered = unique.sort((a,b)=>{
+      const score=p=>{
+        const s=p.statutText.toLowerCase();
+        if(s.includes("fermeture")) return 1;
+        if(s.includes("fermé")) return 2;
+        if(s.includes("manoeuvre")) return 3;
+        if(s.includes("ouvert")) return 4;
+        return 5;
+      };
+      return score(a)-score(b);
+    });
+    localStorage.setItem(CACHE_KEY_DATA,JSON.stringify(ordered));
+    localStorage.setItem(CACHE_KEY_HASH,newHash);
+    localStorage.setItem(CACHE_KEY_TIME,Date.now());
+    renderPonts(ordered);
+  } catch(err){
+    console.error("Erreur récupération ponts:",err);
+    document.getElementById("ponts-table").textContent="Impossible de récupérer les ponts.";
+  }
+}
+function renderPonts(list){
+  const container=document.getElementById("ponts-table");
+  container.innerHTML=list.map(p=>{
+    const s=p.statutText.toLowerCase();
+    const cls =
+      s.includes("fermeture") ? "fermeture" :
+      s.includes("fermé")      ? "ferme" :
+      s.includes("manoeuvre")  ? "manoeuvre" :
+      s.includes("ouvert")     ? "ouvert" : "ferme";
+    const info = p.forceText || `MàJ : ${p.date}`;
+    return `<div class="pont-card ${cls}">
+      <div class="pont-nom"><span class="pastille"></span>${p.nom}</div>
+      <div class="pont-etat">${p.statutText}</div>
+      <div class="pont-infos">${info}</div></div>`;
+  }).join("");
+}
+checkAndUpdate();
+setInterval(checkAndUpdate,REFRESH_INTERVAL);
+</script>
 </body>
 </html>
