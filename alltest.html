@@ -1,131 +1,127 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8" />
+<meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Ponts HAROPA – Monitoring + Calendrier</title>
 <style>
 /* =====================
    GLOBAL
 ===================== */
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: #101010;
-  color: #eaeaea;
-  display: flex;
-  height: 100vh;
-  overflow: hidden;
+:root{
+  --bg:#101010;
+  --panel:#1f1f1f;
+  --muted:#eaeaea;
+  --accent:#00e5ff;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  font-family:Arial,Helvetica,sans-serif;
+  background:var(--bg);
+  color:var(--muted);
+  display:flex;
+  height:100vh;
+  overflow:hidden;
 }
 
-/* =====================
-   COLONNE GAUCHE
-===================== */
-.left {
-  flex: 0 0 20%;
-  border-right: 1px solid #444;
-  padding: 14px;
-  overflow-y: auto;
-  box-sizing: border-box;
+/* LEFT COLUMN - PONTS */
+.left{
+  flex:0 0 20%;
+  border-right:1px solid #444;
+  padding:14px;
+  overflow-y:auto;
+  background: #0f0f0f;
 }
-.left h2 { color: #00e5ff; text-align: center; }
+.left h2{ color:var(--accent); text-align:center; margin:0 0 12px 0; }
 
-/* =====================
-   CARTES PONTS
-===================== */
-.pont-card {
-  background: #1f1f1f;
-  border-radius: 8px;
-  padding: 10px 12px;
-  box-shadow: 0 0 5px rgba(0,0,0,0.4);
-  border-left: 4px solid #444;
-  transition: transform 0.15s ease, box-shadow 0.3s ease;
-  margin-bottom: 8px;
+/* Pont cards */
+.pont-card{
+  background:var(--panel);
+  border-radius:8px;
+  padding:10px 12px;
+  box-shadow:0 0 5px rgba(0,0,0,0.4);
+  border-left:4px solid #444;
+  transition:transform .12s ease,box-shadow .2s ease;
+  margin-bottom:8px;
 }
-.pont-card:hover { transform: scale(1.02); }
-.pont-card.ferme { border-left-color: #ff4040; }
-.pont-card.fermeture { border-left-color: orange; animation: pulse-orange 1.2s infinite; }
-.pont-card.manoeuvre { border-left-color: #1c3cff; animation: pulse-blue 1.2s infinite; }
-.pont-card.ouvert { border-left-color: #58ff58; }
-.pastille { width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; display: inline-block; }
-.ferme .pastille      { background: #ff4040; }
-.fermeture .pastille  { background: orange; }
-.manoeuvre .pastille  { background: #1c3cff; }
-.ouvert .pastille     { background: #58ff58; }
-.pont-nom { font-weight: bold; display: flex; align-items: center; }
+.pont-card:hover{ transform:scale(1.02) }
+.pont-card.ferme{ border-left-color:#ff4040 }
+.pont-card.fermeture{ border-left-color:orange; animation:pulse-orange 1.2s infinite; }
+.pont-card.manoeuvre{ border-left-color:#1c3cff; animation:pulse-blue 1.2s infinite; }
+.pont-card.ouvert{ border-left-color:#58ff58 }
+.pont-nom{ font-weight:700; display:flex; align-items:center; gap:8px }
+.pont-etat{ margin-top:4px; font-size:13px; color:#ddd }
+.pont-infos{ margin-top:6px; font-size:12px; color:#aaa }
+.pastille{ width:10px;height:10px;border-radius:50%;display:inline-block }
+.ferme .pastille { background:#ff4040 }
+.fermeture .pastille { background:orange }
+.manoeuvre .pastille { background:#1c3cff }
+.ouvert .pastille { background:#58ff58 }
 
-/* =====================
-   PULSE ANIMATIONS
-===================== */
 @keyframes pulse-blue {
-  0%,100% { box-shadow: 0 0 5px rgba(28,60,255,0.4); transform: scale(1); }
-  50%     { box-shadow: 0 0 20px rgba(28,60,255,0.7); transform: scale(1.02); }
+  0%,100%{ box-shadow:0 0 5px rgba(28,60,255,0.4); transform:scale(1) }
+  50%{ box-shadow:0 0 20px rgba(28,60,255,0.7); transform:scale(1.02) }
 }
 @keyframes pulse-orange {
-  0%,100% { box-shadow: 0 0 5px rgba(255,165,0,0.4); transform: scale(1); }
-  50%     { box-shadow: 0 0 20px rgba(255,165,0,0.7); transform: scale(1.02); }
+  0%,100%{ box-shadow:0 0 5px rgba(255,165,0,0.4); transform:scale(1) }
+  50%{ box-shadow:0 0 20px rgba(255,165,0,0.7); transform:scale(1.02) }
 }
 
-/* =====================
-   CALENDRIER
-===================== */
-.right { flex:1; display:flex; flex-direction:column; height:100%; overflow:hidden; }
-#calendar-header {
+/* RIGHT COLUMN - CALENDAR */
+.right{
+  flex:1 1 auto;
+  display:flex;
+  flex-direction:column;
+  height:100%;
+  overflow:hidden;
+}
+#calendar-header{
   flex:0 0 auto;
   padding:12px;
   text-align:center;
-  font-size:22px;
-  color:#00e5ff;
+  font-size:20px;
+  color:var(--accent);
   border-bottom:1px solid #333;
   display:flex;
-  justify-content:center;
+  gap:14px;
   align-items:center;
-  gap:18px;
+  justify-content:center;
 }
-.nav-btn { cursor:pointer; color:#00e5ff; font-size:26px; padding:4px 10px; border-radius:6px; transition:0.2s; }
-.nav-btn:hover { background:#222; }
-.view-btn { cursor:pointer; font-size:14px; padding:4px 10px; background:#222; border-radius:6px; border:1px solid #333; color:#00e5ff; }
-.view-btn:hover { background:#333; }
+.nav-btn{ cursor:pointer; color:var(--accent); font-size:24px; padding:4px 10px; border-radius:6px }
+.view-btn{ cursor:pointer; font-size:13px; padding:4px 10px; background:#222; border-radius:6px; border:1px solid #333; color:var(--accent) }
 
-/* grid container: position:relative needed for absolute bands */
-#calendar-grid {
+/* Calendar grid */
+#calendar-grid{
   flex:1 1 auto;
   display:grid;
   gap:1px;
   background:#333;
   overflow:auto;
-  box-sizing:border-box;
   padding:6px;
-  position:relative;
+  position:relative; /* important for absolute bands */
 }
 
-/* each cell */
-.calendar-cell {
+/* cells */
+.calendar-cell{
   background:#1a1a1a;
   padding:6px;
   border:1px solid #222;
-  overflow:visible;
   position:relative;
   min-height:70px;
-  box-sizing:border-box;
   display:flex;
   flex-direction:column;
 }
-.date-label { font-size:12px; font-weight:normal; margin-bottom:4px; color:#ffffff; }
+.date-label{ font-size:12px; color:#fff; margin-bottom:4px }
 
-/* container for punctual events (stacked, above bands) */
-.cell-events { display:flex; flex-direction:column; gap:4px; z-index:4; }
+/* punctual events */
+.cell-events{ display:flex; flex-direction:column; gap:4px; z-index:4 }
+.event{ padding:3px 6px; border-radius:4px; font-size:12px }
+.event.reception{ background:#109c5344; border-left:3px solid #109c53; color:#eaffea }
+.event.navire{ background:#3644b344; border-left:3px solid #3644b3; color:#eef0ff }
 
-/* punctual events styling */
-.event { padding:3px 6px; border-radius:4px; font-size:12px; }
-.event.reception { background:#109c5344; border-left:3px solid #109c53; color:#eaffea; }
-.event.navire    { background:#3644b344; border-left:3px solid #3644b3; color:#eef0ff; }
-.event-time { font-size:12px;font-weight:normal; margin-right:4px; }
-
-/* =====================
-   MULTI-DAY BANDS (continuous)
-===================== */
-.multi-band {
+/* multi-day bands */
+.multi-band{
   position:absolute;
   height:18px;
   border-radius:6px;
@@ -141,67 +137,71 @@ body {
   pointer-events:auto;
   white-space:nowrap;
 }
-.multi-band.reception { background: #109c53; }
-.multi-band.navire    { background: #3644b3; }
-.multi-band .band-left { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
-.multi-band .band-right { white-space:nowrap; margin-left:8px; }
+.multi-band.reception{ background:#109c53 }
+.multi-band.navire{ background:#3644b3 }
+.multi-band .band-left{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600 }
+.multi-band .band-right{ margin-left:8px; white-space:nowrap }
 
-/* small gap device for grid responsiveness */
-@media (max-width:900px){
-  .left { flex:0 0 30%; }
-  .calendar-cell { min-height:90px; }
+/* responsive */
+@media(max-width:900px){
+  .left{ flex:0 0 30% }
+  .calendar-cell{ min-height:90px }
 }
 </style>
 </head>
 <body>
 
-<div class="left">
-  <h2>État des Ponts</h2>
-  <div id="ponts-table">Chargement…</div>
-</div>
-
-<div class="right">
-  <div id="calendar-header">
-    <span class="nav-btn" id="prev-btn">‹</span>
-    <span id="calendar-title">Chargement…</span>
-    <span class="nav-btn" id="next-btn">›</span>
-    <span class="view-btn" id="view-3w">3 semaines</span>
-    <span class="view-btn" id="view-4w">4 semaines</span>
-    <span class="nav-btn" id="today-btn" style="font-size:18px;">Aujourd’hui</span>
+  <!-- LEFT: Ponts HAROPA -->
+  <div class="left">
+    <h2>État des Ponts</h2>
+    <div id="ponts-table">Chargement…</div>
   </div>
-  <div id="calendar-grid"></div>
-</div>
+
+  <!-- RIGHT: Calendrier -->
+  <div class="right">
+    <div id="calendar-header">
+      <span class="nav-btn" id="prev-btn">‹</span>
+      <span id="calendar-title">Chargement…</span>
+      <span class="nav-btn" id="next-btn">›</span>
+      <button class="view-btn" id="view-3w">3 semaines</button>
+      <button class="view-btn" id="view-4w">4 semaines</button>
+      <span class="nav-btn" id="today-btn" title="Aller à aujourd'hui" style="font-size:16px">Aujourd’hui</span>
+    </div>
+    <div id="calendar-grid" aria-hidden="false"></div>
+  </div>
 
 <script>
 /* ============================================================
-   CONFIG & CONSTANTS
+   CONFIG / CONSTANTES (inchangées)
+   - J'ai gardé les proxys EXACTEMENT comme dans ton code original
 ============================================================ */
 const API_KEY = "AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo";
 const CAL_RECEPTION = "receptionroulier@gmail.com";
 const CAL_NAVIRE = "smr.programme@gmail.com";
 
-let viewDays = 21;
+let viewDays = 21; // default 3 weeks
 let offsetWeeks = 0;
 
 const CAL_HASH_KEY = "calendarHash";
 const CAL_CACHE_KEY = "calendarCache";
-const CAL_REFRESH_INTERVAL = 60000;
+const CAL_REFRESH_INTERVAL = 60000; // 1 min
 
-const CACHE_KEY_DATA="pontsData";
-const CACHE_KEY_HASH="pontsHash";
-const CACHE_KEY_TIME="pontsCacheTime";
-const CACHE_EXPIRATION=60000;
-const REFRESH_INTERVAL=10000;
+/* PONTS constants kept as original */
+const CACHE_KEY_DATA = "pontsData";
+const CACHE_KEY_HASH = "pontsHash";
+const CACHE_KEY_TIME = "pontsCacheTime";
+const CACHE_EXPIRATION = 60000;
+const REFRESH_INTERVAL = 10000;
 
-const PROXIES=[
+const PROXIES = [
   "https://api.allorigins.win/get?url=",
   "https://cors-anywhere.herokuapp.com/",
   "https://thingproxy.freeboard.io/fetch/"
 ];
 
-/* =====================
+/* ============================================================
    UTILITAIRES DATE
-===================== */
+============================================================ */
 function getStartMonday(date){
   const d = new Date(date);
   const day = d.getDay();
@@ -209,53 +209,86 @@ function getStartMonday(date){
   d.setDate(d.getDate() + diff);
   return d;
 }
-function addDays(date,n){ const d=new Date(date); d.setDate(d.getDate()+n); return d; }
-function formatDate(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function addDays(date, n){ const d = new Date(date); d.setDate(d.getDate() + n); return d; }
+function formatDate(d){
+  return d.getFullYear().toString().padStart(4,'0') + '-' +
+    (d.getMonth()+1).toString().padStart(2,'0') + '-' +
+    d.getDate().toString().padStart(2,'0');
+}
 function dayName(d){ return ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"][d.getDay()]; }
-function formatMonthRange(start,end){
+function formatMonthRange(start, end){
   const m=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
   const m1=m[start.getMonth()], m2=m[end.getMonth()];
   const y1=start.getFullYear(), y2=end.getFullYear();
   return (m1===m2 && y1===y2)?`${m1} ${y1}`:`${m1} — ${m2} ${y2}`;
 }
 
-/* =====================
-   HASH UNIFIÉ
-===================== */
-async function hashObject(obj){
-  const txt = typeof obj === 'string' ? obj : JSON.stringify(obj);
+/* ============================================================
+   HASH UTIL (unified)
+============================================================ */
+async function computeHash(input){
+  const txt = (typeof input === 'string') ? input : JSON.stringify(input);
   const data = new TextEncoder().encode(txt);
   const digest = await crypto.subtle.digest("SHA-256", data);
   return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,'0')).join("");
 }
 
-/* =====================
-   FETCH CALENDAR WITH CACHE
-===================== */
+/* ============================================================
+   CALENDAR FETCH WITH HASH/CACHE
+============================================================ */
 async function fetchCalendarWithHash(start, end){
   const timeMin = start.toISOString();
   const timeMax = addDays(end,1).toISOString();
-  const urls = {
-    reception: `https://www.googleapis.com/calendar/v3/calendars/${CAL_RECEPTION}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`,
-    navire: `https://www.googleapis.com/calendar/v3/calendars/${CAL_NAVIRE}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`
-  };
+
+  const urlRec = `https://www.googleapis.com/calendar/v3/calendars/${CAL_RECEPTION}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
+  const urlNav = `https://www.googleapis.com/calendar/v3/calendars/${CAL_NAVIRE}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
 
   const [recRaw, navRaw] = await Promise.all([
-    fetch(urls.reception).then(r=>r.json()).catch(()=>({items:[]})),
-    fetch(urls.navire).then(r=>r.json()).catch(()=>({items:[]}))
+    fetch(urlRec).then(r=>r.json()).catch(()=>({items:[]})),
+    fetch(urlNav).then(r=>r.json()).catch(()=>({items:[]})),
   ]);
 
   const events = { reception: recRaw.items || [], navire: navRaw.items || [] };
-  const newHash = await hashObject(events);
+
+  const newHash = await computeHash(events);
   const oldHash = localStorage.getItem(CAL_HASH_KEY);
 
   if(newHash === oldHash && localStorage.getItem(CAL_CACHE_KEY)){
     try { return JSON.parse(localStorage.getItem(CAL_CACHE_KEY)); } catch {}
   }
 
-  localStorage.setItem(CAL_HASH_KEY,newHash);
-  localStorage.setItem(CAL_CACHE_KEY,JSON.stringify(events));
+  localStorage.setItem(CAL_HASH_KEY, newHash);
+  localStorage.setItem(CAL_CACHE_KEY, JSON.stringify(events));
   return events;
+}
+
+/* ============================================================
+   NORMALISATION EVENTS (same logic as original)
+============================================================ */
+function localYMDFromDateTime(dtStr){
+  const d = new Date(dtStr);
+  return formatDate(d);
+}
+function getLocalStartYMD(ev){
+  if(ev.start?.date) return ev.start.date;
+  if(ev.start?.dateTime) return localYMDFromDateTime(ev.start.dateTime);
+  return null;
+}
+function getLocalEndYMD_Inclusive(ev){
+  if(ev.end?.date){
+    const d = new Date(ev.end.date);
+    d.setDate(d.getDate() - 1);
+    return formatDate(d);
+  }
+  if(ev.end?.dateTime){
+    const d = new Date(ev.end.dateTime);
+    if(d.getHours()===0 && d.getMinutes()===0 && d.getSeconds()===0 && d.getMilliseconds()===0){
+      const prev = new Date(d.getTime() - 1);
+      return formatDate(prev);
+    }
+    return localYMDFromDateTime(ev.end.dateTime);
+  }
+  return null;
 }
 
 /* ============================================================
@@ -281,36 +314,32 @@ function createGrid(start, viewDays){
   return dates;
 }
 
+/* ============================================================
+   CLEAR previous bands & events
+============================================================ */
 function clearPrevious(){
   const grid = document.getElementById('calendar-grid');
+  if(!grid) return;
   grid.querySelectorAll('.multi-band').forEach(n=>n.remove());
-  document.querySelectorAll('.calendar-cell .event').forEach(n=>n.remove());
+  grid.querySelectorAll('.calendar-cell .event').forEach(n=>n.remove());
 }
 
 /* ============================================================
-   MULTI-DAY BANDS LOGIC
+   LEVEL ALLOCATION FOR MULTI BANDS
 ============================================================ */
-function localYMDFromDateTime(dtStr){
-  const d = new Date(dtStr);
-  return formatDate(d);
-}
-function getLocalStartYMD(ev){ if(ev.start?.date) return ev.start.date; if(ev.start?.dateTime) return localYMDFromDateTime(ev.start.dateTime); return null; }
-function getLocalEndYMD_Inclusive(ev){
-  if(ev.end?.date){ const d = new Date(ev.end.date); d.setDate(d.getDate()-1); return formatDate(d); }
-  if(ev.end?.dateTime){
-    const d = new Date(ev.end.dateTime);
-    if(d.getHours()===0 && d.getMinutes()===0) { const prev=new Date(d.getTime()-1); return formatDate(prev); }
-    return localYMDFromDateTime(ev.end.dateTime);
-  }
-  return null;
-}
 function allocateLevel(occupied, dayIndexes){
   let level = 0;
   while(true){
     let ok = true;
-    for(const di of dayIndexes){ if(occupied[di]?.[level]){ok=false; break;} }
+    for(const di of dayIndexes){
+      const row = occupied[di] || [];
+      if(row[level]) { ok = false; break; }
+    }
     if(ok){
-      for(const di of dayIndexes){ occupied[di]=occupied[di]||[]; occupied[di][level]=true; }
+      for(const di of dayIndexes){
+        occupied[di] = occupied[di] || [];
+        occupied[di][level] = true;
+      }
       return level;
     }
     level++;
@@ -319,230 +348,395 @@ function allocateLevel(occupied, dayIndexes){
 
 /* ============================================================
    RENDER BANDS & EVENTS
+   - creates bands as absolute .multi-band inside #calendar-grid
+   - stores info in data-* attributes so bands can be repositioned on scroll/resize
 ============================================================ */
 function renderBandsAndEvents(eventsObj, start, viewDays){
   const grid = document.getElementById('calendar-grid');
+  if(!grid) return;
   const cells = Array.from(grid.querySelectorAll('.calendar-cell'));
   const dateToIndex = {};
   cells.forEach(c => dateToIndex[c.dataset.date] = parseInt(c.dataset.index,10));
 
-  const multi=[], single=[];
+  const multi = []; // multi-day events
+  const single = []; // single-day events
+
+  // flatten and classify
   ['reception','navire'].forEach(type=>{
     (eventsObj[type]||[]).forEach(ev=>{
       const startYMD = getLocalStartYMD(ev);
       const endYMD = getLocalEndYMD_Inclusive(ev);
-      if(!startYMD||!endYMD) return;
-      const sDate=new Date(startYMD+'T00:00:00');
-      const eDate=new Date(endYMD+'T00:00:00');
-      const span = Math.round((eDate-sDate)/86400000)+1;
-      const dayIndexes=[];
-      for(let d=new Date(sDate); d<=eDate; d=addDays(d,1)){ const k=formatDate(d); if(k in dateToIndex) dayIndexes.push(dateToIndex[k]); }
-      if(dayIndexes.length===0) return;
-      const item={type, original:ev, summary:ev.summary||'(Sans titre)', startYMD,endYMD,dayIndexes,span};
-      span>=2?multi.push(item):single.push(item);
+      if(!startYMD || !endYMD) return;
+      const sDate = new Date(startYMD + 'T00:00:00');
+      const eDate = new Date(endYMD + 'T00:00:00');
+      const span = Math.round((eDate - sDate)/86400000) + 1;
+
+      // get day indexes within view
+      const dayIndexes = [];
+      for(let d=new Date(sDate); d<=eDate; d=addDays(d,1)){
+        const key = formatDate(d);
+        if(key in dateToIndex) dayIndexes.push(dateToIndex[key]);
+      }
+      if(dayIndexes.length === 0) return; // out of view entirely
+
+      const item = { type, original: ev, summary: ev.summary || '(Sans titre)', startYMD, endYMD, dayIndexes, span };
+      if(span >= 2) multi.push(item);
+      else single.push(item);
     });
   });
 
-  // render single-day events
+  // render single-day events into .cell-events (they will sit above bands)
   single.forEach(ev=>{
-    const cell = document.querySelector(`.calendar-cell[data-date="${ev.startYMD}"]`);
+    const cell = grid.querySelector(`.calendar-cell[data-date="${ev.startYMD}"]`);
     if(!cell) return;
     const eventsContainer = cell.querySelector('.cell-events');
     const div = document.createElement('div');
     div.className = 'event ' + ev.type;
-    let timeStr='';
+    // time if present
+    let timeStr = '';
     if(ev.original.start?.dateTime){
-      const d=new Date(ev.original.start.dateTime);
-      timeStr=d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')+' ';
+      const d = new Date(ev.original.start.dateTime);
+      timeStr = d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0') + ' ';
     }
     div.innerHTML = `${timeStr}${ev.summary}`;
     eventsContainer.appendChild(div);
   });
 
-  // compute max heights per cell
-  const occupied={}, maxEventHeights={};
-  cells.forEach(cell=>{
-    const idx=parseInt(cell.dataset.index,10);
-    const h = cell.querySelector('.cell-events')?.getBoundingClientRect().height||0;
-    maxEventHeights[idx]=h;
+  // compute occupied levels and maxEventHeights per day index
+  const occupied = {};
+  const maxEventHeights = {}; // pixel heights of events area per day index
+  cells.forEach(cell => {
+    const idx = parseInt(cell.dataset.index,10);
+    const eventsContainer = cell.querySelector('.cell-events');
+    const h = eventsContainer ? eventsContainer.getBoundingClientRect().height : 0;
+    maxEventHeights[idx] = h;
   });
 
-  let maxLevel=0;
-  multi.forEach(ev=>{
-    ev.level=allocateLevel(occupied,ev.dayIndexes);
-    if(ev.level>maxLevel) maxLevel=ev.level;
+  // allocate levels for multi events
+  let maxLevel = 0;
+  multi.forEach(ev => {
+    ev.level = allocateLevel(occupied, ev.dayIndexes);
+    if(ev.level > maxLevel) maxLevel = ev.level;
   });
 
-  // create bands
-  multi.forEach(ev=>{
-    const gridRect=grid.getBoundingClientRect();
-    const firstIdx=ev.dayIndexes[0], lastIdx=ev.dayIndexes[ev.dayIndexes.length-1];
-    const firstCell=grid.querySelector(`.calendar-cell[data-index="${firstIdx}"]`);
-    const lastCell=grid.querySelector(`.calendar-cell[data-index="${lastIdx}"]`);
-    if(!firstCell||!lastCell) return;
+  // create bands (one element per event)
+  multi.forEach(ev => {
+    const firstIdx = ev.dayIndexes[0];
+    const lastIdx = ev.dayIndexes[ev.dayIndexes.length - 1];
+    const firstCell = grid.querySelector(`.calendar-cell[data-index="${firstIdx}"]`);
+    const lastCell  = grid.querySelector(`.calendar-cell[data-index="${lastIdx}"]`);
+    if(!firstCell || !lastCell) return;
 
-    const firstRect=firstCell.getBoundingClientRect(), lastRect=lastCell.getBoundingClientRect();
-    const left=(firstRect.left-gridRect.left)+grid.scrollLeft+6;
-    const width=Math.max(20,(lastRect.left-gridRect.left+lastRect.width)+grid.scrollLeft-6-left);
+    // initial positioning (will be adjusted on scroll/resize)
+    const gridRect = grid.getBoundingClientRect();
+    const firstRect = firstCell.getBoundingClientRect();
+    const lastRect  = lastCell.getBoundingClientRect();
 
-    let maxEventsH=0;
-    ev.dayIndexes.forEach(di=>{ maxEventsH=Math.max(maxEventsH,maxEventHeights[di]||0); });
+    const left = (firstRect.left - gridRect.left) + grid.scrollLeft + 6;
+    const rightEdge = (lastRect.left - gridRect.left + lastRect.width) + grid.scrollLeft - 6;
+    const width = Math.max(20, rightEdge - left);
 
-    const dateLabel=firstCell.querySelector('.date-label');
-    const baseOffset=dateLabel.getBoundingClientRect().bottom-gridRect.top+grid.scrollTop;
-    const bandGap=6, bandHeight=18, levelSpacing=bandHeight+6;
-    const top=baseOffset+maxEventsH+bandGap+ev.level*levelSpacing;
+    // compute top based on events area
+    let maxEventsH = 0;
+    ev.dayIndexes.forEach(di => { maxEventsH = Math.max(maxEventsH, maxEventHeights[di] || 0); });
 
-    const band=document.createElement('div');
-    band.className=`multi-band ${ev.type}`;
-    band.style.left=left+'px';
-    band.style.width=width+'px';
-    band.style.top=top+'px';
+    const dateLabel = firstCell.querySelector('.date-label');
+    const dateLabelRect = dateLabel.getBoundingClientRect();
+    const baseOffset = dateLabelRect.bottom - gridRect.top + grid.scrollTop; // pixels from top of grid to date-label bottom
 
-    const leftSpan=document.createElement('div'); leftSpan.className='band-left';
-    let startTimeStr='';
-    if(ev.original.start?.dateTime){ const sd=new Date(ev.original.start.dateTime); startTimeStr=sd.getHours().toString().padStart(2,'0')+':'+sd.getMinutes().toString().padStart(2,'0')+' '; }
-    leftSpan.textContent=(startTimeStr+ev.summary).slice(0,200);
-    leftSpan.title=ev.summary;
+    const bandGap = 6;
+    const bandHeight = 18;
+    const levelSpacing = bandHeight + 6;
 
-    const rightSpan=document.createElement('div'); rightSpan.className='band-right';
-    let endTimeStr='';
-    if(ev.original.end?.dateTime){ const ed=new Date(ev.original.end.dateTime); endTimeStr='>'+ed.getHours().toString().padStart(2,'0')+':'+ed.getMinutes().toString().padStart(2,'0'); }
-    rightSpan.textContent=endTimeStr;
+    const top = baseOffset + maxEventsH + bandGap + ev.level * levelSpacing;
+
+    // create band element
+    const band = document.createElement('div');
+    band.className = `multi-band ${ev.type}`;
+    band.style.left = left + 'px';
+    band.style.width = width + 'px';
+    band.style.top = top + 'px';
+
+    // store metadata for repositioning
+    band.dataset.startYMD = ev.startYMD;
+    band.dataset.endYMD   = ev.endYMD;
+    band.dataset.level    = ev.level;
+
+    // left text: start time (if dateTime) + title
+    const leftSpan = document.createElement('div');
+    leftSpan.className = 'band-left';
+    let startTimeStr = '';
+    if(ev.original.start?.dateTime){
+      const sd = new Date(ev.original.start.dateTime);
+      startTimeStr = sd.getHours().toString().padStart(2,'0') + ':' + sd.getMinutes().toString().padStart(2,'0') + ' ';
+    }
+    leftSpan.textContent = (startTimeStr + ev.summary).slice(0,200);
+    leftSpan.title = ev.summary;
+
+    // right text: end time (if dateTime)
+    const rightSpan = document.createElement('div');
+    rightSpan.className = 'band-right';
+    let endTimeStr = '';
+    if(ev.original.end?.dateTime){
+      const ed = new Date(ev.original.end.dateTime);
+      endTimeStr = '>' + ed.getHours().toString().padStart(2,'0') + ':' + ed.getMinutes().toString().padStart(2,'0');
+    }
+    rightSpan.textContent = endTimeStr;
 
     band.appendChild(leftSpan);
     band.appendChild(rightSpan);
-    band.title=ev.summary+'\n'+ev.startYMD+' → '+ev.endYMD;
 
+    // tooltip
+    band.title = ev.summary + '\n' + ev.startYMD + ' → ' + ev.endYMD;
+
+    // insert into grid
     grid.appendChild(band);
   });
 
-  // adjust cell heights to fit bands
-  const requiredHeight=26+(maxLevel+1)*(18+6)+4;
-  cells.forEach(c=>{ c.style.minHeight=Math.max(70,requiredHeight)+'px'; });
-}
-
-/* ============================================================
-   LOAD CALENDAR
-============================================================ */
-let calendarRAF=null;
-async function loadCalendar(){
-  if(calendarRAF) cancelAnimationFrame(calendarRAF);
-  calendarRAF=requestAnimationFrame(async ()=>{
-    const today=new Date();
-    const mondayCurrent=getStartMonday(today);
-    const start=new Date(mondayCurrent); start.setDate(start.getDate()-7+offsetWeeks*7);
-    const end=addDays(start,viewDays-1);
-    document.getElementById('calendar-title').textContent=formatMonthRange(start,end);
-    createGrid(start,viewDays);
-    clearPrevious();
-    try{
-      const events = await fetchCalendarWithHash(start,end);
-      renderBandsAndEvents(events,start,viewDays);
-    }catch(err){ console.error('Erreur loadCalendar:',err); }
+  // adjust each cell height to ensure bands fit
+  const requiredHeight = 26 + (maxLevel + 1) * (18 + 6) + 4; // base + levels*(band+gap)
+  cells.forEach(c => {
+    c.style.minHeight = Math.max(70, requiredHeight) + 'px';
   });
 }
 
 /* ============================================================
-   NAVIGATION
+   REPOSITION BANDS ON SCROLL / RESIZE
+   - safe: checks DOM nodes exist
+   - uses requestAnimationFrame for smoothness
 ============================================================ */
-document.getElementById("prev-btn").onclick=()=>{ offsetWeeks-=1; loadCalendar(); };
-document.getElementById("next-btn").onclick=()=>{ offsetWeeks+=1; loadCalendar(); };
-document.getElementById("today-btn").onclick=()=>{ offsetWeeks=0; loadCalendar(); };
-document.getElementById("view-3w").onclick=()=>{ viewDays=21; offsetWeeks=0; loadCalendar(); };
-document.getElementById("view-4w").onclick=()=>{ viewDays=28; offsetWeeks=0; loadCalendar(); };
+function repositionBands(){
+  const grid = document.getElementById('calendar-grid');
+  if(!grid) return;
+  const bands = Array.from(grid.querySelectorAll('.multi-band'));
+  if(bands.length === 0) return;
+
+  const cells = Array.from(grid.querySelectorAll('.calendar-cell'));
+  const dateToIndex = {};
+  cells.forEach(c => dateToIndex[c.dataset.date] = parseInt(c.dataset.index,10));
+
+  // compute event heights per visible day (read layout once)
+  const maxEventHeights = {};
+  cells.forEach(cell => {
+    const idx = parseInt(cell.dataset.index,10);
+    const eventsContainer = cell.querySelector('.cell-events');
+    maxEventHeights[idx] = eventsContainer ? eventsContainer.getBoundingClientRect().height : 0;
+  });
+
+  const gridRect = grid.getBoundingClientRect();
+
+  requestAnimationFrame(() => {
+    bands.forEach(band => {
+      const startYMD = band.dataset.startYMD;
+      const endYMD = band.dataset.endYMD;
+      const level = parseInt(band.dataset.level || '0', 10);
+
+      if(!startYMD || !endYMD) return;
+
+      // find first/last cells by date
+      const firstCell = grid.querySelector(`.calendar-cell[data-date="${startYMD}"]`);
+      const lastCell  = grid.querySelector(`.calendar-cell[data-date="${endYMD}"]`);
+      if(!firstCell || !lastCell) return;
+
+      const firstRect = firstCell.getBoundingClientRect();
+      const lastRect  = lastCell.getBoundingClientRect();
+
+      const left = (firstRect.left - gridRect.left) + grid.scrollLeft + 6;
+      const rightEdge = (lastRect.left - gridRect.left + lastRect.width) + grid.scrollLeft - 6;
+      const width = Math.max(20, rightEdge - left);
+
+      // compute max events height across covered days
+      let maxEventsH = 0;
+      for(let d = new Date(startYMD); d <= new Date(endYMD); d = addDays(d,1)){
+        const key = formatDate(d);
+        const idx = dateToIndex[key];
+        if(idx !== undefined) maxEventsH = Math.max(maxEventsH, maxEventHeights[idx] || 0);
+      }
+
+      const dateLabel = firstCell.querySelector('.date-label');
+      const baseOffset = dateLabel.getBoundingClientRect().bottom - gridRect.top + grid.scrollTop;
+
+      const bandGap = 6;
+      const bandHeight = 18;
+      const levelSpacing = bandHeight + 6;
+
+      const top = baseOffset + maxEventsH + bandGap + level * levelSpacing;
+
+      band.style.left = left + 'px';
+      band.style.width = width + 'px';
+      band.style.top = top + 'px';
+    });
+  });
+}
+
+/* Debounced reposition for performance (throttle-ish) */
+const debouncedReposition = (function(){
+  let raf = null, timeout = null;
+  return function(){
+    if(raf) cancelAnimationFrame(raf);
+    if(timeout) clearTimeout(timeout);
+    timeout = setTimeout(()=>{
+      raf = requestAnimationFrame(()=>{ repositionBands(); raf = null; });
+    }, 40);
+  };
+})();
 
 /* ============================================================
-   PONTS HAROPA
+   LOAD CALENDAR (debounced + uses fetchCalendarWithHash)
 ============================================================ */
-async function fetchWithRandomProxy(url){
-  const shuffled=[...PROXIES].sort(()=>Math.random()-0.5);
-  for(const proxy of shuffled){
-    try{
-      const fullUrl=proxy+encodeURIComponent(url);
-      const controller=new AbortController();
-      const timeout=setTimeout(()=>controller.abort(),3000);
-      const res=await fetch(fullUrl,{signal:controller.signal});
+const debouncedLoadCalendar = (function(){
+  let timer = null;
+  return function(delay = 150){
+    clearTimeout(timer);
+    timer = setTimeout(async ()=>{
+      const today = new Date();
+      const mondayCurrent = getStartMonday(today);
+      const start = new Date(mondayCurrent);
+      start.setDate(start.getDate() - 7 + offsetWeeks*7); // previous week first
+      const end = addDays(start, viewDays - 1);
+
+      document.getElementById('calendar-title').textContent = formatMonthRange(start, end);
+
+      createGrid(start, viewDays);
+      clearPrevious();
+
+      // fetch and render
+      try{
+        const events = await fetchCalendarWithHash(start, end);
+        renderBandsAndEvents(events, start, viewDays);
+
+        // attach observers/listeners AFTER grid exists and bands are created
+        const grid = document.getElementById('calendar-grid');
+        if(grid){
+          // ensure only one observer is attached:
+          if(!grid._bandsObserverAttached){
+            new ResizeObserver(()=>debouncedReposition()).observe(grid);
+            grid.addEventListener('scroll', ()=>debouncedReposition(), { passive: true });
+            window.addEventListener('resize', ()=>debouncedReposition());
+            grid._bandsObserverAttached = true;
+          }
+        }
+      }catch(err){ console.error('Erreur loadCalendar:', err); }
+    }, delay);
+  };
+})();
+
+/* ============================================================
+   NAVIGATION BUTTONS
+============================================================ */
+document.getElementById("prev-btn").addEventListener('click', ()=>{ offsetWeeks -= 1; debouncedLoadCalendar(); });
+document.getElementById("next-btn").addEventListener('click', ()=>{ offsetWeeks += 1; debouncedLoadCalendar(); });
+document.getElementById("today-btn").addEventListener('click', ()=>{ offsetWeeks = 0; debouncedLoadCalendar(); });
+document.getElementById("view-3w").addEventListener('click', ()=>{ viewDays = 21; offsetWeeks = 0; debouncedLoadCalendar(); });
+document.getElementById("view-4w").addEventListener('click', ()=>{ viewDays = 28; offsetWeeks = 0; debouncedLoadCalendar(); });
+
+/* ============================================================
+   PONTS HAROPA (original logic preserved)
+   - fetchWithRandomProxy using same PROXIES as your original code
+   - sha256/unified computeHash used to compare
+============================================================ */
+async function fetchWithRandomProxy(url) {
+  const shuffled = [...PROXIES].sort(() => Math.random() - 0.5);
+  for (const proxy of shuffled) {
+    try {
+      const fullUrl = proxy + encodeURIComponent(url);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3000);
+      const res = await fetch(fullUrl, { signal: controller.signal });
       clearTimeout(timeout);
-      if(!res.ok) throw new Error(`Proxy failed: ${res.status}`);
-      let txt=await res.text();
-      try{ const parsed=JSON.parse(txt); if(parsed.contents) return parsed.contents; }catch{}
+      if (!res.ok) throw new Error(`Proxy failed: ${res.status}`);
+      let txt = await res.text();
+      try { const parsed = JSON.parse(txt); if (parsed.contents) return parsed.contents; } catch {}
       return txt;
-    }catch(err){ console.warn(`Proxy ${proxy} échoué : ${err.message}`); }
+    }
+    catch(err){
+      console.warn(`Proxy ${proxy} échoué : ${err.message}`);
+    }
   }
   throw new Error("Tous les proxys ont échoué");
 }
 
 async function checkAndUpdate(){
-  const now=Date.now();
-  const last=localStorage.getItem(CACHE_KEY_TIME);
-  if(last && now-last<CACHE_EXPIRATION){
-    const cached=localStorage.getItem(CACHE_KEY_DATA);
-    if(cached){ renderPonts(JSON.parse(cached)); return; }
+  const now = Date.now();
+  const last = localStorage.getItem(CACHE_KEY_TIME);
+  if (last && now - last < CACHE_EXPIRATION){
+    const cached = localStorage.getItem(CACHE_KEY_DATA);
+    if (cached){ renderPonts(JSON.parse(cached)); return; }
   }
   await fetchWithHashControl();
 }
 
 async function fetchWithHashControl(){
   try{
-    const rawContent=await fetchWithRandomProxy("https://www.havre-port.com/map/getPonts");
-    const newHash=await hashObject(rawContent);
-    const oldHash=localStorage.getItem(CACHE_KEY_HASH);
-    if(newHash===oldHash && localStorage.getItem(CACHE_KEY_DATA)){
-      renderPonts(JSON.parse(localStorage.getItem(CACHE_KEY_DATA))); return;
+    const rawContent = await fetchWithRandomProxy("https://www.havre-port.com/map/getPonts");
+    const newHash = await computeHash(rawContent);
+    const oldHash = localStorage.getItem(CACHE_KEY_HASH);
+    if (newHash === oldHash && localStorage.getItem(CACHE_KEY_DATA)){
+      renderPonts(JSON.parse(localStorage.getItem(CACHE_KEY_DATA)));
+      return;
     }
-    const ponts=Object.values(JSON.parse(rawContent).data);
-    const unique=Array.from(new Map(ponts.map(p=>[p.nom,p])).values());
-    const ordered=unique.sort((a,b)=>{
-      const score=p=>{
-        const s=p.statutText.toLowerCase();
+    const dataParsed = JSON.parse(rawContent);
+    const ponts = Object.values(dataParsed.data || {});
+    const unique = Array.from(new Map(ponts.map(p=>[p.nom,p])).values());
+    const ordered = unique.sort((a,b)=>{
+      const score = p => {
+        const s = (p.statutText || '').toLowerCase();
         if(s.includes("fermé")) return 1;
         if(s.includes("fermeture")) return 2;
-        if(s.includes("manoeuvre")) return 3;
+        if(s.includes("manoeuvre") || s.includes("manœuvre")) return 3;
         if(s.includes("ouvert")) return 4;
         return 5;
       };
-      return score(a)-score(b);
+      return score(a) - score(b);
     });
-    localStorage.setItem(CACHE_KEY_DATA,JSON.stringify(ordered));
-    localStorage.setItem(CACHE_KEY_HASH,newHash);
-    localStorage.setItem(CACHE_KEY_TIME,Date.now());
+    localStorage.setItem(CACHE_KEY_DATA, JSON.stringify(ordered));
+    localStorage.setItem(CACHE_KEY_HASH, newHash);
+    localStorage.setItem(CACHE_KEY_TIME, Date.now());
     renderPonts(ordered);
-  }catch(err){
-    console.error("Erreur récupération ponts:",err);
-    document.getElementById("ponts-table").textContent="Impossible de récupérer les ponts.";
+  } catch(err){
+    console.error("Erreur récupération ponts:", err);
+    const container = document.getElementById("ponts-table");
+    if(container) container.textContent = "Impossible de récupérer les ponts.";
   }
 }
 
 function renderPonts(list){
-  const container=document.getElementById("ponts-table");
-  container.innerHTML=list.map(p=>{
-    const s=p.statutText.toLowerCase();
-    const cls=s.includes("fermeture")?"fermeture":s.includes("fermé")?"ferme":s.includes("manoeuvre")?"manoeuvre":s.includes("ouvert")?"ouvert":"ferme";
-    const info=p.forceText||`MàJ : ${p.date}`;
+  const container = document.getElementById("ponts-table");
+  if(!container) return;
+  container.innerHTML = list.map(p=>{
+    const s = (p.statutText || '').toLowerCase();
+    const cls =
+      s.includes("fermeture") ? "fermeture" :
+      s.includes("fermé")      ? "ferme" :
+      s.includes("manoeuvre") || s.includes("manœuvre") ? "manoeuvre" :
+      s.includes("ouvert")     ? "ouvert" : "ferme";
+    const info = p.forceText || `MàJ : ${p.date || ''}`;
     return `<div class="pont-card ${cls}">
       <div class="pont-nom"><span class="pastille"></span>${p.nom}</div>
-      <div class="pont-etat">${p.statutText}</div>
-      <div class="pont-infos">${info}</div></div>`;
-  }).join("");
+      <div class="pont-etat">${p.statutText || ''}</div>
+      <div class="pont-infos">${info}</div>
+    </div>`;
+  }).join('');
 }
 
 /* ============================================================
-   INIT
+   INITIALISATION - DOMContentLoaded ensures nodes exist
+   - attaches event listeners and starts intervals
 ============================================================ */
-loadCalendar();
-setInterval(loadCalendar,CAL_REFRESH_INTERVAL);
-checkAndUpdate();
-setInterval(checkAndUpdate,REFRESH_INTERVAL);
+document.addEventListener('DOMContentLoaded', () => {
+  // initial fetch/render
+  debouncedLoadCalendar(0); // immediate
+  checkAndUpdate();
 
-/* ============================================================
-   HANDLE RESIZE & SCROLL for multi-bands
-============================================================ */
-const grid=document.getElementById('calendar-grid');
-new ResizeObserver(()=>loadCalendar()).observe(grid);
-grid.addEventListener('scroll',()=>loadCalendar());
-window.addEventListener('resize',()=>loadCalendar());
+  // intervals
+  setInterval(() => debouncedLoadCalendar(), CAL_REFRESH_INTERVAL);
+  setInterval(() => checkAndUpdate(), REFRESH_INTERVAL);
 
+  // Ensure reposition runs after initial rendering
+  // Also run reposition on a short delay to catch layout
+  setTimeout(()=>{ repositionBands(); }, 250);
+  setTimeout(()=>{ repositionBands(); }, 1000);
+});
 </script>
 </body>
 </html>
