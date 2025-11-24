@@ -56,6 +56,19 @@ body {
 .pont-nom { font-weight: bold; display: flex; align-items: center; }
 
 /* =====================
+   PULSE ANIMATIONS (VERSION DEMANDÉE)
+   - identique à ton second exemple : glow + léger scale
+===================== */
+@keyframes pulse-blue {
+  0%,100% { box-shadow: 0 0 5px rgba(28,60,255,0.4); transform: scale(1); }
+  50%     { box-shadow: 0 0 20px rgba(28,60,255,0.7); transform: scale(1.02); }
+}
+@keyframes pulse-orange {
+  0%,100% { box-shadow: 0 0 5px rgba(255,165,0,0.4); transform: scale(1); }
+  50%     { box-shadow: 0 0 20px rgba(255,165,0,0.7); transform: scale(1.02); }
+}
+
+/* =====================
    CALENDRIER
 ===================== */
 .right { flex:1; display:flex; flex-direction:column; height:100%; overflow:hidden; }
