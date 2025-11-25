@@ -41,6 +41,8 @@ body { font-family: Arial, sans-serif; background: #1a1a1a; color:#fff; display:
 .navire { background:#3644b3; }
 
 .multi-band { position:absolute; height:20px; border-radius:4px; display:flex; justify-content:space-between; align-items:center; padding:0 4px; font-size:0.75rem; color:#fff; white-space:nowrap; overflow:hidden; z-index:2; background-color:rgba(100,100,100,0.8); }
+.multi-band.reception { background:#109c53; }
+.multi-band.navire { background:#3644b3; }
 
 .more-events { position:absolute; top:2px; right:4px; font-size:0.7rem; color:#fff; background:rgba(0,0,0,0.5); padding:1px 4px; border-radius:3px; cursor:pointer; z-index:3; }
 
@@ -188,7 +190,7 @@ async function renderCalendar(){
       const firstCell = cellMap[startIndex].el;
       const lastCell = cellMap[endIndex].el;
       const band = document.createElement('div');
-      band.className=`multi-band ${ev.type} fade-in`;
+      band.className=`multi-band ${ev.type} fade-in`; // ← correction ici pour couleur
       band.style.top=`${line*22}px`;
       band.style.position='absolute';
       band.style.left=firstCell.offsetLeft+'px';
