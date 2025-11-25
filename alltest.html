@@ -24,6 +24,7 @@ body{
   overflow:hidden;
   -webkit-font-smoothing:antialiased;
   -moz-osx-font-smoothing:grayscale;
+  margin:0;
   box-sizing:border-box;
 }
 *,*::before,*::after{box-sizing:inherit}
@@ -72,7 +73,6 @@ body{
 /* RIGHT: CALENDAR */
 .right{ flex:1; display:flex; flex-direction:column; height:100%; overflow:hidden; }
 
-/* header */
 #calendar-header{
   flex:0 0 auto;
   padding:12px;
@@ -101,6 +101,7 @@ body{
   align-content:start;
   min-width:0;
 }
+
 .calendar-cell{
   background:var(--panel);
   padding:6px;
@@ -111,10 +112,10 @@ body{
   flex-direction:column;
   overflow:visible;
   min-width:0;
-  word-break: break-word; /* allows wrapping of long event titles */
 }
 .date-label{ font-size:12px; color:#fff; margin-bottom:6px; white-space:nowrap; }
 
+/* events container */
 .cell-events{
   display:flex;
   flex-direction:column;
@@ -123,18 +124,23 @@ body{
   overflow:hidden;
   min-width:0;
 }
+
+/* single event styling */
 .event{
   padding:3px 6px;
   border-radius:4px;
   font-size:12px;
   line-height:1.2;
+  white-space:normal; /* allow wrapping for single events */
+  overflow-wrap:break-word;
+  overflow:hidden;
+  text-overflow:ellipsis;
   min-width:0;
-  word-wrap: break-word;
-  white-space: normal; /* allow wrapping */
 }
 .event.reception{ background:#109c5344; border-left:3px solid #109c53; color:#eaffea }
 .event.navire{ background:#3644b344; border-left:3px solid #3644b3; color:#eef0ff }
 
+/* "+X autres" badge */
 .more-events{
   font-size:12px;
   color:var(--muted);
@@ -144,6 +150,7 @@ body{
   white-space:nowrap;
 }
 
+/* popover container */
 #global-popover{
   position:fixed;
   display:none;
@@ -165,6 +172,7 @@ body{
 .pop-item{ padding:6px 8px; border-radius:6px; margin-bottom:6px; background:rgba(255,255,255,0.02); font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .pop-item:last-child{ margin-bottom:0 }
 
+/* modal overlay */
 .modal-overlay{
   position:fixed; inset:0; display:none; z-index:2000;
   align-items:center; justify-content:center;
@@ -180,6 +188,7 @@ body{
 .close-btn{ cursor:pointer; background:#222; border:1px solid #333; padding:6px 10px; border-radius:6px; color:var(--accent) }
 .list-item{ padding:10px; border-radius:8px; background:rgba(255,255,255,0.02); margin-bottom:8px; }
 
+/* multi-day bands */
 .multi-band{
   position:absolute;
   height:var(--band-height);
@@ -243,116 +252,321 @@ body{
 </div>
 
 <script>
-/* =========================
-   JS complet
-   ========================= */
-
-// --- CONFIGURATION ---
+/* ----------------------------
+   CONFIG
+---------------------------- */
 const API_KEY = "AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo";
 const CAL_RECEPTION = "receptionroulier@gmail.com";
 const CAL_NAVIRE = "smr.programme@gmail.com";
-
 let viewDays = 21;
 let offsetWeeks = 0;
+const CAL_HASH_KEY = "calendarHash";
+const CAL_CACHE_KEY = "calendarCache";
+const CAL_REFRESH_INTERVAL = 60000;
 
-// --- UTILS DATE ---
+/* PONTS constants */
+const CACHE_KEY_DATA="pontsData";
+const CACHE_KEY_HASH="pontsHash";
+const CACHE_KEY_TIME="pontsCacheTime";
+const CACHE_EXPIRATION=60000;
+const REFRESH_INTERVAL=10000;
+
+const PROXIES=[
+  "https://api.allorigins.win/get?url=",
+  "https://cors-anywhere.herokuapp.com/",
+  "https://thingproxy.freeboard.io/fetch/"
+];
+
+/* ----------------------------
+   UTILITAIRES DATE
+---------------------------- */
 function getStartMonday(date){
-    const d=new Date(date);
-    const day=d.getDay();
-    const diff=(day===0?-6:1)-day;
-    d.setDate(d.getDate()+diff);
-    return d;
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = (day === 0 ? -6 : 1) - day;
+  d.setDate(d.getDate() + diff);
+  return d;
 }
-function addDays(date,n){const d=new Date(date);d.setDate(d.getDate()+n);return d;}
-function formatDate(d){return d.getFullYear().toString().padStart(4,'0')+'-'+(d.getMonth()+1).toString().padStart(2,'0')+'-'+d.getDate().toString().padStart(2,'0');}
-function dayName(d){return ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"][d.getDay()];}
-function formatMonthRange(start,end){const m=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];const m1=m[start.getMonth()], m2=m[end.getMonth()];const y1=start.getFullYear(), y2=end.getFullYear();return (m1===m2&&y1===y2)?`${m1} ${y1}`:`${m1} — ${m2} ${y2}`;}
-
-/* FETCH CALENDAR */
-async function fetchCalendar(start,end){
-    const timeMin=start.toISOString();
-    const timeMax=addDays(end,1).toISOString();
-    const urlRec=`https://www.googleapis.com/calendar/v3/calendars/${CAL_RECEPTION}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
-    const urlNav=`https://www.googleapis.com/calendar/v3/calendars/${CAL_NAVIRE}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
-    const [recRaw, navRaw] = await Promise.all([fetch(urlRec).then(r=>r.json()).catch(()=>({items:[]})),fetch(urlNav).then(r=>r.json()).catch(()=>({items:[]}))]);
-    return {reception:recRaw.items||[], navire:navRaw.items||[]};
+function addDays(date,n){ const d = new Date(date); d.setDate(d.getDate() + n); return d; }
+function formatDate(d){
+  return d.getFullYear().toString().padStart(4,'0') + '-' +
+         (d.getMonth()+1).toString().padStart(2,'0') + '-' +
+         d.getDate().toString().padStart(2,'0');
+}
+function dayName(d){ return ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"][d.getDay()]; }
+function formatMonthRange(start,end){
+  const m=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+  const m1 = m[start.getMonth()], m2 = m[end.getMonth()];
+  const y1 = start.getFullYear(), y2 = end.getFullYear();
+  return (m1 === m2 && y1 === y2) ? `${m1} ${y1}` : `${m1} — ${m2} ${y2}`;
 }
 
-/* RENDU CALENDAR */
-function createCalendarGrid(startDate,days){
-    const grid = document.getElementById("calendar-grid");
-    grid.innerHTML="";
-    grid.style.gridTemplateColumns=`repeat(${days}, minmax(100px,1fr))`;
+/* ----------------------------
+   HASH UTIL
+---------------------------- */
+async function hashObject(obj){
+  const txt = JSON.stringify(obj);
+  const data = new TextEncoder().encode(txt);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
 
-    const cells = [];
-    for(let i=0;i<days;i++){
-        const d=addDays(startDate,i);
-        const cell = document.createElement("div");
-        cell.classList.add("calendar-cell");
-        const label = document.createElement("div");
-        label.className="date-label";
-        label.textContent = `${dayName(d)} ${d.getDate()}`;
-        cell.appendChild(label);
-        const evContainer = document.createElement("div");
-        evContainer.className="cell-events";
-        cell.appendChild(evContainer);
-        grid.appendChild(cell);
-        cells.push({date:d, el:cell, eventsContainer:evContainer});
+/* ----------------------------
+   FETCH CALENDAR
+---------------------------- */
+async function fetchCalendarWithHash(start, end){
+  const timeMin = start.toISOString();
+  const timeMax = addDays(end,1).toISOString();
+
+  const urlRec = `https://www.googleapis.com/calendar/v3/calendars/${CAL_RECEPTION}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
+  const urlNav = `https://www.googleapis.com/calendar/v3/calendars/${CAL_NAVIRE}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
+
+  const [recRaw, navRaw] = await Promise.all([
+    fetch(urlRec).then(r=>r.json()).catch(()=>({items:[]})),
+    fetch(urlNav).then(r=>r.json()).catch(()=>({items:[]})),
+  ]);
+
+  const events = { reception: recRaw.items || [], navire: navRaw.items || [] };
+  const newHash = await hashObject(events);
+  const oldHash = localStorage.getItem(CAL_HASH_KEY);
+
+  if(newHash === oldHash && localStorage.getItem(CAL_CACHE_KEY)){
+    try { return JSON.parse(localStorage.getItem(CAL_CACHE_KEY)); } catch{}
+  }
+
+  localStorage.setItem(CAL_HASH_KEY, newHash);
+  localStorage.setItem(CAL_CACHE_KEY, JSON.stringify(events));
+  return events;
+}
+
+/* ----------------------------
+   NORMALISATION
+---------------------------- */
+function localYMDFromDateTime(dtStr){
+  const d = new Date(dtStr);
+  const y = d.getFullYear();
+  const m = (d.getMonth()+1).toString().padStart(2,'0');
+  const day = d.getDate().toString().padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function getLocalStartYMD(ev){
+  if(ev.start?.date) return ev.start.date;
+  if(ev.start?.dateTime) return localYMDFromDateTime(ev.start.dateTime);
+  return null;
+}
+function getLocalEndYMD_Inclusive(ev){
+  if(ev.end?.date){
+    const d = new Date(ev.end.date);
+    d.setDate(d.getDate()-1);
+    return formatDate(d);
+  }
+  if(ev.end?.dateTime){
+    const d = new Date(ev.end.dateTime);
+    if(d.getHours()===0 && d.getMinutes()===0 && d.getSeconds()===0 && d.getMilliseconds()===0){
+      const prev = new Date(d.getTime() - 1);
+      return formatDate(prev);
     }
-    return cells;
+    return localYMDFromDateTime(ev.end.dateTime);
+  }
+  return null;
 }
 
-/* AFFICHE LES ÉVÉNEMENTS */
-function renderEvents(cells, events){
-    const allEvents = [];
-    ["reception","navire"].forEach(type=>{
-        events[type].forEach(ev=>{
-            const start = new Date(ev.start.dateTime||ev.start.date);
-            const end = new Date(ev.end.dateTime||ev.end.date);
-            allEvents.push({ev,type,start,end,title:ev.summary||type});
-        });
+/* ----------------------------
+   CREATE GRID
+---------------------------- */
+function createGrid(start, viewDays){
+  const grid = document.getElementById('calendar-grid');
+  const rows = (viewDays === 21) ? 3 : 4;
+  grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+  grid.style.gridTemplateColumns = `repeat(7, 1fr)`;
+  grid.innerHTML = '';
+  const dates = [];
+  for(let i=0;i<viewDays;i++){
+    const d = addDays(start,i);
+    const cell = document.createElement('div');
+    cell.className = 'calendar-cell';
+    cell.dataset.date = formatDate(d);
+    cell.dataset.index = i;
+    cell._allEvents = [];
+    cell.innerHTML = `<div class="date-label">${dayName(d)} ${d.getDate()}</div><div class="cell-events"></div>`;
+    grid.appendChild(cell);
+    dates.push(formatDate(d));
+  }
+  return dates;
+}
+
+/* ----------------------------
+   CLEAR
+---------------------------- */
+function clearPrevious(){
+  const grid = document.getElementById('calendar-grid');
+  grid.querySelectorAll('.multi-band').forEach(n=>n.remove());
+  document.querySelectorAll('.calendar-cell .event').forEach(n=>n.remove());
+  closeGlobalPopover();
+  closeModal();
+}
+
+/* ----------------------------
+   MULTI-DAY LEVEL
+---------------------------- */
+function allocateLevel(occupied, dayIndexes){
+  let level = 0;
+  while(true){
+    let ok = true;
+    for(const di of dayIndexes){
+      const row = occupied[di] || [];
+      if(row[level]){ ok = false; break; }
+    }
+    if(ok){
+      for(const di of dayIndexes){
+        occupied[di] = occupied[di] || [];
+        occupied[di][level] = true;
+      }
+      return level;
+    }
+    level++;
+  }
+}
+
+/* ----------------------------
+   RENDER EVENTS
+---------------------------- */
+function renderBandsAndEvents(eventsObj, start, viewDays){
+  const grid = document.getElementById('calendar-grid');
+  const cells = Array.from(grid.querySelectorAll('.calendar-cell'));
+  const dateToIndex = {};
+  cells.forEach(c => { dateToIndex[c.dataset.date] = parseInt(c.dataset.index,10); c._allEvents = []; });
+
+  const multi = [];
+  const single = [];
+
+  ['reception','navire'].forEach(type => {
+    (eventsObj[type]||[]).forEach(ev => {
+      const startYMD = getLocalStartYMD(ev);
+      const endYMD = getLocalEndYMD_Inclusive(ev);
+      if(!startYMD || !endYMD) return;
+      const startIndex = dateToIndex[startYMD];
+      const endIndex = dateToIndex[endYMD];
+      if(startIndex === undefined || endIndex === undefined) return;
+
+      const dayCount = endIndex - startIndex +1;
+      const e = { ev, type, startIndex, endIndex, dayCount };
+
+      if(dayCount>1){ multi.push(e); }
+      else{ single.push(e); }
     });
+  });
 
-    // Multi-day events
-    const bands = [];
-    allEvents.forEach(e=>{
-        const startIndex=cells.findIndex(c=>c.date>=e.start);
-        const endIndex=cells.findIndex(c=>c.date>e.end);
-        const sIndex = startIndex>=0?startIndex:0;
-        const eIndex = endIndex>=0?endIndex:cells.length-1;
-        if((e.end - e.start)/(1000*3600*24)>0){
-            // multi-day band
-            const band = document.createElement("div");
-            band.className="multi-band "+e.type;
-            const left = document.createElement("div"); left.className="band-left"; left.textContent=e.title;
-            const right = document.createElement("div"); right.className="band-right"; right.textContent="";
-            band.appendChild(left); band.appendChild(right);
-            band.style.top=(sIndex*(parseInt(getComputedStyle(cells[0].el).height)+6))+"px";
-            band.style.left=(sIndex*(100/cells.length))+"%";
-            band.style.width=((eIndex-sIndex+1)*(100/cells.length))+"%";
-            cells[0].el.parentElement.appendChild(band);
-        }else{
-            const cell = cells[sIndex];
-            const evDiv = document.createElement("div");
-            evDiv.className="event "+e.type;
-            evDiv.textContent=e.title;
-            cell.eventsContainer.appendChild(evDiv);
-        }
+  // Multi-day bands
+  const occupied = [];
+  multi.forEach(e=>{
+    const level = allocateLevel(occupied, [...Array(e.dayCount).keys()].map(i=>i+e.startIndex));
+    const band = document.createElement('div');
+    band.className = `multi-band ${e.type}`;
+    band.style.top = `${level*(parseInt(getComputedStyle(document.documentElement).getPropertyValue('--band-height')) + parseInt(getComputedStyle(document.documentElement).getPropertyValue('--band-gap')))}px`;
+    const leftCell = cells[e.startIndex];
+    const rightCell = cells[e.endIndex];
+    const leftRect = leftCell.getBoundingClientRect();
+    const rightRect = rightCell.getBoundingClientRect();
+    band.style.left = `${leftCell.offsetLeft + 2}px`;
+    band.style.width = `${rightCell.offsetLeft - leftCell.offsetLeft + rightCell.offsetWidth - 4}px`;
+    band.innerHTML = `<span class="band-left">${e.ev.summary}</span>`;
+    grid.appendChild(band);
+    // Attach for popover
+    band.addEventListener('mouseenter',()=>showGlobalPopover(e.ev,band));
+    band.addEventListener('mouseleave',closeGlobalPopover);
+  });
+
+  // Single-day events
+  single.forEach(e=>{
+    const cell = cells[e.startIndex];
+    const cellEvents = cell.querySelector('.cell-events');
+    const div = document.createElement('div');
+    div.className = `event ${e.type}`;
+    div.textContent = e.ev.summary;
+    div.addEventListener('mouseenter',()=>showGlobalPopover(e.ev,div));
+    div.addEventListener('mouseleave',closeGlobalPopover);
+    cellEvents.appendChild(div);
+  });
+
+  // "+X autres"
+  cells.forEach(cell=>{
+    const cellEvents = cell.querySelector('.cell-events');
+    const events = Array.from(cellEvents.children);
+    const maxVisible = 2;
+    if(events.length > maxVisible){
+      events.slice(maxVisible).forEach(e=>e.style.display='none');
+      const more = document.createElement('div');
+      more.className='more-events';
+      more.textContent = `+${events.length-maxVisible} autres`;
+      more.addEventListener('click',()=>showModal(cell._allEvents.concat(single.filter(se=>se.startIndex===parseInt(cell.dataset.index,10)).map(se=>se.ev))));
+      cellEvents.appendChild(more);
+    }
+  });
+}
+
+/* ----------------------------
+   POPOVER / MODAL
+---------------------------- */
+function showGlobalPopover(ev, target){
+  const pop = document.getElementById('global-popover');
+  pop.innerHTML = `<div class="popover"><div class="pop-item">${ev.summary}</div></div>`;
+  const rect = target.getBoundingClientRect();
+  pop.style.top = rect.bottom + window.scrollY + 'px';
+  pop.style.left = rect.left + window.scrollX + 'px';
+  pop.style.display = 'block';
+}
+function closeGlobalPopover(){ document.getElementById('global-popover').style.display='none'; }
+
+function showModal(events){
+  const overlay = document.getElementById('modal-overlay');
+  const body = document.getElementById('modal-body');
+  body.innerHTML = '';
+  events.forEach(ev=>{
+    const div = document.createElement('div');
+    div.className='list-item';
+    div.textContent = `${ev.summary} (${ev.start?.date||ev.start?.dateTime})`;
+    body.appendChild(div);
+  });
+  overlay.style.display='flex';
+}
+function closeModal(){ document.getElementById('modal-overlay').style.display='none'; }
+document.getElementById('modal-close').addEventListener('click',closeModal);
+
+/* ----------------------------
+   INIT
+---------------------------- */
+let startMonday = getStartMonday(new Date());
+function updateCalendar(){
+  clearPrevious();
+  const dates = createGrid(startMonday, viewDays);
+  fetchCalendarWithHash(startMonday, addDays(startMonday, viewDays-1))
+    .then(events => {
+      renderBandsAndEvents(events, startMonday, viewDays);
+      const titleEl = document.getElementById('calendar-title');
+      const endDate = addDays(startMonday, viewDays-1);
+      titleEl.textContent = formatMonthRange(startMonday,endDate);
     });
 }
+updateCalendar();
 
-/* INIT CALENDAR */
-async function initCalendar(){
-    const startMonday=getStartMonday(new Date());
-    const cells=createCalendarGrid(startMonday,viewDays);
-    const events=await fetchCalendar(startMonday,addDays(startMonday,viewDays-1));
-    renderEvents(cells,events);
-    document.getElementById("calendar-title").textContent=formatMonthRange(startMonday,addDays(startMonday,viewDays-1));
-}
-
-/* INIT */
-initCalendar();
-
+/* ----------------------------
+   NAVIGATION
+---------------------------- */
+document.getElementById('prev-btn').addEventListener('click',()=>{
+  startMonday = addDays(startMonday, -7);
+  updateCalendar();
+});
+document.getElementById('next-btn').addEventListener('click',()=>{
+  startMonday = addDays(startMonday, 7);
+  updateCalendar();
+});
+document.getElementById('today-btn').addEventListener('click',()=>{
+  startMonday = getStartMonday(new Date());
+  updateCalendar();
+});
+document.getElementById('view-3w').addEventListener('click',()=>{ viewDays=21; updateCalendar(); });
+document.getElementById('view-4w').addEventListener('click',()=>{ viewDays=28; updateCalendar(); });
 </script>
 </body>
 </html>
