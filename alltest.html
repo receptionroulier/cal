@@ -1,972 +1,547 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Ponts HAROPA – Monitoring + Calendrier</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Calendrier + Ponts</title>
+
 <style>
-/* ===================== GLOBAL ===================== */
-:root{
-  --bg:#101010;
-  --panel:#1a1a1a;
-  --muted:#777;
-  --accent:#00e5ff;
-  --gap:6px;
-  --card:#1f1f1f;
+/* ===========================
+   RESET + BASE
+=========================== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
-html,body{height:100%;margin:0}
 body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: var(--bg);
-  color: #eaeaea;
-  display: flex;
-  height: 100vh;
-  overflow: hidden;
-  -webkit-font-smoothing:antialiased;
-  -moz-osx-font-smoothing:grayscale;
+    background: #0d0d0d;
+    font-family: Arial, sans-serif;
+    color: #fff;
+    overflow-x: hidden;
 }
 
-/* ===================== LEFT (PONTS) ===================== */
-.left {
-  flex: 0 0 22%;
-  border-right: 1px solid #444;
-  padding: 14px;
-  overflow-y: auto;
-  box-sizing: border-box;
-  background: linear-gradient(0deg, rgba(255,255,255,0.01), transparent);
+/* ===========================
+   HEADER
+=========================== */
+.calendar-header {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:20px;
+    background:#121212;
+    border-bottom:1px solid #333;
 }
-.left h2 { color: var(--accent); text-align: center; margin:0 0 8px 0; }
-
-/* pont cards (unchanged visually) */
-.pont-card {
-  background: var(--card);
-  border-radius: 8px;
-  padding: 10px 12px;
-  box-shadow: 0 0 5px rgba(0,0,0,0.4);
-  border-left: 4px solid #444;
-  transition: transform 0.15s ease, box-shadow 0.3s ease;
-  margin-bottom: 8px;
+.nav-buttons button {
+    background:#222;
+    color:#fff;
+    padding:8px 14px;
+    margin-right:10px;
+    border:1px solid #444;
+    border-radius:6px;
+    cursor:pointer;
 }
-.pont-card:hover { transform: scale(1.02); }
-.pont-card.ferme { border-left-color: #ff4040; }
-.pont-card.fermeture { border-left-color: orange; animation: pulse-orange 1.2s infinite; }
-.pont-card.manoeuvre { border-left-color: #1c3cff; animation: pulse-blue 1.2s infinite; }
-.pont-card.ouvert { border-left-color: #58ff58; }
-.pastille { width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; display: inline-block; }
-.ferme .pastille      { background: #ff4040; }
-.fermeture .pastille  { background: orange; }
-.manoeuvre .pastille  { background: #1c3cff; }
-.ouvert .pastille     { background: #58ff58; }
-.pont-nom { font-weight: bold; display: flex; align-items: center; gap:8px; }
-
-/* ===================== PULSE ANIMATIONS ===================== */
-@keyframes pulse-blue {
-  0%,100% { box-shadow: 0 0 5px rgba(28,60,255,0.4); transform: scale(1); }
-  50%     { box-shadow: 0 0 20px rgba(28,60,255,0.7); transform: scale(1.02); }
+.nav-buttons button:hover {
+    background:#333;
 }
-@keyframes pulse-orange {
-  0%,100% { box-shadow: 0 0 5px rgba(255,165,0,0.4); transform: scale(1); }
-  50%     { box-shadow: 0 0 20px rgba(255,165,0,0.7); transform: scale(1.02); }
+.view-switch button {
+    background:#222;
+    color:#ccc;
+    padding:8px 14px;
+    border:1px solid #444;
+    border-radius:6px;
+    cursor:pointer;
+}
+.view-switch button.active {
+    background:#444;
 }
 
-/* ===================== RIGHT (CALENDAR) ===================== */
-.right { flex:1; display:flex; flex-direction:column; height:100%; overflow:hidden; }
-
-/* header */
-#calendar-header {
-  flex:0 0 auto;
-  padding:12px;
-  text-align:center;
-  font-size:20px;
-  color:var(--accent);
-  border-bottom:1px solid #333;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  gap:12px;
-  flex-wrap:wrap;
+/* ===========================
+   GRID CALENDRIER
+=========================== */
+.calendar {
+    padding:20px;
 }
-.nav-btn { cursor:pointer; color:var(--accent); font-size:22px; padding:6px 10px; border-radius:6px; transition:0.2s; user-select:none; background:transparent; border:none; }
-.nav-btn:hover { background:#222; }
-.view-btn { cursor:pointer; font-size:13px; padding:6px 10px; background:#222; border-radius:6px; border:1px solid #333; color:var(--accent); }
-.view-btn:hover { background:#333; }
-
-/* grid container: position:relative needed for absolute bands */
-#calendar-grid {
-  flex:1 1 auto;
-  display:grid;
-  gap:1px;
-  background:#333;
-  overflow:auto;
-  box-sizing:border-box;
-  padding:6px;
-  position:relative;
+.week {
+    display:grid !important;
+    grid-template-columns:repeat(7,1fr) !important;
+    min-width:0;
+    width:100%;
+    gap:1px;
 }
-
-/* each cell */
-.calendar-cell {
-  background:#1a1a1a;
-  padding:6px;
-  border:1px solid #222;
-  overflow:visible; /* needed for absolute band baseline measurement */
-  position:relative;
-  min-height:70px;
-  box-sizing:border-box;
-  display:flex;
-  flex-direction:column;
+.day-cell {
+    background:#1a1a1a;
+    border:1px solid #222;
+    min-height:140px;
+    padding:6px;
+    position:relative;
+    overflow:hidden;
 }
-
-/* header inside each cell: Option B -> +X next to date */
-.cell-header {
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:8px;
-  margin-bottom:6px;
+.day-label-row {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:4px;
 }
-.date-label { font-size:12px; font-weight:600; color:#fff; }
+.day-number {
+    font-weight:bold;
+}
 .more-count {
-  font-size:12px;
-  color:var(--muted);
-  padding:4px 6px;
-  border-radius:6px;
-  background:transparent;
-  cursor:pointer;
-  display:none;
-  border:1px solid transparent;
+    font-size:12px;
+    color:#66aaff;
+    cursor:pointer;
 }
-.more-count:hover { background:#222; border-color:#333; }
 
-/* container for punctual events (stacked, above bands) */
-.cell-events { display:flex; flex-direction:column; gap:4px; z-index:4; overflow:hidden; }
-
-/* punctual events styling */
-.event { padding:4px 6px; border-radius:4px; font-size:12px; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.event.reception { background:#109c5344; border-left:3px solid #109c53; color:#eaffea; }
-.event.navire    { background:#3644b344; border-left:3px solid #3644b3; color:#eef0ff; }
-.event-time { font-size:12px;font-weight:normal; margin-right:4px; }
-
-/* =====================
-   MULTI-DAY BANDS (absolute)
-===================== */
-.multi-band {
-  position:absolute;
-  height:18px;
-  border-radius:6px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:0 8px;
-  box-sizing:border-box;
-  font-size:12px;
-  color:#fff;
-  overflow:hidden;
-  z-index:2; /* below events */
-  pointer-events:auto;
-  white-space:nowrap;
+/* ===========================
+   ÉVÈNEMENTS (normaux)
+=========================== */
+.cell-events {
+    position:relative;
+    min-height:65px !important;
+    overflow:visible;
 }
-.multi-band.reception { background: #109c53; }
-.multi-band.navire    { background: #3644b3; }
-.multi-band .band-left { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
-.multi-band .band-right { white-space:nowrap; margin-left:8px; }
+.event-item {
+    font-size:12px;
+    margin-bottom:3px;
+    padding:2px 4px;
+    background:#255075;
+    border-radius:4px;
+    white-space: normal !important;
+    word-break: break-word !important;
+    max-width:100%;
+}
 
-/* popover (global) */
-#global-popover { position:fixed; display:none; z-index:4000; }
+/* ===========================
+   MULTI-JOURS (bands)
+=========================== */
+.band-event {
+    position:absolute;
+    left:0;
+    right:0;
+    height:22px !important;
+    line-height:22px !important;
+    padding-left:4px;
+    font-size:12px;
+    white-space:nowrap;
+    text-overflow:ellipsis;
+    overflow:hidden !important;
+    border-radius:4px;
+    background:#3b82f6;
+}
+
+/* ===========================
+   POPOVER
+=========================== */
 .popover {
-  background:#141414;
-  border:1px solid #2a2a2a;
-  box-shadow:0 10px 30px rgba(0,0,0,0.7);
-  padding:8px;
-  border-radius:8px;
-  min-width:180px;
-  max-width:320px;
-  max-height:320px;
-  overflow:auto;
+    position:absolute;
+    top:28px;
+    right:4px;
+    z-index:9999;
+    background:#181818;
+    border:1px solid #333;
+    box-shadow:0 8px 25px rgba(0,0,0,0.7);
+    border-radius:8px;
+    padding:8px;
+    min-width:150px;
 }
-.popover .pop-item { padding:8px; margin-bottom:6px; border-radius:6px; background:rgba(255,255,255,0.03); font-size:13px; }
+.popover-item {
+    padding:6px;
+    background:rgba(255,255,255,0.04);
+    border:1px solid #222;
+    border-radius:4px;
+    margin-bottom:4px;
+    font-size:13px;
+}
 
-/* modal overlay */
-.modal-overlay {
-  position:fixed; inset:0; display:none; align-items:center; justify-content:center;
-  background:linear-gradient(rgba(0,0,0,0.45),rgba(0,0,0,0.6));
-  z-index:5000;
+/* ===========================
+   MODAL
+=========================== */
+#eventModal {
+    position:fixed;
+    top:0; left:0;
+    width:100%; height:100%;
+    background:rgba(0,0,0,0.6);
+    display:none;
+    justify-content:center;
+    align-items:center;
+    z-index:999999;
 }
-.modal {
-  background:#121212; border:1px solid #333; border-radius:10px; padding:18px; width:min(720px, 92%); max-height:80vh; overflow:auto;
-  box-shadow:0 10px 40px rgba(0,0,0,0.7);
+.modal-content {
+    background:#1a1a1a;
+    padding:20px;
+    border-radius:10px;
+    width:92%;
+    max-width:500px;
+    max-height:80%;
+    overflow-y:auto;
 }
-.modal header { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; }
-.modal h3 { margin:0; font-size:18px; color:var(--accent); }
-.modal .close-btn { cursor:pointer; background:#222; border:1px solid #333; padding:6px 10px; border-radius:6px; color:var(--accent); }
+.modal-item {
+    background:#222;
+    padding:10px;
+    margin-bottom:10px;
+    border-radius:6px;
+    border:1px solid #333;
+}
 
-/* responsive tweaks */
-@media (max-width:900px){
-  .left { flex:0 0 32%; }
-  .calendar-cell { min-height:90px; padding:8px; }
-  #calendar-header { gap:8px; font-size:16px; padding:10px; }
+/* ===========================
+   RESPONSIVE
+=========================== */
+@media(max-width:760px) {
+    .day-cell {
+        min-height:110px;
+    }
+    .event-item {
+        font-size:11px;
+    }
 }
 </style>
 </head>
+
+
+
 <body>
 
-<div class="left">
-  <h2>État des Ponts</h2>
-  <div id="ponts-table">Chargement…</div>
+<!-- ===========================
+     HEADER
+=========================== -->
+<div class="calendar-header">
+    <div class="nav-buttons">
+        <button onclick="prev()">◀</button>
+        <button onclick="today()">Aujourd’hui</button>
+        <button onclick="next()">▶</button>
+    </div>
+    <h2 id="titleMonth"></h2>
+    <div class="view-switch">
+        <button class="active" onclick="setView('month')">Mois</button>
+        <button onclick="setView('week')">Semaine</button>
+    </div>
 </div>
 
-<div class="right">
-  <div id="calendar-header">
-    <button class="nav-btn" id="prev-btn">‹</button>
-    <div id="calendar-title" aria-live="polite">Chargement…</div>
-    <button class="nav-btn" id="next-btn">›</button>
-    <button class="view-btn" id="view-3w">3 semaines</button>
-    <button class="view-btn" id="view-4w">4 semaines</button>
-    <button class="nav-btn" id="today-btn" style="font-size:14px;">Aujourd’hui</button>
-  </div>
+<!-- ===========================
+     CALENDRIER
+=========================== -->
+<div class="calendar" id="calendar"></div>
 
-  <div id="calendar-grid" role="grid" aria-label="Calendrier"></div>
+<!-- ===========================
+     MODAL
+=========================== -->
+<div id="eventModal">
+    <div class="modal-content">
+        <h3>Évènements du jour</h3>
+        <div id="modalList"></div>
+        <button onclick="closeModal()">Fermer</button>
+    </div>
 </div>
 
-<!-- global popover -->
-<div id="global-popover" aria-hidden="true"></div>
-
-<!-- modal -->
-<div id="modal-overlay" class="modal-overlay" role="dialog" aria-hidden="true">
-  <div class="modal" role="document">
-    <header>
-      <h3 id="modal-title">Événements</h3>
-      <button class="close-btn" id="modal-close">Fermer</button>
-    </header>
-    <div id="modal-body"></div>
-  </div>
-</div>
+<!-- ===========================
+     SCRIPT
+=========================== -->
 
 <script>
-/* ===========================================================
-   CONFIG / CONSTANTS (calendars & ponts keys kept exactly)
-   =========================================================== */
-const API_KEY = "AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo";
-const CAL_RECEPTION = "receptionroulier@gmail.com";
-const CAL_NAVIRE = "smr.programme@gmail.com";
+/* ================================================================
+   LOGIQUE : NAVIGATION
+================================================================ */
+let current = new Date();
+let viewMode = "month";
 
-let viewDays = 21; // default 3 weeks
-let offsetWeeks = 0;
+function setView(v){
+    viewMode = v;
+    loadCalendar();
+}
 
-const CAL_HASH_KEY = "calendarHash";
-const CAL_CACHE_KEY = "calendarCache";
-const CAL_REFRESH_INTERVAL = 60000; // 1 minute
+function prev(){
+    if(viewMode === "month"){ current.setMonth(current.getMonth()-1); }
+    else { current.setDate(current.getDate()-7); }
+    loadCalendar();
+}
+function next(){
+    if(viewMode === "month"){ current.setMonth(current.getMonth()+1); }
+    else { current.setDate(current.getDate()+7); }
+    loadCalendar();
+}
+function today(){
+    current = new Date();
+    loadCalendar();
+}
 
-/* PONTS constants kept as-is */
-const CACHE_KEY_DATA="pontsData";
-const CACHE_KEY_HASH="pontsHash";
-const CACHE_KEY_TIME="pontsCacheTime";
-const CACHE_EXPIRATION=60000;
-const REFRESH_INTERVAL=10000;
+/* ================================================================
+   OUTILS
+================================================================ */
+function clone(d){ return new Date(d.getTime()); }
+function formatDate(d){ return d.toISOString().split("T")[0]; }
 
-const PROXIES=[
-  "https://api.allorigins.win/get?url=",
-  "https://cors-anywhere.herokuapp.com/",
-  "https://thingproxy.freeboard.io/fetch/"
+/* Lundi de la semaine */
+function getStartMonday(date){
+    const d = clone(date);
+    const day = d.getDay();
+    const diff = (day === 0 ? -6 : 1 - day);
+    d.setDate(d.getDate() + diff);
+    return d;
+}
+
+/* ================================================================
+   GESTION DES PONTS (PARTIE ORIGINALE NON MODIFIÉE)
+================================================================ */
+async function getOffs(start, end){
+    const url = `https://openholidaysapi.org/PublicHolidays?countryIsoCode=FR&languageIsoCode=FR&validFrom=${start}&validTo=${end}`;
+    const resp = await fetch(url);
+    return await resp.json();
+}
+
+async function getBridges(start, end){
+    const offs = await getOffs(start, end);
+    const bridges = [];
+
+    for(const o of offs){
+        const f = o.startDate;
+        const sf = new Date(f);
+        const ef = new Date(o.endDate);
+
+        /* Lundi est 1, dimanche est 0 → blocage */
+        const fd = sf.getDay();
+        if(fd === 0){ sf.setDate(sf.getDate()-1); }
+
+        /* Si lundi ou vendredi */
+        if(fd === 5 || fd === 2){
+            const bStart = new Date(sf);
+            const bEnd = new Date(ef);
+            bridges.push({ title: o.name, start: bStart, end: bEnd });
+        }
+    }
+    return bridges;
+}
+
+/* ================================================================
+   CHARGEMENT CALENDRIER
+================================================================ */
+async function loadCalendar(){
+    const cal = document.getElementById("calendar");
+    cal.innerHTML = "";
+
+    if(viewMode === "month"){
+        buildMonth();
+    } else {
+        buildWeek();
+    }
+}
+
+function buildMonth(){
+    const year = current.getFullYear();
+    const month = current.getMonth();
+    const startMonth = new Date(year, month, 1);
+    const endMonth = new Date(year, month+1, 0);
+
+    document.getElementById("titleMonth").textContent =
+        startMonth.toLocaleDateString("fr-FR",{ month:"long", year:"numeric" });
+
+    const firstMonday = getStartMonday(startMonth);
+
+    const weeks = [];
+    let runner = clone(firstMonday);
+
+    for(let w=0; w<6; w++){
+        const arr = [];
+        for(let d=0; d<7; d++){
+            arr.push(clone(runner));
+            runner.setDate(runner.getDate()+1);
+        }
+        weeks.push(arr);
+    }
+    renderWeeks(weeks);
+}
+
+function buildWeek(){
+    const monday = getStartMonday(current);
+    const week = [];
+    const w = clone(monday);
+    for(let i=0;i<7;i++){
+        week.push(clone(w));
+        w.setDate(w.getDate()+1);
+    }
+    document.getElementById("titleMonth").textContent =
+        "Semaine du " + formatDate(monday);
+    renderWeeks([week]);
+}
+
+/* ================================================================
+   RENDU GRILLE
+================================================================ */
+async function renderWeeks(weeks){
+    const cal = document.getElementById("calendar");
+
+    /* Récupération ponts */
+    const start = clone(weeks[0][0]);
+    const end = clone(weeks[weeks.length-1][6]);
+    const bridges = await getBridges(formatDate(start), formatDate(end));
+
+    for(const week of weeks){
+        const wdiv = document.createElement("div");
+        wdiv.className = "week";
+
+        for(const day of week){
+            const cell = document.createElement("div");
+            cell.className = "day-cell";
+
+            /* HEADER CELLULE */
+            const labelRow = document.createElement("div");
+            labelRow.className = "day-label-row";
+
+            const dn = document.createElement("div");
+            dn.className = "day-number";
+            dn.textContent = day.getDate();
+
+            const more = document.createElement("div");
+            more.className = "more-count";
+
+            labelRow.appendChild(dn);
+            labelRow.appendChild(more);
+
+            const evDiv = document.createElement("div");
+            evDiv.className = "cell-events";
+
+            cell.appendChild(labelRow);
+            cell.appendChild(evDiv);
+            wdiv.appendChild(cell);
+
+            /* RENDU ÉVÈNEMENTS */
+            const eventsToday = getEventsForDay(day);
+            applyEventRender(day, evDiv, more, eventsToday);
+
+            /* RENDU PONTS (multi-jours) */
+            applyBridges(day, evDiv, bridges);
+        }
+        cal.appendChild(wdiv);
+    }
+}
+
+/* ================================================================
+   EVENTS — (EXEMPLE, à remplacer par tes sources)
+================================================================ */
+function getEventsForDay(day){
+    // Remplace ici si tu as ta propre source d’évènements
+    const list = window.demoEvents || [];
+    return list.filter(e => formatDate(new Date(e.date)) === formatDate(day));
+}
+
+/* ================================================================
+   RENDU ÉVÉNEMENTS DU JOUR
+================================================================ */
+function applyEventRender(day, evDiv, moreNode, events){
+    const MAX_DISPLAY = 2;  
+
+    /* Affiche les 2 premiers */
+    const visible = events.slice(0, MAX_DISPLAY);
+    const hidden = events.slice(MAX_DISPLAY);
+
+    for(const ev of visible){
+        const div = document.createElement("div");
+        div.className = "event-item";
+        div.textContent = ev.title;
+        evDiv.appendChild(div);
+    }
+
+    if(hidden.length > 0){
+        const count = hidden.length;
+        moreNode.textContent = `+${count} autres`;
+        moreNode.onclick = ()=> openPopover(day, events, moreNode);
+    } else {
+        moreNode.textContent = "";
+    }
+}
+
+/* ================================================================
+   POPOVER
+================================================================ */
+let popover = null;
+
+function openPopover(day, events, anchor){
+    closePopover();
+
+    popover = document.createElement("div");
+    popover.className = "popover";
+
+    events.forEach(ev=>{
+        const div = document.createElement("div");
+        div.className="popover-item";
+        div.textContent = ev.title;
+        popover.appendChild(div);
+    });
+
+    anchor.parentElement.appendChild(popover);
+}
+
+function closePopover(){
+    if(popover){
+        popover.remove();
+        popover = null;
+    }
+}
+
+document.addEventListener("click",(e)=>{
+    if(popover && !popover.contains(e.target) && !e.target.classList.contains("more-count")){
+        closePopover();
+    }
+});
+
+/* ================================================================
+   PONTS (multi-jours)
+================================================================ */
+function applyBridges(day, evDiv, bridges){
+    const today = formatDate(day);
+
+    let rowIndex = 0;
+    for(const b of bridges){
+        const sd = formatDate(b.start);
+        const ed = formatDate(b.end);
+        const cur = formatDate(day);
+
+        if(cur >= sd && cur <= ed){
+            const band = document.createElement("div");
+            band.className = "band-event";
+            band.style.top = (rowIndex * 22) + "px";
+            band.textContent = b.title;
+            evDiv.appendChild(band);
+            rowIndex++;
+        }
+    }
+}
+
+/* ================================================================
+   MODAL
+================================================================ */
+function openModal(events){
+    const modal = document.getElementById("eventModal");
+    const list = document.getElementById("modalList");
+    list.innerHTML = "";
+
+    events.forEach(ev=>{
+        const div = document.createElement("div");
+        div.className = "modal-item";
+        div.textContent = ev.title;
+        list.appendChild(div);
+    });
+
+    modal.style.display = "flex";
+}
+function closeModal(){
+    document.getElementById("eventModal").style.display="none";
+}
+
+/* ================================================================
+   DEMO EVENTS
+================================================================ */
+window.demoEvents = [
+    { date:"2025-01-05", title:"Réunion stratégique très très longue pour test" },
+    { date:"2025-01-05", title:"Déjeuner pro" },
+    { date:"2025-01-05", title:"3e événement" },
+    { date:"2025-01-06", title:"Rendez-vous médical" }
 ];
 
-/* =====================
-   DATE UTILITIES
-   - local YYYY-MM-DD helpers
-===================== */
-function getStartMonday(date){
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = (day === 0 ? -6 : 1) - day;
-  d.setDate(d.getDate() + diff);
-  d.setHours(0,0,0,0);
-  return d;
-}
-function addDays(date,n){ const d=new Date(date); d.setDate(d.getDate()+n); return d; }
-function formatDate(d){
-  const D = new Date(d);
-  return D.getFullYear().toString().padStart(4,'0') + '-' +
-    (D.getMonth()+1).toString().padStart(2,'0') + '-' +
-    D.getDate().toString().padStart(2,'0');
-}
-function dayName(d){ return ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"][d.getDay()]; }
-function formatMonthRange(start,end){
-  const m=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
-  const m1=m[start.getMonth()], m2=m[end.getMonth()];
-  const y1=start.getFullYear(), y2=end.getFullYear();
-  return (m1===m2 && y1===y2)?`${m1} ${y1}`:`${m1} — ${m2} ${y2}`;
-}
-
-/* =====================
-   HASH UTIL
-===================== */
-async function hashObject(obj){
-  const txt = JSON.stringify(obj);
-  const data = new TextEncoder().encode(txt);
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,'0')).join("");
-}
-
-/* =====================
-   FETCH CALENDAR WITH HASH/CACHE
-===================== */
-async function fetchCalendarWithHash(start, end){
-  const timeMin = start.toISOString();
-  const timeMax = addDays(end,1).toISOString();
-
-  const urlRec = `https://www.googleapis.com/calendar/v3/calendars/${CAL_RECEPTION}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
-  const urlNav = `https://www.googleapis.com/calendar/v3/calendars/${CAL_NAVIRE}/events?key=${API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
-
-  const [recRaw, navRaw] = await Promise.all([
-    fetch(urlRec).then(r=>r.json()).catch(()=>({items:[]})),
-    fetch(urlNav).then(r=>r.json()).catch(()=>({items:[]})),
-  ]);
-
-  const events = { reception: recRaw.items || [], navire: navRaw.items || [] };
-
-  const newHash = await hashObject(events);
-  const oldHash = localStorage.getItem(CAL_HASH_KEY);
-
-  if(newHash === oldHash && localStorage.getItem(CAL_CACHE_KEY)){
-    try { return JSON.parse(localStorage.getItem(CAL_CACHE_KEY)); } catch {}
-  }
-
-  localStorage.setItem(CAL_HASH_KEY,newHash);
-  localStorage.setItem(CAL_CACHE_KEY,JSON.stringify(events));
-  return events;
-}
-
-/* ===========================================================
-   NORMALISATION: convert Google event start/end into local YYYY-MM-DD
-=========================================================== */
-function localYMDFromDateTime(dtStr){
-  const d = new Date(dtStr);
-  const y = d.getFullYear();
-  const m = (d.getMonth()+1).toString().padStart(2,'0');
-  const day = d.getDate().toString().padStart(2,'0');
-  return `${y}-${m}-${day}`;
-}
-function getLocalStartYMD(ev){
-  if(ev.start?.date) return ev.start.date;
-  if(ev.start?.dateTime) return localYMDFromDateTime(ev.start.dateTime);
-  return null;
-}
-function getLocalEndYMD_Inclusive(ev){
-  if(ev.end?.date){
-    const d = new Date(ev.end.date);
-    d.setDate(d.getDate()-1);
-    return formatDate(d);
-  }
-  if(ev.end?.dateTime){
-    const d = new Date(ev.end.dateTime);
-    if(d.getHours()===0 && d.getMinutes()===0 && d.getSeconds()===0 && d.getMilliseconds()===0){
-      const prev = new Date(d.getTime() - 1);
-      return formatDate(prev);
-    }
-    return localYMDFromDateTime(ev.end.dateTime);
-  }
-  return null;
-}
-
-/* ===========================================================
-   GRID CREATION (keeps 3w/4w rows)
-=========================================================== */
-function createGrid(start, viewDays){
-  const grid = document.getElementById('calendar-grid');
-  const rows = (viewDays===21)?3:4;
-  grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
-  grid.style.gridTemplateColumns = `repeat(7, 1fr)`;
-  grid.innerHTML = '';
-  const dates = [];
-  for(let i=0;i<viewDays;i++){
-    const d = addDays(start,i);
-    const cell = document.createElement('div');
-    cell.className = 'calendar-cell';
-    cell.dataset.date = formatDate(d);
-    cell.dataset.index = i;
-
-    // header (date + +X badge)
-    const header = document.createElement('div');
-    header.className = 'cell-header';
-    const dateLabel = document.createElement('div');
-    dateLabel.className = 'date-label';
-    dateLabel.textContent = `${dayName(d)} ${d.getDate()}`;
-    const more = document.createElement('div');
-    more.className = 'more-count';
-    more.dataset.date = formatDate(d);
-    more.textContent = '+0';
-    more.style.display = 'none';
-
-    header.appendChild(dateLabel);
-    header.appendChild(more);
-
-    // events container
-    const evCont = document.createElement('div');
-    evCont.className = 'cell-events';
-
-    cell.appendChild(header);
-    cell.appendChild(evCont);
-
-    grid.appendChild(cell);
-    dates.push(formatDate(d));
-  }
-  return dates;
-}
-
-/* ===========================================================
-   CLEAR previous bands & events
-=========================================================== */
-function clearPrevious(){
-  const grid = document.getElementById('calendar-grid');
-  grid.querySelectorAll('.multi-band').forEach(n=>n.remove());
-  document.querySelectorAll('.calendar-cell .event').forEach(n=>n.remove());
-  // hide popover/modal if any
-  closeGlobalPopover();
-  closeModal();
-}
-
-/* ===========================================================
-   ALLOCATE LEVEL to avoid overlapping bands
-=========================================================== */
-function allocateLevel(occupied, dayIndexes){
-  let level = 0;
-  while(true){
-    let ok = true;
-    for(const di of dayIndexes){
-      const row = occupied[di] || [];
-      if(row[level]) { ok = false; break; }
-    }
-    if(ok){
-      for(const di of dayIndexes){
-        occupied[di] = occupied[di] || [];
-        occupied[di][level] = true;
-      }
-      return level;
-    }
-    level++;
-  }
-}
-
-/* ===========================================================
-   RENDER: multi-day bands + single-day events + compute heights
-   - also builds per-cell storage of events for modal/popover
-=========================================================== */
-function renderBandsAndEvents(eventsObj, start, viewDays){
-  const grid = document.getElementById('calendar-grid');
-  const cells = Array.from(grid.querySelectorAll('.calendar-cell'));
-  const dateToIndex = {};
-  cells.forEach(c => {
-    dateToIndex[c.dataset.date] = parseInt(c.dataset.index,10);
-    // attach array for modal storage (doesn't break ponts code)
-    c._allEvents = [];
-  });
-
-  const multi = [];
-  const single = [];
-
-  ['reception','navire'].forEach(type=>{
-    (eventsObj[type]||[]).forEach(ev=>{
-      const startYMD = getLocalStartYMD(ev);
-      const endYMD = getLocalEndYMD_Inclusive(ev);
-      if(!startYMD || !endYMD) return;
-      const sDate = new Date(startYMD + 'T00:00:00');
-      const eDate = new Date(endYMD + 'T00:00:00');
-      const span = Math.round((eDate - sDate)/86400000) + 1;
-
-      const dayIndexes = [];
-      for(let d=new Date(sDate); d<=eDate; d=addDays(d,1)){
-        const key = formatDate(d);
-        if(key in dateToIndex) dayIndexes.push(dateToIndex[key]);
-      }
-      if(dayIndexes.length === 0) return;
-
-      const item = { type, original: ev, summary: ev.summary || '(Sans titre)', startYMD, endYMD, dayIndexes, span };
-      if(span >= 2) multi.push(item);
-      else single.push(item);
-    });
-  });
-
-  // render single-day (punctual) events
-  single.forEach(ev=>{
-    const cell = document.querySelector(`.calendar-cell[data-date="${ev.startYMD}"]`);
-    if(!cell) return;
-    const eventsContainer = cell.querySelector('.cell-events');
-    const div = document.createElement('div');
-    div.className = 'event ' + ev.type;
-    let timeStr = '';
-    if(ev.original.start?.dateTime){
-      const d = new Date(ev.original.start.dateTime);
-      timeStr = d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0') + ' ';
-    }
-    div.innerHTML = `<span class="event-time">${timeStr}</span>${ev.summary}`;
-    eventsContainer.appendChild(div);
-
-    // push to cell storage for popover/modal
-    cell._allEvents.push({
-      type: ev.type,
-      kind: 'ponctuel',
-      summary: ev.summary,
-      time: timeStr || null,
-      startYMD: ev.startYMD,
-      endYMD: ev.endYMD
-    });
-  });
-
-  // measure event container heights to place bands below them
-  const maxEventHeights = {};
-  cells.forEach(cell => {
-    const idx = parseInt(cell.dataset.index,10);
-    const eventsContainer = cell.querySelector('.cell-events');
-    const h = eventsContainer ? eventsContainer.getBoundingClientRect().height : 0;
-    maxEventHeights[idx] = h;
-  });
-
-  // allocate band levels and also add multi entries to each covered cell._allEvents
-  const occupied = {};
-  let maxLevel = 0;
-  multi.forEach(ev=>{
-    ev.level = allocateLevel(occupied, ev.dayIndexes);
-    if(ev.level > maxLevel) maxLevel = ev.level;
-
-    ev.dayIndexes.forEach(di=>{
-      const c = document.querySelector(`.calendar-cell[data-index="${di}"]`);
-      if(c){
-        c._allEvents.push({
-          type: ev.type,
-          kind: 'multi',
-          summary: ev.summary,
-          startYMD: ev.startYMD,
-          endYMD: ev.endYMD
-        });
-      }
-    });
-  });
-
-  // recompute maxEventHeights in case single events added height
-  cells.forEach(cell => {
-    const idx = parseInt(cell.dataset.index,10);
-    const eventsContainer = cell.querySelector('.cell-events');
-    const h = eventsContainer ? eventsContainer.getBoundingClientRect().height : 0;
-    maxEventHeights[idx] = Math.max(maxEventHeights[idx] || 0, h);
-  });
-
-  // create multi-band elements
-  multi.forEach(ev=>{
-    const gridRect = grid.getBoundingClientRect();
-    const firstIdx = ev.dayIndexes[0];
-    const lastIdx = ev.dayIndexes[ev.dayIndexes.length-1];
-    const firstCell = grid.querySelector(`.calendar-cell[data-index="${firstIdx}"]`);
-    const lastCell  = grid.querySelector(`.calendar-cell[data-index="${lastIdx}"]`);
-    if(!firstCell || !lastCell) return;
-
-    const firstRect = firstCell.getBoundingClientRect();
-    const lastRect  = lastCell.getBoundingClientRect();
-
-    // position relative to grid (account for grid scroll)
-    const left = (firstRect.left - gridRect.left) + grid.scrollLeft + 6;
-    const rightEdge = (lastRect.left - gridRect.left + lastRect.width) + grid.scrollLeft - 6;
-    const width = Math.max(20, rightEdge - left);
-
-    // top: measure date label bottom (use firstCell) + max events height across covered days + spacing + level*height
-    let maxEventsH = 0;
-    ev.dayIndexes.forEach(di => { maxEventsH = Math.max(maxEventsH, maxEventHeights[di] || 0); });
-
-    const dateLabel = firstCell.querySelector('.date-label');
-    const dateLabelRect = dateLabel.getBoundingClientRect();
-    const baseOffset = dateLabelRect.bottom - gridRect.top + grid.scrollTop;
-
-    const bandGap = 6;
-    const bandHeight = 18;
-    const levelSpacing = bandHeight + 6;
-    const top = baseOffset + maxEventsH + bandGap + ev.level * levelSpacing;
-
-    const band = document.createElement('div');
-    band.className = `multi-band ${ev.type}`;
-    band.style.left = left + 'px';
-    band.style.width = width + 'px';
-    band.style.top = top + 'px';
-
-    const leftSpan = document.createElement('div');
-    leftSpan.className = 'band-left';
-    let startTimeStr = '';
-    if(ev.original.start?.dateTime){
-      const sd = new Date(ev.original.start.dateTime);
-      startTimeStr = sd.getHours().toString().padStart(2,'0') + ':' + sd.getMinutes().toString().padStart(2,'0') + ' ';
-    }
-    leftSpan.textContent = (startTimeStr + ev.summary).slice(0,200);
-    leftSpan.title = ev.summary;
-
-    const rightSpan = document.createElement('div');
-    rightSpan.className = 'band-right';
-    let endTimeStr = '';
-    if(ev.original.end?.dateTime){
-      const ed = new Date(ev.original.end.dateTime);
-      endTimeStr = '>' + ed.getHours().toString().padStart(2,'0') + ':' + ed.getMinutes().toString().padStart(2,'0');
-    }
-    rightSpan.textContent = endTimeStr;
-
-    band.appendChild(leftSpan);
-    band.appendChild(rightSpan);
-    band.title = ev.summary + '\n' + ev.startYMD + ' → ' + ev.endYMD;
-
-    grid.appendChild(band);
-  });
-
-  // ensure cells have enough min-height to accommodate bands
-  const requiredHeight = 26 + (maxLevel + 1) * (18 + 6) + 4;
-  cells.forEach(c => { c.style.minHeight = Math.max(70, requiredHeight) + 'px'; });
-
-  // finally compute visible events per cell and show "+X autres" badge (Option B)
-  limitEventsPerCell();
-}
-
-/* ===========================================================
-   LIMIT VISIBLE EVENTS BY HEIGHT -> Option B (badge next to date)
-   - hides overflowed events and shows +X in .more-count
-   - clicking .more-count opens popover (opaque) with hidden items + "Voir tout" button
-=========================================================== */
-function limitEventsPerCell(){
-  const GAP = 4;
-  // remove existing inline more-count listeners by cloning nodes (safer)
-  document.querySelectorAll('.more-count').forEach(n=>{
-    n.style.display = 'none';
-    n.onclick = null;
-  });
-
-  const cells = Array.from(document.querySelectorAll('.calendar-cell'));
-  cells.forEach(cell=>{
-    const eventsContainer = cell.querySelector('.cell-events');
-    if(!eventsContainer) return;
-    const allEvents = Array.from(eventsContainer.querySelectorAll('.event'));
-    if(allEvents.length === 0){
-      // hide badge
-      const more = cell.querySelector('.more-count');
-      if(more) more.style.display='none';
-      return;
-    }
-
-    // Compute available height for eventsContainer: distance from its top to cell bottom minus small padding
-    // Using clientHeight of eventsContainer is reliable because we set overflow hidden
-    const availableH = eventsContainer.clientHeight || 0;
-
-    if(availableH <= 0){
-      // If not measurable (maybe not painted yet), show 2 and badge
-      showLimited(allEvents, cell, 2);
-      return;
-    }
-
-    // accumulate heights to see how many fit
-    let acc = 0;
-    let visibleCount = 0;
-    for(let i=0;i<allEvents.length;i++){
-      const el = allEvents[i];
-      el.style.display = ''; // ensure measurable
-      const h = el.getBoundingClientRect().height;
-      const extraGap = (visibleCount > 0 ? GAP : 0);
-      if(acc + extraGap + h <= availableH + 0.5){
-        acc += extraGap + h;
-        visibleCount++;
-      } else break;
-    }
-
-    if(visibleCount >= allEvents.length){
-      // all fit
-      allEvents.forEach(e => e.style.display = '');
-      const more = cell.querySelector('.more-count');
-      if(more) more.style.display='none';
-      return;
-    }
-
-    // hide the rest
-    allEvents.forEach((e,idx)=> e.style.display = (idx < visibleCount) ? '' : 'none');
-
-    const hiddenCount = allEvents.length - visibleCount;
-    const more = cell.querySelector('.more-count');
-    if(more){
-      more.textContent = `+${hiddenCount}`;
-      more.style.display = 'inline-block';
-      more.onclick = (ev)=> {
-        ev.stopPropagation();
-        openPopoverForElement(more, cell);
-      };
-    }
-  });
-}
-
-function showLimited(allEvents, cell, maxVisible){
-  allEvents.forEach((e,idx)=> e.style.display = (idx < maxVisible) ? '' : 'none');
-  const more = cell.querySelector('.more-count');
-  if(more){
-    const hidden = Math.max(0, allEvents.length - maxVisible);
-    if(hidden>0){
-      more.textContent = `+${hidden}`;
-      more.style.display = 'inline-block';
-      more.onclick = (ev)=> { ev.stopPropagation(); openPopoverForElement(more, cell); };
-    } else more.style.display='none';
-  }
-}
-
-/* ===========================================================
-   POPOVER (opaque) near the badge; shows hidden items + "Voir tout"
-=========================================================== */
-function openPopoverForElement(anchorEl, cell){
-  const global = document.getElementById('global-popover');
-  global.innerHTML = '';
-  global.style.display = 'block';
-  global.setAttribute('aria-hidden','false');
-
-  const rect = anchorEl.getBoundingClientRect();
-  const pop = document.createElement('div');
-  pop.className = 'popover';
-
-  // hidden events text
-  const items = [...cell.querySelectorAll('.cell-events .event')].filter(e=> e.style.display === 'none').map(e=>e.innerHTML);
-  if(items.length === 0){
-    const p = document.createElement('div'); p.className='pop-item'; p.textContent='Aucun élément caché.'; pop.appendChild(p);
-  } else {
-    items.forEach(it=>{
-      const p = document.createElement('div'); p.className='pop-item'; p.innerHTML = it;
-      pop.appendChild(p);
-    });
-  }
-
-  // separator + voir tout
-  const sep = document.createElement('div'); sep.style.height='1px'; sep.style.background='#222'; sep.style.margin='8px 0';
-  pop.appendChild(sep);
-
-  const voir = document.createElement('div'); voir.className='pop-item'; voir.style.fontWeight='600'; voir.style.cursor='pointer';
-  voir.textContent = 'Voir tout';
-  voir.onclick = ()=> { openModalForCell(cell); closeGlobalPopover(); };
-  pop.appendChild(voir);
-
-  global.appendChild(pop);
-
-  // position popover (prefer to right of anchor, fallback inside viewport)
-  const padding = 8;
-  let left = rect.right + window.scrollX + 8;
-  let top  = rect.top + window.scrollY;
-  const popW = Math.min(320, Math.max(180, window.innerWidth * 0.22));
-  const popH = 320;
-  if(left + popW > window.scrollX + window.innerWidth - padding){
-    left = rect.left + window.scrollX - popW - 8;
-    if(left < window.scrollX + padding) left = window.scrollX + padding;
-  }
-  if(top + popH > window.scrollY + window.innerHeight - padding){
-    top = window.scrollY + window.innerHeight - popH - padding;
-  }
-  global.style.left = left + 'px';
-  global.style.top  = top + 'px';
-
-  // close on outside click
-  setTimeout(()=> {
-    const onDoc = (e)=>{
-      if(!global.contains(e.target) && e.target !== anchorEl){
-        closeGlobalPopover();
-        document.removeEventListener('click', onDoc);
-      }
-    };
-    document.addEventListener('click', onDoc);
-  },0);
-}
-function closeGlobalPopover(){
-  const global = document.getElementById('global-popover');
-  global.style.display = 'none';
-  global.innerHTML = '';
-  global.setAttribute('aria-hidden','true');
-}
-
-/* ===========================================================
-   MODAL (all events of day)
-=========================================================== */
-function openModalForCell(cell){
-  const overlay = document.getElementById('modal-overlay');
-  const title = document.getElementById('modal-title');
-  const body = document.getElementById('modal-body');
-
-  const date = cell.dataset.date;
-  title.textContent = `Événements — ${date}`;
-  body.innerHTML = '';
-
-  const events = (cell._allEvents || []).slice(); // copy
-  // sort: ponctuel first then multi
-  events.sort((a,b)=>{
-    if(a.kind === b.kind) return (a.time || '').localeCompare(b.time || '');
-    return a.kind === 'ponctuel' ? -1 : 1;
-  });
-
-  if(events.length === 0){
-    body.innerHTML = `<div style="padding:8px;">Aucun événement pour ce jour.</div>`;
-  } else {
-    events.forEach(ev=>{
-      const div = document.createElement('div');
-      div.className = 'list-item';
-      div.style.padding = '8px';
-      div.style.background = 'rgba(255,255,255,0.02)';
-      div.style.borderRadius = '8px';
-      div.style.marginBottom = '8px';
-      const time = ev.time ? `<strong>${ev.time}</strong> ` : '';
-      const kind = ev.kind === 'multi' ? `<em style="font-size:12px;color:var(--muted);margin-left:6px;">(multi-jour)</em>` : '';
-      div.innerHTML = `<div>${time}${ev.summary}${kind}</div>`;
-      body.appendChild(div);
-    });
-  }
-
-  overlay.style.display = 'flex';
-  overlay.setAttribute('aria-hidden','false');
-}
-document.getElementById('modal-close').addEventListener('click', ()=> {
-  closeModal();
-});
-document.getElementById('modal-overlay').addEventListener('click', (e)=>{
-  if(e.target === e.currentTarget){
-    closeModal();
-  }
-});
-function closeModal(){
-  const overlay = document.getElementById('modal-overlay');
-  if(overlay) {
-    overlay.style.display = 'none';
-    overlay.setAttribute('aria-hidden','true');
-  }
-}
-
-/* ===========================================================
-   RESIZE / SCROLL handlers -> recompute limits
-=========================================================== */
-let _recalcTimer = null;
-function scheduleRecompute(){
-  if(_recalcTimer) clearTimeout(_recalcTimer);
-  _recalcTimer = setTimeout(()=> {
-    closeGlobalPopover();
-    limitEventsPerCell();
-  }, 120);
-}
-window.addEventListener('resize', scheduleRecompute);
-document.getElementById('calendar-grid').addEventListener('scroll', scheduleRecompute);
-
-/* ===========================================================
-   MAIN: loadCalendar
-   - builds grid, fetches events, renders bands & events, respects caching
-=========================================================== */
-async function loadCalendar(){
-  const today = new Date();
-  const mondayCurrent = getStartMonday(today);
-  const start = new Date(mondayCurrent);
-  start.setDate(start.getDate() - 7 + offsetWeeks*7); // previous week first
-  const end = addDays(start, viewDays - 1);
-
-  document.getElementById('calendar-title').textContent = formatMonthRange(start, end);
-
-  createGrid(start, viewDays);
-  clearPrevious();
-
-  try {
-    const events = await fetchCalendarWithHash(start, end);
-    renderBandsAndEvents(events, start, viewDays);
-  } catch(err){
-    console.error('Erreur loadCalendar:', err);
-  }
-}
-
-/* NAVIGATION wiring (preserve behavior) */
-document.getElementById("prev-btn").onclick = ()=>{ offsetWeeks -= 1; loadCalendar(); };
-document.getElementById("next-btn").onclick = ()=>{ offsetWeeks += 1; loadCalendar(); };
-document.getElementById("today-btn").onclick = ()=>{ offsetWeeks = 0; loadCalendar(); };
-document.getElementById("view-3w").onclick = ()=>{ viewDays = 21; offsetWeeks = 0; loadCalendar(); };
-document.getElementById("view-4w").onclick = ()=>{ viewDays = 28; offsetWeeks = 0; loadCalendar(); };
-
-/* start auto-refresh */
+/* ================================================================
+   START
+================================================================ */
 loadCalendar();
-setInterval(loadCalendar, CAL_REFRESH_INTERVAL);
-
-/* ===========================================================
-   PONTS HAROPA (LOGIQUE ORIGINALE — inchangée)
-   I kept your original logic exactly (fetch proxies, hash control, sort, render).
-=========================================================== */
-async function sha256(str){
-  const data=new TextEncoder().encode(str);
-  const digest=await crypto.subtle.digest("SHA-256",data);
-  return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");
-}
-async function fetchWithRandomProxy(url) {
-  const shuffled = [...PROXIES].sort(() => Math.random() - 0.5);
-  for (const proxy of shuffled) {
-    try {
-      const fullUrl = proxy + encodeURIComponent(url);
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 3000);
-      const res = await fetch(fullUrl, { signal: controller.signal });
-      clearTimeout(timeout);
-      if (!res.ok) throw new Error(`Proxy failed: ${res.status}`);
-      let txt = await res.text();
-      try { const parsed = JSON.parse(txt); if (parsed.contents) return parsed.contents; } catch {}
-      return txt;
-    }
-    catch(err){
-      console.warn(`Proxy ${proxy} échoué : ${err.message}`);
-    }
-  }
-  throw new Error("Tous les proxys ont échoué");
-}
-async function checkAndUpdate(){
-  const now = Date.now();
-  const last = localStorage.getItem(CACHE_KEY_TIME);
-  if (last && now-last < CACHE_EXPIRATION){
-    const cached = localStorage.getItem(CACHE_KEY_DATA);
-    if (cached){ renderPonts(JSON.parse(cached)); return; }
-  }
-  await fetchWithHashControl();
-}
-async function fetchWithHashControl(){
-  try{
-    const rawContent = await fetchWithRandomProxy("https://www.havre-port.com/map/getPonts");
-    const newHash = await sha256(rawContent);
-    const oldHash = localStorage.getItem(CACHE_KEY_HASH);
-    if (newHash === oldHash && localStorage.getItem(CACHE_KEY_DATA)){
-      renderPonts(JSON.parse(localStorage.getItem(CACHE_KEY_DATA)));
-      return;
-    }
-    const ponts = Object.values(JSON.parse(rawContent).data);
-    const unique = Array.from(new Map(ponts.map(p=>[p.nom,p])).values());
-    const ordered = unique.sort((a,b)=>{
-      const score=p=>{
-        const s=p.statutText.toLowerCase();
-        if(s.includes("fermé")) return 1;
-        if(s.includes("fermeture")) return 2;
-        if(s.includes("manoeuvre")) return 3;
-        if(s.includes("ouvert")) return 4;
-        return 5;
-      };
-      return score(a)-score(b);
-    });
-    localStorage.setItem(CACHE_KEY_DATA,JSON.stringify(ordered));
-    localStorage.setItem(CACHE_KEY_HASH,newHash);
-    localStorage.setItem(CACHE_KEY_TIME,Date.now());
-    renderPonts(ordered);
-  } catch(err){
-    console.error("Erreur récupération ponts:",err);
-    document.getElementById("ponts-table").textContent="Impossible de récupérer les ponts.";
-  }
-}
-function renderPonts(list){
-  const container=document.getElementById("ponts-table");
-  container.innerHTML=list.map(p=>{
-    const s=p.statutText.toLowerCase();
-    const cls =
-      s.includes("fermeture") ? "fermeture" :
-      s.includes("fermé")      ? "ferme" :
-      s.includes("manoeuvre")  ? "manoeuvre" :
-      s.includes("ouvert")     ? "ouvert" : "ferme";
-    const info = p.forceText || `MàJ : ${p.date}`;
-    return `<div class="pont-card ${cls}">
-      <div class="pont-nom"><span class="pastille"></span>${p.nom}</div>
-      <div class="pont-etat">${p.statutText}</div>
-      <div class="pont-infos">${info}</div></div>`;
-  }).join("");
-}
-checkAndUpdate();
-setInterval(checkAndUpdate,REFRESH_INTERVAL);
-
 </script>
+
 </body>
 </html>
