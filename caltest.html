@@ -29,7 +29,7 @@ body { font-family: Arial, sans-serif; background: #1a1a1a; color:#fff; display:
 .view-btn:hover { background:#333; }
 
 /* Calendar grid */
-#calendar { display:grid; grid-template-columns:repeat(7,1fr); grid-auto-rows:120px; gap:2px; padding:10px; position:relative; flex:1; }
+#calendar { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; padding:10px; position:relative; flex:1; }
 
 /* Day cell */
 .day-cell { background:#222; border:1px solid #333; position:relative; overflow:hidden; transition: transform 0.2s, box-shadow 0.2s; }
@@ -60,7 +60,7 @@ body { font-family: Arial, sans-serif; background: #1a1a1a; color:#fff; display:
 @keyframes fadeInCell { from { opacity:0; transform:translateY(10px);} to {opacity:1; transform:translateY(0);} }
 
 /* Responsive */
-@media(max-width:768px){ #calendar{grid-auto-rows:100px;} .day-cell{font-size:0.8rem;} }
+@media(max-width:768px){ .day-cell{font-size:0.8rem;} }
 </style>
 </head>
 <body>
@@ -146,9 +146,14 @@ function hideModal(){document.getElementById('event-modal').style.display='none'
 /* Render calendar */
 async function renderCalendar(){
   const calendarEl=document.getElementById('calendar'); calendarEl.innerHTML='';
+
+  // Ajuster hauteur des cases selon weekView
+  calendarEl.style.gridAutoRows = `calc(100% / ${weekView})`;
+
   const events = await loadEvents();
   const startDate = new Date(currentStartDate); startDate.setDate(startDate.getDate()-7);
-  const totalDays = 7*(weekView+1); const months=new Set();
+  const totalDays = 7 * weekView; 
+  const months=new Set();
   const cellMap=[]; 
 
   // Créer les cellules
@@ -167,14 +172,12 @@ async function renderCalendar(){
     const isAllDay = ev.start.date && !ev.start.dateTime;
 
     if(start.toDateString()===end.toDateString() || isAllDay){
-      // Single-day ou all-day
       const cellObj = cellMap.find(c=>c.date.toDateString()===start.toDateString());
       if(cellObj){
         const evDiv=document.createElement('div'); evDiv.className='event '+ev.type; evDiv.textContent=ev.summary; evDiv.onclick=()=>showModal(ev);
         cellObj.el.appendChild(evDiv);
       }
     } else {
-      // Multi-day continue
       const startIndex = cellMap.findIndex(c=>c.date>=start);
       let endIndex = cellMap.findIndex(c=>c.date>=end); if(endIndex===-1) endIndex=cellMap.length-1;
       let line=0;
