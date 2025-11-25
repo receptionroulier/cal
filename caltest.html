@@ -150,29 +150,36 @@ function showModal(events){
 }
 function hideModal(){document.getElementById('event-modal').style.display='none';}
 
+/* Obtenir le lundi d'une date */
 function getMonday(d){ const date=new Date(d); const day=date.getDay(); const diff=(day===0?-6:1-day); date.setDate(date.getDate()+diff); date.setHours(0,0,0,0); return date; }
 
 async function renderCalendar(){
   const calendarEl=document.getElementById('calendar'); calendarEl.innerHTML='';
   calendarEl.style.gridAutoRows = `calc(100% / ${weekView})`;
   const events = await loadEvents();
-  let startDate = getMonday(currentStartDate);
-  const totalDays = 7 * weekView; 
-  const months=new Set();
-  const cellMap=[]; 
-  const weekOffsets = []; // stocke offset vertical de chaque semaine
 
-  // Créer cellules
+  // Lundi semaine passée
+  const today = new Date();
+  const thisMonday = getMonday(today);
+  const pastMonday = new Date(thisMonday); pastMonday.setDate(thisMonday.getDate()-7);
+  let startDate;
+  if(weekView===3) startDate = pastMonday;
+  else if(weekView===4) startDate = pastMonday; // 4 semaines aussi commence par semaine passée
+
+  const totalDays = 7*weekView;
+  const months = new Set();
+  const cellMap = [];
+
   for(let i=0;i<totalDays;i++){
-    const day = new Date(startDate); day.setDate(day.getDate()+i);
+    const day = new Date(startDate);
+    day.setDate(day.getDate()+i);
     const cell = createDayCell(day);
     calendarEl.appendChild(cell);
-    cellMap.push({date:day,el:cell,occupied:[],events:[]});
+    cellMap.push({date:day, el:cell, occupied:[], events:[]});
     months.add(capitalize(day.toLocaleString('fr-FR',{month:'long'})));
-    if(i%7===0) weekOffsets.push(i/7 * (100/weekView));
   }
 
-  // Événements
+  /* Événements */
   events.forEach(ev=>{
     const start = new Date(ev.start.dateTime||ev.start.date);
     const end = new Date(ev.end.dateTime||ev.end.date);
@@ -190,14 +197,18 @@ async function renderCalendar(){
         cellObj.events.push(ev);
       }
     } else {
+      // Multi-days, splité par semaine
       let currStart = new Date(start);
       while(currStart<end){
         const monday = getMonday(currStart);
-        const weekIndex = Math.floor((monday - startDate)/(7*24*60*60*1000));
+        const weekIndex = Math.floor((monday-startDate)/(7*24*60*60*1000));
         const weekStartIdx = weekIndex*7;
         const weekEndIdx = weekStartIdx+6;
         const startIdx = Math.max(cellMap.findIndex(c=>c.date>=currStart), weekStartIdx);
-        const endIdx = Math.min(cellMap.findIndex(c=>c.date>=end), weekEndIdx);
+        let endIdx = cellMap.findIndex(c=>c.date>=end);
+        if(endIdx===-1) endIdx = totalDays-1;
+        endIdx = Math.min(endIdx, weekEndIdx);
+
         let line=0;
         while(cellMap.slice(startIdx,endIdx+1).some(c=>c.occupied[line])) line++;
         for(let i=startIdx;i<=endIdx;i++){ cellMap[i].occupied[line]=true; cellMap[i].events.push(ev); }
@@ -206,7 +217,7 @@ async function renderCalendar(){
         const lastCell = cellMap[endIdx].el;
         const band = document.createElement('div');
         band.className=`multi-band ${ev.type} fade-in`; 
-        band.style.top=`calc(${(weekIndex)/weekView*100}% + ${line*22}px)`;
+        band.style.top=`${line*22 + weekIndex*(100/weekView)}%`;
         band.style.position='absolute';
         band.style.left=firstCell.offsetLeft+'px';
         band.style.width=(lastCell.offsetLeft+lastCell.offsetWidth-firstCell.offsetLeft)+'px';
