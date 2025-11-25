@@ -8,18 +8,28 @@
 /* =====================
    GLOBAL
 ===================== */
+:root{
+  --bg:#101010;
+  --panel:#1a1a1a;
+  --muted:#555;
+  --accent:#00e5ff;
+  --gap:6px;
+}
+html,body{height:100%;margin:0}
 body {
   margin: 0;
   font-family: Arial, sans-serif;
-  background: #101010;
+  background: var(--bg);
   color: #eaeaea;
   display: flex;
   height: 100vh;
   overflow: hidden;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
 }
 
 /* =====================
-   COLONNE GAUCHE
+   LEFT COLUMN (PONTS)
 ===================== */
 .left {
   flex: 0 0 20%;
@@ -28,10 +38,10 @@ body {
   overflow-y: auto;
   box-sizing: border-box;
 }
-.left h2 { color: #00e5ff; text-align: center; }
+.left h2 { color: var(--accent); text-align: center; margin:0 0 8px 0; }
 
 /* =====================
-   CARTES PONTS
+   PONT CARDS
 ===================== */
 .pont-card {
   background: #1f1f1f;
@@ -52,7 +62,7 @@ body {
 .fermeture .pastille  { background: orange; }
 .manoeuvre .pastille  { background: #1c3cff; }
 .ouvert .pastille     { background: #58ff58; }
-.pont-nom { font-weight: bold; display: flex; align-items: center; }
+.pont-nom { font-weight: bold; display: flex; align-items: center; gap:8px; }
 
 /* =====================
    PULSE ANIMATIONS
@@ -67,27 +77,30 @@ body {
 }
 
 /* =====================
-   CALENDRIER
+   CALENDAR (RIGHT)
 ===================== */
 .right { flex:1; display:flex; flex-direction:column; height:100%; overflow:hidden; }
+
+/* header */
 #calendar-header {
   flex:0 0 auto;
   padding:12px;
   text-align:center;
   font-size:22px;
-  color:#00e5ff;
+  color:var(--accent);
   border-bottom:1px solid #333;
   display:flex;
   justify-content:center;
   align-items:center;
   gap:18px;
+  flex-wrap:wrap;
 }
-.nav-btn { cursor:pointer; color:#00e5ff; font-size:26px; padding:4px 10px; border-radius:6px; transition:0.2s; }
+.nav-btn { cursor:pointer; color:var(--accent); font-size:26px; padding:4px 10px; border-radius:6px; transition:0.2s; user-select:none; }
 .nav-btn:hover { background:#222; }
-.view-btn { cursor:pointer; font-size:14px; padding:4px 10px; background:#222; border-radius:6px; border:1px solid #333; color:#00e5ff; }
+.view-btn { cursor:pointer; font-size:14px; padding:4px 10px; background:#222; border-radius:6px; border:1px solid #333; color:var(--accent); }
 .view-btn:hover { background:#333; }
 
-/* grid container: position:relative needed for absolute bands */
+/* grid */
 #calendar-grid {
   flex:1 1 auto;
   display:grid;
@@ -101,10 +114,10 @@ body {
 
 /* each cell */
 .calendar-cell {
-  background:#1a1a1a;
+  background: var(--panel);
   padding:6px;
   border:1px solid #222;
-  overflow:hidden; /* correction : empêche le débordement visuel */
+  overflow:visible; /* needed for absolute band baseline measurement, we will hide events inside container */
   position:relative;
   min-height:70px;
   box-sizing:border-box;
@@ -113,29 +126,79 @@ body {
 }
 .date-label { font-size:12px; font-weight:normal; margin-bottom:4px; color:#ffffff; }
 
-/* container for punctual events (stacked, above bands) */
+/* events container: no scrollbar visible; we'll hide overflow and show +X */
 .cell-events {
   display:flex;
   flex-direction:column;
   gap:4px;
   z-index:4;
-  max-height:100%;   /* correction : limite la hauteur au conteneur */
-  overflow-y:auto;   /* correction : rend la zone scrollable si trop d'événements */
-  /* optionally add scrollbar styling here if desired */
+  overflow:hidden; /* hide overflow; we compute how many fit */
 }
 
-/* punctual events styling */
-.event { padding:3px 6px; border-radius:4px; font-size:12px; }
+/* event styling */
+.event {
+  padding:3px 6px;
+  border-radius:4px;
+  font-size:12px;
+  line-height:1.2;
+}
 .event.reception { background:#109c5344; border-left:3px solid #109c53; color:#eaffea; }
 .event.navire    { background:#3644b344; border-left:3px solid #3644b3; color:#eef0ff; }
 .event-time { font-size:12px;font-weight:normal; margin-right:4px; }
 
-/* =====================
-   MULTI-DAY BANDS (continuous)
-===================== */
+/* "+X autres" badge */
+.more-events {
+  font-size:12px;
+  color:var(--muted);
+  padding:2px 4px;
+  cursor:pointer;
+  user-select:none;
+}
+
+/* popover for hidden events */
+.popover {
+  position:absolute;
+  background:#121212;
+  border:1px solid #333;
+  box-shadow:0 6px 20px rgba(0,0,0,0.6);
+  border-radius:8px;
+  padding:8px;
+  z-index:1000;
+  min-width:160px;
+  max-width:300px;
+}
+.popover .pop-item{ padding:6px 8px; border-radius:6px; margin-bottom:6px; font-size:13px; background: rgba(255,255,255,0.02);}
+.popover .pop-item:last-child{margin-bottom:0}
+
+/* modal overlay (full list) */
+.modal-overlay {
+  position:fixed;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  background:linear-gradient(rgba(0,0,0,0.45),rgba(0,0,0,0.6));
+  z-index:2000;
+}
+.modal {
+  background: #121212;
+  border:1px solid #333;
+  border-radius:10px;
+  padding:18px;
+  width: min(720px, 92%);
+  max-height: 80vh;
+  overflow:auto;
+  box-shadow:0 10px 40px rgba(0,0,0,0.7);
+}
+.modal header { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; }
+.modal h3 { margin:0; font-size:18px; color:var(--accent); }
+.modal .close-btn { cursor:pointer; background:#222; border:1px solid #333; padding:6px 10px; border-radius:6px; color:var(--accent); }
+.modal .list-item { padding:8px; border-radius:8px; margin-bottom:8px; background: rgba(255,255,255,0.02); }
+
+/* multi-day bands (absolute) */
 .multi-band {
   position:absolute;
-  height:18px;               /* thin band */
+  height:18px;
   border-radius:6px;
   display:flex;
   align-items:center;
@@ -145,23 +208,22 @@ body {
   font-size:12px;
   color:#fff;
   overflow:hidden;
-  z-index:2;                 /* below punctual events (z-index:4) */
+  z-index:2; /* below punctual events (z-index:4) */
   pointer-events:auto;
   white-space:nowrap;
 }
-
-/* full color fill for band */
 .multi-band.reception { background: #109c53; }
 .multi-band.navire    { background: #3644b3; }
-
-/* left / right text inside band */
 .multi-band .band-left { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
 .multi-band .band-right { white-space:nowrap; margin-left:8px; }
 
-/* small gap device for grid responsiveness */
+/* responsive */
 @media (max-width:900px){
-  .left { flex:0 0 30%; }
-  .calendar-cell { min-height:90px; }
+  .left { flex:0 0 30%; padding:10px; }
+  #calendar-header{ font-size:16px; gap:8px; padding:10px; }
+  .nav-btn{ font-size:20px; padding:2px 6px; }
+  .calendar-cell { min-height:90px; padding:8px; }
+  .modal{ width: 96%; padding:14px; }
 }
 </style>
 </head>
@@ -181,13 +243,28 @@ body {
     <span class="view-btn" id="view-4w">4 semaines</span>
     <span class="nav-btn" id="today-btn" style="font-size:18px;">Aujourd’hui</span>
   </div>
+
   <div id="calendar-grid"></div>
+</div>
+
+<!-- popover container (reused) -->
+<div id="global-popover" style="display:none; position:fixed;"></div>
+
+<!-- modal overlay (all events of day) -->
+<div id="modal-overlay" class="modal-overlay" role="dialog" aria-hidden="true">
+  <div class="modal" role="document">
+    <header>
+      <h3 id="modal-title">Événements</h3>
+      <button class="close-btn" id="modal-close">Fermer</button>
+    </header>
+    <div id="modal-body"></div>
+  </div>
 </div>
 
 <script>
 /* ============================================================
    CONFIG / CONSTANTS
-   - J'ai gardé ta logique 'ponts' inchangée en dessous
+   - la logique des ponts n'a pas été modifiée (tout en bas)
 ============================================================ */
 const API_KEY = "AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo";
 const CAL_RECEPTION = "receptionroulier@gmail.com";
@@ -329,6 +406,8 @@ function createGrid(start, viewDays){
     cell.className = 'calendar-cell';
     cell.dataset.date = formatDate(d);
     cell.dataset.index = i;
+    // store array for all events (punctual + multi) for modal listing
+    cell._allEvents = [];
     // Keep a container for events inside each cell and a placeholder for bands baseline measurement
     cell.innerHTML = `<div class="date-label">${dayName(d)} ${d.getDate()}</div><div class="cell-events"></div>`;
     grid.appendChild(cell);
@@ -344,6 +423,8 @@ function clearPrevious(){
   const grid = document.getElementById('calendar-grid');
   grid.querySelectorAll('.multi-band').forEach(n=>n.remove());
   document.querySelectorAll('.calendar-cell .event').forEach(n=>n.remove());
+  // clear stored events
+  document.querySelectorAll('.calendar-cell').forEach(c => c._allEvents = []);
 }
 
 /* ============================================================
@@ -371,12 +452,14 @@ function allocateLevel(occupied, dayIndexes){
 
 /* ============================================================
    RENDER: build multi-day bands (one element per event) and single-day events
+   - We also populate per-cell "_allEvents" for modal
+   - After rendering: compute how many events fit visually and show "+X autres…"
 ============================================================ */
 function renderBandsAndEvents(eventsObj, start, viewDays){
   const grid = document.getElementById('calendar-grid');
   const cells = Array.from(grid.querySelectorAll('.calendar-cell'));
   const dateToIndex = {};
-  cells.forEach(c => dateToIndex[c.dataset.date] = parseInt(c.dataset.index,10));
+  cells.forEach(c => { dateToIndex[c.dataset.date] = parseInt(c.dataset.index,10); c._allEvents = []; });
 
   const multi = []; // multi-day events
   const single = []; // single-day events
@@ -418,8 +501,18 @@ function renderBandsAndEvents(eventsObj, start, viewDays){
       const d = new Date(ev.original.start.dateTime);
       timeStr = d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0') + ' ';
     }
-    div.innerHTML = `${timeStr}${ev.summary}`;
+    div.innerHTML = `<span class="event-time">${timeStr}</span>${ev.summary}`;
     eventsContainer.appendChild(div);
+
+    // push into cell's list (for modal)
+    cell._allEvents.push({
+      type: ev.type,
+      kind: 'ponctuel',
+      summary: ev.summary,
+      time: timeStr || null,
+      startYMD: ev.startYMD,
+      endYMD: ev.endYMD
+    });
   });
 
   // compute occupied levels and maxEventHeights per day index
@@ -438,6 +531,20 @@ function renderBandsAndEvents(eventsObj, start, viewDays){
   multi.forEach(ev => {
     ev.level = allocateLevel(occupied, ev.dayIndexes);
     if(ev.level > maxLevel) maxLevel = ev.level;
+
+    // Add multi-day event summary to each covered cell._allEvents (for modal listing)
+    ev.dayIndexes.forEach(di => {
+      const cell = document.querySelector(`.calendar-cell[data-index="${di}"]`);
+      if(cell){
+        cell._allEvents.push({
+          type: ev.type,
+          kind: 'multi',
+          summary: ev.summary,
+          startYMD: ev.startYMD,
+          endYMD: ev.endYMD
+        });
+      }
+    });
   });
 
   // create bands (one element per event) AFTER we appended single events, so we can measure events heights
@@ -471,8 +578,7 @@ function renderBandsAndEvents(eventsObj, start, viewDays){
     let maxEventsH = 0;
     ev.dayIndexes.forEach(di => { maxEventsH = Math.max(maxEventsH, maxEventHeights[di] || 0); });
 
-    // baseTop: date label (~18px) + events area + small gap
-    // We measure actual date-label bottom to be precise (use firstCell)
+    // baseTop: date label bottom measured precisely (use firstCell)
     const dateLabel = firstCell.querySelector('.date-label');
     const dateLabelRect = dateLabel.getBoundingClientRect();
     const baseOffset = dateLabelRect.bottom - gridRect.top + grid.scrollTop; // pixels from top of grid to date-label bottom
@@ -526,10 +632,223 @@ function renderBandsAndEvents(eventsObj, start, viewDays){
   cells.forEach(c => {
     c.style.minHeight = Math.max(70, requiredHeight) + 'px';
   });
+
+  // finally: limit visible events per cell based on actual space, show +X et hook popover/modal
+  limitEventsPerCell();
 }
 
 /* ============================================================
+   LIMIT VISIBLE EVENTS BASED ON ACTUAL RENDERED HEIGHT
+   - hides events that don't fit, appends "+X autres…" badge
+   - clicking "+X autres…" shows a popover with the hidden items
+   - clicking "Voir tout" in popover opens modal with all events of that day
+============================================================ */
+function limitEventsPerCell(){
+  const GAP = 4; // gap between events (CSS)
+  // remove existing popover triggers if any
+  document.querySelectorAll('.more-events').forEach(n => n.remove());
+
+  const cells = Array.from(document.querySelectorAll('.calendar-cell'));
+  cells.forEach(cell => {
+    const eventsContainer = cell.querySelector('.cell-events');
+    if(!eventsContainer) return;
+    const allEvents = Array.from(eventsContainer.querySelectorAll('.event'));
+    if(allEvents.length === 0) return;
+
+    // available height for events container: computed by distance between date-label bottom and cell bottom minus a small padding
+    // But simpler & robust: use eventsContainer.clientHeight (it has overflow:hidden)
+    const availableH = eventsContainer.clientHeight;
+    if(!availableH || isNaN(availableH)){
+      // fallback: show up to 2
+      applyVisibility(eventsContainer, 2);
+      return;
+    }
+
+    // accumulate heights to find how many fit
+    let acc = 0;
+    let visibleCount = 0;
+    for(let i=0;i<allEvents.length;i++){
+      const el = allEvents[i];
+      // ensure element is visible for measurement (it is)
+      const h = el.getBoundingClientRect().height;
+      const extraGap = (visibleCount>0 ? GAP : 0); // gap before this item (except first)
+      if(acc + extraGap + h <= availableH + 0.5){
+        acc += extraGap + h;
+        visibleCount++;
+      } else {
+        break;
+      }
+    }
+
+    // if everything fits: ensure all visible and remove any +X
+    if(visibleCount >= allEvents.length){
+      allEvents.forEach(e => e.style.display = '');
+      // ensure no existing more badge
+      const existing = eventsContainer.querySelector('.more-events');
+      if(existing) existing.remove();
+      return;
+    }
+
+    // else: hide those beyond visibleCount
+    allEvents.forEach((e, idx) => { e.style.display = (idx < visibleCount) ? '' : 'none'; });
+
+    // append "+X autres…" badge
+    const moreCount = allEvents.length - visibleCount;
+    const more = document.createElement('div');
+    more.className = 'more-events';
+    more.textContent = `+${moreCount} autres…`;
+    more.setAttribute('role','button');
+    more.style.marginTop = '4px';
+
+    // store the hidden items' data for popover
+    const hiddenItems = allEvents.slice(visibleCount).map(e => ({html: e.innerHTML, className: e.className}));
+
+    // click handler: show popover
+    more.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      openPopoverForElement(more, hiddenItems, cell);
+    });
+
+    eventsContainer.appendChild(more);
+  });
+}
+
+/* create & show a popover near the "more" element showing hidden items and "Voir tout" */
+function openPopoverForElement(anchorEl, hiddenItems, cell){
+  const globalPopover = document.getElementById('global-popover');
+  globalPopover.innerHTML = ''; // clear
+  globalPopover.style.display = 'block';
+
+  const rect = anchorEl.getBoundingClientRect();
+  const pop = document.createElement('div');
+  pop.className = 'popover';
+  // fill
+  hiddenItems.forEach(it => {
+    const item = document.createElement('div');
+    item.className = 'pop-item';
+    item.innerHTML = it.html;
+    pop.appendChild(item);
+  });
+
+  // separator + voir tout
+  const sep = document.createElement('div');
+  sep.style.height = '1px';
+  sep.style.background = '#222';
+  sep.style.margin = '6px 0';
+  pop.appendChild(sep);
+
+  const voir = document.createElement('div');
+  voir.className = 'pop-item';
+  voir.style.fontWeight = '600';
+  voir.style.cursor = 'pointer';
+  voir.textContent = 'Voir tout';
+  voir.addEventListener('click', () => {
+    openModalForCell(cell);
+    closeGlobalPopover();
+  });
+  pop.appendChild(voir);
+
+  globalPopover.appendChild(pop);
+
+  // position: prefer below anchor, but keep in viewport
+  const padding = 8;
+  let top = rect.bottom + window.scrollY + 6;
+  let left = rect.left + window.scrollX;
+  // adjust if too wide/offscreen
+  const popRectApproxW = 260;
+  if(left + popRectApproxW > window.scrollX + window.innerWidth - padding){
+    left = (window.scrollX + window.innerWidth - padding) - popRectApproxW;
+  }
+  if(top + 200 > window.scrollY + window.innerHeight - padding){
+    // place above anchor
+    top = rect.top + window.scrollY - 8 - 200;
+  }
+
+  pop.style.maxHeight = '320px';
+  pop.style.overflow = 'auto';
+  globalPopover.style.left = left + 'px';
+  globalPopover.style.top = top + 'px';
+  globalPopover.appendChild(pop);
+
+  // close on outside click
+  setTimeout(() => {
+    const onDoc = (e) => {
+      if(!globalPopover.contains(e.target) && e.target !== anchorEl) {
+        closeGlobalPopover();
+        document.removeEventListener('click', onDoc);
+      }
+    };
+    document.addEventListener('click', onDoc);
+  }, 0);
+}
+function closeGlobalPopover(){
+  const globalPopover = document.getElementById('global-popover');
+  globalPopover.style.display = 'none';
+  globalPopover.innerHTML = '';
+}
+
+/* modal: show all events for a specific cell (both punctual and multi-day that include that date) */
+function openModalForCell(cell){
+  const overlay = document.getElementById('modal-overlay');
+  const title = document.getElementById('modal-title');
+  const body = document.getElementById('modal-body');
+  const date = cell.dataset.date;
+  title.textContent = `Événements — ${date}`;
+  body.innerHTML = '';
+
+  const events = (cell._allEvents || []).slice(); // copy
+  // sort: punctual first by time if available, then multi
+  events.sort((a,b) => {
+    if(a.kind === b.kind) return (a.time || '').localeCompare(b.time || '');
+    return a.kind === 'ponctuel' ? -1 : 1;
+  });
+
+  if(events.length === 0){
+    body.innerHTML = `<div class="list-item">Aucun événement pour ce jour.</div>`;
+  } else {
+    events.forEach(ev => {
+      const item = document.createElement('div');
+      item.className = 'list-item';
+      const time = ev.time ? `<strong>${ev.time}</strong> ` : '';
+      const kind = ev.kind === 'multi' ? `<em style="font-size:12px;color:var(--muted);margin-left:6px;">(multi-jour)</em>` : '';
+      item.innerHTML = `<div>${time}${ev.summary}${kind}</div>`;
+      body.appendChild(item);
+    });
+  }
+
+  overlay.style.display = 'flex';
+  overlay.setAttribute('aria-hidden','false');
+}
+
+/* close modal */
+document.getElementById('modal-close').addEventListener('click', () => {
+  const overlay = document.getElementById('modal-overlay');
+  overlay.style.display = 'none';
+  overlay.setAttribute('aria-hidden','true');
+});
+document.getElementById('modal-overlay').addEventListener('click', (e) => {
+  if(e.target === e.currentTarget){
+    e.currentTarget.style.display = 'none';
+    e.currentTarget.setAttribute('aria-hidden','true');
+  }
+});
+
+/* recompute visibility on resize or scroll (debounced) */
+let _resizeTimer = null;
+function scheduleRecompute(){
+  if(_resizeTimer) clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(() => {
+    // remove existing popover
+    closeGlobalPopover();
+    limitEventsPerCell();
+  }, 120);
+}
+window.addEventListener('resize', scheduleRecompute);
+document.getElementById('calendar-grid').addEventListener('scroll', scheduleRecompute);
+
+/* ============================================================
    MAIN loadCalendar: builds grid, fetches events, renders
+   (inchangé fonctionnellement, j'appelle renderBandsAndEvents qui gère tout)
 ============================================================ */
 async function loadCalendar(){
   const today = new Date();
@@ -565,6 +884,8 @@ setInterval(loadCalendar, CAL_REFRESH_INTERVAL);
 
 /* ============================================================
    PONTS HAROPA (LOGIQUE ORIGINALE — inchangée)
+   J'ai laissé intégralement ta logique telle quelle : fetch proxies,
+   hash control, tri, rendu.
 ============================================================ */
 async function sha256(str){
   const data=new TextEncoder().encode(str);
