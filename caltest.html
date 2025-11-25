@@ -7,7 +7,6 @@
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family: Arial, sans-serif; background: #1a1a1a; color:#fff; display:flex; flex-direction:column; height:100vh; }
-.right { flex:1; display:flex; flex-direction:column; height:100%; overflow:hidden; }
 
 #calendar-header {
   flex:0 0 auto;
@@ -26,20 +25,22 @@ body { font-family: Arial, sans-serif; background: #1a1a1a; color:#fff; display:
 .view-btn { cursor:pointer; font-size:14px; padding:4px 10px; background:#222; border-radius:6px; border:1px solid #333; color:#00e5ff; }
 .view-btn:hover { background:#333; }
 
-#calendar { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; padding:10px; position:relative; flex:1; }
+#calendar { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; padding:10px; position:relative; flex:1; }
 
-.day-cell { background:#222; border:1px solid #333; position:relative; overflow:hidden; transition: transform 0.2s, box-shadow 0.2s; }
+.day-cell { background:#222; border:1px solid #333; position:relative; overflow:hidden; transition: transform 0.2s, box-shadow 0.2s; border-radius:10px; padding:4px; }
 .day-cell.past { transform: scale(0.95); opacity:0.6; }
 .day-cell.today { transform: scale(1.05); box-shadow:0 0 15px #00e5ff; z-index:1; }
 .day-cell.future { border:1px solid #00e5ff; }
 .day-cell:hover.today { transform: scale(1.1); box-shadow:0 0 25px #00e5ff; }
 .day-cell:hover.future { transform: scale(1.05); box-shadow:0 0 15px #00e5ff; }
 
+.date-label { font-size:0.75rem; font-weight:normal; margin-bottom:2px; }
+
 .event { padding:2px 4px; margin:2px 0; border-radius:4px; font-size:0.8rem; cursor:pointer; word-wrap:break-word; white-space:normal; z-index:2; }
 .reception { background:#109c53; }
 .navire { background:#3644b3; }
 
-.multi-band { position:absolute; height:20px; border-radius:4px; display:flex; justify-content:space-between; padding:0 4px; font-size:0.75rem; color:#fff; white-space:nowrap; overflow:hidden; z-index:2; background-color:rgba(100,100,100,0.8); }
+.multi-band { position:absolute; height:20px; border-radius:4px; display:flex; justify-content:space-between; align-items:center; padding:0 4px; font-size:0.75rem; color:#fff; white-space:nowrap; overflow:hidden; z-index:2; background-color:rgba(100,100,100,0.8); }
 
 .more-events { position:absolute; top:2px; right:4px; font-size:0.7rem; color:#fff; background:rgba(0,0,0,0.5); padding:1px 4px; border-radius:3px; cursor:pointer; z-index:3; }
 
@@ -75,13 +76,11 @@ const CALENDAR_IDS = { reception:'receptionroulier@gmail.com', navire:'smr.progr
 let currentStartDate = new Date();
 let weekView = 3;
 
-/* Cache */
 function getCacheKey(){return'calendar-cache';}
 function saveCache(data, hash){localStorage.setItem(getCacheKey(), JSON.stringify({data, hash, timestamp:Date.now()}));}
 function loadCache(){const cached=localStorage.getItem(getCacheKey());if(!cached)return null;const obj=JSON.parse(cached);if(Date.now()-obj.timestamp>30000)return null;return obj;}
 function hashEvents(events){return JSON.stringify(events).split('').reduce((a,b)=>{a=((a<<5)-a)+b.charCodeAt(0);return a&a},0);}
 
-/* Fetch */
 async function fetchCalendarEvents(calendarId,timeMin,timeMax){
   const url=`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?key=${API_KEY}&timeMin=${timeMin.toISOString()}&timeMax=${timeMax.toISOString()}&singleEvents=true&orderBy=startTime`;
   const res = await fetch(url);
@@ -103,6 +102,8 @@ async function loadEvents(){
 }
 
 function formatTime(d){return new Date(d).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});}
+function formatDay(date){ return date.toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit'}); }
+
 function createDayCell(date){
   const cell=document.createElement('div');
   cell.className='day-cell fade-in';
@@ -110,7 +111,10 @@ function createDayCell(date){
   if(date<today) cell.classList.add('past');
   else if(date.toDateString()===new Date().toDateString()) cell.classList.add('today');
   else cell.classList.add('future');
-  const dayLabel=document.createElement('div'); dayLabel.innerHTML=`<strong>${date.getDate()}</strong>`; cell.appendChild(dayLabel);
+  const dayLabel=document.createElement('div'); 
+  dayLabel.className='date-label';
+  dayLabel.textContent = formatDay(date);
+  cell.appendChild(dayLabel);
   return cell;
 }
 
@@ -122,18 +126,25 @@ function showModal(events){
     content.innerHTML = events.map(ev=>{
       const start = ev.start.dateTime || ev.start.date;
       const end = ev.end.dateTime || ev.end.date;
-      return `<h3>${ev.summary}</h3><p>${ev.description||''}</p><p>${start!==end?`Du ${start} Au ${end}`:''}</p>`;
+      const isAllDay = ev.start.date && !ev.start.dateTime;
+      const isMulti = !isAllDay && start !== end && new Date(start).toDateString()!==new Date(end).toDateString();
+      if(isMulti) return `<p><${formatTime(start)} ${ev.summary} >${formatTime(end)}</p>`;
+      if(isAllDay) return `<p>${ev.summary}</p>`;
+      return `<p>${formatTime(start)} ${ev.summary}</p>`;
     }).join('<hr>');
-  }else{
+  } else {
     const start = events.start.dateTime || events.start.date;
     const end = events.end.dateTime || events.end.date;
-    content.innerHTML=`<h3>${events.summary}</h3><p>${events.description||''}</p><p>${start!==end?`Du ${start} Au ${end}`:''}</p>`;
+    const isAllDay = events.start.date && !events.start.dateTime;
+    const isMulti = !isAllDay && start !== end && new Date(start).toDateString()!==new Date(end).toDateString();
+    if(isMulti) content.innerHTML = `<p><${formatTime(start)} ${events.summary} >${formatTime(end)}</p>`;
+    else if(isAllDay) content.innerHTML = `<p>${events.summary}</p>`;
+    else content.innerHTML = `<p>${formatTime(start)} ${events.summary}</p>`;
   }
   modal.style.display='flex';
 }
 function hideModal(){document.getElementById('event-modal').style.display='none';}
 
-/* Render calendar */
 async function renderCalendar(){
   const calendarEl=document.getElementById('calendar'); calendarEl.innerHTML='';
   calendarEl.style.gridAutoRows = `calc(100% / ${weekView})`;
@@ -182,8 +193,7 @@ async function renderCalendar(){
       band.style.position='absolute';
       band.style.left=firstCell.offsetLeft+'px';
       band.style.width=(lastCell.offsetLeft+lastCell.offsetWidth-firstCell.offsetLeft)+'px';
-      const label = `<${formatTime(start)} ${ev.summary} >${formatTime(end)}`;
-      band.textContent = label;
+      band.textContent = `<${formatTime(start)} ${ev.summary} >${formatTime(end)}`;
       band.onclick=()=>showModal(ev);
       calendarEl.appendChild(band);
     }
