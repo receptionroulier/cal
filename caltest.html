@@ -40,7 +40,7 @@ body { font-family: Arial, sans-serif; background: #1a1a1a; color:#fff; display:
 .reception { background:#109c53; }
 .navire { background:#3644b3; }
 
-.multi-band { position:absolute; height:20px; border-radius:4px; display:flex; justify-content:space-between; align-items:center; padding:0 4px; font-size:0.75rem; color:#fff; white-space:nowrap; overflow:hidden; z-index:2; background-color:rgba(100,100,100,0.8); }
+.multi-band { position:absolute; height:20px; border-radius:4px; display:flex; justify-content:space-between; align-items:center; padding:0 4px; font-size:0.75rem; color:#fff; white-space:nowrap; overflow:hidden; z-index:2; }
 .multi-band.reception { background:#109c53; }
 .multi-band.navire { background:#3644b3; }
 
@@ -105,6 +105,7 @@ async function loadEvents(){
 
 function formatTime(d){return new Date(d).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});}
 function formatDay(date){ return date.toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit'}); }
+function formatFullDate(date){ return date.toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long'});}
 function capitalize(str){ return str.charAt(0).toUpperCase()+str.slice(1); }
 
 function createDayCell(date){
@@ -125,25 +126,23 @@ function createDayCell(date){
 function showModal(events){
   const modal=document.getElementById('event-modal');
   const content=document.getElementById('modal-content');
-  if(Array.isArray(events)){
-    content.innerHTML = events.map(ev=>{
-      const start = ev.start.dateTime || ev.start.date;
-      const end = ev.end.dateTime || ev.end.date;
-      const isAllDay = ev.start.date && !ev.start.dateTime;
-      const isMulti = !isAllDay && start !== end && new Date(start).toDateString()!==new Date(end).toDateString();
-      if(isMulti) return `<p><${formatTime(start)} ${ev.summary} >${formatTime(end)}</p>`;
-      if(isAllDay) return `<p>${ev.summary}</p>`;
-      return `<p>${formatTime(start)} ${ev.summary}</p>`;
-    }).join('<hr>');
-  } else {
-    const start = events.start.dateTime || events.start.date;
-    const end = events.end.dateTime || events.end;
-    const isAllDay = events.start.date && !events.start.dateTime;
+  if(!Array.isArray(events)) events=[events]; // rendre uniforme
+  content.innerHTML = events.map(ev=>{
+    const start = ev.start.dateTime || ev.start.date;
+    const end = ev.end.dateTime || ev.end.date;
+    const isAllDay = ev.start.date && !ev.start.dateTime;
     const isMulti = !isAllDay && start !== end && new Date(start).toDateString()!==new Date(end).toDateString();
-    if(isMulti) content.innerHTML = `<p><${formatTime(start)} ${events.summary} >${formatTime(end)}</p>`;
-    else if(isAllDay) content.innerHTML = `<p>${events.summary}</p>`;
-    else content.innerHTML = `<p>${formatTime(start)} ${events.summary}</p>`;
-  }
+    let html = `<strong>${ev.summary}</strong><br>`;
+    if(isMulti){
+      html += `Du ${formatFullDate(new Date(start))} à ${formatTime(new Date(start))} Au ${formatFullDate(new Date(end))} à ${formatTime(new Date(end))}<br>`;
+    } else if(isAllDay){
+      html += `Le ${formatFullDate(new Date(start))}<br>`;
+    } else {
+      html += `Le ${formatFullDate(new Date(start))} à ${formatTime(new Date(start))}<br>`;
+    }
+    if(ev.description) html += `<em>${ev.description}</em>`;
+    return `<p style="margin-bottom:6px;">${html}</p>`;
+  }).join('<hr>');
   modal.style.display='flex';
 }
 function hideModal(){document.getElementById('event-modal').style.display='none';}
@@ -162,7 +161,7 @@ async function renderCalendar(){
     const day = new Date(startDate); day.setDate(day.getDate()+i);
     const cell = createDayCell(day);
     calendarEl.appendChild(cell);
-    cellMap.push({date:day,el:cell,occupied:[]});
+    cellMap.push({date:day,el:cell,occupied:[],events:[]});
     months.add(capitalize(day.toLocaleString('fr-FR',{month:'long'})));
   }
 
@@ -180,13 +179,17 @@ async function renderCalendar(){
         evDiv.textContent=label; 
         evDiv.onclick=()=>showModal(ev);
         cellObj.el.appendChild(evDiv);
+        cellObj.events.push(ev);
       }
     } else {
       const startIndex = cellMap.findIndex(c=>c.date>=start);
       let endIndex = cellMap.findIndex(c=>c.date>=end); if(endIndex===-1) endIndex=cellMap.length-1;
       let line=0;
       while(cellMap.slice(startIndex,endIndex+1).some(c=>c.occupied[line])) line++;
-      for(let i=startIndex;i<=endIndex;i++) cellMap[i].occupied[line]=true;
+      for(let i=startIndex;i<=endIndex;i++){ 
+        cellMap[i].occupied[line]=true; 
+        cellMap[i].events.push(ev);
+      }
 
       const firstCell = cellMap[startIndex].el;
       const lastCell = cellMap[endIndex].el;
@@ -203,12 +206,16 @@ async function renderCalendar(){
   });
 
   cellMap.forEach(c=>{
-    const evs=c.el.querySelectorAll('.event'); 
-    if(evs.length>3){
-      const more=document.createElement('div'); more.className='more-events'; more.textContent=`+${evs.length-3} autres`;
-      more.onclick=()=>showModal(Array.from(evs).slice(3).map(e=>events.find(ev=>ev.summary===e.textContent)));
+    if(c.events.length>3){
+      const more=document.createElement('div'); 
+      more.className='more-events'; 
+      more.textContent=`+${c.events.length-3} autres`;
+      more.onclick=()=>showModal(c.events);
       c.el.appendChild(more);
-      for(let i=3;i<evs.length;i++) evs[i].style.display='none';
+      for(let i=3;i<c.events.length;i++){
+        const evEl=c.el.querySelectorAll('.event')[i];
+        if(evEl) evEl.style.display='none';
+      }
     }
   });
 
@@ -219,7 +226,7 @@ document.getElementById('prev-btn').onclick=()=>{currentStartDate.setDate(curren
 document.getElementById('next-btn').onclick=()=>{currentStartDate.setDate(currentStartDate.getDate()+7); renderCalendar();}
 document.getElementById('today-btn').onclick=()=>{
   currentStartDate=new Date();
-  weekView=3; // ← revenir à la vue par défaut
+  weekView=3;
   renderCalendar();
 };
 document.getElementById('view-3w').onclick=()=>{weekView=3; renderCalendar();}
