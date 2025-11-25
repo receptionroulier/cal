@@ -105,6 +105,7 @@ async function loadEvents(){
 
 function formatTime(d){return new Date(d).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});}
 function formatDay(date){ return date.toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit'}); }
+function capitalize(str){ return str.charAt(0).toUpperCase()+str.slice(1); }
 
 function createDayCell(date){
   const cell=document.createElement('div');
@@ -136,7 +137,7 @@ function showModal(events){
     }).join('<hr>');
   } else {
     const start = events.start.dateTime || events.start.date;
-    const end = events.end.dateTime || events.end.date;
+    const end = events.end.dateTime || events.end;
     const isAllDay = events.start.date && !events.start.dateTime;
     const isMulti = !isAllDay && start !== end && new Date(start).toDateString()!==new Date(end).toDateString();
     if(isMulti) content.innerHTML = `<p><${formatTime(start)} ${events.summary} >${formatTime(end)}</p>`;
@@ -162,7 +163,7 @@ async function renderCalendar(){
     const cell = createDayCell(day);
     calendarEl.appendChild(cell);
     cellMap.push({date:day,el:cell,occupied:[]});
-    months.add(day.toLocaleString('fr-FR',{month:'long'}));
+    months.add(capitalize(day.toLocaleString('fr-FR',{month:'long'})));
   }
 
   events.forEach(ev=>{
@@ -190,7 +191,7 @@ async function renderCalendar(){
       const firstCell = cellMap[startIndex].el;
       const lastCell = cellMap[endIndex].el;
       const band = document.createElement('div');
-      band.className=`multi-band ${ev.type} fade-in`; // ← correction ici pour couleur
+      band.className=`multi-band ${ev.type} fade-in`; 
       band.style.top=`${line*22}px`;
       band.style.position='absolute';
       band.style.left=firstCell.offsetLeft+'px';
@@ -216,7 +217,11 @@ async function renderCalendar(){
 
 document.getElementById('prev-btn').onclick=()=>{currentStartDate.setDate(currentStartDate.getDate()-7); renderCalendar();}
 document.getElementById('next-btn').onclick=()=>{currentStartDate.setDate(currentStartDate.getDate()+7); renderCalendar();}
-document.getElementById('today-btn').onclick=()=>{currentStartDate=new Date(); renderCalendar();}
+document.getElementById('today-btn').onclick=()=>{
+  currentStartDate=new Date();
+  weekView=3; // ← revenir à la vue par défaut
+  renderCalendar();
+};
 document.getElementById('view-3w').onclick=()=>{weekView=3; renderCalendar();}
 document.getElementById('view-4w').onclick=()=>{weekView=4; renderCalendar();}
 
