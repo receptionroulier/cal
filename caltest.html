@@ -8,15 +8,7 @@
 /* Reset & Body */
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family: Arial, sans-serif; background: #1a1a1a; color:#fff; display:flex; flex-direction:column; height:100vh; }
-
-/* Right container (optionnel si tu veux un layout flex) */
-.right { 
-  flex:1; 
-  display:flex; 
-  flex-direction:column; 
-  height:100%; 
-  overflow:hidden; 
-}
+.right { flex:1; display:flex; flex-direction:column; height:100%; overflow:hidden; }
 
 /* Header */
 #calendar-header {
@@ -31,24 +23,9 @@ body { font-family: Arial, sans-serif; background: #1a1a1a; color:#fff; display:
   align-items:center;
   gap:18px;
 }
-.nav-btn { 
-  cursor:pointer; 
-  color:#00e5ff; 
-  font-size:26px; 
-  padding:4px 10px; 
-  border-radius:6px; 
-  transition:0.2s; 
-}
+.nav-btn { cursor:pointer; color:#00e5ff; font-size:26px; padding:4px 10px; border-radius:6px; transition:0.2s; }
 .nav-btn:hover { background:#222; }
-.view-btn { 
-  cursor:pointer; 
-  font-size:14px; 
-  padding:4px 10px; 
-  background:#222; 
-  border-radius:6px; 
-  border:1px solid #333; 
-  color:#00e5ff; 
-}
+.view-btn { cursor:pointer; font-size:14px; padding:4px 10px; background:#222; border-radius:6px; border:1px solid #333; color:#00e5ff; }
 .view-btn:hover { background:#333; }
 
 /* Calendar grid */
@@ -174,6 +151,7 @@ async function renderCalendar(){
   const totalDays = 7*(weekView+1); const months=new Set();
   const cellMap=[]; 
 
+  // Créer les cellules
   for(let i=0;i<totalDays;i++){
     const day = new Date(startDate); day.setDate(day.getDate()+i);
     const cell = createDayCell(day);
@@ -182,34 +160,45 @@ async function renderCalendar(){
     months.add(day.toLocaleString('fr-FR',{month:'long'}));
   }
 
-  // Multi-day events
+  // Multi-day events en bandes continues
   events.forEach(ev=>{
     const start = new Date(ev.start.dateTime||ev.start.date);
     const end = new Date(ev.end.dateTime||ev.end.date);
     const isAllDay = ev.start.date && !ev.start.dateTime;
+
     if(start.toDateString()===end.toDateString() || isAllDay){
-      // Single-day or all-day
+      // Single-day ou all-day
       const cellObj = cellMap.find(c=>c.date.toDateString()===start.toDateString());
       if(cellObj){
         const evDiv=document.createElement('div'); evDiv.className='event '+ev.type; evDiv.textContent=ev.summary; evDiv.onclick=()=>showModal(ev);
         cellObj.el.appendChild(evDiv);
       }
-    }else{
-      // Multi-day
-      let startIndex=cellMap.findIndex(c=>c.date>=start);
-      let endIndex=cellMap.findIndex(c=>c.date>=end); if(endIndex===-1) endIndex=cellMap.length-1;
-      let line=0; while(cellMap[startIndex].occupied[line]) line++;
-      for(let i=startIndex;i<=endIndex;i++){ cellMap[i].occupied[line]=true; }
-      const band=document.createElement('div'); band.className='multi-band '+ev.type+' fade-in'; band.style.top=(line*22)+'px';
-      band.textContent = `<${formatTime(start)} ${ev.summary} >${formatTime(end)}`;
+    } else {
+      // Multi-day continue
+      const startIndex = cellMap.findIndex(c=>c.date>=start);
+      let endIndex = cellMap.findIndex(c=>c.date>=end); if(endIndex===-1) endIndex=cellMap.length-1;
+      let line=0;
+      while(cellMap.slice(startIndex,endIndex+1).some(c=>c.occupied[line])) line++;
+      for(let i=startIndex;i<=endIndex;i++) cellMap[i].occupied[line]=true;
+
+      const firstCell = cellMap[startIndex].el;
+      const lastCell = cellMap[endIndex].el;
+      const band = document.createElement('div');
+      band.className=`multi-band ${ev.type} fade-in`;
+      band.style.top=`${line*22}px`;
+      band.style.position='absolute';
+      band.style.left=firstCell.offsetLeft+'px';
+      band.style.width=(lastCell.offsetLeft+lastCell.offsetWidth-firstCell.offsetLeft)+'px';
+      band.textContent=ev.summary;
       band.onclick=()=>showModal(ev);
-      cellMap[startIndex].el.appendChild(band);
+      calendarEl.appendChild(band);
     }
   });
 
   // +X autres
   cellMap.forEach(c=>{
-    const evs=c.el.querySelectorAll('.event'); if(evs.length>3){
+    const evs=c.el.querySelectorAll('.event'); 
+    if(evs.length>3){
       const more=document.createElement('div'); more.className='more-events'; more.textContent=`+${evs.length-3} autres`;
       more.onclick=()=>showModal(Array.from(evs).slice(3).map(e=>events.find(ev=>ev.summary===e.textContent)));
       c.el.appendChild(more);
