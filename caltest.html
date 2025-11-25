@@ -150,34 +150,29 @@ function showModal(events){
 }
 function hideModal(){document.getElementById('event-modal').style.display='none';}
 
-/* Fonction pour obtenir le lundi de la semaine d'une date */
-function getMonday(d){
-  const date = new Date(d);
-  const day = date.getDay();
-  const diff = (day === 0 ? -6 : 1 - day); // dimanche=0, lundi=1
-  date.setDate(date.getDate() + diff);
-  date.setHours(0,0,0,0);
-  return date;
-}
+function getMonday(d){ const date=new Date(d); const day=date.getDay(); const diff=(day===0?-6:1-day); date.setDate(date.getDate()+diff); date.setHours(0,0,0,0); return date; }
 
 async function renderCalendar(){
   const calendarEl=document.getElementById('calendar'); calendarEl.innerHTML='';
   calendarEl.style.gridAutoRows = `calc(100% / ${weekView})`;
-
   const events = await loadEvents();
   let startDate = getMonday(currentStartDate);
   const totalDays = 7 * weekView; 
   const months=new Set();
   const cellMap=[]; 
+  const weekOffsets = []; // stocke offset vertical de chaque semaine
 
+  // Créer cellules
   for(let i=0;i<totalDays;i++){
     const day = new Date(startDate); day.setDate(day.getDate()+i);
     const cell = createDayCell(day);
     calendarEl.appendChild(cell);
     cellMap.push({date:day,el:cell,occupied:[],events:[]});
     months.add(capitalize(day.toLocaleString('fr-FR',{month:'long'})));
+    if(i%7===0) weekOffsets.push(i/7 * (100/weekView));
   }
 
+  // Événements
   events.forEach(ev=>{
     const start = new Date(ev.start.dateTime||ev.start.date);
     const end = new Date(ev.end.dateTime||ev.end.date);
@@ -195,39 +190,46 @@ async function renderCalendar(){
         cellObj.events.push(ev);
       }
     } else {
-      const startIndex = cellMap.findIndex(c=>c.date>=start);
-      let endIndex = cellMap.findIndex(c=>c.date>=end); if(endIndex===-1) endIndex=cellMap.length-1;
-      let line=0;
-      while(cellMap.slice(startIndex,endIndex+1).some(c=>c.occupied[line])) line++;
-      for(let i=startIndex;i<=endIndex;i++){ 
-        cellMap[i].occupied[line]=true; 
-        cellMap[i].events.push(ev);
+      let currStart = new Date(start);
+      while(currStart<end){
+        const monday = getMonday(currStart);
+        const weekIndex = Math.floor((monday - startDate)/(7*24*60*60*1000));
+        const weekStartIdx = weekIndex*7;
+        const weekEndIdx = weekStartIdx+6;
+        const startIdx = Math.max(cellMap.findIndex(c=>c.date>=currStart), weekStartIdx);
+        const endIdx = Math.min(cellMap.findIndex(c=>c.date>=end), weekEndIdx);
+        let line=0;
+        while(cellMap.slice(startIdx,endIdx+1).some(c=>c.occupied[line])) line++;
+        for(let i=startIdx;i<=endIdx;i++){ cellMap[i].occupied[line]=true; cellMap[i].events.push(ev); }
+
+        const firstCell = cellMap[startIdx].el;
+        const lastCell = cellMap[endIdx].el;
+        const band = document.createElement('div');
+        band.className=`multi-band ${ev.type} fade-in`; 
+        band.style.top=`calc(${(weekIndex)/weekView*100}% + ${line*22}px)`;
+        band.style.position='absolute';
+        band.style.left=firstCell.offsetLeft+'px';
+        band.style.width=(lastCell.offsetLeft+lastCell.offsetWidth-firstCell.offsetLeft)+'px';
+
+        const startSpan = document.createElement('span');
+        startSpan.className='start-label';
+        startSpan.textContent = `<${formatTime(currStart)} ${ev.summary}`;
+        const endSpan = document.createElement('span');
+        endSpan.className='end-label';
+        const thisSegmentEnd = new Date(Math.min(end, cellMap[endIdx].date.getTime()+24*60*60*1000));
+        endSpan.textContent = `>${formatTime(thisSegmentEnd)}`;
+
+        band.appendChild(startSpan);
+        band.appendChild(endSpan);
+        band.onclick=()=>showModal(ev);
+        calendarEl.appendChild(band);
+
+        currStart = new Date(cellMap[endIdx].date); currStart.setDate(currStart.getDate()+1);
       }
-
-      const firstCell = cellMap[startIndex].el;
-      const lastCell = cellMap[endIndex].el;
-      const band = document.createElement('div');
-      band.className=`multi-band ${ev.type} fade-in`; 
-      band.style.top=`${line*22}px`;
-      band.style.position='absolute';
-      band.style.left=firstCell.offsetLeft+'px';
-      band.style.width=(lastCell.offsetLeft+lastCell.offsetWidth-firstCell.offsetLeft)+'px';
-
-      const startSpan = document.createElement('span');
-      startSpan.className='start-label';
-      startSpan.textContent = `<${formatTime(start)} ${ev.summary}`;
-
-      const endSpan = document.createElement('span');
-      endSpan.className='end-label';
-      endSpan.textContent = `>${formatTime(end)}`;
-
-      band.appendChild(startSpan);
-      band.appendChild(endSpan);
-      band.onclick=()=>showModal(ev);
-      calendarEl.appendChild(band);
     }
   });
 
+  // +X autres
   cellMap.forEach(c=>{
     if(c.events.length>3){
       const more=document.createElement('div'); 
