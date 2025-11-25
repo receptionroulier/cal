@@ -31,6 +31,7 @@ body { font-family: Arial, sans-serif; background: #1a1a1a; color:#fff; display:
   gap:4px;
   padding:10px;
   flex:1;
+  position:relative;
 }
 
 .day-cell {
@@ -220,44 +221,35 @@ async function renderCalendar(){
         cellObj.events.push(ev);
       }
     } else {
-      // Multi-days alignés avec les cellules
-      let currStart = new Date(start);
-      while(currStart<end){
-        const startIdx = cellMap.findIndex(c=>c.date>=currStart);
-        let weekStart = cellMap[Math.floor(startIdx/7)*7];
-        let weekEndIdx = Math.min(Math.floor(startIdx/7)*7+6, totalDays-1);
-        let segmentEnd = new Date(end);
-        if(segmentEnd>cellMap[weekEndIdx].date) segmentEnd = new Date(cellMap[weekEndIdx].date.getTime()+24*60*60*1000);
-        const endIdx = cellMap.findIndex(c=>c.date>=segmentEnd);
-        let line=0;
-        while(cellMap.slice(startIdx,endIdx).some(c=>c.multiLines[line])) line++;
-        for(let i=startIdx;i<endIdx;i++) cellMap[i].multiLines[line]=true;
+      // Multi-days en bande continue sur toutes les cellules
+      let startIdx = cellMap.findIndex(c=>c.date.toDateString()===start.toDateString());
+      let endIdx = cellMap.findIndex(c=>c.date.toDateString()===end.toDateString());
+      if(endIdx===-1) endIdx = totalDays-1;
+      let line=0;
+      while(cellMap.slice(startIdx,endIdx+1).some(c=>c.multiLines[line])) line++;
+      for(let i=startIdx;i<=endIdx;i++) cellMap[i].multiLines[line]=true;
 
-        // Créer bande dans la première cellule
-        const firstCell = cellMap[startIdx].el;
-        const band = document.createElement('div');
-        band.className=`multi-band ${ev.type} fade-in`;
-        band.style.top=`${line*22}px`;
-        band.style.left='0';
-        band.style.right='0';
-        band.style.width='100%';
-        band.style.gridColumnStart = startIdx+1;
-        band.style.gridColumnEnd = endIdx+1;
+      const firstCell = cellMap[startIdx].el;
+      const lastCell = cellMap[endIdx].el;
 
-        const startSpan = document.createElement('span');
-        startSpan.className='start-label';
-        startSpan.textContent = `<${formatTime(currStart)} ${ev.summary}`;
-        const endSpan = document.createElement('span');
-        endSpan.className='end-label';
-        endSpan.textContent = `>${formatTime(segmentEnd)}`;
+      const band = document.createElement('div');
+      band.className=`multi-band ${ev.type} fade-in`;
+      band.style.top = `${line*22}px`;
+      band.style.left = `${firstCell.offsetLeft}px`;
+      band.style.width = `${(lastCell.offsetLeft + lastCell.offsetWidth) - firstCell.offsetLeft}px`;
 
-        band.appendChild(startSpan);
-        band.appendChild(endSpan);
-        band.onclick=()=>showModal(ev);
-        firstCell.appendChild(band);
+      const startSpan = document.createElement('span');
+      startSpan.className='start-label';
+      startSpan.textContent = `<${formatTime(start)} ${ev.summary}`;
+      const endSpan = document.createElement('span');
+      endSpan.className='end-label';
+      endSpan.textContent = `>${formatTime(end)}`;
 
-        currStart = new Date(cellMap[endIdx-1].date); currStart.setDate(currStart.getDate()+1);
-      }
+      band.appendChild(startSpan);
+      band.appendChild(endSpan);
+      band.onclick=()=>showModal(ev);
+
+      calendarEl.appendChild(band);
     }
   });
 
