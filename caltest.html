@@ -25,27 +25,52 @@ body { font-family: Arial, sans-serif; background: #1a1a1a; color:#fff; display:
 .view-btn { cursor:pointer; font-size:14px; padding:4px 10px; background:#222; border-radius:6px; border:1px solid #333; color:#00e5ff; }
 .view-btn:hover { background:#333; }
 
-#calendar { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; padding:10px; position:relative; flex:1; }
+#calendar {
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+  gap:4px;
+  padding:10px;
+  flex:1;
+}
 
-.day-cell { background:#222; border:1px solid #333; position:relative; overflow:hidden; transition: transform 0.2s, box-shadow 0.2s; border-radius:10px; padding:4px; }
+.day-cell {
+  background:#222;
+  border:1px solid #333;
+  position:relative;
+  overflow:hidden;
+  border-radius:10px;
+  padding:4px;
+  min-height:80px;
+}
+
 .day-cell.past { transform: scale(0.95); opacity:0.6; }
 .day-cell.today { transform: scale(1.05); box-shadow:0 0 15px #00e5ff; z-index:1; }
 .day-cell.future { border:1px solid #00e5ff; }
 .day-cell:hover.today { transform: scale(1.1); box-shadow:0 0 25px #00e5ff; }
 .day-cell:hover.future { transform: scale(1.05); box-shadow:0 0 15px #00e5ff; }
 
-.date-label { font-size:0.75rem; font-weight:normal; margin-bottom:2px; }
+.date-label { font-size:0.7rem; font-weight:normal; margin-bottom:2px; }
 
 .event { padding:2px 4px; margin:2px 0; border-radius:4px; font-size:0.8rem; cursor:pointer; word-wrap:break-word; white-space:normal; z-index:2; }
 .reception { background:#109c53; }
 .navire { background:#3644b3; }
 
-.multi-band { position:absolute; height:20px; border-radius:4px; display:flex; align-items:center; padding:0 4px; font-size:0.75rem; color:#fff; white-space:nowrap; overflow:hidden; z-index:2; }
+.multi-band {
+  position:absolute;
+  height:20px;
+  border-radius:4px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 4px;
+  font-size:0.75rem;
+  color:#fff;
+  white-space:nowrap;
+  overflow:hidden;
+  z-index:2;
+}
 .multi-band.reception { background:#109c53; }
 .multi-band.navire { background:#3644b3; }
-
-.multi-band .start-label { margin-right:auto; }
-.multi-band .end-label { position:absolute; right:2px; }
 
 .more-events { position:absolute; top:2px; right:4px; font-size:0.7rem; color:#fff; background:rgba(0,0,0,0.5); padding:1px 4px; border-radius:3px; cursor:pointer; z-index:3; }
 
@@ -155,31 +180,29 @@ function getMonday(d){ const date=new Date(d); const day=date.getDay(); const di
 
 async function renderCalendar(){
   const calendarEl=document.getElementById('calendar'); calendarEl.innerHTML='';
-  calendarEl.style.gridAutoRows = `calc(100% / ${weekView})`;
   const events = await loadEvents();
-
-  // Lundi semaine passée
+  
+  // Calcul startDate = lundi de la semaine passée
   const today = new Date();
   const thisMonday = getMonday(today);
   const pastMonday = new Date(thisMonday); pastMonday.setDate(thisMonday.getDate()-7);
-  let startDate;
-  if(weekView===3) startDate = pastMonday;
-  else if(weekView===4) startDate = pastMonday; // 4 semaines aussi commence par semaine passée
-
+  let startDate = pastMonday;
+  
   const totalDays = 7*weekView;
   const months = new Set();
   const cellMap = [];
 
+  // Créer cellules
   for(let i=0;i<totalDays;i++){
     const day = new Date(startDate);
     day.setDate(day.getDate()+i);
     const cell = createDayCell(day);
     calendarEl.appendChild(cell);
-    cellMap.push({date:day, el:cell, occupied:[], events:[]});
+    cellMap.push({date:day, el:cell, events:[], multiLines:[]});
     months.add(capitalize(day.toLocaleString('fr-FR',{month:'long'})));
   }
 
-  /* Événements */
+  // Événements
   events.forEach(ev=>{
     const start = new Date(ev.start.dateTime||ev.start.date);
     const end = new Date(ev.end.dateTime||ev.end.date);
@@ -197,45 +220,43 @@ async function renderCalendar(){
         cellObj.events.push(ev);
       }
     } else {
-      // Multi-days, splité par semaine
+      // Multi-days alignés avec les cellules
       let currStart = new Date(start);
       while(currStart<end){
-        const monday = getMonday(currStart);
-        const weekIndex = Math.floor((monday-startDate)/(7*24*60*60*1000));
-        const weekStartIdx = weekIndex*7;
-        const weekEndIdx = weekStartIdx+6;
-        const startIdx = Math.max(cellMap.findIndex(c=>c.date>=currStart), weekStartIdx);
-        let endIdx = cellMap.findIndex(c=>c.date>=end);
-        if(endIdx===-1) endIdx = totalDays-1;
-        endIdx = Math.min(endIdx, weekEndIdx);
-
+        const startIdx = cellMap.findIndex(c=>c.date>=currStart);
+        let weekStart = cellMap[Math.floor(startIdx/7)*7];
+        let weekEndIdx = Math.min(Math.floor(startIdx/7)*7+6, totalDays-1);
+        let segmentEnd = new Date(end);
+        if(segmentEnd>cellMap[weekEndIdx].date) segmentEnd = new Date(cellMap[weekEndIdx].date.getTime()+24*60*60*1000);
+        const endIdx = cellMap.findIndex(c=>c.date>=segmentEnd);
         let line=0;
-        while(cellMap.slice(startIdx,endIdx+1).some(c=>c.occupied[line])) line++;
-        for(let i=startIdx;i<=endIdx;i++){ cellMap[i].occupied[line]=true; cellMap[i].events.push(ev); }
+        while(cellMap.slice(startIdx,endIdx).some(c=>c.multiLines[line])) line++;
+        for(let i=startIdx;i<endIdx;i++) cellMap[i].multiLines[line]=true;
 
+        // Créer bande dans la première cellule
         const firstCell = cellMap[startIdx].el;
-        const lastCell = cellMap[endIdx].el;
         const band = document.createElement('div');
-        band.className=`multi-band ${ev.type} fade-in`; 
-        band.style.top=`${line*22 + weekIndex*(100/weekView)}%`;
-        band.style.position='absolute';
-        band.style.left=firstCell.offsetLeft+'px';
-        band.style.width=(lastCell.offsetLeft+lastCell.offsetWidth-firstCell.offsetLeft)+'px';
+        band.className=`multi-band ${ev.type} fade-in`;
+        band.style.top=`${line*22}px`;
+        band.style.left='0';
+        band.style.right='0';
+        band.style.width='100%';
+        band.style.gridColumnStart = startIdx+1;
+        band.style.gridColumnEnd = endIdx+1;
 
         const startSpan = document.createElement('span');
         startSpan.className='start-label';
         startSpan.textContent = `<${formatTime(currStart)} ${ev.summary}`;
         const endSpan = document.createElement('span');
         endSpan.className='end-label';
-        const thisSegmentEnd = new Date(Math.min(end, cellMap[endIdx].date.getTime()+24*60*60*1000));
-        endSpan.textContent = `>${formatTime(thisSegmentEnd)}`;
+        endSpan.textContent = `>${formatTime(segmentEnd)}`;
 
         band.appendChild(startSpan);
         band.appendChild(endSpan);
         band.onclick=()=>showModal(ev);
-        calendarEl.appendChild(band);
+        firstCell.appendChild(band);
 
-        currStart = new Date(cellMap[endIdx].date); currStart.setDate(currStart.getDate()+1);
+        currStart = new Date(cellMap[endIdx-1].date); currStart.setDate(currStart.getDate()+1);
       }
     }
   });
@@ -260,11 +281,7 @@ async function renderCalendar(){
 
 document.getElementById('prev-btn').onclick=()=>{currentStartDate.setDate(currentStartDate.getDate()-7); renderCalendar();}
 document.getElementById('next-btn').onclick=()=>{currentStartDate.setDate(currentStartDate.getDate()+7); renderCalendar();}
-document.getElementById('today-btn').onclick=()=>{
-  currentStartDate=new Date();
-  weekView=3;
-  renderCalendar();
-};
+document.getElementById('today-btn').onclick=()=>{currentStartDate=new Date(); weekView=3; renderCalendar();}
 document.getElementById('view-3w').onclick=()=>{weekView=3; renderCalendar();}
 document.getElementById('view-4w').onclick=()=>{weekView=4; renderCalendar();}
 
