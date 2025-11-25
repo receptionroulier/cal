@@ -1,235 +1,156 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Calendrier Google</title>
-  <style>
-    /* Reset */
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family: Arial, sans-serif; background-color:#1a1a1a; color:#fff; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calendrier Google - Multi-Day Bands</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:Arial, sans-serif; background:#1a1a1a; color:#fff; }
+  #calendar-header { display:flex; justify-content: space-between; align-items:center; padding:10px 20px; background:#111; border-bottom:1px solid #333; }
+  #calendar-title { font-size:1.5rem; color:#f39c12; text-align:center; flex:1; }
+  .nav-btn, .view-btn { cursor:pointer; margin:0 5px; color:#f39c12; user-select:none; }
+  .nav-btn:hover, .view-btn:hover { color:#ffd700; }
 
-    /* Header */
-    #calendar-header {
-      display:flex; justify-content: space-between; align-items:center;
-      padding:10px 20px; background-color:#111; border-bottom:1px solid #333;
-    }
-    #calendar-title { font-size: 1.5rem; color:#f39c12; text-align:center; flex:1; }
-    .nav-btn, .view-btn { cursor:pointer; margin:0 5px; color:#f39c12; user-select:none; }
-    .nav-btn:hover, .view-btn:hover { color:#ffd700; }
+  #calendar { display:grid; grid-template-columns:repeat(7, 1fr); grid-auto-rows:120px; gap:2px; padding:10px; position:relative; }
 
-    /* Calendar grid */
-    #calendar {
-      display:grid;
-      grid-template-columns: repeat(7, 1fr);
-      grid-auto-rows: 120px;
-      gap: 2px;
-      padding: 10px;
-    }
-    .day-cell {
-      background-color:#222;
-      border:1px solid #333;
-      position:relative;
-      overflow:hidden;
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-    .day-cell.past { transform: scale(0.95); opacity:0.6; }
-    .day-cell.today { transform: scale(1.05); box-shadow:0 0 15px #f39c12; }
-    .day-cell.future { border:1px solid #f39c12; }
-    .day-cell:hover.today { transform: scale(1.1); box-shadow:0 0 25px #f39c12; }
-    .day-cell:hover.future { transform: scale(1.05); box-shadow:0 0 15px #f39c12; }
+  .day-cell { background:#222; border:1px solid #333; position:relative; overflow:hidden; transition: transform 0.2s, box-shadow 0.2s; }
+  .day-cell.past { transform:scale(0.95); opacity:0.6; }
+  .day-cell.today { transform:scale(1.05); box-shadow:0 0 15px #f39c12; }
+  .day-cell.future { border:1px solid #f39c12; }
+  .day-cell:hover.today { transform:scale(1.1); box-shadow:0 0 25px #f39c12; }
+  .day-cell:hover.future { transform:scale(1.05); box-shadow:0 0 15px #f39c12; }
 
-    /* Event styling */
-    .event { padding:2px 4px; margin:2px 0; border-radius:4px; font-size:0.8rem; cursor:pointer; word-wrap:break-word; white-space:normal; }
-    .reception { background-color:#109c53; }
-    .navire { background-color:#3644b3; }
+  .event { padding:2px 4px; margin:2px 0; border-radius:4px; font-size:0.8rem; cursor:pointer; word-wrap:break-word; white-space:normal; }
+  .reception { background:#109c53; }
+  .navire { background:#3644b3; }
 
-    /* Multi-day bands */
-    .multi-band {
-      position:absolute; left:0; right:0; height:20px; border-radius:4px;
-      display:flex; justify-content:space-between; padding:0 4px;
-      font-size:0.75rem; color:#fff; white-space:nowrap; overflow:hidden;
-    }
+  /* Multi-day bands */
+  .multi-band { position:absolute; height:20px; border-radius:4px; display:flex; justify-content:space-between; padding:0 4px; font-size:0.75rem; color:#fff; white-space:nowrap; overflow:hidden; top:0; }
 
-    /* +X autres */
-    .more-events {
-      position:absolute; top:2px; right:4px; font-size:0.7rem; color:#fff; background-color:rgba(0,0,0,0.5);
-      padding:1px 4px; border-radius:3px;
-    }
+  .more-events { position:absolute; top:2px; right:4px; font-size:0.7rem; color:#fff; background:rgba(0,0,0,0.5); padding:1px 4px; border-radius:3px; }
 
-    /* Popover / modal */
-    #event-modal {
-      position:fixed; top:0; left:0; width:100%; height:100%; display:none; justify-content:center; align-items:center;
-      background-color: rgba(0,0,0,0.7); z-index:1000;
-    }
-    #event-modal .modal-content {
-      background-color:#333; color:#fff; padding:20px; border-radius:10px; max-width:90%; animation: pulse 0.3s;
-    }
-    @keyframes pulse {
-      0% { transform: scale(0.95); opacity:0; }
-      50% { transform: scale(1.05); opacity:1; }
-      100% { transform: scale(1); opacity:1; }
-    }
+  #event-modal { position:fixed; top:0; left:0; width:100%; height:100%; display:none; justify-content:center; align-items:center; background:rgba(0,0,0,0.7); z-index:1000; }
+  #event-modal .modal-content { background:#333; color:#fff; padding:20px; border-radius:10px; max-width:90%; animation:pulse 0.3s; }
+  @keyframes pulse { 0%{transform:scale(0.95);opacity:0;}50%{transform:scale(1.05);opacity:1;}100%{transform:scale(1);opacity:1;} }
 
-    /* Animations cases */
-    .day-cell.fade-in { animation: fadeInCell 0.3s forwards; }
-    @keyframes fadeInCell { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+  .day-cell.fade-in { animation: fadeInCell 0.3s forwards; }
+  @keyframes fadeInCell { from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);} }
 
-    /* Responsive */
-    @media(max-width:768px){
-      #calendar { grid-auto-rows:100px; }
-      .day-cell { font-size:0.8rem; }
-    }
-  </style>
+  @media(max-width:768px){ #calendar{grid-auto-rows:100px;} .day-cell{font-size:0.8rem;} }
+</style>
 </head>
 <body>
-  <div id="calendar-header">
-    <span class="nav-btn" id="prev-btn">‹</span>
-    <span id="calendar-title">Chargement…</span>
-    <span class="nav-btn" id="next-btn">›</span>
-    <span class="view-btn" id="view-3w">3 semaines</span>
-    <span class="view-btn" id="view-4w">4 semaines</span>
-    <span class="nav-btn" id="today-btn" style="font-size:18px;">Aujourd’hui</span>
-  </div>
-  <div id="calendar"></div>
+<div id="calendar-header">
+  <span class="nav-btn" id="prev-btn">‹</span>
+  <span id="calendar-title">Chargement…</span>
+  <span class="nav-btn" id="next-btn">›</span>
+  <span class="view-btn" id="view-3w">3 semaines</span>
+  <span class="view-btn" id="view-4w">4 semaines</span>
+  <span class="nav-btn" id="today-btn" style="font-size:18px;">Aujourd’hui</span>
+</div>
+<div id="calendar"></div>
+<div id="event-modal" onclick="hideModal()">
+  <div class="modal-content" id="modal-content" onclick="event.stopPropagation()"></div>
+</div>
 
-  <div id="event-modal" onclick="hideModal()">
-    <div class="modal-content" id="modal-content" onclick="event.stopPropagation()"></div>
-  </div>
+<script>
+const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
+const CALENDAR_IDS = { reception:'receptionroulier@gmail.com', navire:'smr.programme@gmail.com' };
+let currentStartDate = new Date();
+let weekView = 3;
 
-  <script>
-    const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
-    const CALENDAR_IDS = {
-      reception: 'receptionroulier@gmail.com',
-      navire: 'smr.programme@gmail.com'
-    };
+function getCacheKey(){return'calendar-cache';}
+function saveCache(data, hash){localStorage.setItem(getCacheKey(), JSON.stringify({data, hash, timestamp:Date.now()}));}
+function loadCache(){const cached=localStorage.getItem(getCacheKey());if(!cached)return null;const obj=JSON.parse(cached);if(Date.now()-obj.timestamp>30000)return null;return obj;}
+function hashEvents(events){return JSON.stringify(events).split('').reduce((a,b)=>{a=((a<<5)-a)+b.charCodeAt(0);return a&a},0);}
 
-    let currentStartDate = new Date();
-    let weekView = 3;
+async function fetchCalendarEvents(calendarId,timeMin,timeMax){
+  const url=`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?key=${API_KEY}&timeMin=${timeMin.toISOString()}&timeMax=${timeMax.toISOString()}&singleEvents=true&orderBy=startTime`;
+  const res = await fetch(url);
+  return await res.json();
+}
 
-    function getCacheKey() { return 'calendar-cache'; }
+async function loadEvents(){
+  const start = new Date(currentStartDate); start.setDate(start.getDate()-7);
+  const end = new Date(start); end.setDate(end.getDate()+7*weekView);
+  const cache = loadCache();
+  if(cache) return cache.data;
+  const receptionEvents = await fetchCalendarEvents(CALENDAR_IDS.reception,start,end);
+  const navireEvents = await fetchCalendarEvents(CALENDAR_IDS.navire,start,end);
+  const allEvents = [...receptionEvents.items.map(e=>({...e,type:'reception'})), ...navireEvents.items.map(e=>({...e,type:'navire'}))];
+  const newHash = hashEvents(allEvents);
+  if(cache && cache.hash===newHash) return cache.data;
+  saveCache(allEvents,newHash);
+  return allEvents;
+}
 
-    function saveCache(data, hash) {
-      localStorage.setItem(getCacheKey(), JSON.stringify({data, hash, timestamp:Date.now()}));
-    }
+function formatTime(d){return new Date(d).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});}
+function createDayCell(date){const cell=document.createElement('div');cell.className='day-cell fade-in';const today=new Date();if(date<new Date(today.setHours(0,0,0,0)))cell.classList.add('past');else if(date.toDateString()===new Date().toDateString())cell.classList.add('today');else cell.classList.add('future');const dayLabel=document.createElement('div');dayLabel.innerHTML=`<strong>${date.getDate()}</strong>`;cell.appendChild(dayLabel);return cell;}
 
-    function loadCache() {
-      const cached = localStorage.getItem(getCacheKey());
-      if(!cached) return null;
-      const obj = JSON.parse(cached);
-      if(Date.now() - obj.timestamp > 30000) return null; // 30s
-      return obj;
-    }
+function showModal(event){
+  const modal=document.getElementById('event-modal');
+  const content=document.getElementById('modal-content');
+  const start=new Date(event.start.dateTime||event.start.date).toLocaleString();
+  const end=new Date(event.end.dateTime||event.end.date).toLocaleString();
+  content.innerHTML=`<h3>${event.summary}</h3><p>${event.description||''}</p><p>Du ${start} Au ${end}</p>`;
+  modal.style.display='flex';
+}
+function hideModal(){document.getElementById('event-modal').style.display='none';}
 
-    function hashEvents(events) {
-      return JSON.stringify(events).split('').reduce((a,b)=>{a=((a<<5)-a)+b.charCodeAt(0); return a&a},0);
-    }
+async function renderCalendar(){
+  const calendarEl=document.getElementById('calendar');calendarEl.innerHTML='';
+  const events = await loadEvents();
+  const startDate = new Date(currentStartDate); startDate.setDate(startDate.getDate()-7);
+  const totalDays = 7*(weekView+1); const months = new Set();
+  const cellMap=[]; for(let i=0;i<totalDays;i++){ const day=new Date(startDate); day.setDate(day.getDate()+i); const cell=createDayCell(day); calendarEl.appendChild(cell); cellMap.push({date:day,el:cell,occupied:[]}); months.add(day.toLocaleString('fr-FR',{month:'long'}));}
 
-    async function fetchCalendarEvents(calendarId, timeMin, timeMax){
-      const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?key=${API_KEY}&timeMin=${timeMin.toISOString()}&timeMax=${timeMax.toISOString()}&singleEvents=true&orderBy=startTime`;
-      const res = await fetch(url);
-      return await res.json();
-    }
-
-    async function loadEvents() {
-      const start = new Date(currentStartDate);
-      start.setDate(start.getDate() - 7); // semaine passée
-      const end = new Date(start);
-      end.setDate(end.getDate() + 7*weekView);
-
-      const cache = loadCache();
-      if(cache) return cache.data;
-
-      const receptionEvents = await fetchCalendarEvents(CALENDAR_IDS.reception, start, end);
-      const navireEvents = await fetchCalendarEvents(CALENDAR_IDS.navire, start, end);
-
-      const allEvents = [...receptionEvents.items.map(e=>({...e,type:'reception'})),
-                         ...navireEvents.items.map(e=>({...e,type:'navire'}))];
-
-      const newHash = hashEvents(allEvents);
-      if(cache && cache.hash === newHash) return cache.data;
-
-      saveCache(allEvents, newHash);
-      return allEvents;
-    }
-
-    function formatDate(d) { return d.toLocaleDateString('fr-FR', {weekday:'short', day:'numeric', month:'short'}); }
-    function formatTime(d) { return d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}); }
-
-    function createDayCell(date) {
-      const cell = document.createElement('div');
-      cell.className='day-cell fade-in';
-      const today = new Date();
-      if(date < today.setHours(0,0,0,0)) cell.classList.add('past');
-      else if(date.toDateString() === new Date().toDateString()) cell.classList.add('today');
-      else cell.classList.add('future');
-
-      const dayLabel = document.createElement('div');
-      dayLabel.innerHTML = `<strong>${date.getDate()}</strong>`;
-      cell.appendChild(dayLabel);
-      return cell;
-    }
-
-    function showModal(event) {
-      const modal = document.getElementById('event-modal');
-      const content = document.getElementById('modal-content');
-      const start = new Date(event.start.dateTime || event.start.date).toLocaleString();
-      const end = new Date(event.end.dateTime || event.end.date).toLocaleString();
-      content.innerHTML = `<h3>${event.summary}</h3><p>${event.description || ''}</p><p>Du ${start} Au ${end}</p>`;
-      modal.style.display='flex';
-    }
-
-    function hideModal() { document.getElementById('event-modal').style.display='none'; }
-
-    async function renderCalendar() {
-      const calendarEl = document.getElementById('calendar');
-      calendarEl.innerHTML='';
-      const events = await loadEvents();
-
-      const startDate = new Date(currentStartDate);
-      startDate.setDate(startDate.getDate() - 7);
-      const totalDays = 7*(weekView+1);
-      const months = new Set();
-
-      for(let i=0;i<totalDays;i++){
-        const day = new Date(startDate);
-        day.setDate(day.getDate()+i);
-        const cell = createDayCell(day);
-
-        const dayEvents = events.filter(e=>{
-          const start = new Date(e.start.dateTime || e.start.date);
-          const end = new Date(e.end.dateTime || e.end.date);
-          return day>=start && day<=end;
-        });
-
-        dayEvents.slice(0,3).forEach(e=>{
-          const evDiv = document.createElement('div');
-          evDiv.className='event '+e.type;
-          evDiv.textContent = e.summary;
-          evDiv.onclick = ()=>showModal(e);
-          cell.appendChild(evDiv);
-        });
-        if(dayEvents.length>3){
-          const moreDiv = document.createElement('div');
-          moreDiv.className='more-events';
-          moreDiv.textContent=`+${dayEvents.length-3} autres`;
-          cell.appendChild(moreDiv);
-        }
-
-        calendarEl.appendChild(cell);
-        months.add(day.toLocaleString('fr-FR',{month:'long'}));
+  // Gestion multi-day
+  events.forEach(ev=>{
+    const start = new Date(ev.start.dateTime||ev.start.date);
+    const end = new Date(ev.end.dateTime||ev.end.date);
+    if(start.toDateString()===end.toDateString()){
+      // Single day
+      const cellObj = cellMap.find(c=>c.date.toDateString()===start.toDateString());
+      if(cellObj){
+        const evDiv=document.createElement('div'); evDiv.className='event '+ev.type; evDiv.textContent=ev.summary; evDiv.onclick=()=>showModal(ev); cellObj.el.appendChild(evDiv);
       }
-
-      document.getElementById('calendar-title').textContent = Array.from(months).join(' / ');
+    } else {
+      // Multi-day band
+      let startIndex=cellMap.findIndex(c=>c.date>=start); 
+      let endIndex=cellMap.findIndex(c=>c.date>=end); if(endIndex===-1) endIndex=cellMap.length-1;
+      let topOffset=0;
+      for(let t=0;t<cellMap[startIndex].occupied.length;t++){ if(cellMap[startIndex].occupied[t]===false){ topOffset=t*22; break;} topOffset=cellMap[startIndex].occupied.length*22;}
+      for(let i=startIndex;i<=endIndex;i++){ cellMap[i].occupied[topOffset/22]=true; }
+      const band = document.createElement('div'); band.className='multi-band '+ev.type; band.style.top=topOffset+'px';
+      band.innerHTML=`<span>&lt;${formatTime(start)} ${ev.summary}</span><span>${formatTime(end)}&gt;</span>`;
+      band.onclick=()=>showModal(ev);
+      cellMap[startIndex].el.appendChild(band);
+      // étirer la largeur sur les jours suivants
+      for(let i=startIndex+1;i<=endIndex;i++){
+        const filler = document.createElement('div'); filler.className='multi-band '+ev.type; filler.style.top=topOffset+'px'; filler.style.width='100%'; filler.style.opacity='0'; cellMap[i].el.appendChild(filler);
+      }
     }
+  });
 
-    document.getElementById('prev-btn').onclick = ()=>{ currentStartDate.setDate(currentStartDate.getDate()-7); renderCalendar(); };
-    document.getElementById('next-btn').onclick = ()=>{ currentStartDate.setDate(currentStartDate.getDate()+7); renderCalendar(); };
-    document.getElementById('today-btn').onclick = ()=>{ currentStartDate = new Date(); renderCalendar(); };
-    document.getElementById('view-3w').onclick = ()=>{ weekView=3; renderCalendar(); };
-    document.getElementById('view-4w').onclick = ()=>{ weekView=4; renderCalendar(); };
+  // +X autres pour single-day events dépassant
+  cellMap.forEach(c=>{
+    const evs=c.el.querySelectorAll('.event'); if(evs.length>3){
+      for(let i=3;i<evs.length;i++) evs[i].style.display='none';
+      const more=document.createElement('div'); more.className='more-events'; more.textContent=`+${evs.length-3} autres`; c.el.appendChild(more);
+    }
+  });
 
-    renderCalendar();
-  </script>
+  document.getElementById('calendar-title').textContent=Array.from(months).join(' / ');
+}
+
+document.getElementById('prev-btn').onclick=()=>{currentStartDate.setDate(currentStartDate.getDate()-7);renderCalendar();}
+document.getElementById('next-btn').onclick=()=>{currentStartDate.setDate(currentStartDate.getDate()+7);renderCalendar();}
+document.getElementById('today-btn').onclick=()=>{currentStartDate=new Date();renderCalendar();}
+document.getElementById('view-3w').onclick=()=>{weekView=3;renderCalendar();}
+document.getElementById('view-4w').onclick=()=>{weekView=4;renderCalendar();}
+
+renderCalendar();
+</script>
 </body>
 </html>
