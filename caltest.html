@@ -1,484 +1,235 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Calendrier 3-4 semaines - multi-jours en bande</title>
-<style>
-:root{
-  --bg:#121212; --card:#1c1f23; --border:#555; --text:#eaeaea; --muted:#999; --accent:#00e5ff;
-  --gap:4px; --days-font:14px; --event-font:14px;
-}
-*{box-sizing:border-box}
-body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column}
-.container{max-width:1600px;margin:0 auto;padding:16px;flex:1;display:flex;flex-direction:column}
-header{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:10px;flex-wrap:wrap}
-h1{margin:0;font-size:24px;color:var(--accent)}
-.nav-buttons{display:flex;gap:8px;align-items:center}
-.nav-buttons button, .week-selector select{background:none;border:none;color:var(--accent);font-size:16px;cursor:pointer;padding:4px 8px}
-.week-selector{display:flex;align-items:center;gap:4px;margin-left:auto}
-.calendar{background:var(--card);border-radius:12px;padding:12px;box-shadow:0 6px 18px rgba(0,0,0,0.5);flex:1;position:relative;overflow:hidden}
-.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:var(--gap);height:100%}
-.day{background:#141619;border-radius:12px;padding:8px;box-sizing:border-box;border:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;position:relative}
-.day .day-header{display:flex;justify-content:space-between;align-items:center;font-size:var(--days-font);margin-bottom:4px}
-.day .date{font-weight:600}
-.events{flex:1 1 auto;display:flex;flex-direction:column;gap:4px;overflow:hidden}
-.event{display:flex;align-items:center;gap:6px;padding:4px;border-radius:6px;background:rgba(0,0,0,0.25);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.event .time{min-width:48px;font-weight:600;font-size:12px}
-.event.allDay .time{display:none}
-.event.more{font-size:12px;color:var(--muted);background:transparent;padding-left:6px}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calendrier Google</title>
+  <style>
+    /* Reset */
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: Arial, sans-serif; background-color:#1a1a1a; color:#fff; }
 
-.spans-container{
-  position:absolute;
-  inset:12px; /* match calendar padding */
-  pointer-events:none; /* allow clicks to pass; bars will enable pointer-events */
-  z-index:5;
-}
+    /* Header */
+    #calendar-header {
+      display:flex; justify-content: space-between; align-items:center;
+      padding:10px 20px; background-color:#111; border-bottom:1px solid #333;
+    }
+    #calendar-title { font-size: 1.5rem; color:#f39c12; text-align:center; flex:1; }
+    .nav-btn, .view-btn { cursor:pointer; margin:0 5px; color:#f39c12; user-select:none; }
+    .nav-btn:hover, .view-btn:hover { color:#ffd700; }
 
-/* span (multi-day bar) */
-.span {
-  position:absolute;
-  height:28px;
-  border-radius:6px;
-  display:flex;
-  align-items:center;
-  padding:4px 8px;
-  color:#fff;
-  font-weight:600;
-  font-size:13px;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  pointer-events:auto; /* allow click */
-  box-shadow:0 6px 18px rgba(0,0,0,0.45);
-}
+    /* Calendar grid */
+    #calendar {
+      display:grid;
+      grid-template-columns: repeat(7, 1fr);
+      grid-auto-rows: 120px;
+      gap: 2px;
+      padding: 10px;
+    }
+    .day-cell {
+      background-color:#222;
+      border:1px solid #333;
+      position:relative;
+      overflow:hidden;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .day-cell.past { transform: scale(0.95); opacity:0.6; }
+    .day-cell.today { transform: scale(1.05); box-shadow:0 0 15px #f39c12; }
+    .day-cell.future { border:1px solid #f39c12; }
+    .day-cell:hover.today { transform: scale(1.1); box-shadow:0 0 25px #f39c12; }
+    .day-cell:hover.future { transform: scale(1.05); box-shadow:0 0 15px #f39c12; }
 
-/* calendar color classes (apply to spans) */
-.c-reception{background:#109c53}
-.c-smr{background:#5768cb}
+    /* Event styling */
+    .event { padding:2px 4px; margin:2px 0; border-radius:4px; font-size:0.8rem; cursor:pointer; word-wrap:break-word; white-space:normal; }
+    .reception { background-color:#109c53; }
+    .navire { background-color:#3644b3; }
 
-/* popup */
-#popup { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); background:#1c1f23; color:#fff; padding:16px; border-radius:10px; box-shadow:0 8px 30px rgba(0,0,0,0.7); display:none; z-index:50; min-width:300px; max-width:80%; border:3px solid var(--accent); }
-#popup h3{margin:0 0 8px 0}
-#popup pre{white-space:pre-wrap; color:#ddd; margin:8px 0 0 0; font-size:13px}
-#popup .close{position:absolute; right:10px; top:6px; cursor:pointer; font-weight:bold}
+    /* Multi-day bands */
+    .multi-band {
+      position:absolute; left:0; right:0; height:20px; border-radius:4px;
+      display:flex; justify-content:space-between; padding:0 4px;
+      font-size:0.75rem; color:#fff; white-space:nowrap; overflow:hidden;
+    }
 
-/* responsive */
-@media(max-width:900px){ .grid{grid-template-columns:repeat(2,1fr)} }
-@media(max-width:520px){ .grid{grid-template-columns:repeat(1,1fr)} }
-</style>
+    /* +X autres */
+    .more-events {
+      position:absolute; top:2px; right:4px; font-size:0.7rem; color:#fff; background-color:rgba(0,0,0,0.5);
+      padding:1px 4px; border-radius:3px;
+    }
+
+    /* Popover / modal */
+    #event-modal {
+      position:fixed; top:0; left:0; width:100%; height:100%; display:none; justify-content:center; align-items:center;
+      background-color: rgba(0,0,0,0.7); z-index:1000;
+    }
+    #event-modal .modal-content {
+      background-color:#333; color:#fff; padding:20px; border-radius:10px; max-width:90%; animation: pulse 0.3s;
+    }
+    @keyframes pulse {
+      0% { transform: scale(0.95); opacity:0; }
+      50% { transform: scale(1.05); opacity:1; }
+      100% { transform: scale(1); opacity:1; }
+    }
+
+    /* Animations cases */
+    .day-cell.fade-in { animation: fadeInCell 0.3s forwards; }
+    @keyframes fadeInCell { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+
+    /* Responsive */
+    @media(max-width:768px){
+      #calendar { grid-auto-rows:100px; }
+      .day-cell { font-size:0.8rem; }
+    }
+  </style>
 </head>
 <body>
-<div class="container">
-  <header>
-    <h1 id="month-title">Mois</h1>
-    <div class="nav-buttons">
-      <button id="prev-week">&lt;</button>
-      <button id="today-btn">Aujourd'hui</button>
-      <button id="next-week">&gt;</button>
-      <div class="week-selector">
-        <label for="weeks-count" style="color:var(--accent)">Semaines :</label>
-        <select id="weeks-count">
-          <option value="3" selected>3</option>
-          <option value="4">4</option>
-        </select>
-      </div>
-    </div>
-  </header>
-
-  <div class="calendar" id="calendar-root">
-    <div class="grid" id="grid"></div>
-    <div class="spans-container" id="spans"></div>
+  <div id="calendar-header">
+    <span class="nav-btn" id="prev-btn">‹</span>
+    <span id="calendar-title">Chargement…</span>
+    <span class="nav-btn" id="next-btn">›</span>
+    <span class="view-btn" id="view-3w">3 semaines</span>
+    <span class="view-btn" id="view-4w">4 semaines</span>
+    <span class="nav-btn" id="today-btn" style="font-size:18px;">Aujourd’hui</span>
   </div>
-</div>
+  <div id="calendar"></div>
 
-<div id="popup" role="dialog" aria-modal="true">
-  <span class="close" onclick="closePopup()">&times;</span>
-  <h3 id="popup-title"></h3>
-  <div id="popup-dates" style="font-weight:600;margin-top:4px;color:#ddd"></div>
-  <div id="popup-details" style="margin-top:8px;color:#ddd;font-size:13px"></div>
-</div>
+  <div id="event-modal" onclick="hideModal()">
+    <div class="modal-content" id="modal-content" onclick="event.stopPropagation()"></div>
+  </div>
 
-<script>
-/* ----------------------
-   Configuration
-   ---------------------- */
-const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
-const CALENDARS = [
-  { id:'receptionroulier@gmail.com', key:'reception', css:'c-reception'},
-  { id:'smr.programme@gmail.com', key:'smr', css:'c-smr'}
-];
+  <script>
+    const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
+    const CALENDAR_IDS = {
+      reception: 'receptionroulier@gmail.com',
+      navire: 'smr.programme@gmail.com'
+    };
 
-let WEEKS = 3; // default
-let gridStartDate = null;
-let dates = []; // Date objects for cells
-const gridEl = document.getElementById('grid');
-const spansEl = document.getElementById('spans');
-const calendarRoot = document.getElementById('calendar-root');
+    let currentStartDate = new Date();
+    let weekView = 3;
 
-/* ----------------------
-   Helpers (local dates)
-   ---------------------- */
-function fmtDateLocalISO(d){
-  const dt = (d instanceof Date) ? new Date(d.getFullYear(), d.getMonth(), d.getDate()) : new Date(d);
-  return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
-}
-function pad(n){ return n<10?'0'+n:n; }
-function fmtTime(dt){ if(!dt) return ''; const d = new Date(dt); return pad(d.getHours())+':'+pad(d.getMinutes()); }
-function dayLabel(dt){ const d = new Date(dt); return ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][d.getDay()]+' '+d.getDate(); }
+    function getCacheKey() { return 'calendar-cache'; }
 
-/* ----------------------
-   computeGridStart: monday previous week
-   (keeps original semantics: past week, current week, future week(s))
-   ---------------------- */
-function computeGridStart(ref = new Date()){
-  const today = new Date(ref);
-  const day = today.getDay(); // 0..6 (Sun..Sat)
-  const mondayThis = new Date(today); mondayThis.setHours(0,0,0,0);
-  mondayThis.setDate(today.getDate() - ((day + 6) % 7));
-  const mondayPrev = new Date(mondayThis); mondayPrev.setDate(mondayPrev.getDate() - 7);
-  return mondayPrev;
-}
+    function saveCache(data, hash) {
+      localStorage.setItem(getCacheKey(), JSON.stringify({data, hash, timestamp:Date.now()}));
+    }
 
-/* ----------------------
-   Build grid dates and cells
-   ---------------------- */
-function renderGrid(){
-  gridEl.innerHTML = '';
-  dates = [];
-  for(let w=0; w<WEEKS; w++){
-    for(let i=0;i<7;i++){
-      const d = new Date(gridStartDate);
-      d.setDate(gridStartDate.getDate() + w*7 + i);
-      d.setHours(0,0,0,0);
-      dates.push(d);
+    function loadCache() {
+      const cached = localStorage.getItem(getCacheKey());
+      if(!cached) return null;
+      const obj = JSON.parse(cached);
+      if(Date.now() - obj.timestamp > 30000) return null; // 30s
+      return obj;
+    }
+
+    function hashEvents(events) {
+      return JSON.stringify(events).split('').reduce((a,b)=>{a=((a<<5)-a)+b.charCodeAt(0); return a&a},0);
+    }
+
+    async function fetchCalendarEvents(calendarId, timeMin, timeMax){
+      const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?key=${API_KEY}&timeMin=${timeMin.toISOString()}&timeMax=${timeMax.toISOString()}&singleEvents=true&orderBy=startTime`;
+      const res = await fetch(url);
+      return await res.json();
+    }
+
+    async function loadEvents() {
+      const start = new Date(currentStartDate);
+      start.setDate(start.getDate() - 7); // semaine passée
+      const end = new Date(start);
+      end.setDate(end.getDate() + 7*weekView);
+
+      const cache = loadCache();
+      if(cache) return cache.data;
+
+      const receptionEvents = await fetchCalendarEvents(CALENDAR_IDS.reception, start, end);
+      const navireEvents = await fetchCalendarEvents(CALENDAR_IDS.navire, start, end);
+
+      const allEvents = [...receptionEvents.items.map(e=>({...e,type:'reception'})),
+                         ...navireEvents.items.map(e=>({...e,type:'navire'}))];
+
+      const newHash = hashEvents(allEvents);
+      if(cache && cache.hash === newHash) return cache.data;
+
+      saveCache(allEvents, newHash);
+      return allEvents;
+    }
+
+    function formatDate(d) { return d.toLocaleDateString('fr-FR', {weekday:'short', day:'numeric', month:'short'}); }
+    function formatTime(d) { return d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}); }
+
+    function createDayCell(date) {
       const cell = document.createElement('div');
-      cell.className = 'day';
-      cell.dataset.date = fmtDateLocalISO(d);
-      cell.innerHTML = `<div class="day-header"><div>${['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][d.getDay()]}</div><div class="date">${d.getDate()}</div></div><div class="events"></div>`;
-      gridEl.appendChild(cell);
+      cell.className='day-cell fade-in';
+      const today = new Date();
+      if(date < today.setHours(0,0,0,0)) cell.classList.add('past');
+      else if(date.toDateString() === new Date().toDateString()) cell.classList.add('today');
+      else cell.classList.add('future');
+
+      const dayLabel = document.createElement('div');
+      dayLabel.innerHTML = `<strong>${date.getDate()}</strong>`;
+      cell.appendChild(dayLabel);
+      return cell;
     }
-  }
-  // clear spans overlay
-  spansEl.innerHTML = '';
-}
 
-/* ----------------------
-   Fetch events (Google Calendar)
-   ---------------------- */
-async function fetchEventsForCalendar(calId, timeMinISO, timeMaxISO){
-  const base = 'https://www.googleapis.com/calendar/v3/calendars/';
-  const url = base + encodeURIComponent(calId) + '/events?key=' + encodeURIComponent(API_KEY)
-    + '&timeMin=' + encodeURIComponent(timeMinISO)
-    + '&timeMax=' + encodeURIComponent(timeMaxISO)
-    + '&singleEvents=true&orderBy=startTime&maxResults=2500';
-  const res = await fetch(url);
-  if(!res.ok) throw new Error('HTTP '+res.status);
-  return res.json();
-}
-
-/* ----------------------
-   Update events: same behaviour as before for single-day,
-   plus create span bars for multi-day events (startDate !== endDate)
-   ---------------------- */
-async function updateEvents(){
-  // ensure grid exists
-  renderGrid();
-  if(dates.length===0) return;
-
-  const timeMin = new Date(dates[0]); timeMin.setHours(0,0,0,0);
-  const timeMax = new Date(dates[dates.length-1]); timeMax.setHours(23,59,59,999);
-
-  // fetch all calendars in parallel
-  const promises = CALENDARS.map(c => fetchEventsForCalendar(c.id, timeMin.toISOString(), timeMax.toISOString())
-    .then(json => ({calendar:c, items: json.items || []}))
-    .catch(err => ({calendar:c, error:err})));
-  const results = await Promise.all(promises);
-
-  // events grouped by day (for single-day rendering)
-  const eventsByDay = {};
-  // keep list of multi-day events to render spans
-  const spans = [];
-
-  const seen = new Set();
-
-  for(const res of results){
-    if(res.error){ console.warn('Erreur API pour', res.calendar.id, res.error); continue; }
-    const cal = res.calendar;
-    for(const it of res.items){
-      const dedupeKey = it.iCalUID || it.id || (it.summary||'') + (it.start?.dateTime||it.start?.date||'');
-      if(seen.has(dedupeKey)) continue;
-      seen.add(dedupeKey);
-
-      // normalize start/end; keep original event object for details
-      const startRaw = it.start?.dateTime || it.start?.date; // dateTime or date(YYYY-MM-DD)
-      const endRaw   = it.end?.dateTime   || it.end?.date;
-
-      // compute local day keys properly:
-      // if dateTime provided -> use local Date; if date (all-day) -> use date string as-is
-      let startDayKey, endDayKey, startMoment, endMoment;
-      if(it.start?.dateTime){
-        startMoment = new Date(it.start.dateTime);
-        endMoment = new Date(it.end.dateTime);
-        startDayKey = fmtDateLocalISO(startMoment);
-        // subtract 1ms to get inclusive end day if needed, but keep endMoment for display
-        const endInclusive = new Date(endMoment.getTime() - 1);
-        endDayKey = fmtDateLocalISO(endInclusive);
-      } else {
-        // all-day event: start and end are YYYY-MM-DD, Google end is exclusive
-        startDayKey = it.start.date;
-        // compute inclusive end date
-        const e = new Date(it.end.date + 'T00:00:00');
-        e.setMilliseconds(e.getMilliseconds() - 1);
-        endDayKey = fmtDateLocalISO(e);
-        startMoment = new Date(it.start.date + 'T00:00:00');
-        endMoment = new Date(it.end.date + 'T00:00:00');
-        endMoment = new Date(endMoment.getTime() - 1); // inclusive
-      }
-
-      // if event spans multiple visible days (startDayKey != endDayKey) -> create span bar
-      if(startDayKey !== endDayKey){
-        spans.push({ event: it, calendarKey: cal.key, startDayKey, endDayKey, startMoment, endMoment });
-        // also add to eventsByDay optionally? As requested, do not modify one-day behavior; multi-day events must be represented only as spans (and not duplicated as single-day entries). So we **do not** push them into day lists.
-        continue;
-      }
-
-      // single-day event -> normal cell listing (unchanged)
-      // compute display key (string YYYY-MM-DD)
-      const key = startDayKey;
-      eventsByDay[key] = eventsByDay[key] || [];
-      const isAllDay = !!it.start?.date && !it.start?.dateTime;
-      eventsByDay[key].push({
-        title: it.summary || '(sans titre)',
-        allDay: isAllDay,
-        start: it.start?.dateTime || it.start?.date,
-        end: it.end?.dateTime || it.end?.date,
-        calendarKey: cal.key,
-        raw: it
-      });
+    function showModal(event) {
+      const modal = document.getElementById('event-modal');
+      const content = document.getElementById('modal-content');
+      const start = new Date(event.start.dateTime || event.start.date).toLocaleString();
+      const end = new Date(event.end.dateTime || event.end.date).toLocaleString();
+      content.innerHTML = `<h3>${event.summary}</h3><p>${event.description || ''}</p><p>Du ${start} Au ${end}</p>`;
+      modal.style.display='flex';
     }
-  }
 
-  // render single-day events into cells (unchanged behavior)
-  const MAX_PER_CELL = 6;
-  document.querySelectorAll('.day').forEach(dayEl=>{
-    const date = dayEl.dataset.date;
-    const list = eventsByDay[date] || [];
-    const container = dayEl.querySelector('.events');
-    container.innerHTML = '';
-    list.sort((a,b)=>{
-      if(a.allDay && !b.allDay) return -1;
-      if(!a.allDay && b.allDay) return 1;
-      if(a.allDay && b.allDay) return 0;
-      return new Date(a.start) - new Date(b.start);
-    });
-    list.slice(0,MAX_PER_CELL).forEach(ev=>{
-      const evEl = document.createElement('div');
-      evEl.className = 'event' + (ev.allDay ? ' allDay' : '');
-      evEl.innerHTML = `<div class="time">${ev.allDay ? '' : fmtTime(ev.start)}</div><div class="title">${ev.title}</div>`;
-      evEl.addEventListener('click', (e)=>{
-        e.stopPropagation();
-        showPopupFull(ev.raw || ev, ev.title, ev.start, ev.end);
-      });
-      container.appendChild(evEl);
-    });
-    if(list.length > MAX_PER_CELL){
-      const more = document.createElement('div');
-      more.className = 'event more';
-      more.textContent = `+ ${list.length - MAX_PER_CELL} autres`;
-      container.appendChild(more);
-    }
-  });
+    function hideModal() { document.getElementById('event-modal').style.display='none'; }
 
-  // render spans (multi-day bars)
-  renderSpans(spans);
-}
+    async function renderCalendar() {
+      const calendarEl = document.getElementById('calendar');
+      calendarEl.innerHTML='';
+      const events = await loadEvents();
 
-/* ----------------------
-   Render spans: position bars exactly from start cell left to end cell right.
-   We avoid complex lane packing; instead stack bars by simple offset per overlapping index per row.
-   ---------------------- */
-function renderSpans(spans){
-  spansEl.innerHTML = '';
-  if(spans.length === 0) return;
+      const startDate = new Date(currentStartDate);
+      startDate.setDate(startDate.getDate() - 7);
+      const totalDays = 7*(weekView+1);
+      const months = new Set();
 
-  // map date -> cell element for fast lookup
-  const cellMap = {};
-  Array.from(gridEl.children).forEach(cell => { cellMap[cell.dataset.date] = cell; });
+      for(let i=0;i<totalDays;i++){
+        const day = new Date(startDate);
+        day.setDate(day.getDate()+i);
+        const cell = createDayCell(day);
 
-  // group spans by week row (0..WEEKS-1) based on start cell index
-  const spansByRow = {};
-  spans.forEach(s=>{
-    // compute start index by finding date in dates[]
-    const startIndex = dates.findIndex(d => fmtDateLocalISO(d) === s.startDayKey);
-    const endIndex = dates.findIndex(d => fmtDateLocalISO(d) === s.endDayKey);
-    if(startIndex === -1 || endIndex === -1) return; // outside visible range
-    s._startIndex = startIndex;
-    s._endIndex = endIndex;
-    s._row = Math.floor(startIndex / 7);
-    spansByRow[s._row] = spansByRow[s._row] || [];
-    spansByRow[s._row].push(s);
-  });
+        const dayEvents = events.filter(e=>{
+          const start = new Date(e.start.dateTime || e.start.date);
+          const end = new Date(e.end.dateTime || e.end.date);
+          return day>=start && day<=end;
+        });
 
-  // For each row, we stack bars in vertical lanes to avoid overlap
-  Object.keys(spansByRow).forEach(rowKey=>{
-    const rowSpans = spansByRow[rowKey];
-    // lane arrays: each lane is array of placed spans with endIndex for conflict detection
-    const lanes = [];
-    rowSpans.forEach(s=>{
-      // compute bounding rects for start and end cells
-      const startCell = gridEl.children[s._startIndex];
-      const endCell = gridEl.children[s._endIndex];
-      if(!startCell || !endCell) return;
-      const rootRect = calendarRoot.getBoundingClientRect();
-      const startRect = startCell.getBoundingClientRect();
-      const endRect = endCell.getBoundingClientRect();
-      const left = startRect.left - rootRect.left;
-      const right = endRect.right - rootRect.left;
-      const width = Math.max(6, right - left); // min width
-      // find lane
-      let laneIndex = 0;
-      while(true){
-        const lane = lanes[laneIndex];
-        if(!lane) { lanes[laneIndex] = []; break; }
-        // check conflict: if this span overlaps any placed span in lane by horizontal pixels
-        let conflict = false;
-        for(const placed of lane){
-          // if placed._startIndex <= s._endIndex && placed._endIndex >= s._startIndex => conflict
-          if(!(placed._endIndex < s._startIndex || placed._startIndex > s._endIndex)){ conflict = true; break; }
+        dayEvents.slice(0,3).forEach(e=>{
+          const evDiv = document.createElement('div');
+          evDiv.className='event '+e.type;
+          evDiv.textContent = e.summary;
+          evDiv.onclick = ()=>showModal(e);
+          cell.appendChild(evDiv);
+        });
+        if(dayEvents.length>3){
+          const moreDiv = document.createElement('div');
+          moreDiv.className='more-events';
+          moreDiv.textContent=`+${dayEvents.length-3} autres`;
+          cell.appendChild(moreDiv);
         }
-        if(!conflict) break;
-        laneIndex++;
+
+        calendarEl.appendChild(cell);
+        months.add(day.toLocaleString('fr-FR',{month:'long'}));
       }
-      // push into lane
-      lanes[laneIndex].push(s);
 
-      // compute top offset: compute the top of the startCell relative to spansEl
-      const spansRect = spansEl.getBoundingClientRect();
-      const cellTop = startRect.top - spansRect.top; // relative to spansEl
-      // we place bars slightly below header area: cellTop + headerHeight (approx 22) + laneIndex*(barHeight+gap)
-      const headerHeight = startCell.querySelector('.day-header')?.getBoundingClientRect().height || 20;
-      const baseTop = cellTop + headerHeight + 4;
-      const barTop = baseTop + laneIndex * 34; // 34 px per lane
-      const barHeight = 28;
-
-      // create span element
-      const bar = document.createElement('div');
-      bar.className = 'span';
-      const calMeta = CALENDARS.find(c=>c.key===s.calendarKey);
-      if(calMeta) bar.classList.add(calMeta.css);
-
-      bar.style.left = (left) + 'px';
-      bar.style.top = (barTop) + 'px';
-      bar.style.width = (width) + 'px';
-      bar.style.height = barHeight + 'px';
-      bar.textContent = s.event.summary || '(sans titre)';
-      bar.title = s.event.summary || '';
-
-      // click opens popup with details (stop propagation)
-      bar.addEventListener('click', (e)=>{
-        e.stopPropagation();
-        showPopupFull(s.event, s.event.summary || '(sans titre)', s.startMoment, s.endMoment);
-      });
-
-      spansEl.appendChild(bar);
-    });
-  });
-}
-
-/* ----------------------
-   Popup handling: display title, Du..., Au..., and all event details
-   - close when clicking outside
-   ---------------------- */
-function showPopupFull(rawEvent, title, startRaw, endRaw){
-  const popup = document.getElementById('popup');
-  document.getElementById('popup-title').textContent = title || '(sans titre)';
-
-  // format start/end lines
-  let startLine = '', endLine = '';
-  if(rawEvent.start?.dateTime || rawEvent.start?.date){
-    // for display use local formatting
-    const s = rawEvent.start?.dateTime ? new Date(rawEvent.start.dateTime) : new Date(rawEvent.start.date + 'T00:00:00');
-    const e = rawEvent.end?.dateTime ? new Date(rawEvent.end.dateTime) : new Date(rawEvent.end.date + 'T00:00:00');
-    startLine = 'Du ' + dayLabel(s) + ' ' + fmtTime(s);
-    endLine   = 'Au  ' + dayLabel(e) + ' ' + fmtTime(e);
-  }
-  document.getElementById('popup-dates').textContent = startLine + (endLine ? '\n' + endLine : '');
-
-  // details: collect commonly useful fields
-  const detailsEl = document.getElementById('popup-details');
-  const details = [];
-  if(rawEvent.description) details.push({k:'Description', v: rawEvent.description});
-  if(rawEvent.location) details.push({k:'Lieu', v: rawEvent.location});
-  if(rawEvent.organizer?.displayName) details.push({k:'Organisateur', v: rawEvent.organizer.displayName});
-  if(rawEvent.organizer?.email) details.push({k:'Organisateur (email)', v: rawEvent.organizer.email});
-  if(rawEvent.attendees && Array.isArray(rawEvent.attendees)){
-    const att = rawEvent.attendees.map(a => (a.displayName || a.email) + (a.responseStatus ? ' ('+a.responseStatus+')' : '')).join(', ');
-    details.push({k:'Participants', v: att});
-  }
-  if(rawEvent.htmlLink) details.push({k:'Lien', v: rawEvent.htmlLink});
-  if(rawEvent.status) details.push({k:'Statut', v: rawEvent.status});
-  // fallback: show whole raw object (JSON) if no specific details found
-  let html = '';
-  if(details.length){
-    html = details.map(d=>`<div><strong>${d.k} :</strong> ${escapeHtml(d.v)}</div>`).join('');
-  } else {
-    html = `<pre>${escapeHtml(JSON.stringify(rawEvent, null, 2))}</pre>`;
-  }
-  detailsEl.innerHTML = html;
-
-  popup.style.display = 'block';
-}
-
-/* close popup helper */
-function closePopup(){
-  document.getElementById('popup').style.display = 'none';
-}
-function escapeHtml(str){
-  if(!str) return '';
-  return String(str).replace(/[&<>"'`]/g, s=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;', '`':'&#96;' }[s]));
-}
-
-/* close popup when clicking outside (but not when clicking span or event) */
-window.addEventListener('click', (ev)=>{
-  const popup = document.getElementById('popup');
-  if(popup.style.display === 'block'){
-    const path = ev.composedPath ? ev.composedPath() : (ev.path || []);
-    if(!path.includes(popup)) {
-      closePopup();
+      document.getElementById('calendar-title').textContent = Array.from(months).join(' / ');
     }
-  }
-});
 
-/* ----------------------
-   Navigation bindings
-   ---------------------- */
-document.getElementById('prev-week').onclick = ()=>{
-  gridStartDate.setDate(gridStartDate.getDate() - 7);
-  renderGrid(); updateEvents();
-};
-document.getElementById('next-week').onclick = ()=>{
-  gridStartDate.setDate(gridStartDate.getDate() + 7);
-  renderGrid(); updateEvents();
-};
-document.getElementById('today-btn').onclick = ()=>{
-  gridStartDate = computeGridStart(new Date());
-  renderGrid(); updateEvents();
-};
-document.getElementById('weeks-count').onchange = ()=>{
-  WEEKS = parseInt(document.getElementById('weeks-count').value);
-  gridStartDate = computeGridStart(new Date());
-  renderGrid(); updateEvents();
-};
+    document.getElementById('prev-btn').onclick = ()=>{ currentStartDate.setDate(currentStartDate.getDate()-7); renderCalendar(); };
+    document.getElementById('next-btn').onclick = ()=>{ currentStartDate.setDate(currentStartDate.getDate()+7); renderCalendar(); };
+    document.getElementById('today-btn').onclick = ()=>{ currentStartDate = new Date(); renderCalendar(); };
+    document.getElementById('view-3w').onclick = ()=>{ weekView=3; renderCalendar(); };
+    document.getElementById('view-4w').onclick = ()=>{ weekView=4; renderCalendar(); };
 
-/* ----------------------
-   Init (start on 3 weeks)
-   ---------------------- */
-gridStartDate = computeGridStart(new Date());
-renderGrid();
-updateEvents();
-// refresh periodically
-setInterval(updateEvents, 60000);
-</script>
+    renderCalendar();
+  </script>
 </body>
 </html>
