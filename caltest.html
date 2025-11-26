@@ -79,7 +79,7 @@ body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:#0f0f1
     <div class="modal-card" id="modal-content" onclick="event.stopPropagation()"></div>
   </div>
 
-<<script>
+<script>
 const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
 const CALENDAR_IDS = { reception:'receptionroulier@gmail.com', navire:'smr.programme@gmail.com' };
 const CACHE_KEY = 'caltest_v2_cache';
@@ -196,6 +196,5 @@ document.getElementById('event-modal').addEventListener('click', hideModal);
 
 renderCalendar().catch(err=>{ console.error('render error', err); document.getElementById('calendar-title').textContent='Erreur'; });
 </script>
-
 </body>
 </html>
