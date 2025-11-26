@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>caltest - calendrier (final)</title>
+<title>caltest - calendrier (final corrigé)</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
@@ -25,7 +25,7 @@
   .date-label{font-size:0.72rem;color:#cbd6da;margin-bottom:6px;font-weight:400}
 
   /* events layer (absolute overlay) */
-  #events-layer{position:absolute;left:2px;right:2px;top:5px;bottom:2px;pointer-events:none;z-index:50}
+  #events-layer{position:absolute;left:0;right:0;top:0;bottom:0;pointer-events:none;z-index:50}
 
   /* events */
   .multi-band, .single-evt {
@@ -41,13 +41,14 @@
     box-shadow:0 1px 0 rgba(0,0,0,0.2) inset;
     white-space:nowrap;
   }
-  .multi-band { white-space:nowrap; }
+  .multi-band { white-space:nowrap; height:20px; }
   .single-evt {
     white-space:normal;
     display:-webkit-box;
-    -webkit-line-clamp:2;          /* max 2 lines */
+    -webkit-line-clamp:2;
     -webkit-box-orient:vertical;
     word-wrap:break-word;
+    height:auto;
   }
 
   /* calendar colors */
@@ -94,7 +95,7 @@
 /* ---------------- Configuration & utils ---------------- */
 const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
 const CALENDAR_IDS = { reception:'receptionroulier@gmail.com', navire:'smr.programme@gmail.com' };
-const CACHE_KEY = 'caltest_final_cache_v2';
+const CACHE_KEY = 'caltest_final_cache_v3';
 const CACHE_TTL = 30000; // 30s
 
 let weekView = 3;                 // default 3 weeks (past, present, future)
@@ -129,20 +130,20 @@ async function renderCalendar(){
   calendarEl.innerHTML = '';
   eventsLayer.innerHTML = '';
 
-  // compute visible window (monday of current week - past week first)
+  // window: monday of current week - past week first
   const today = new Date(currentStartDate);
   const thisMonday = getMonday(today);
   const pastMonday = new Date(thisMonday); pastMonday.setDate(thisMonday.getDate() - 7);
   const startDate = pastMonday;
   const totalDays = weekView * 7;
 
-  // row height based on viewport
+  // compute row height
   const headerH = document.getElementById('calendar-header').getBoundingClientRect().height;
   const availH = Math.max(240, window.innerHeight - headerH - 32);
   const rowH = Math.floor((availH - 20) / weekView);
   calendarEl.style.gridAutoRows = rowH + 'px';
 
-  // build cell map
+  // build cells
   const cellMap = [];
   const months = new Set();
   for(let i=0;i<totalDays;i++){
@@ -151,7 +152,7 @@ async function renderCalendar(){
     const label = document.createElement('div'); label.className='date-label'; label.textContent = fmtDayLabel(d);
     cell.appendChild(label); calendarEl.appendChild(cell);
     cellMap.push({date:d, el:cell, eventsList:[], totalSegments:0});
-    months.add(capitalize(d.toLocaleString('fr-FR',{month:'long'})));
+    months.add(capitalize(d.toLocaleDateString('fr-FR',{month:'long'})));
   }
 
   // load events (cache aware)
@@ -168,7 +169,7 @@ async function renderCalendar(){
     saveCache(items, hashItems(items));
   }
 
-  // normalize events
+  // normalize
   const norm = items.map(ev=>{
     const e = JSON.parse(JSON.stringify(ev));
     e.__type = e.__type || '';
@@ -192,7 +193,6 @@ async function renderCalendar(){
       if(weekIndex >= weekView) break;
       const weekStartIdx = weekIndex*7;
       const weekEndIdx = Math.min(weekStartIdx+6, cellMap.length-1);
-      // find segment start and end inside week
       let segStartIdx=-1;
       for(let i=weekStartIdx;i<=weekEndIdx;i++){ if(cellMap[i].date.getTime() >= cursor.getTime()){ segStartIdx=i; break; } }
       if(segStartIdx===-1){ cursor = new Date(cellMap[weekEndIdx].date); cursor.setDate(cursor.getDate()+1); continue; }
@@ -204,7 +204,7 @@ async function renderCalendar(){
     }
   });
 
-  // prepare geometry
+  // layout measures
   await new Promise(r=>requestAnimationFrame(r));
   const calendarRect = calendarEl.getBoundingClientRect();
   const cellRects = cellMap.map(c=>c.el.getBoundingClientRect());
@@ -215,143 +215,161 @@ async function renderCalendar(){
   const laneGap = 6;
   const bandSpacing = bandH + laneGap;
 
-  // For positioning top per week
+  // week top base
   const weekTopBase = [];
   for(let w=0; w<weekView; w++){
     const idx = w*7;
     weekTopBase[w] = idx < cellRects.length ? (cellRects[idx].top - calendarRect.top) : 0;
   }
 
-  // First: determine single-day spans (1 or 2) by measuring rendered text
-  // We'll create hidden temporary elements to measure their scrollHeight
+  // PREP: mark single-day & measure span (1 or 2 lines)
   segments.forEach(seg=>{ seg._isSingle = (seg.startIdx===seg.endIdx) && !seg.ev._isAllDay; seg._span = 1; });
 
-  // helper to measure single-day height
   function measureSingleSpanText(seg){
-    // create measuring node
-    const temp = document.createElement('div');
-    temp.className = 'single-evt ' + (seg.ev.__type || '');
-    temp.style.position = 'absolute';
-    temp.style.left = '-9999px';
-    temp.style.top = '-9999px';
-    temp.style.width = Math.max(36, cellRects[seg.startIdx].width - 4) + 'px';
+    const tmp = document.createElement('div');
+    tmp.className = 'single-evt ' + (seg.ev.__type || '');
+    tmp.style.position = 'absolute';
+    tmp.style.left = '-9999px';
+    tmp.style.top = '-9999px';
+    tmp.style.width = Math.max(36, cellRects[seg.startIdx].width - 6) + 'px';
     const evStartTime = seg.ev._isAllDay ? '' : ('<' + fmtTime(seg.ev._start) + ' ');
-    temp.textContent = (evStartTime + (seg.ev.summary || ''));
-    document.body.appendChild(temp);
-    const h = temp.scrollHeight || temp.getBoundingClientRect().height;
-    document.body.removeChild(temp);
-    const span = (h > bandH + 6) ? 2 : 1; // if more than ~1 line -> 2
-    return span;
+    tmp.textContent = (evStartTime + (seg.ev.summary || ''));
+    document.body.appendChild(tmp);
+    const h = tmp.scrollHeight || tmp.getBoundingClientRect().height;
+    document.body.removeChild(tmp);
+    const span = (h > bandH + 6) ? 2 : 1;
+    return Math.min(2, span);
   }
 
-  // assign spans for single-days
   segments.forEach(seg=>{
     if(seg._isSingle){
       seg._span = measureSingleSpanText(seg);
-      if(seg._span > 2) seg._span = 2;
+      if(seg._span < 1) seg._span = 1;
     } else {
       seg._span = 1;
     }
   });
 
-  // Lane assignment:
-  // Option C: dedicate lanes for single-days first per week, then place other segments after them.
-  const weekLanes = Array.from({length:weekView}, ()=>[]); // array of lanes; each lane is array of intervals {startIdx,endIdx}
-
-  // helper: check if interval [s,e] overlaps any interval in lane l
-  function laneOverlaps(laneArr, s, e){
-    return laneArr.some(r => !(e < r.startIdx || s > r.endIdx));
+  // Build per-week lane packing with priority (visible packing)
+  // Priority for visible: MULTI (highest) > SINGLE > ALL
+  // Masking order (who to hide first) = ALL -> SINGLE -> MULTI (last resort)
+  function typePriority(seg){
+    if(!seg.ev) return 1;
+    if(!seg.ev._isAllDay && (seg.startIdx!==seg.endIdx)) return 3; // multi-day
+    if(seg._isSingle) return 2; // single
+    return 1; // all-day (lowest visible priority)
   }
 
-  // place single-day segments first (they may occupy seg._span lanes)
-  segments.filter(s=>s._isSingle).forEach(seg=>{
-    const w = seg.weekIdx;
-    const lanes = weekLanes[w];
-    let laneIdx = 0;
-    // find first lane idx such that seg._span consecutive lanes are free (we treat lanes array as list of arrays)
-    function canPlaceAt(idx){
-      for(let k=0;k<seg._span;k++){
-        const laneArr = lanes[idx+k] || [];
-        if(laneOverlaps(laneArr, seg.startIdx, seg.endIdx)) return false;
-      }
-      return true;
-    }
-    while(!canPlaceAt(laneIdx)) laneIdx++;
-    // ensure lanes exist
-    for(let k=0;k<seg._span;k++) if(!lanes[laneIdx+k]) lanes[laneIdx+k]=[];
-    // push interval into each lane of the span
-    for(let k=0;k<seg._span;k++) lanes[laneIdx+k].push({startIdx:seg.startIdx,endIdx:seg.endIdx});
-    seg.lane = laneIdx;
-  });
+  // For each week, pack segments greedily into available lanes
+  const visibleSegmentsByWeek = Array.from({length:weekView}, ()=>[]); // selected segments visible this week
+  const weekLanesTemp = Array.from({length:weekView}, ()=>[]); // intervals per lane for reference
 
-  // then place non-single segments (multi-day / all-day) after single-day lanes used
-  segments.filter(s=>!s._isSingle).forEach(seg=>{
-    const w = seg.weekIdx;
-    const lanes = weekLanes[w];
-    let laneIdx = 0;
-    function canPlaceAt(idx){
-      // check only the single lane (span=1 for multi-days)
-      const laneArr = lanes[idx] || [];
-      return !laneOverlaps(laneArr, seg.startIdx, seg.endIdx);
-    }
-    // start search from 0, but to avoid collision with single-day we will place after max single lanes if needed:
-    // find the first lane where it fits (can be 0 too if no single-days)
-    while(!canPlaceAt(laneIdx)) laneIdx++;
-    if(!lanes[laneIdx]) lanes[laneIdx]=[];
-    lanes[laneIdx].push({startIdx:seg.startIdx,endIdx:seg.endIdx});
-    seg.lane = laneIdx;
-  });
-
-  // compute visible lanes per week based on available row height under date label
-  const visibleLanesPerWeek = [];
   for(let w=0; w<weekView; w++){
+    // collect segments for this week
+    const segs = segments.filter(s => s.weekIdx === w);
+    // sort by visible-priority descending (multi first), stable tie-breaker by original order
+    segs.sort((a,b)=>{
+      const pa = typePriority(a), pb = typePriority(b);
+      if(pa!==pb) return pb - pa; // higher first
+      // tie-breaker: earlier startIdx first
+      return a.startIdx - b.startIdx;
+    });
+
+    // compute how many lanes fit visually
     const avail = rowH - (dateLabelH + 8);
-    // each logical lane occupies bandH height; visible lanes is how many of those fit
-    visibleLanesPerWeek[w] = Math.max(0, Math.floor((avail + laneGap) / bandSpacing));
+    const visibleLaneCount = Math.max(0, Math.floor((avail + laneGap) / bandSpacing));
+
+    // greedy pack respecting seg._span (size)
+    let remaining = visibleLaneCount;
+    const packed = [];
+    // We'll attempt to place high-priority segments first; each consumes seg._span slots
+    for(const seg of segs){
+      const need = seg._span || 1;
+      if(need <= remaining){
+        packed.push(seg);
+        remaining -= need;
+      }
+    }
+    // store packed segments for this week
+    visibleSegmentsByWeek[w] = packed;
+    // also build lane occupancy arrays for reference (not needed later except for debug)
+    // (optional)
   }
 
-  // count per-cell how many segments (for +X)
-  cellMap.forEach((c, idx)=>{ c.eventsList=[]; c.totalSegments=0; });
+  // Now that we know which segments are visible per week, determine seg._isHidden flags
+  segments.forEach(seg=>{
+    const w = seg.weekIdx;
+    const visList = visibleSegmentsByWeek[w] || [];
+    seg._isHidden = !visList.includes(seg);
+  });
+
+  // compute per-cell lists and counts for +X (only segments that are hidden count)
+  cellMap.forEach((c)=>{ c.eventsList=[]; c.totalSegments=0; c.hiddenCount=0; });
+
   segments.forEach(seg=>{
     for(let i=seg.startIdx;i<=seg.endIdx;i++){
       if(i>=0 && i<cellMap.length){
-        cellMap[i].totalSegments++;
-        if(!cellMap[i].eventsList.includes(seg.ev)) cellMap[i].eventsList.push(seg.ev);
+        const c = cellMap[i];
+        c.totalSegments++;
+        if(!c.eventsList.includes(seg.ev)) c.eventsList.push(seg.ev);
+        if(seg._isHidden){
+          // hidden: but apply masking rules: we hide ALL and SINGLE before MULTI (we already packed)
+          // Count it; multi-days will not be hidden unless packing forced it.
+          c.hiddenCount = (c.hiddenCount || 0) + 1;
+        }
       }
     }
   });
 
-  // render segments
+  // Render segments according to seg._isHidden and selected packing and compute positions
   segments.forEach(seg=>{
     const firstRect = cellRects[seg.startIdx];
     const lastRect = cellRects[seg.endIdx];
     if(!firstRect || !lastRect) return;
     const left = firstRect.left - calendarRect.left;
     const width = (lastRect.left + lastRect.width) - firstRect.left;
-    const top = (weekTopBase[seg.weekIdx] || 0) + dateLabelH + 6 + (seg.lane * bandSpacing);
+    const top = (weekTopBase[seg.weekIdx] || 0) + dateLabelH + 6;
     if(seg._isSingle){
-      // single-day: may occupy seg._span lanes -> height = bandH * seg._span + (seg._span-1)*0
+      // determine its lane index among visibleSegmentsByWeek to compute top offset
+      const vis = visibleSegmentsByWeek[seg.weekIdx] || [];
+      // compute offset slot by summing spans of preceding visible segments (packed order)
+      let slotOffset = 0;
+      for(const s of vis){
+        if(s === seg) break;
+        slotOffset += (s._span || 1);
+      }
+      const slotTop = top + (slotOffset * bandSpacing);
       const el = document.createElement('div');
       el.className = 'single-evt ' + (seg.ev.__type || '');
       el.style.left = left + 'px';
       el.style.width = Math.max(36, firstRect.width - 6) + 'px';
-      el.style.top = top + 'px';
+      el.style.top = slotTop + 'px';
       el.style.height = (bandH * seg._span + (seg._span>1?6:0)) + 'px';
       const evStartTime = seg.ev._isAllDay ? '' : ('<' + fmtTime(seg.ev._start) + ' ');
       el.textContent = (evStartTime + (seg.ev.summary || ''));
       el.addEventListener('click', e=>{ e.stopPropagation(); showEventModal(seg.ev); });
+      if(seg._isHidden) el.style.display='none';
       seg._el = el;
-      const visibleLanes = visibleLanesPerWeek[seg.weekIdx] || 0;
-      // if any lane the segment uses is >= visibleLanes => hidden
-      if(seg.lane >= visibleLanes) { el.style.display='none'; seg._isHidden=true; } else if((seg.lane + seg._span) > visibleLanes){ el.style.display='none'; seg._isHidden=true; } else seg._isHidden = false;
       eventsLayer.appendChild(el);
     } else {
-      // multi or all-day -> single lane span
+      // multi or all-day => need to find its slot offset among visible for this week
+      const vis = visibleSegmentsByWeek[seg.weekIdx] || [];
+      let slotOffset = 0;
+      // find index of this seg in vis order (if not visible, slot not relevant)
+      const idxInVis = vis.indexOf(seg);
+      if(idxInVis !== -1){
+        // compute offset by summing spans of preceding visible segments
+        for(let k=0;k<idxInVis;k++) slotOffset += (vis[k]._span || 1);
+      } else {
+        // not visible -> we'll place it at its original lane (best effort) but hide
+        slotOffset = seg.lane;
+      }
+      const slotTop = top + (slotOffset * bandSpacing);
       const el = document.createElement('div');
       el.className = 'multi-band ' + (seg.ev.__type || '');
       el.style.left = left + 'px';
       el.style.width = Math.max(36, width - 4) + 'px';
-      el.style.top = top + 'px';
+      el.style.top = slotTop + 'px';
       el.style.height = bandH + 'px';
       const startSpan = document.createElement('span'); startSpan.className='start';
       const evStartTime = seg.ev._isAllDay ? '' : fmtTime(seg.ev._start);
@@ -366,26 +384,22 @@ async function renderCalendar(){
       endSpan.textContent = endTimeText;
       el.appendChild(startSpan); el.appendChild(endSpan);
       el.addEventListener('click', e=>{ e.stopPropagation(); showEventModal(seg.ev); });
+      if(seg._isHidden) el.style.display='none';
       seg._el = el;
-      const visibleLanes = visibleLanesPerWeek[seg.weekIdx] || 0;
-      if(seg.lane >= visibleLanes){ el.style.display='none'; seg._isHidden=true; } else seg._isHidden=false;
       eventsLayer.appendChild(el);
     }
   });
 
-  // compute +X badges per cell
+  // Place +X badges per cell: we already have cellMap.hiddenCount but we should compute a correct hidden count per cell
   cellMap.forEach((c, idx)=>{
-    const weekIdx = Math.floor(idx / 7);
-    const visibleLanes = visibleLanesPerWeek[weekIdx] || 0;
-    let visibleCount = 0, hiddenCount = 0;
+    // recompute hiddenCount: count segments that touch this cell and are hidden
+    let hiddenCount = 0;
     segments.forEach(seg=>{
-      if(seg.startIdx <= idx && seg.endIdx >= idx && seg.weekIdx === weekIdx){
-        // segment occupies lanes [seg.lane .. seg.lane+seg._span-1]; consider visible if entirely within visibleLanes
-        if((seg.lane + seg._span) <= visibleLanes) visibleCount++;
-        else hiddenCount++;
+      if(seg.startIdx <= idx && seg.endIdx >= idx && seg.weekIdx === Math.floor(idx/7)){
+        if(seg._isHidden) hiddenCount++;
       }
     });
-    c.visibleCount = visibleCount; c.hiddenCount = hiddenCount;
+    c.hiddenCount = hiddenCount;
     if(hiddenCount > 0){
       const badge = document.createElement('div');
       badge.className = 'more-events';
@@ -395,7 +409,7 @@ async function renderCalendar(){
     }
   });
 
-  // title months
+  // months title
   document.getElementById('calendar-title').textContent = Array.from(months).join(' / ');
 }
 
