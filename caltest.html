@@ -308,12 +308,22 @@ async function renderCalendar(){
     const firstRect = cellRects[seg.startIdx];
     const lastRect = cellRects[seg.endIdx];
     if(!firstRect || !lastRect) return;
-    const left = firstRect.left - calendarRect.left;
-    const width = (lastRect.left + lastRect.width) - firstRect.left;
+
+    // ---- ADJUSTED: add inset to avoid right overflow and slight left offset ----
+    const inset = 4; // px padding inside the overall span
+    const rawLeft = firstRect.left - calendarRect.left;
+    const rawWidth = (lastRect.left + lastRect.width) - firstRect.left;
+    let left = Math.round(rawLeft + inset);
+    let width = Math.round(Math.max(36, rawWidth - inset*2));
+
+    // clamp so band never exceeds calendar width
+    const maxWidth = Math.round(calendarRect.width - left - inset);
+    if(width > maxWidth) width = Math.max(24, maxWidth);
+
     const el = document.createElement('div');
     el.className = 'multi-band ' + (seg.ev.__type || '');
     el.style.left = left + 'px';
-    el.style.width = Math.max(36, width) + 'px';
+    el.style.width = width + 'px';
     const top = (weekTopBase[seg.weekIdx] || 0) + dateLabelH + 6 + (seg.lane * bandSpacing);
     el.style.top = top + 'px';
     el.style.height = bandH + 'px';
@@ -403,11 +413,7 @@ function showModalForCell(cellObj){
   // Build list of unique events touching this cell and determine their display line
   // We'll present each according to its type:
   const list = [];
-  // find segments that touch this cell
-  // (recompute from DOM-mounted segments stored globally is heavier; simpler: call renderCalendar to keep closure)
-  // But we saved cellObj.eventsList earlier as unique events touching cell
   (cellObj.eventsList || []).forEach(ev=>{
-    // decide display form:
     const start = ev._start, end = ev._end;
     const isAll = ev._isAllDay;
     const isMulti = !isAll && (new Date(start).toDateString() !== new Date(end).toDateString());
