@@ -1,496 +1,378 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<title>Calendar Test</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>caltest - calendrier (final)</title>
 <style>
-/* --- Reset / Base styles --- */
-body {
-  font-family: Arial, sans-serif;
-  margin: 0;
-  padding: 0;
-  background: #f5f5f5;
-}
-
-#calendar-container {
-  width: 100%;
-  max-width: 1100px;
-  margin: 30px auto;
-  position: relative;
-}
-
-/* --- Calendar header --- */
-#cal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 18px;
-  background: #fff;
-  border-radius: 8px;
-  margin-bottom: 10px;
-}
-#cal-header button {
-  padding: 6px 12px;
-  cursor: pointer;
-}
-#cal-title {
-  font-size: 22px;
-  font-weight: bold;
-}
-
-/* --- Calendar table --- */
-#calendar {
-  width: 100%;
-  border-collapse: collapse;
-  background: #fff;
-  border-radius: 8px;
-  overflow: hidden;
-  position: relative;
-}
-
-#calendar th {
-  background: #f0f0f0;
-  padding: 8px;
-  font-weight: bold;
-  border: 1px solid #e0e0e0;
-  text-align: center;
-}
-
-#calendar td {
-  height: 80px;
-  vertical-align: top;
-  border: 1px solid #e0e0e0;
-  position: relative;
-  padding: 2px;
-}
-
-/* Date number (top-right of each cell) */
-.cell-date {
-  font-size: 13px;
-  font-weight: bold;
-  text-align: right;
-  padding: 2px 4px;
-}
-
-/* --- Events Layer (all types) --- */
-#events-layer {
-  position: absolute;
-  top: 0;
-  left: 0;
-  pointer-events: none;
-}
-
-/* Bands for multi & all-day events */
-.multi-band, .single-evt {
-  position: absolute;
-  background: #1976d2;
-  color: #fff;
-  border-radius: 4px;
-  padding: 1px 4px;
-  font-size: 11px;
-  line-height: 1.2;
-  white-space: normal;
-  overflow: hidden;
-  pointer-events: auto;
-}
-
-/* Allow 2 lines max for single-day */
-.single-evt {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-/* Start and end label inside bands */
-.multi-band .start { float: left; }
-.multi-band .end { float: right; }
-
-/* Hidden events (+X) badge */
-.more-badge {
-  position: absolute;
-  right: 4px;
-  bottom: 2px;
-  background: #444;
-  color: #fff;
-  padding: 2px 4px;
-  font-size: 11px;
-  border-radius: 4px;
-  cursor: pointer;
-  pointer-events: auto;
-}
-
-/* --- Modal popup --- */
-#event-modal-bg {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.55);
-  display: none;
-  justify-content: center;
-  align-items: center;
-}
-
-#event-modal {
-  background: #fff;
-  padding: 18px;
-  border-radius: 6px;
-  width: 300px;
-}
-
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:#0f0f10;color:#fff;display:flex;flex-direction:column;height:100vh}
+  /* header */
+  #calendar-header{display:flex;align-items:center;justify-content:center;gap:12px;padding:12px 10px;color:#00e5ff;border-bottom:1px solid #333}
+  .nav-btn{cursor:pointer;color:#00e5ff;font-size:26px;padding:4px 10px;border-radius:6px}
+  .nav-btn:hover{background:#222}
+  .view-btn{cursor:pointer;font-size:14px;padding:4px 10px;background:#222;border-radius:6px;border:1px solid #333;color:#00e5ff}
+  .view-btn:hover{background:#333}
+  /* calendar */
+  #calendar-wrap{flex:1;display:flex;flex-direction:column;min-height:0;position:relative}
+  #calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;padding:10px;align-content:start;position:relative}
+  /* day cell */
+  .day-cell{background:#1c1c1c;border:1px solid #333;border-radius:10px;padding:6px;position:relative;overflow:hidden;min-height:80px}
+  .date-label{font-size:0.72rem;color:#cbd6da;margin-bottom:6px;font-weight:400}
+  /* events layer */
+  #events-layer{position:absolute;left:0;right:0;top:0;bottom:0;pointer-events:none}
+  .multi-band, .single-evt {
+    pointer-events:auto;
+    position:absolute;
+    display:flex;
+    align-items:center;
+    padding:0 8px;
+    border-radius:6px;
+    font-size:0.78rem;
+    color:#fff;
+    overflow:hidden;
+    box-shadow:0 1px 0 rgba(0,0,0,0.2) inset;
+  }
+  .multi-band { height:20px; }
+  .single-evt { height:40px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; white-space:normal; word-wrap:break-word; }
+  .reception{background:#109c53}
+  .navire{background:#3644b3}
+  .multi-band .start{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:8px}
+  .multi-band .end{margin-left:auto}
+  /* +X */
+  .more-events{position:absolute;top:6px;right:8px;padding:2px 6px;background:rgba(0,0,0,0.45);border-radius:6px;font-size:0.72rem;cursor:pointer;z-index:60;pointer-events:auto}
+  /* modal */
+  #event-modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.65);z-index:999}
+  .modal-card{background:#222;padding:18px;border-radius:10px;max-width:720px;width:94%}
+  .modal-card h3{margin-bottom:6px}
+  .modal-item{margin-bottom:10px}
+  .modal-item p{color:#dbe7ea;margin-top:6px}
+  /* responsive */
+  @media(max-width:720px){ .day-cell{min-height:68px} .single-evt{height:36px} }
 </style>
 </head>
 <body>
-
-<div id="calendar-container">
-
-  <div id="cal-header">
-    <button id="prev-btn">←</button>
-    <div id="cal-title"></div>
-    <button id="today-btn">Aujourd'hui</button>
-    <button id="next-btn">→</button>
+  <div id="calendar-header">
+    <span class="nav-btn" id="prev-btn">‹</span>
+    <span id="calendar-title">Chargement…</span>
+    <span class="nav-btn" id="next-btn">›</span>
+    <span class="view-btn" id="view-3w">3 semaines</span>
+    <span class="view-btn" id="view-4w">4 semaines</span>
+    <span class="nav-btn" id="today-btn" style="font-size:16px">Aujourd’hui</span>
   </div>
 
-  <table id="calendar">
-    <thead>
-      <tr>
-        <th>Lun</th><th>Mar</th><th>Mer</th>
-        <th>Jeu</th><th>Ven</th><th>Sam</th><th>Dim</th>
-      </tr>
-    </thead>
-    <tbody id="cal-body"></tbody>
-  </table>
-
-  <div id="events-layer"></div>
-
-</div>
-
-<!-- Modal -->
-<div id="event-modal-bg">
-  <div id="event-modal">
-    <h3 id="m-title"></h3>
-    <p id="m-date"></p>
-    <p id="m-desc"></p>
+  <div id="calendar-wrap">
+    <div id="calendar" role="grid" aria-label="Calendrier"></div>
+    <div id="events-layer" aria-hidden="false"></div>
   </div>
-</div>
+
+  <div id="event-modal" onclick="hideModal()">
+    <div class="modal-card" id="modal-content" onclick="event.stopPropagation()"></div>
+  </div>
 
 <script>
-/* ------------------------------------------------------------------------------------------------
-   UTILITAIRES
---------------------------------------------------------------------------------------------------- */
-function fmtDate(d){ return d.toISOString().split("T")[0]; }
-function fmtTime(d){ return d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}); }
-function cap(str){ return str.charAt(0).toUpperCase()+str.slice(1); }
+/* ---------------- Config & utils ---------------- */
+const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
+const CALENDAR_IDS = { reception:'receptionroulier@gmail.com', navire:'smr.programme@gmail.com' };
+const CACHE_KEY = 'caltest_final_cache';
+const CACHE_TTL = 30000; // 30s
 
-function formatLongDate(d){
-  return d.toLocaleDateString("fr-FR",{ weekday:"long", day:"2-digit", month:"long" });
+let weekView = 3;
+let currentStartDate = new Date();
+
+function getMonday(d){ const date=new Date(d); const day=date.getDay(); const diff=(day===0? -6:1-day); date.setDate(date.getDate()+diff); date.setHours(0,0,0,0); return date; }
+function capitalize(s){ return s? s.charAt(0).toUpperCase()+s.slice(1):''; }
+function fmtTime(d){ return d? new Date(d).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''; }
+function fmtDayLabel(d){ return d.toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit'}); }
+function fmtFullDate(d){ return new Date(d).toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long'}); }
+
+function saveCache(items,hash){
+  try{ localStorage.setItem(CACHE_KEY, JSON.stringify({items,hash,ts:Date.now()})); }catch(e){}
+}
+function loadCache(){
+  try{ const raw=localStorage.getItem(CACHE_KEY); if(!raw) return null; const obj=JSON.parse(raw); if(Date.now()-(obj.ts||0)>CACHE_TTL) return null; return obj; }catch(e){return null;}
+}
+function hashItems(items){ return JSON.stringify(items).split('').reduce((a,b)=>{a=((a<<5)-a)+b.charCodeAt(0);return a&a},0); }
+
+async function fetchCalendar(calendarId, timeMin, timeMax){
+  const base='https://www.googleapis.com/calendar/v3/calendars/';
+  const url = base + encodeURIComponent(calendarId) + '/events'
+    + '?key='+encodeURIComponent(API_KEY)
+    + '&singleEvents=true&orderBy=startTime'
+    + '&timeMin='+encodeURIComponent(timeMin.toISOString())
+    + '&timeMax='+encodeURIComponent(timeMax.toISOString());
+  const res = await fetch(url);
+  if(!res.ok) throw new Error('Erreur fetch calendar '+res.status);
+  return res.json();
 }
 
-/* ------------------------------------------------------------------------------------------------
-   CALENDAR STATE
---------------------------------------------------------------------------------------------------- */
-let anchorDate = new Date();  // center (middle) week
+/* ---------------- Render core ---------------- */
+async function renderCalendar(){
+  const calendarEl = document.getElementById('calendar');
+  const eventsLayer = document.getElementById('events-layer');
+  calendarEl.innerHTML=''; eventsLayer.innerHTML='';
 
-// Example events
-const events = [
-  {
-    summary:"Journée complète Test",
-    _start:new Date("2025-01-15"),
-    _end:new Date("2025-01-15"),
-    description:"Un test all-day",
-    allDay:true
-  },
-  {
-    summary:"Réunion",
-    _start:new Date("2025-01-17T14:00"),
-    _end:new Date("2025-01-17T15:00"),
-    description:"Réunion standard",
-    allDay:false
-  },
-  {
-    summary:"Formation 3 jours",
-    _start:new Date("2025-01-20T09:00"),
-    _end:new Date("2025-01-22T17:00"),
-    description:"Multi-day",
-    allDay:false
-  }
-];
+  // start = monday of this week - 7 days (past week first)
+  const today = new Date(currentStartDate);
+  const thisMonday = getMonday(today);
+  const pastMonday = new Date(thisMonday); pastMonday.setDate(thisMonday.getDate()-7);
+  const startDate = pastMonday;
+  const totalDays = weekView * 7;
 
-/* ------------------------------------------------------------------------------------------------
-   BUILD CALENDAR (3 WEEKS, MONDAY START)
---------------------------------------------------------------------------------------------------- */
-function startOfWeek(d){
-  const r=new Date(d);
-  const day=(r.getDay()+6)%7;
-  r.setDate(r.getDate()-day);
-  r.setHours(0,0,0,0);
-  return r;
-}
+  // compute row height
+  const headerH = document.getElementById('calendar-header').getBoundingClientRect().height;
+  const availH = Math.max(240, window.innerHeight - headerH - 32);
+  const rowH = Math.floor((availH - 20) / weekView);
+  calendarEl.style.gridAutoRows = rowH + 'px';
 
-function buildCalendar(){
-  const calBody=document.getElementById("cal-body");
-  const eventsLayer=document.getElementById("events-layer");
-  eventsLayer.innerHTML="";
-  calBody.innerHTML="";
-
-  const midMonday=startOfWeek(anchorDate);
-
-  const prevMonday=new Date(midMonday); prevMonday.setDate(prevMonday.getDate()-7);
-  const nextMonday=new Date(midMonday); nextMonday.setDate(nextMonday.getDate()+7);
-
-  const weeks=[prevMonday, midMonday, nextMonday];
-
-  // title = Mois du milieu
-  const mname=midMonday.toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
-  document.getElementById("cal-title").textContent = cap(mname);
-
-  const cells=[];
-  weeks.forEach(w=>{
-    const tr=document.createElement("tr");
-    for(let i=0;i<7;i++){
-      const cdate=new Date(w); cdate.setDate(cdate.getDate()+i);
-      const td=document.createElement("td");
-      const dn=document.createElement("div");
-      dn.className="cell-date";
-      dn.textContent=cdate.getDate();
-      td.appendChild(dn);
-      tr.appendChild(td);
-      cells.push({td, date:new Date(cdate)});
-    }
-    calBody.appendChild(tr);
-  });
-
-  /* --- Compute geometry --- */
-  const rectCalendar=document.getElementById("calendar").getBoundingClientRect();
-  const rectCells=cells.map(c=>c.td.getBoundingClientRect());
-  const rectBody=calBody.getBoundingClientRect();
-
-  const rowTops=[];
-  for(let r=0;r<3;r++){
-    const idx=r*7;
-    rowTops.push(rectCells[idx].top - rectBody.top);
+  // build cells
+  const cellMap = [];
+  const months = new Set();
+  for(let i=0;i<totalDays;i++){
+    const d = new Date(startDate); d.setDate(d.getDate()+i); d.setHours(0,0,0,0);
+    const cell = document.createElement('div'); cell.className='day-cell';
+    const label = document.createElement('div'); label.className='date-label'; label.textContent = fmtDayLabel(d);
+    cell.appendChild(label); calendarEl.appendChild(cell);
+    cellMap.push({date:d, el:cell, eventsList:[]});
+    months.add(capitalize(d.toLocaleString('fr-FR',{month:'long'})));
   }
 
-  /* ----------------------------------------------------------------------------------------------
-     TRANSFORM EVENTS → SEGMENTS
-  ----------------------------------------------------------------------------------------------- */
-  const segments=[];
+  // load events (cache)
+  const timeMin = new Date(startDate); timeMin.setHours(0,0,0,0);
+  const timeMax = new Date(timeMin); timeMax.setDate(timeMax.getDate()+totalDays);
+  const cache = loadCache();
+  let items;
+  if(cache) items = cache.items;
+  else {
+    const [r1,r2] = await Promise.allSettled([
+      fetchCalendar(CALENDAR_IDS.reception, timeMin, timeMax),
+      fetchCalendar(CALENDAR_IDS.navire, timeMin, timeMax)
+    ]);
+    const items1 = r1.status==='fulfilled' ? (r1.value.items||[]) : [];
+    const items2 = r2.status==='fulfilled' ? (r2.value.items||[]) : [];
+    items = [...items1.map(i=>({...i,__type:'reception'})), ...items2.map(i=>({...i,__type:'navire'}))];
+    saveCache(items, hashItems(items));
+  }
 
-  events.forEach(ev=>{
-    const s=new Date(ev._start);
-    const e=new Date(ev._end);
-    const isAll=ev.allDay===true;
+  // normalize
+  const norm = items.map(ev=>{
+    const e = JSON.parse(JSON.stringify(ev));
+    e.__type = e.__type || '';
+    e._isAllDay = !!(e.start && e.start.date && !e.start.dateTime);
+    if(e.start){ if(e.start.dateTime) e._start = new Date(e.start.dateTime); else { e._start = new Date(e.start.date); e._start.setHours(0,0,0,0); } }
+    if(e.end){ if(e.end.dateTime) e._end = new Date(e.end.dateTime); else { e._end = new Date(e.end.date); e._end.setHours(0,0,0,0); } }
+    if(e._isAllDay && e._end){ const adj = new Date(e._end); adj.setDate(adj.getDate()-1); adj.setHours(23,59,59,999); e._endInclusive = adj; }
+    else if(e._end){ const tmp=new Date(e._end); if(tmp.getHours()===0 && tmp.getMinutes()===0 && tmp.getSeconds()===0){ const adj=new Date(tmp); adj.setDate(adj.getDate()-1); adj.setHours(23,59,59,999); e._endInclusive=adj; } else e._endInclusive=new Date(e._end); }
+    return e;
+  }).filter(e=>e._start && e._endInclusive);
 
-    const dbgStart=new Date(s);
-    dbgStart.setHours(0,0,0,0);
-    const dbgEnd=new Date(e);
-    dbgEnd.setHours(23,59,59,999);
-
-    for(let i=0;i<cells.length;i++){
-      const cday=cells[i].date;
-      if(cday >= dbgStart && cday <= dbgEnd){
-        const weekIdx=Math.floor(i/7);
-        const startIdx=i;
-        let endIdx=i;
-        for(let j=i+1;j<cells.length;j++){
-          const nd=cells[j].date;
-          if(nd>=dbgStart && nd<=dbgEnd) endIdx=j;
-          else break;
-        }
-        segments.push({
-          ev,
-          startIdx,
-          endIdx,
-          weekIdx,
-          _isSingleDay:(dbgStart.getTime()===dbgEnd.getTime()),
-          _isAllDay:isAll
-        });
-        break;
-      }
+  // build segments (split per week)
+  const segments = [];
+  function dateToIndex(dt){
+    const t = new Date(dt); t.setHours(0,0,0,0);
+    for(let i=0;i<cellMap.length;i++) if(cellMap[i].date.getTime()===t.getTime()) return i;
+    return -1;
+  }
+  norm.forEach(ev=>{
+    const sDay = new Date(ev._start); sDay.setHours(0,0,0,0);
+    const eDay = new Date(ev._endInclusive); eDay.setHours(0,0,0,0);
+    let cursor = new Date(sDay);
+    while(cursor <= eDay){
+      const weekIndex = Math.floor((cursor - startDate) / (7*24*3600*1000));
+      if(weekIndex < 0){ cursor = new Date(startDate); continue; }
+      if(weekIndex >= weekView) break;
+      const weekStartIdx = weekIndex*7;
+      const weekEndIdx = Math.min(weekStartIdx+6, cellMap.length-1);
+      let segStartIdx=-1;
+      for(let i=weekStartIdx;i<=weekEndIdx;i++){ if(cellMap[i].date.getTime() >= cursor.getTime()){ segStartIdx=i; break; } }
+      if(segStartIdx===-1){ cursor = new Date(cellMap[weekEndIdx].date); cursor.setDate(cursor.getDate()+1); continue; }
+      let segEndIdx=-1;
+      for(let i=weekEndIdx;i>=weekStartIdx;i--){ if(cellMap[i].date.getTime() <= eDay.getTime()){ segEndIdx=i; break; } }
+      if(segEndIdx===-1){ cursor = new Date(cellMap[weekEndIdx].date); cursor.setDate(cursor.getDate()+1); continue; }
+      segments.push({ ev, startIdx:segStartIdx, endIdx:segEndIdx, weekIdx:weekIndex, segStartDate:new Date(cellMap[segStartIdx].date), segEndDate:new Date(cellMap[segEndIdx].date) });
+      cursor = new Date(cellMap[segEndIdx].date); cursor.setDate(cursor.getDate()+1);
     }
   });
 
-  /* ----------------------------------------------------------------------------------------------
-     LANE ASSIGNMENT
-  ----------------------------------------------------------------------------------------------- */
-  const weekLanes=[[],[],[]];
-
+  // assign lanes per week
+  const weekLanes = Array.from({length:weekView}, ()=>[]);
   segments.forEach(seg=>{
-    const lanes=weekLanes[seg.weekIdx];
-    let lane=0;
+    const lanes = weekLanes[seg.weekIdx];
+    let lane = 0;
     function overlaps(l){
-      const arr=lanes[l] || [];
+      const arr = lanes[l] || [];
       return arr.some(r => !(seg.endIdx < r.startIdx || seg.startIdx > r.endIdx));
     }
     while(overlaps(lane)) lane++;
     if(!lanes[lane]) lanes[lane]=[];
     lanes[lane].push({startIdx:seg.startIdx,endIdx:seg.endIdx});
-    seg.lane=lane;
+    seg.lane = lane;
   });
 
-  // Visible lanes
-  const cellH=80;
-  const dateH=18;
-  const bandH=16;
-  const spacing=4;
-  const maxBands=Math.floor((cellH-dateH)/ (bandH+spacing));
-
-  const visibleLanesPerWeek=[];
-  for(let w=0;w<3;w++){
-    const count=weekLanes[w].length;
-    visibleLanesPerWeek[w]=Math.min(count,maxBands);
-  }
-
-  /* ----------------------------------------------------------------------------------------------
-     RENDER SEGMENTS
-  ----------------------------------------------------------------------------------------------- */
+  // count per-cell
+  cellMap.forEach(c=>{ c.eventsList = []; c.totalSegments = 0; });
   segments.forEach(seg=>{
-    const r0=rectCells[seg.startIdx];
-    const r1=rectCells[seg.endIdx];
-    if(!r0 || !r1) return;
-
-    const el=document.createElement("div");
-    el.className = seg._isSingleDay ? "single-evt" : "multi-band";
-
-    const left = r0.left - rectCalendar.left;
-    const width = (r1.right - r0.left);
-
-    el.style.left = (left + 0) + "px";
-    el.style.width = (width - 4) + "px";
-
-    const top = rowTops[seg.weekIdx] + dateH + 4 + seg.lane*(bandH+spacing);
-    el.style.top = top + "px";
-    el.style.height = bandH + "px";
-
-    // TEXT
-    if(seg._isSingleDay){
-      const st = seg._isAllDay ? "" : fmtTime(seg.ev._start)+" ";
-      el.textContent = st + seg.ev.summary;
-    } else {
-      const st = seg._isAllDay ? "" : "<"+fmtTime(seg.ev._start)+" ";
-      const endT = seg._isAllDay ? "" : " >"+fmtTime(seg.ev._end);
-      el.textContent = st + seg.ev.summary + endT;
-    }
-
-    // Hide if lane overflow
-    const vis=visibleLanesPerWeek[seg.weekIdx];
-    if(seg.lane >= vis){
-      el.style.display="none";
-      seg._hidden=true;
-    } else {
-      seg._hidden=false;
-    }
-
-    el.addEventListener("click", e=>{
-      e.stopPropagation();
-      showEventModal(seg.ev);
-    });
-
-    eventsLayer.appendChild(el);
-  });
-
-  /* ----------------------------------------------------------------------------------------------
-     +X BADGES
-  ----------------------------------------------------------------------------------------------- */
-  const hiddenCount=new Array(cells.length).fill(0);
-
-  segments.forEach(seg=>{
-    if(seg._hidden){
-      for(let i=seg.startIdx;i<=seg.endIdx;i++){
-        hiddenCount[i]++;
+    for(let i=seg.startIdx;i<=seg.endIdx;i++){
+      if(i>=0 && i<cellMap.length){
+        cellMap[i].totalSegments++;
+        if(!cellMap[i].eventsList.includes(seg.ev)) cellMap[i].eventsList.push(seg.ev);
       }
     }
   });
 
-  cells.forEach((c,idx)=>{
-    if(hiddenCount[idx]>0){
-      const b=document.createElement("div");
-      b.className="more-badge";
-      b.textContent="+"+hiddenCount[idx];
-      const r=rectCells[idx];
-      b.style.top = (r.top - rectBody.top + cellH - 18) +"px";
-      b.style.left = (r.left - rectBody.left + 4) +"px";
-      b.addEventListener("click", e=>{
-        e.stopPropagation();
-        showMorePopup(idx);
-      });
-      eventsLayer.appendChild(b);
+  // layout measurements
+  await new Promise(r=>requestAnimationFrame(r));
+  const calendarRect = calendarEl.getBoundingClientRect();
+  const cellRects = cellMap.map(c=>c.el.getBoundingClientRect());
+  const dateLabel = document.querySelector('.date-label');
+  const dateLabelH = dateLabel ? dateLabel.getBoundingClientRect().height : 18;
+  const bandH = 20;
+  const laneGap = 6;
+  const bandSpacing = bandH + laneGap;
+
+  const weekTopBase = [];
+  for(let w=0; w<weekView; w++){
+    const idx = w*7;
+    weekTopBase[w] = idx < cellRects.length ? (cellRects[idx].top - calendarRect.top) : 0;
+  }
+
+  const visibleLanesPerWeek = [];
+  for(let w=0; w<weekView; w++){
+    const avail = rowH - (dateLabelH + 8);
+    visibleLanesPerWeek[w] = Math.max(0, Math.floor((avail + laneGap) / bandSpacing));
+  }
+
+  // render segments
+  segments.forEach(seg=>{
+    const firstRect = cellRects[seg.startIdx];
+    const lastRect = cellRects[seg.endIdx];
+    if(!firstRect || !lastRect) return;
+    const left = firstRect.left - calendarRect.left;
+    const width = (lastRect.left + lastRect.width) - firstRect.left;
+    const isSingle = (seg.startIdx === seg.endIdx) && !seg.ev._isAllDay;
+
+    if(isSingle){
+      const el = document.createElement('div');
+      el.className = 'single-evt ' + (seg.ev.__type || '');
+      el.style.left = left + 'px';
+      el.style.width = Math.max(36, firstRect.width - 4) + 'px';
+      const top = (weekTopBase[seg.weekIdx] || 0) + dateLabelH + 6 + (seg.lane * bandSpacing);
+      el.style.top = top + 'px';
+      el.style.height = (bandH*2 + 4) + 'px'; // allow two-line visual area
+      const evStartTime = fmtTime(seg.ev._start);
+      el.textContent = (evStartTime ? ('<' + evStartTime + ' ') : '') + (seg.ev.summary || '');
+      el.addEventListener('click', e=>{ e.stopPropagation(); showEventModal(seg.ev); });
+      seg._el = el;
+      const visibleLanes = visibleLanesPerWeek[seg.weekIdx] || 0;
+      if(seg.lane >= visibleLanes){ el.style.display='none'; seg._isHidden=true; } else seg._isHidden=false;
+      eventsLayer.appendChild(el);
+    } else {
+      const el = document.createElement('div');
+      el.className = 'multi-band ' + (seg.ev.__type || '');
+      el.style.left = left + 'px';
+      el.style.width = Math.max(36, width - 4) + 'px';
+      const top = (weekTopBase[seg.weekIdx] || 0) + dateLabelH + 6 + (seg.lane * bandSpacing);
+      el.style.top = top + 'px';
+      el.style.height = bandH + 'px';
+      const startSpan = document.createElement('span'); startSpan.className='start';
+      const evStartTime = seg.ev._isAllDay ? '' : fmtTime(seg.ev._start);
+      startSpan.textContent = (evStartTime ? ('<' + evStartTime + ' ') : '') + (seg.ev.summary || '');
+      const endSpan = document.createElement('span'); endSpan.className='end';
+      let endTimeText = '';
+      if(!seg.ev._isAllDay){
+        const segEnd = new Date(seg.segEndDate); segEnd.setHours(23,59,59,999);
+        if(segEnd.getTime() < seg.ev._endInclusive.getTime()) endTimeText = '>23:59';
+        else endTimeText = '>' + fmtTime(seg.ev._end);
+      }
+      endSpan.textContent = endTimeText;
+      el.appendChild(startSpan); el.appendChild(endSpan);
+      el.addEventListener('click', e=>{ e.stopPropagation(); showEventModal(seg.ev); });
+      seg._el = el;
+      const visibleLanes = visibleLanesPerWeek[seg.weekIdx] || 0;
+      if(seg.lane >= visibleLanes){ el.style.display='none'; seg._isHidden=true; } else seg._isHidden=false;
+      eventsLayer.appendChild(el);
     }
   });
 
-  /* ----------------------------------------------------------------------------------------------
-     MORE POPUP
-  ----------------------------------------------------------------------------------------------- */
-  function showMorePopup(cellIdx){
-    const arr=[];
+  // compute +X badges per cell
+  cellMap.forEach((c, idx)=>{
+    const weekIdx = Math.floor(idx / 7);
+    const visibleLanes = visibleLanesPerWeek[weekIdx] || 0;
+    let visibleCount = 0, hiddenCount = 0;
     segments.forEach(seg=>{
-      if(seg._hidden){
-        if(cellIdx>=seg.startIdx && cellIdx<=seg.endIdx){
-          arr.push(seg.ev);
-        }
+      if(seg.startIdx <= idx && seg.endIdx >= idx && seg.weekIdx === weekIdx){
+        if(seg.lane < visibleLanes) visibleCount++;
+        else hiddenCount++;
       }
     });
+    c.visibleCount = visibleCount; c.hiddenCount = hiddenCount;
+    if(hiddenCount > 0){
+      const badge = document.createElement('div');
+      badge.className = 'more-events';
+      badge.textContent = '+' + hiddenCount + ' autres';
+      badge.addEventListener('click', e=>{ e.stopPropagation(); showModalForCell(c); });
+      c.el.appendChild(badge);
+    }
+  });
 
-    let txt="";
-    arr.forEach(ev=>{
-      txt+= (ev.summary || "Événement") + "\n";
-    });
-
-    alert("Évènements cachés :\n\n" + txt);
-  }
+  // title months
+  document.getElementById('calendar-title').textContent = Array.from(months).join(' / ');
 }
 
-/* ------------------------------------------------------------------------------------------------
-   MODAL
---------------------------------------------------------------------------------------------------- */
-const modalBg=document.getElementById("event-modal-bg");
-modalBg.addEventListener("click", ()=> modalBg.style.display="none");
-
+/* ---------------- Modals ---------------- */
 function showEventModal(ev){
-  document.getElementById("m-title").textContent=ev.summary;
-  const s=new Date(ev._start);
-  const e=new Date(ev._end);
-  let text="";
-  if(ev.allDay){
-    if(fmtDate(s)===fmtDate(e)){
-      text="Le "+cap(formatLongDate(s));
-    } else {
-      text="Du "+cap(formatLongDate(s))+" au "+cap(formatLongDate(e));
-    }
+  const modal = document.getElementById('event-modal');
+  const content = document.getElementById('modal-content');
+  const start = ev._start, end = ev._end;
+  const isAll = ev._isAllDay;
+  const isMulti = !isAll && (new Date(start).toDateString() !== new Date(end).toDateString());
+  let html = `<h3>${ev.summary || '(sans titre)'}</h3>`;
+  if(isMulti){
+    html += `<div class="modal-item"><p>Du ${fmtFullDate(start)} à ${fmtTime(start)}<br>Au ${fmtFullDate(end)} à ${fmtTime(end)}</p></div>`;
+  } else if(isAll){
+    html += `<div class="modal-item"><p>Le ${fmtFullDate(start)}</p></div>`;
   } else {
-    if(fmtDate(s)===fmtDate(e)){
-      text="Le "+cap(formatLongDate(s))+" à "+fmtTime(s);
-    } else {
-      text="Du "+cap(formatLongDate(s))+" à "+fmtTime(s)
-       +" au "+cap(formatLongDate(e))+" à "+fmtTime(e);
-    }
+    html += `<div class="modal-item"><p>Le ${fmtFullDate(start)} à ${fmtTime(start)}</p></div>`;
   }
-  document.getElementById("m-date").textContent=text;
-  document.getElementById("m-desc").textContent=ev.description||"";
-  modalBg.style.display="flex";
+  if(ev.description) html += `<div class="modal-item"><p>${ev.description}</p></div>`;
+  content.innerHTML = html;
+  modal.style.display = 'flex';
+}
+function hideModal(){ document.getElementById('event-modal').style.display = 'none'; }
+
+function showModalForCell(cellObj){
+  const modal = document.getElementById('event-modal');
+  const content = document.getElementById('modal-content');
+  const events = cellObj.eventsList || [];
+  const list = [];
+  events.forEach(ev=>{
+    const start = ev._start, end = ev._end;
+    const isAll = ev._isAllDay;
+    const isMulti = !isAll && (new Date(start).toDateString() !== new Date(end).toDateString());
+    if(isMulti){
+      list.push(`<div class="modal-item"><h3>${ev.summary||'(sans titre)'}</h3><p>&lt;${fmtTime(start)} ${ev.summary} … &gt;${fmtTime(ev._end)}</p>${ev.description?'<p>'+ev.description+'</p>':''}</div>`);
+    } else if(isAll){
+      list.push(`<div class="modal-item"><h3>${ev.summary||'(sans titre)'}</h3><p>${fmtFullDate(start)}</p>${ev.description?'<p>'+ev.description+'</p>':''}</div>`);
+    } else {
+      list.push(`<div class="modal-item"><h3>${ev.summary||'(sans titre)'}</h3><p>${fmtTime(start)} ${ev.summary}</p>${ev.description?'<p>'+ev.description+'</p>':''}</div>`);
+    }
+  });
+  content.innerHTML = list.join('<hr style="border:none;border-top:1px solid #333;margin:8px 0">') || '<p>Aucun évènement</p>';
+  modal.style.display = 'flex';
 }
 
-/* ------------------------------------------------------------------------------------------------
-   NAVIGATION
---------------------------------------------------------------------------------------------------- */
-document.getElementById("prev-btn").onclick=()=>{
-  anchorDate.setDate(anchorDate.getDate()-7);
-  buildCalendar();
-};
+/* ---------------- Navigation bindings ---------------- */
+document.getElementById('prev-btn').addEventListener('click', ()=>{ currentStartDate.setDate(currentStartDate.getDate()-7); renderCalendar(); });
+document.getElementById('next-btn').addEventListener('click', ()=>{ currentStartDate.setDate(currentStartDate.getDate()+7); renderCalendar(); });
+document.getElementById('today-btn').addEventListener('click', ()=>{ currentStartDate = new Date(); weekView = 3; renderCalendar(); });
+document.getElementById('view-3w').addEventListener('click', ()=>{ weekView = 3; renderCalendar(); });
+document.getElementById('view-4w').addEventListener('click', ()=>{ weekView = 4; renderCalendar(); });
 
-document.getElementById("next-btn").onclick=()=>{
-  anchorDate.setDate(anchorDate.getDate()+7);
-  buildCalendar();
-};
+window.addEventListener('resize', ()=>{ requestAnimationFrame(()=> renderCalendar()); });
+document.getElementById('event-modal').addEventListener('click', hideModal);
 
-document.getElementById("today-btn").onclick=()=>{
-  anchorDate=new Date();
-  buildCalendar();
-};
-
-/* ------------------------------------------------------------------------------------------------
-   START
---------------------------------------------------------------------------------------------------- */
-buildCalendar();
+/* initial render */
+renderCalendar().catch(err=>{ console.error('render error', err); document.getElementById('calendar-title').textContent='Erreur'; });
 </script>
-
 </body>
 </html>
