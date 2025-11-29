@@ -167,15 +167,121 @@ async function renderCalendar(){
     return e;
   }).filter(e=>e._start && e._endInclusive);
 
-  /* ... Reste du code de rendu identique à la version précédente ... */
+  /* --- Segments multi-days --- */
+  const segments=[];
+  function dateToIndex(dt){
+    const t=new Date(dt); t.setHours(0,0,0,0);
+    for(let i=0;i<cellMap.length;i++) if(cellMap[i].date.getTime()===t.getTime()) return i;
+    return -1;
+  }
+  norm.forEach(ev=>{
+    let cursor=new Date(ev._start);
+    cursor.setHours(0,0,0,0);
+    const endDate=new Date(ev._endInclusive); endDate.setHours(0,0,0,0);
+    while(cursor <= endDate){
+      const weekIndex=Math.floor((cursor - startDate)/(7*24*3600*1000));
+      if(weekIndex<0){ cursor = new Date(startDate); continue; }
+      if(weekIndex>=weekView) break;
+      const weekStartIdx=weekIndex*7;
+      const weekEndIdx=Math.min(weekStartIdx+6, cellMap.length-1);
+      let segStartIdx=-1; for(let i=weekStartIdx;i<=weekEndIdx;i++) if(cellMap[i].date.getTime()>=cursor.getTime()){ segStartIdx=i; break; }
+      if(segStartIdx===-1){ cursor = new Date(cellMap[weekEndIdx].date); cursor.setDate(cursor.getDate()+1); continue; }
+      let segEndIdx=-1; for(let i=weekEndIdx;i>=weekStartIdx;i--) if(cellMap[i].date.getTime()<=endDate.getTime()){ segEndIdx=i; break; }
+      if(segEndIdx===-1){ cursor = new Date(cellMap[weekEndIdx].date); cursor.setDate(cursor.getDate()+1); continue; }
+      segments.push({ev,startIdx:segStartIdx,endIdx:segEndIdx,weekIdx:weekIndex,segStartDate:new Date(cellMap[segStartIdx].date),segEndDate:new Date(cellMap[segEndIdx].date)});
+      cursor = new Date(cellMap[segEndIdx].date); cursor.setDate(cursor.getDate()+1);
+    }
+  });
 
-  document.getElementById('calendar-title').textContent = Array.from(months).join(' / ');
+  /* --- Assigner lanes pour éviter chevauchement --- */
+  const weekLanes = Array.from({length:weekView}, ()=>[]);
+  segments.forEach(seg=>{
+    const lanes=weekLanes[seg.weekIdx];
+    let lane=0;
+    function overlaps(l){ const arr=lanes[l]||[]; return arr.some(r=>!(seg.endIdx<r.startIdx || seg.startIdx>r.endIdx)); }
+    while(overlaps(lane)) lane++;
+    if(!lanes[lane]) lanes[lane]=[];
+    lanes[lane].push({startIdx:seg.startIdx,endIdx:seg.endIdx});
+    seg.lane=lane;
+  });
+
+  /* --- Compter +X et assigner eventsList --- */
+  cellMap.forEach(c=>{ c.eventsList=[]; c.totalSegments=0; });
+  segments.forEach(seg=>{ for(let i=seg.startIdx;i<=seg.endIdx;i++){ if(i>=0 && i<cellMap.length){ c=cellMap[i]; c.totalSegments++; if(!c.eventsList.includes(seg.ev)) c.eventsList.push(seg.ev); } } });
+
+  await new Promise(r=>requestAnimationFrame(r));
+  const calendarRect=calendarEl.getBoundingClientRect();
+  const cellRects=cellMap.map(c=>c.el.getBoundingClientRect());
+  const dateLabel=document.querySelector('.date-label');
+  const dateLabelH=dateLabel?dateLabel.getBoundingClientRect().height:18;
+  const bandH=22;
+  const laneGap=6;
+  const bandSpacing=bandH+laneGap;
+  const weekTopBase=[];
+  for(let w=0; w<weekView; w++){ const idx=w*7; weekTopBase[w]=idx<cellRects.length?(cellRects[idx].top-calendarRect.top):0; }
+  const visibleLanesPerWeek=[]; for(let w=0;w<weekView;w++){ const avail=rowH-(dateLabelH+8); visibleLanesPerWeek[w]=Math.max(0,Math.floor((avail+laneGap)/bandSpacing)); }
+
+  /* --- Render segments --- */
+  segments.forEach(seg=>{
+    const firstRect=cellRects[seg.startIdx]; const lastRect=cellRects[seg.endIdx]; if(!firstRect||!lastRect) return;
+    const left=firstRect.left-calendarRect.left;
+    const width=(lastRect.left+lastRect.width)-firstRect.left-6;
+    const el=document.createElement('div');
+    el.className='multi-band '+(seg.ev.__type||'');
+    el.style.left=left+'px'; el.style.width=Math.max(36,width)+'px';
+    const top=(weekTopBase[seg.weekIdx]||0)+dateLabelH+6+(seg.lane*bandSpacing);
+    el.style.top=top+'px'; el.style.height=bandH+'px';
+    const startSpan=document.createElement('span'); startSpan.className='start'; startSpan.textContent=(seg.ev._isAllDay?'':fmtTime(seg.ev._start))+(seg.ev.summary||'');
+    const endSpan=document.createElement('span'); endSpan.className='end'; endSpan.textContent=(!seg.ev._isAllDay?'>'+fmtTime(seg.ev._end):'');
+    el.appendChild(startSpan); el.appendChild(endSpan);
+    el.addEventListener('click', e=>{ e.stopPropagation(); showEventModal(seg.ev); });
+    const visibleLanes=visibleLanesPerWeek[seg.weekIdx]||0;
+    el.style.display=seg.lane>=visibleLanes?'none':'flex';
+    seg._isHidden=seg.lane>=visibleLanes;
+    eventsLayer.appendChild(el);
+    seg._el=el;
+  });
+
+  /* --- +X badge --- */
+  cellMap.forEach((c,idx)=>{
+    const weekIdx=Math.floor(idx/7); const visibleLanes=visibleLanesPerWeek[weekIdx]||0;
+    let visibleCount=0,hiddenCount=0;
+    segments.forEach(seg=>{ if(seg.startIdx<=idx && seg.endIdx>=idx && seg.weekIdx===weekIdx){ if(seg.lane<visibleLanes) visibleCount++; else hiddenCount++; } });
+    c.visibleCount=visibleCount; c.hiddenCount=hiddenCount;
+    if(hiddenCount>0){ const badge=document.createElement('div'); badge.className='more-events'; badge.textContent='+'+hiddenCount+' autres'; badge.addEventListener('click', e=>{ e.stopPropagation(); showModalForCell(c); }); c.el.appendChild(badge); }
+  });
+
+  document.getElementById('calendar-title').textContent=Array.from(months).join(' / ');
 }
 
-/* ---------------- Modals et Navigation ---------------- */
-function showEventModal(ev){ const modal=document.getElementById('event-modal'); const content=document.getElementById('modal-content'); const start=ev._start,end=ev._end; const isAll=ev._isAllDay; const isMulti=!isAll && (start.toDateString()!==end.toDateString()); let html=`<h3>${ev.summary||'(sans titre)'}</h3>`; if(isMulti) html+=`<div class="modal-item"><p>Du ${fmtFullDate(start)} à ${fmtTime(start)}<br>Au ${fmtFullDate(end)} à ${fmtTime(end)}</p></div>`; else if(isAll) html+=`<div class="modal-item"><p>Le ${fmtFullDate(start)}</p></div>`; else html+=`<div class="modal-item"><p>Le ${fmtFullDate(start)} à ${fmtTime(start)}</p></div>`; if(ev.description) html+=`<div class="modal-item"><p>${ev.description}</p></div>`; content.innerHTML=html; modal.style.display='flex'; }
+/* ---------------- Modals ---------------- */
+function showEventModal(ev){
+  const modal=document.getElementById('event-modal');
+  const content=document.getElementById('modal-content');
+  const start=ev._start,end=ev._end;
+  const isAll=ev._isAllDay;
+  const isMulti=!isAll && (start.toDateString()!==end.toDateString());
+  let html=`<h3>${ev.summary||'(sans titre)'}</h3>`;
+  if(isMulti) html+=`<div class="modal-item"><p>Du ${fmtFullDate(start)} à ${fmtTime(start)}<br>Au ${fmtFullDate(end)} à ${fmtTime(end)}</p></div>`;
+  else if(isAll) html+=`<div class="modal-item"><p>Le ${fmtFullDate(start)}</p></div>`;
+  else html+=`<div class="modal-item"><p>Le ${fmtFullDate(start)} à ${fmtTime(start)}</p></div>`;
+  if(ev.description) html+=`<div class="modal-item"><p>${ev.description}</p></div>`;
+  content.innerHTML=html;
+  modal.style.display='flex';
+}
 function hideModal(){document.getElementById('event-modal').style.display='none';}
+function showModalForCell(cellObj){
+  const modal=document.getElementById('event-modal');
+  const content=document.getElementById('modal-content');
+  let html=`<h3>Événements du ${fmtFullDate(cellObj.date)}</h3>`;
+  cellObj.eventsList.forEach(ev=>{
+    html+=`<div class="modal-item"><strong>${ev.summary||'(sans titre)'}</strong><br>${ev._isAllDay?'Toute la journée':fmtTime(ev._start)+' → '+fmtTime(ev._end)}${ev.description?'<br>'+ev.description:''}</div>`;
+  });
+  content.innerHTML=html;
+  modal.style.display='flex';
+}
 
+/* ---------------- Navigation ---------------- */
 document.getElementById('prev-btn').addEventListener('click', ()=>{ currentStartDate.setDate(currentStartDate.getDate()-7); localStorage.removeItem(CACHE_KEY); renderCalendar(); });
 document.getElementById('next-btn').addEventListener('click', ()=>{ currentStartDate.setDate(currentStartDate.getDate()+7); localStorage.removeItem(CACHE_KEY); renderCalendar(); });
 document.getElementById('today-btn').addEventListener('click', ()=>{ currentStartDate=new Date(); weekView=3; localStorage.removeItem(CACHE_KEY); renderCalendar(); });
