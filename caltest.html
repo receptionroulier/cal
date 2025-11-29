@@ -9,11 +9,14 @@
   body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:#0f0f10;color:#fff;display:flex;flex-direction:column;height:100vh}
   
   /* header */
-  #calendar-header{display:flex;align-items:center;justify-content:center;gap:12px;padding:12px 10px;color:#00e5ff;border-bottom:1px solid #333}
+  #calendar-header{display:flex;align-items:center;justify-content:center;gap:12px;padding:12px 10px;color:#00e5ff;border-bottom:1px solid #333;position:relative}
   .nav-btn{cursor:pointer;color:#00e5ff;font-size:26px;padding:4px 10px;border-radius:6px}
   .nav-btn:hover{background:#222}
   .view-btn{cursor:pointer;font-size:14px;padding:4px 10px;background:#222;border-radius:6px;border:1px solid #333;color:#00e5ff}
   .view-btn:hover{background:#333}
+
+  /* heure */
+  #current-time{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:1.5rem;font-weight:bold;color:#00e5ff;font-family:monospace}
 
   /* calendar */
   #calendar-wrap{flex:1;display:flex;flex-direction:column;min-height:0;position:relative}
@@ -70,6 +73,7 @@
     <span class="view-btn" id="view-3w">3 semaines</span>
     <span class="view-btn" id="view-4w">4 semaines</span>
     <span class="nav-btn" id="today-btn" style="font-size:16px">Aujourd’hui</span>
+    <div id="current-time"></div>
   </div>
 
   <div id="calendar-wrap">
@@ -406,6 +410,17 @@ document.getElementById('view-4w').addEventListener('click', ()=>{
 
 window.addEventListener('resize', ()=>{ requestAnimationFrame(()=> renderCalendar()); });
 document.getElementById('event-modal').addEventListener('click', hideModal);
+
+/* ---------------- Horloge ---------------- */
+function updateClock() {
+  const now = new Date();
+  const hours = now.getHours().toString().padStart(2,'0');
+  const minutes = now.getMinutes().toString().padStart(2,'0');
+  const seconds = now.getSeconds().toString().padStart(2,'0');
+  document.getElementById('current-time').textContent = `${hours}:${minutes}:${seconds}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
 
 /* initial render */
 renderCalendar().catch(err=>{ console.error('render error', err); document.getElementById('calendar-title').textContent='Erreur'; });
