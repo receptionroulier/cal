@@ -14,8 +14,8 @@
   .nav-btn:hover{background:#222}
   .view-btn{cursor:pointer;font-size:14px;padding:4px 10px;background:#222;border-radius:6px;border:1px solid #333;color:#00e5ff}
   .view-btn:hover{background:#333}
-  /* Ajout pour l'heure */
-  #current-time { font-size: 14px; min-width: 60px; text-align: center; margin-left: auto; }
+  /* Heure en haut à droite */
+  #current-time { font-size: 20px; min-width: 70px; text-align: center; margin-left: auto; color: #00e5ff; }
 
   /* calendar */
   #calendar-wrap{flex:1;display:flex;flex-direction:column;min-height:0;position:relative}
@@ -45,11 +45,13 @@
   .multi-band .end{margin-left:auto}
   .single-evt{border-radius:6px;padding:0 8px;display:flex;align-items:center}
 
-  /* Défilement du texte */
+  /* Défilement du texte en boucle */
   .scrolling-text {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    display: inline-block;
+    padding-left: 100%;
     animation: scrollText 8s linear infinite;
     max-width: 100%;
   }
@@ -78,7 +80,7 @@
     <span class="view-btn" id="view-3w">3 semaines</span>
     <span class="view-btn" id="view-4w">4 semaines</span>
     <span class="nav-btn" id="today-btn" style="font-size:16px">Aujourd’hui</span>
-    <span id="current-time" class="nav-btn" style="font-size:14px; min-width: 60px; text-align: center;"></span>
+    <span id="current-time" class="nav-btn"></span>
   </div>
   <div id="calendar-wrap">
     <div id="calendar" role="grid" aria-label="Calendrier"></div>
@@ -145,6 +147,11 @@ function updateCurrentTime() {
 }
 setInterval(updateCurrentTime, 1000);
 updateCurrentTime();
+
+/* ---------------- Vérifie si le texte dépasse ---------------- */
+function checkTextOverflow(element) {
+  return element.scrollWidth > element.clientWidth;
+}
 
 /* ---------------- Rendering du calendrier ---------------- */
 async function renderCalendar(){
@@ -300,7 +307,7 @@ async function renderCalendar(){
     const lastRect = cellRects[seg.endIdx];
     if(!firstRect || !lastRect) return;
     const left = firstRect.left - calendarRect.left;
-    const width = (lastRect.left + lastRect.width) - firstRect.left - 6; // marge à droite
+    const width = (lastRect.left + lastRect.width) - firstRect.left - 6;
     const el = document.createElement('div');
     el.className = 'multi-band ' + (seg.ev.__type || '');
     el.style.left = left + 'px';
@@ -308,19 +315,24 @@ async function renderCalendar(){
     const top = (weekTopBase[seg.weekIdx] || 0) + dateLabelH + 6 + (seg.lane * bandSpacing);
     el.style.top = top + 'px';
     el.style.height = bandH + 'px';
-    const startSpan = document.createElement('span'); startSpan.className='start';
+    const startSpan = document.createElement('span');
+    startSpan.className = 'start';
     const evStartTime = seg.ev._isAllDay?'':fmtTime(seg.ev._start);
     const evText = (evStartTime?('<'+evStartTime+' '):'') + (seg.ev.summary||'');
     startSpan.textContent = evText;
-    // Ajout du défilement si le texte est trop long
-    if (evText.length > 20) {
+    el.appendChild(startSpan);
+
+    // Vérifie si le texte dépasse et applique le défilement
+    if (checkTextOverflow(startSpan)) {
       startSpan.classList.add('scrolling-text');
     }
-    const endSpan = document.createElement('span'); endSpan.className='end';
+
+    const endSpan = document.createElement('span');
+    endSpan.className='end';
     let endTimeText='';
     if(!seg.ev._isAllDay){ const segEnd = new Date(seg.segEndDate); segEnd.setHours(23,59,59,999); endTimeText = '>' + fmtTime(seg.ev._end); }
     endSpan.textContent = endTimeText;
-    el.appendChild(startSpan); el.appendChild(endSpan);
+    el.appendChild(endSpan);
     seg._el = el;
     const visibleLanes = visibleLanesPerWeek[seg.weekIdx] || 0;
     el.style.display = seg.lane >= visibleLanes ? 'none':'flex';
