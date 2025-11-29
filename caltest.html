@@ -80,8 +80,9 @@
   <div id="event-modal" onclick="hideModal()">
     <div class="modal-card" id="modal-content" onclick="event.stopPropagation()"></div>
   </div>
-  
-  <script>
+
+<script>
+/* ---------------- Configuration & utilitaires ---------------- */
 const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
 const CALENDAR_IDS = { reception:'receptionroulier@gmail.com', navire:'smr.programme@gmail.com' };
 const CACHE_KEY = 'caltest_v2_cache';
@@ -131,6 +132,7 @@ async function fetchCalendar(calendarId, timeMin, timeMax){
   return res.json();
 }
 
+/* ---------------- Rendering du calendrier ---------------- */
 async function renderCalendar(){
   const calendarEl = document.getElementById('calendar');
   const eventsLayer = document.getElementById('events-layer');
@@ -139,8 +141,7 @@ async function renderCalendar(){
 
   const today = new Date(currentStartDate);
   const thisMonday = getMonday(today);
-  const pastMonday = new Date(thisMonday); 
-  pastMonday.setDate(thisMonday.getDate() - 7); // semaine passée incluse
+  const pastMonday = new Date(thisMonday); pastMonday.setDate(thisMonday.getDate() - 7);
   const startDate = pastMonday;
   const totalDays = weekView * 7;
 
@@ -163,18 +164,16 @@ async function renderCalendar(){
 
   const timeMin = new Date(startDate); timeMin.setHours(0,0,0,0);
   const timeMax = new Date(timeMin); timeMax.setDate(timeMax.getDate() + totalDays);
-
-  // Cache
   const cache = loadCache();
   let items;
-  if(cache && cache.items && cache.items.length>0) items = cache.items;
+  if(cache) items = cache.items;
   else {
-    const [r1,r2] = await Promise.allSettled([
+    const [r1, r2] = await Promise.allSettled([
       fetchCalendar(CALENDAR_IDS.reception, timeMin, timeMax),
       fetchCalendar(CALENDAR_IDS.navire, timeMin, timeMax)
     ]);
-    const items1 = r1.status==='fulfilled'? r1.value.items||[] : [];
-    const items2 = r2.status==='fulfilled'? r2.value.items||[] : [];
+    const items1 = r1.status === 'fulfilled' ? (r1.value.items||[]) : [];
+    const items2 = r2.status === 'fulfilled' ? (r2.value.items||[]) : [];
     items = [
       ...items1.map(i=>({...i, __type:'reception'})),
       ...items2.map(i=>({...i, __type:'navire'}))
@@ -185,7 +184,7 @@ async function renderCalendar(){
   // Normalisation des événements
   const norm = items.map(ev=>{
     const e = JSON.parse(JSON.stringify(ev));
-    e.__type = e.__type||'';
+    e.__type = e.__type || '';
     e._isAllDay = !!(e.start && e.start.date && !e.start.dateTime);
     if(e.start){
       if(e.start.dateTime) e._start = new Date(e.start.dateTime);
@@ -200,49 +199,60 @@ async function renderCalendar(){
     } else if(e._end){
       const tmp = new Date(e._end);
       if(tmp.getHours()===0 && tmp.getMinutes()===0 && tmp.getSeconds()===0){
-        const adj = new Date(tmp); adj.setDate(adj.getDate()-1); adj.setHours(23,59,59,999); e._endInclusive = adj;
-      } else e._endInclusive = new Date(e._end);
+        const adj = new Date(tmp); adj.setDate(adj.getDate() - 1); adj.setHours(23,59,59,999); e._endInclusive = adj;
+      } else {
+        e._endInclusive = new Date(e._end);
+      }
     }
     return e;
   }).filter(e=>e._start && e._endInclusive);
 
-  // Segments multi-days
   const segments = [];
   norm.forEach(ev=>{
     const sDay = new Date(ev._start); sDay.setHours(0,0,0,0);
     const eDay = new Date(ev._endInclusive); eDay.setHours(0,0,0,0);
     let cursor = new Date(sDay);
     while(cursor <= eDay){
-      const weekIndex = Math.floor((cursor - startDate)/(7*24*3600*1000));
-      if(weekIndex<0){ cursor = new Date(startDate); continue; }
-      if(weekIndex>=weekView) break;
+      const weekIndex = Math.floor((cursor - startDate) / (7*24*3600*1000));
+      if(weekIndex < 0){ cursor = new Date(startDate); continue; }
+      if(weekIndex >= weekView) break;
       const weekStartIdx = weekIndex*7;
       const weekEndIdx = Math.min(weekStartIdx+6, cellMap.length-1);
-      let segStartIdx=-1;
-      for(let i=weekStartIdx;i<=weekEndIdx;i++) if(cellMap[i].date.getTime()>=cursor.getTime()){ segStartIdx=i; break; }
-      if(segStartIdx===-1){ cursor = new Date(cellMap[weekEndIdx].date); cursor.setDate(cursor.getDate()+1); continue; }
-      let segEndIdx=-1;
-      for(let i=weekEndIdx;i>=weekStartIdx;i--) if(cellMap[i].date.getTime()<=eDay.getTime()){ segEndIdx=i; break; }
-      if(segEndIdx===-1){ cursor = new Date(cellMap[weekEndIdx].date); cursor.setDate(cursor.getDate()+1); continue; }
-      segments.push({ev, startIdx:segStartIdx, endIdx:segEndIdx, weekIdx:weekIndex, segStartDate:new Date(cellMap[segStartIdx].date), segEndDate:new Date(cellMap[segEndIdx].date)});
-      cursor = new Date(cellMap[segEndIdx].date); cursor.setDate(cursor.getDate()+1);
+      let segStartIdx = -1;
+      for(let i=weekStartIdx;i<=weekEndIdx;i++){
+        if(cellMap[i].date.getTime() >= cursor.getTime()){ segStartIdx = i; break; }
+      }
+      if(segStartIdx === -1){ cursor = new Date(cellMap[weekEndIdx].date); cursor.setDate(cursor.getDate()+1); continue; }
+      let segEndIdx = -1;
+      for(let i=weekEndIdx;i>=weekStartIdx;i--){
+        if(cellMap[i].date.getTime() <= eDay.getTime()){ segEndIdx = i; break; }
+      }
+      if(segEndIdx === -1){ cursor = new Date(cellMap[weekEndIdx].date); cursor.setDate(cursor.getDate()+1); continue; }
+      segments.push({
+        ev,
+        startIdx: segStartIdx,
+        endIdx: segEndIdx,
+        weekIdx: weekIndex,
+        segStartDate: new Date(cellMap[segStartIdx].date),
+        segEndDate: new Date(cellMap[segEndIdx].date)
+      });
+      cursor = new Date(cellMap[segEndIdx].date);
+      cursor.setDate(cursor.getDate()+1);
     }
   });
 
-  // Lanes
   const weekLanes = Array.from({length:weekView}, ()=>[]);
   segments.forEach(seg=>{
     const lanes = weekLanes[seg.weekIdx];
-    let lane=0;
-    function overlaps(l){ const arr=lanes[l]||[]; return arr.some(r=>!(seg.endIdx<r.startIdx || seg.startIdx>r.endIdx)); }
+    let lane = 0;
+    function overlaps(l){ const arr = lanes[l]||[]; return arr.some(r => !(seg.endIdx < r.startIdx || seg.startIdx > r.endIdx)); }
     while(overlaps(lane)) lane++;
     if(!lanes[lane]) lanes[lane]=[];
     lanes[lane].push({startIdx:seg.startIdx,endIdx:seg.endIdx});
-    seg.lane=lane;
+    seg.lane = lane;
   });
 
-  // Compter +X
-  cellMap.forEach(c=>{ c.eventsList=[]; c.totalSegments=0; });
+  cellMap.forEach(c=>{ c.eventsList = []; c.totalSegments=0; });
   segments.forEach(seg=>{
     for(let i=seg.startIdx;i<=seg.endIdx;i++){
       if(i>=0 && i<cellMap.length){
@@ -257,62 +267,67 @@ async function renderCalendar(){
   const cellRects = cellMap.map(c=>c.el.getBoundingClientRect());
   const dateLabel = document.querySelector('.date-label');
   const dateLabelH = dateLabel ? dateLabel.getBoundingClientRect().height : 18;
-  const bandH=22, laneGap=6, bandSpacing=bandH+laneGap;
+  const bandH = 22;
+  const laneGap = 6;
+  const bandSpacing = bandH + laneGap;
 
-  const weekTopBase=[];
-  for(let w=0; w<weekView; w++){ const idx=w*7; weekTopBase[w]=idx<cellRects.length? cellRects[idx].top-calendarRect.top:0; }
-
-  const visibleLanesPerWeek=[];
+  const weekTopBase = [];
   for(let w=0; w<weekView; w++){
-    const avail=rowH-(dateLabelH+8);
-    visibleLanesPerWeek[w]=Math.max(0,Math.floor((avail+laneGap)/bandSpacing));
+    const idx = w*7;
+    weekTopBase[w] = idx < cellRects.length ? (cellRects[idx].top - calendarRect.top) : 0;
   }
 
-  // Render segments
-  segments.forEach(seg=>{
-    const firstRect=cellRects[seg.startIdx];
-    const lastRect=cellRects[seg.endIdx];
-    if(!firstRect||!lastRect) return;
-    const left=firstRect.left-calendarRect.left;
-    const width=(lastRect.left+lastRect.width)-firstRect.left-6;
-    const el=document.createElement('div');
-    el.className='multi-band '+(seg.ev.__type||'');
-    el.style.left=left+'px';
-    el.style.width=Math.max(36,width)+'px';
-    const top=(weekTopBase[seg.weekIdx]||0)+dateLabelH+6+(seg.lane*bandSpacing);
-    el.style.top=top+'px';
-    el.style.height=bandH+'px';
+  const visibleLanesPerWeek = [];
+  for(let w=0; w<weekView; w++){
+    const avail = rowH - (dateLabelH + 8);
+    const lanes = Math.max(0, Math.floor((avail + laneGap) / bandSpacing));
+    visibleLanesPerWeek[w] = lanes;
+  }
 
-    const startSpan=document.createElement('span'); startSpan.className='start';
+  segments.forEach(seg=>{
+    const firstRect = cellRects[seg.startIdx];
+    const lastRect = cellRects[seg.endIdx];
+    if(!firstRect || !lastRect) return;
+    const left = firstRect.left - calendarRect.left;
+    const width = (lastRect.left + lastRect.width) - firstRect.left - 6;
+    const el = document.createElement('div');
+    el.className = 'multi-band ' + (seg.ev.__type || '');
+    el.style.left = left + 'px';
+    el.style.width = Math.max(36,width) + 'px';
+    const top = (weekTopBase[seg.weekIdx] || 0) + dateLabelH + 6 + (seg.lane * bandSpacing);
+    el.style.top = top + 'px';
+    el.style.height = bandH + 'px';
+
+    const startSpan = document.createElement('span'); startSpan.className='start';
     const evStartTime = seg.ev._isAllDay?'':fmtTime(seg.ev._start);
-    startSpan.textContent=(evStartTime?('<'+evStartTime+' '):'')+(seg.ev.summary||'');
-    const endSpan=document.createElement('span'); endSpan.className='end';
+    startSpan.textContent = (evStartTime?('<'+evStartTime+' '):'') + (seg.ev.summary||'');
+    const endSpan = document.createElement('span'); endSpan.className='end';
     let endTimeText='';
-    if(!seg.ev._isAllDay){ const segEnd=new Date(seg.segEndDate); segEnd.setHours(23,59,59,999); endTimeText='>'+fmtTime(seg.ev._end); }
-    endSpan.textContent=endTimeText;
+    if(!seg.ev._isAllDay){ const segEnd = new Date(seg.segEndDate); segEnd.setHours(23,59,59,999); endTimeText = '>' + fmtTime(seg.ev._end); }
+    endSpan.textContent = endTimeText;
 
     el.appendChild(startSpan); el.appendChild(endSpan);
-    seg._el=el;
-    const visibleLanes=visibleLanesPerWeek[seg.weekIdx]||0;
-    el.style.display = seg.lane>=visibleLanes?'none':'flex';
-    seg._isHidden = seg.lane>=visibleLanes;
+    seg._el = el;
+    const visibleLanes = visibleLanesPerWeek[seg.weekIdx] || 0;
+    el.style.display = seg.lane >= visibleLanes ? 'none':'flex';
+    seg._isHidden = seg.lane >= visibleLanes;
 
     el.addEventListener('click', e=>{ e.stopPropagation(); showEventModal(seg.ev); });
     eventsLayer.appendChild(el);
   });
 
-  // +X badge
   cellMap.forEach((c, idx)=>{
-    const weekIdx=Math.floor(idx/7);
-    const visibleLanes=visibleLanesPerWeek[weekIdx]||0;
+    const weekIdx = Math.floor(idx / 7);
+    const visibleLanes = visibleLanesPerWeek[weekIdx] || 0;
     let visibleCount=0, hiddenCount=0;
     segments.forEach(seg=>{
-      if(seg.startIdx<=idx && seg.endIdx>=idx && seg.weekIdx===weekIdx){
-        if(seg.lane<visibleLanes) visibleCount++;
+      if(seg.startIdx <= idx && seg.endIdx >= idx && seg.weekIdx === weekIdx){
+        if(seg.lane < visibleLanes) visibleCount++;
         else hiddenCount++;
       }
     });
-    c.visibleCount=visibleCount; c.hiddenCount=hiddenCount;
+    c.visibleCount = visibleCount;
+    c.hiddenCount = hiddenCount;
     if(hiddenCount>0){
       const badge=document.createElement('div');
       badge.className='more-events';
@@ -325,7 +340,7 @@ async function renderCalendar(){
   document.getElementById('calendar-title').textContent = Array.from(months).join(' / ');
 }
 
-// Modals
+/* ---------------- Modals ---------------- */
 function showEventModal(ev){
   const modal=document.getElementById('event-modal');
   const content=document.getElementById('modal-content');
@@ -341,6 +356,7 @@ function showEventModal(ev){
   modal.style.display='flex';
 }
 function hideModal(){document.getElementById('event-modal').style.display='none';}
+
 function showModalForCell(cellObj){
   const modal=document.getElementById('event-modal');
   const content=document.getElementById('modal-content');
@@ -358,17 +374,41 @@ function showModalForCell(cellObj){
   modal.style.display='flex';
 }
 
-// Navigation
-document.getElementById('prev-btn').addEventListener('click', ()=>{ currentStartDate.setDate(currentStartDate.getDate()-7); renderCalendar(); });
-document.getElementById('next-btn').addEventListener('click', ()=>{ currentStartDate.setDate(currentStartDate.getDate()+7); renderCalendar(); });
-document.getElementById('today-btn').addEventListener('click', ()=>{ currentStartDate=new Date(); weekView=3; renderCalendar(); });
-document.getElementById('view-3w').addEventListener('click', ()=>{ weekView=3; renderCalendar(); });
-document.getElementById('view-4w').addEventListener('click', ()=>{ weekView=4; renderCalendar(); });
+/* ---------------- Navigation ---------------- */
+document.getElementById('prev-btn').addEventListener('click', ()=>{
+  currentStartDate.setDate(currentStartDate.getDate()-7);
+  localStorage.removeItem(CACHE_KEY);
+  renderCalendar();
+});
+document.getElementById('next-btn').addEventListener('click', ()=>{
+  currentStartDate.setDate(currentStartDate.getDate()+7);
+  localStorage.removeItem(CACHE_KEY);
+  renderCalendar();
+});
+document.getElementById('today-btn').addEventListener('click', ()=>{
+  currentStartDate=new Date();
+  weekView=3;
+  localStorage.removeItem(CACHE_KEY);
+  renderCalendar();
+});
+document.getElementById('view-3w').addEventListener('click', ()=>{
+  weekView=3;
+  currentStartDate=getMonday(currentStartDate);
+  localStorage.removeItem(CACHE_KEY);
+  renderCalendar();
+});
+document.getElementById('view-4w').addEventListener('click', ()=>{
+  weekView=4;
+  currentStartDate=getMonday(currentStartDate);
+  localStorage.removeItem(CACHE_KEY);
+  renderCalendar();
+});
 
 window.addEventListener('resize', ()=>{ requestAnimationFrame(()=> renderCalendar()); });
 document.getElementById('event-modal').addEventListener('click', hideModal);
 
+/* initial render */
 renderCalendar().catch(err=>{ console.error('render error', err); document.getElementById('calendar-title').textContent='Erreur'; });
-  </script>
+</script>
 </body>
 </html>
