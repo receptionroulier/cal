@@ -40,8 +40,12 @@
   }
   .reception{background:#109c53}
   .navire{background:#3644b3}
-  .multi-band .start{margin-right:8px;}
-  .multi-band .end{margin-left:auto;}
+  .multi-band .event-text { overflow: hidden; white-space: nowrap; width: 100%; }
+  .multi-band .event-text.scrolling { animation: scroll 10s linear infinite; }
+  @keyframes scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-100%); }
+  }
   .single-evt{border-radius:6px;padding:0 8px;display:flex;align-items:center}
   /* +X */
   .more-events{position:absolute;top:6px;right:8px;padding:2px 6px;background:rgba(0,0,0,0.45);border-radius:6px;font-size:0.72rem;cursor:pointer;z-index:60;pointer-events:auto}
@@ -53,20 +57,6 @@
   .modal-item p{color:#dbe7ea;margin-top:6px}
   /* responsive */
   @media(max-width:720px){ .day-cell{min-height:68px} }
-  /* Défilement des textes longs */
-  .event-text-container {
-    display: flex;
-    width: 100%;
-    overflow: hidden;
-    white-space: nowrap;
-  }
-  .event-text-container.scrolling {
-    animation: scroll 10s linear infinite;
-  }
-  @keyframes scroll {
-    0% { transform: translateX(0); }
-    100% { transform: translateX(-100%); }
-  }
 </style>
 </head>
 <body>
@@ -309,39 +299,27 @@
       el.style.top = `${top}px`;
       el.style.height = `${bandH}px`;
 
-      // Crée un conteneur pour le texte
+      // Crée un conteneur pour le texte complet
       const textContainer = document.createElement('div');
-      textContainer.className = 'event-text-container';
-
-      const startSpan = document.createElement('span');
-      startSpan.className = 'start';
-      const endSpan = document.createElement('span');
-      endSpan.className = 'end';
+      textContainer.className = 'event-text';
 
       const ev = seg.ev;
       const evStartTime = ev._isAllDay ? '' : fmtTime(ev._start);
+      const evEndTime = (!ev._isAllDay && seg.endIdx === getLastSegmentOfEvent(ev).endIdx) ? ('>' + fmtTime(ev._end)) : '';
       const firstSeg = getFirstSegmentOfEvent(ev);
-      const lastSeg = getLastSegmentOfEvent(ev);
       const isFirstSegment = seg.startIdx === firstSeg.startIdx;
-      const isLastSegment = seg.endIdx === lastSeg.endIdx;
-      const eventStartsSunday = ev._start.getDay() === 0;
 
-      if (eventStartsSunday) {
-        if (isFirstSegment) {
-          startSpan.textContent = (evStartTime ? '<' + evStartTime + ' ' : '') + (ev.summary || '(sans titre)');
-          endSpan.textContent = '';
-        } else {
-          startSpan.textContent = ev.summary || '(sans titre)';
-          endSpan.textContent = isLastSegment && !ev._isAllDay ? ('>' + fmtTime(ev._end)) : '';
-        }
-      } else {
-        startSpan.textContent = (evStartTime ? ('<' + evStartTime + ' ') : '') + (ev.summary || '(sans titre)');
-        endSpan.textContent = (!ev._isAllDay && isLastSegment) ? ('>' + fmtTime(ev._end)) : '';
+      // Construit le texte complet
+      let fullText = '';
+      if (isFirstSegment && evStartTime) {
+        fullText += `<${evStartTime} `;
       }
+      fullText += ev.summary || '(sans titre)';
+      if (evEndTime) {
+        fullText += ` ${evEndTime}`;
+      }
+      textContainer.innerHTML = fullText;
 
-      // Ajoute les spans au conteneur
-      textContainer.appendChild(startSpan);
-      textContainer.appendChild(endSpan);
       el.appendChild(textContainer);
 
       seg._el = el;
@@ -354,7 +332,7 @@
         if (textContainer.scrollWidth > textContainer.clientWidth) {
           textContainer.classList.add('scrolling');
           // Duplique le contenu pour un effet de boucle
-          textContainer.innerHTML += textContainer.innerHTML;
+          textContainer.innerHTML += ` ${fullText}`;
         }
       }, 100);
 
