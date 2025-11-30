@@ -40,8 +40,15 @@
   }
   .reception{background:#109c53}
   .navire{background:#3644b3}
-  .multi-band .event-text { overflow: hidden; white-space: nowrap; width: 100%; }
-  .multi-band .event-text.scrolling { animation: scroll 10s linear infinite; }
+  .event-text {
+    display: inline-block;
+    white-space: nowrap;
+    overflow: hidden;
+    width: 100%;
+  }
+  .event-text.scrolling {
+    animation: scroll 10s linear infinite;
+  }
   @keyframes scroll {
     0% { transform: translateX(0); }
     100% { transform: translateX(-100%); }
@@ -306,8 +313,7 @@
       const ev = seg.ev;
       const evStartTime = ev._isAllDay ? '' : fmtTime(ev._start);
       const evEndTime = (!ev._isAllDay && seg.endIdx === getLastSegmentOfEvent(ev).endIdx) ? ('>' + fmtTime(ev._end)) : '';
-      const firstSeg = getFirstSegmentOfEvent(ev);
-      const isFirstSegment = seg.startIdx === firstSeg.startIdx;
+      const isFirstSegment = seg.startIdx === getFirstSegmentOfEvent(ev).startIdx;
 
       // Construit le texte complet
       let fullText = '';
@@ -318,7 +324,7 @@
       if (evEndTime) {
         fullText += ` ${evEndTime}`;
       }
-      textContainer.innerHTML = fullText;
+      textContainer.textContent = fullText;
 
       el.appendChild(textContainer);
 
@@ -332,7 +338,7 @@
         if (textContainer.scrollWidth > textContainer.clientWidth) {
           textContainer.classList.add('scrolling');
           // Duplique le contenu pour un effet de boucle
-          textContainer.innerHTML += ` ${fullText}`;
+          textContainer.textContent += ` ${fullText}`;
         }
       }, 100);
 
