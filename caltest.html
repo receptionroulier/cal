@@ -89,6 +89,11 @@
     <div class="modal-card" id="modal-content" onclick="event.stopPropagation()"></div>
   </div>
 <script>
+  // Gestionnaire d'erreurs global pour les promesses non capturées
+  window.addEventListener('unhandledrejection', (event) => {
+    event.preventDefault();
+  });
+
   // ---------------- utilitaires ----------------
   const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
   const CALENDAR_IDS = { reception: 'receptionroulier@gmail.com', navire: 'smr.programme@gmail.com' };
@@ -136,11 +141,11 @@
     return res.json();
   }
 
-  // ---------------- Fonction pour activer le défilement ----------------
+  // ---------------- Fonction pour activer le défilement uniquement si le texte est long ----------------
   function enableScrollingText(el) {
     if (el.scrollWidth > el.clientWidth) {
-      const text = el.textContent.trim() || "Événement sans titre - Texte long pour tester le défilement.";
-      el.innerHTML = `<span>${text}</span>`;
+      const txt = el.textContent.trim();
+      el.innerHTML = `<span>${txt}</span>`;
       el.classList.add("scrolling-text");
     }
   }
@@ -327,14 +332,14 @@
       const eventStartsSunday = ev._start.getDay() === 0;
       if (eventStartsSunday) {
         if (isFirstSegment) {
-          startSpan.textContent = (evStartTime ? '<' + evStartTime + ' ' : '') + (ev.summary || 'Événement sans titre - Texte long pour tester le défilement.');
+          startSpan.textContent = (evStartTime ? '<' + evStartTime + ' ' : '') + (ev.summary || '(sans titre)');
           endSpan.textContent = '';
         } else {
-          startSpan.textContent = ev.summary || 'Événement sans titre - Texte long pour tester le défilement.';
+          startSpan.textContent = ev.summary || '(sans titre)';
           endSpan.textContent = isLastSegment && !ev._isAllDay ? ('>' + fmtTime(ev._end)) : '';
         }
       } else {
-        startSpan.textContent = (evStartTime ? ('<' + evStartTime + ' ') : '') + (ev.summary || 'Événement sans titre - Texte long pour tester le défilement.');
+        startSpan.textContent = (evStartTime ? ('<' + evStartTime + ' ') : '') + (ev.summary || '(sans titre)');
         endSpan.textContent = (!ev._isAllDay && isLastSegment) ? ('>' + fmtTime(ev._end)) : '';
       }
       el.appendChild(startSpan);
@@ -343,7 +348,7 @@
       const visibleLanes = visibleLanesPerWeek[seg.weekIdx] || 0;
       el.style.display = seg.lane >= visibleLanes ? 'none' : 'flex';
       seg._isHidden = seg.lane >= visibleLanes;
-      // Active le défilement après un délai pour s'assurer que le DOM est prêt
+      // Active le défilement uniquement si le texte est long
       setTimeout(() => {
         enableScrollingText(startSpan);
         enableScrollingText(endSpan);
