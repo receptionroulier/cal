@@ -21,7 +21,6 @@
   #calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;padding:10px;align-content:start;position:relative}
   /* day cell */
   .day-cell{background:#1c1c1c;border:1px solid #333;border-radius:10px;padding:6px;position:relative;overflow:hidden;min-height:80px}
-  .day-cell.past-day { background-color: #0a0a0a; opacity: 0.7; }
   .day-cell.future-day { border: 1px solid rgba(0, 229, 255, 0.3); box-shadow: 0 0 4px rgba(0, 229, 255, 0.2); }
   .day-cell.today { border: 2px solid rgba(0, 229, 255, 0.8); box-shadow: 0 0 8px rgba(0, 229, 255, 0.6); animation: pulse 2s infinite; }
   @keyframes pulse {
@@ -30,6 +29,18 @@
     100% { box-shadow: 0 0 8px rgba(0, 229, 255, 0.6); }
   }
   .date-label{font-size:0.72rem;color:#cbd6da;margin-bottom:6px;font-weight:400}
+  /* Voile pour les jours passés */
+  .past-day-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 8px;
+    pointer-events: none;
+    z-index: 50;
+  }
   /* events layer (absolute) */
   #events-layer{position:absolute;left:2px;right:6px;top:10px;bottom:10px;pointer-events:none}
   .multi-band, .single-evt {
@@ -181,10 +192,8 @@
       d.setHours(0, 0, 0, 0);
       const cell = document.createElement('div');
       cell.className = 'day-cell';
-      // Ajoute les classes pour les jours passés, futurs et le jour actuel
-      if (d < today) {
-        cell.classList.add('past-day');
-      } else if (d > today) {
+      // Ajoute les classes pour les jours futurs et le jour actuel
+      if (d > today) {
         cell.classList.add('future-day');
       }
       if (d.getTime() === today.getTime()) {
@@ -322,6 +331,16 @@
     function getLastSegmentOfEvent(ev) {
       return segments.filter(s => s.ev === ev).reduce((a, b) => a.endIdx > b.endIdx ? a : b);
     }
+    // Ajoute les voiles pour les jours passés
+    cellMap.forEach((cellObj, idx) => {
+      const cellDate = cellObj.date;
+      if (cellDate < today) {
+        const overlay = document.createElement('div');
+        overlay.className = 'past-day-overlay';
+        cellObj.el.appendChild(overlay);
+        cellObj.el.style.position = 'relative';
+      }
+    });
     segments.forEach(seg => {
       const firstRect = cellRects[seg.startIdx];
       const lastRect = cellRects[seg.endIdx];
