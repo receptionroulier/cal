@@ -45,12 +45,21 @@
     white-space: nowrap;
     overflow: hidden;
     width: 100%;
+    position: relative;
   }
   .event-text {
     white-space: nowrap;
     display: inline-block;
+    position: relative;
+  }
+  .event-text.scrolling {
     animation: scroll 10s linear infinite;
-    padding-left: 100%;
+  }
+  .event-text.scrolling::after {
+    content: attr(data-text);
+    position: absolute;
+    left: 100%;
+    white-space: nowrap;
   }
   @keyframes scroll {
     0% { transform: translateX(0); }
@@ -331,6 +340,8 @@
         fullText += ` ${evEndTime}`;
       }
       eventText.textContent = fullText;
+      eventText.setAttribute('data-text', fullText);
+
       textContainer.appendChild(eventText);
 
       el.appendChild(textContainer);
@@ -344,8 +355,6 @@
       setTimeout(() => {
         if (eventText.scrollWidth > textContainer.clientWidth) {
           eventText.classList.add('scrolling');
-          // Duplique le contenu pour un effet de boucle
-          eventText.textContent += ` ${fullText}`;
         }
       }, 100);
 
