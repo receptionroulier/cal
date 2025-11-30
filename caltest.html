@@ -63,6 +63,24 @@
 
   /* responsive */
   @media(max-width:720px){ .day-cell{min-height:68px} }
+
+  /* ---------------------------------------------------------
+     ANIMATION DÉFILANTE POUR TEXTE TROP LONG
+     --------------------------------------------------------- */
+  .band-scroll {
+    position: relative;
+    overflow: hidden;
+  }
+  .band-scroll span {
+    display: inline-block;
+    padding-right: 40px;
+    animation: scroll-text 8s linear infinite;
+    white-space: nowrap;
+  }
+  @keyframes scroll-text {
+    0% { transform: translateX(0%); }
+    100% { transform: translateX(-100%); }
+  }
 </style>
 </head>
 <body>
@@ -133,6 +151,17 @@ async function fetchCalendar(calendarId, timeMin, timeMax){
   return res.json();
 }
 
+/* ---------------- Fonction d'activation du défilement ---------------- */
+function makeScrollingIfOverflow(el){
+  requestAnimationFrame(() => {
+    if(el.scrollWidth > el.clientWidth){
+      const txt = el.textContent;
+      el.classList.add("band-scroll");
+      el.innerHTML = `<span>${txt}</span>`;
+    }
+  });
+}
+
 /* ---------------- Rendering calendrier ---------------- */
 async function renderCalendar(){
   const calendarEl = document.getElementById('calendar');
@@ -169,16 +198,10 @@ async function renderCalendar(){
   let items;
   if(cache) items = cache.items;
   else {
-    const [r1, r2] = await Promise.allSettled([
-      fetchCalendar(CALENDAR_IDS.reception, timeMin, timeMax),
-      fetchCalendar(CALENDAR_IDS.navire, timeMin, timeMax)
-    ]);
+    const [r1, r2] = await Promise.allSettled([fetchCalendar(CALENDAR_IDS.reception, timeMin, timeMax), fetchCalendar(CALENDAR_IDS.navire, timeMin, timeMax)]);
     const items1 = r1.status === 'fulfilled' ? (r1.value.items||[]) : [];
     const items2 = r2.status === 'fulfilled' ? (r2.value.items||[]) : [];
-    items = [
-      ...items1.map(i=>({...i, __type:'reception'})),
-      ...items2.map(i=>({...i, __type:'navire'}))
-    ];
+    items = [...items1.map(i=>({...i, __type:'reception'})), ...items2.map(i=>({...i, __type:'navire'}))];
     saveCache(items, JSON.stringify(items));
   }
 
@@ -194,7 +217,6 @@ async function renderCalendar(){
       if(e.end.dateTime) e._end = new Date(e.end.dateTime);
       else { e._end = new Date(e.end.date); e._end.setHours(0,0,0,0); }
     }
-
     if(e._isAllDay && e._end){
       const adj = new Date(e._end); adj.setDate(adj.getDate() - 1); adj.setHours(23,59,59,999); e._endInclusive = adj;
     } 
@@ -202,9 +224,7 @@ async function renderCalendar(){
       const tmp = new Date(e._end);
       if(tmp.getHours()===0 && tmp.getMinutes()===0 && tmp.getSeconds()===0){
         const adj = new Date(tmp); adj.setDate(adj.getDate() - 1); adj.setHours(23,59,59,999); e._endInclusive = adj;
-      } else {
-        e._endInclusive = new Date(e._end);
-      }
+      } else e._endInclusive = new Date(e._end);
     }
     return e;
   }).filter(e=>e._start && e._endInclusive);
@@ -220,16 +240,19 @@ async function renderCalendar(){
       if(weekIndex >= weekView) break;
       const weekStartIdx = weekIndex*7;
       const weekEndIdx = Math.min(weekStartIdx+6, cellMap.length-1);
+
       let segStartIdx = -1;
       for(let i=weekStartIdx;i<=weekEndIdx;i++){
         if(cellMap[i].date.getTime() >= cursor.getTime()){ segStartIdx = i; break; }
       }
       if(segStartIdx === -1){ cursor = new Date(cellMap[weekEndIdx].date); cursor.setDate(cursor.getDate()+1); continue; }
+
       let segEndIdx = -1;
       for(let i=weekEndIdx;i>=weekStartIdx;i--){
         if(cellMap[i].date.getTime() <= eDay.getTime()){ segEndIdx = i; break; }
       }
       if(segEndIdx === -1){ cursor = new Date(cellMap[weekEndIdx].date); cursor.setDate(cursor.getDate()+1); continue; }
+
       segments.push({
         ev,
         startIdx: segStartIdx,
@@ -238,6 +261,7 @@ async function renderCalendar(){
         segStartDate: new Date(cellMap[segStartIdx].date),
         segEndDate: new Date(cellMap[segEndIdx].date)
       });
+
       cursor = new Date(cellMap[segEndIdx].date);
       cursor.setDate(cursor.getDate()+1);
     }
@@ -286,9 +310,6 @@ async function renderCalendar(){
     visibleLanesPerWeek[w] = lanes;
   }
 
-  /* -------------------------------------------------------------------
-     RÈGLE SPÉCIALE : multi-day commençant un dimanche
-     ------------------------------------------------------------------- */
   function getFirstSegmentOfEvent(ev){
     return segments.filter(s=>s.ev===ev).reduce((a,b)=>a.startIdx<b.startIdx?a:b);
   }
@@ -326,8 +347,6 @@ async function renderCalendar(){
     const isLastSegment  = seg.endIdx === lastSeg.endIdx;
     const eventStartsSunday = ev._start.getDay() === 0;
 
-    /* ------------------ règles ------------------ */
-
     if(eventStartsSunday){
       if(isFirstSegment){
         startSpan.textContent = (evStartTime ? '<' + evStartTime + ' ' : '') + (ev.summary||'');
@@ -336,9 +355,7 @@ async function renderCalendar(){
         startSpan.textContent = ev.summary || '';
         endSpan.textContent = isLastSegment && !ev._isAllDay ? ('>' + fmtTime(ev._end)) : '';
       }
-    } 
-    else {
-      // comportement normal
+    } else {
       startSpan.textContent = (evStartTime?('<'+evStartTime+' '):'') + (ev.summary||'');
       endSpan.textContent = (!ev._isAllDay && isLastSegment) ? ('>' + fmtTime(ev._end)) : '';
     }
@@ -350,6 +367,10 @@ async function renderCalendar(){
     const visibleLanes = visibleLanesPerWeek[seg.weekIdx] || 0;
     el.style.display = seg.lane >= visibleLanes ? 'none':'flex';
     seg._isHidden = seg.lane >= visibleLanes;
+
+    /* Activation du défilement si dépassement */
+    makeScrollingIfOverflow(startSpan);
+    makeScrollingIfOverflow(endSpan);
 
     el.addEventListener('click', e=>{ e.stopPropagation(); showEventModal(ev); });
     eventsLayer.appendChild(el);
