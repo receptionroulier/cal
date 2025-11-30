@@ -40,19 +40,8 @@
   }
   .reception{background:#109c53}
   .navire{background:#3644b3}
-  .event-text {
-    display: inline-block;
-    white-space: nowrap;
-    overflow: hidden;
-    width: 100%;
-  }
-  .event-text.scrolling {
-    animation: scroll 10s linear infinite;
-  }
-  @keyframes scroll {
-    0% { transform: translateX(0); }
-    100% { transform: translateX(-100%); }
-  }
+  .multi-band .start{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:8px;min-width:100px;}
+  .multi-band .end{margin-left:auto;min-width:50px;}
   .single-evt{border-radius:6px;padding:0 8px;display:flex;align-items:center}
   /* +X */
   .more-events{position:absolute;top:6px;right:8px;padding:2px 6px;background:rgba(0,0,0,0.45);border-radius:6px;font-size:0.72rem;cursor:pointer;z-index:60;pointer-events:auto}
@@ -64,6 +53,22 @@
   .modal-item p{color:#dbe7ea;margin-top:6px}
   /* responsive */
   @media(max-width:720px){ .day-cell{min-height:68px} }
+  /* Défilement des textes longs */
+  .scrolling-text {
+    overflow: hidden;
+    white-space: nowrap;
+    display: inline-block;
+    max-width: 100%;
+  }
+  .scrolling-text span {
+    display: inline-block;
+    padding-left: 100%;
+    animation: scroll 10s linear infinite;
+  }
+  @keyframes scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-100%); }
+  }
 </style>
 </head>
 <body>
@@ -134,6 +139,15 @@
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Erreur fetch calendar ${res.status}`);
     return res.json();
+  }
+
+  // ---------------- Fonction pour activer le défilement uniquement si le texte est long ----------------
+  function enableScrollingText(el) {
+    if (el.scrollWidth > el.clientWidth) {
+      const txt = el.textContent.trim();
+      el.innerHTML = `<span>${txt}</span>`;
+      el.classList.add("scrolling-text");
+    }
   }
 
   // ---------------- Rendering calendrier ----------------
@@ -305,43 +319,40 @@
       const top = (weekTopBase[seg.weekIdx] || 0) + dateLabelH + 6 + (seg.lane * bandSpacing);
       el.style.top = `${top}px`;
       el.style.height = `${bandH}px`;
-
-      // Crée un conteneur pour le texte complet
-      const textContainer = document.createElement('div');
-      textContainer.className = 'event-text';
-
+      const startSpan = document.createElement('span');
+      startSpan.className = 'start';
+      const endSpan = document.createElement('span');
+      endSpan.className = 'end';
       const ev = seg.ev;
       const evStartTime = ev._isAllDay ? '' : fmtTime(ev._start);
-      const evEndTime = (!ev._isAllDay && seg.endIdx === getLastSegmentOfEvent(ev).endIdx) ? ('>' + fmtTime(ev._end)) : '';
-      const isFirstSegment = seg.startIdx === getFirstSegmentOfEvent(ev).startIdx;
-
-      // Construit le texte complet
-      let fullText = '';
-      if (isFirstSegment && evStartTime) {
-        fullText += `<${evStartTime} `;
+      const firstSeg = getFirstSegmentOfEvent(ev);
+      const lastSeg = getLastSegmentOfEvent(ev);
+      const isFirstSegment = seg.startIdx === firstSeg.startIdx;
+      const isLastSegment = seg.endIdx === lastSeg.endIdx;
+      const eventStartsSunday = ev._start.getDay() === 0;
+      if (eventStartsSunday) {
+        if (isFirstSegment) {
+          startSpan.textContent = (evStartTime ? '<' + evStartTime + ' ' : '') + (ev.summary || '(sans titre)');
+          endSpan.textContent = '';
+        } else {
+          startSpan.textContent = ev.summary || '(sans titre)';
+          endSpan.textContent = isLastSegment && !ev._isAllDay ? ('>' + fmtTime(ev._end)) : '';
+        }
+      } else {
+        startSpan.textContent = (evStartTime ? ('<' + evStartTime + ' ') : '') + (ev.summary || '(sans titre)');
+        endSpan.textContent = (!ev._isAllDay && isLastSegment) ? ('>' + fmtTime(ev._end)) : '';
       }
-      fullText += ev.summary || '(sans titre)';
-      if (evEndTime) {
-        fullText += ` ${evEndTime}`;
-      }
-      textContainer.textContent = fullText;
-
-      el.appendChild(textContainer);
-
+      el.appendChild(startSpan);
+      el.appendChild(endSpan);
       seg._el = el;
       const visibleLanes = visibleLanesPerWeek[seg.weekIdx] || 0;
       el.style.display = seg.lane >= visibleLanes ? 'none' : 'flex';
       seg._isHidden = seg.lane >= visibleLanes;
-
-      // Active le défilement si nécessaire
+      // Active le défilement uniquement si le texte est long
       setTimeout(() => {
-        if (textContainer.scrollWidth > textContainer.clientWidth) {
-          textContainer.classList.add('scrolling');
-          // Duplique le contenu pour un effet de boucle
-          textContainer.textContent += ` ${fullText}`;
-        }
+        enableScrollingText(startSpan);
+        enableScrollingText(endSpan);
       }, 100);
-
       el.addEventListener('click', e => { e.stopPropagation(); showEventModal(ev); });
       eventsLayer.appendChild(el);
     });
