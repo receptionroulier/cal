@@ -86,11 +86,11 @@
   </div>
 
 <script>
-/* ---------------- Configuration & utilitaires ---------------- */
+/* ---------------- utilitaires ---------------- */
 const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
 const CALENDAR_IDS = { reception:'receptionroulier@gmail.com', navire:'smr.programme@gmail.com' };
 const CACHE_KEY = 'caltest_v2_cache';
-const CACHE_TTL = 30000; // 30s
+const CACHE_TTL = 30000;
 
 let weekView = 3;
 let currentStartDate = new Date();
@@ -120,9 +120,6 @@ function loadCache(){
     return obj;
   }catch(e){return null;}
 }
-function hashItems(items){
-  return JSON.stringify(items).split('').reduce((a,b)=>{a=((a<<5)-a)+b.charCodeAt(0);return a&a},0);
-}
 
 async function fetchCalendar(calendarId, timeMin, timeMax){
   const base = 'https://www.googleapis.com/calendar/v3/calendars/';
@@ -136,7 +133,7 @@ async function fetchCalendar(calendarId, timeMin, timeMax){
   return res.json();
 }
 
-/* ---------------- Rendering du calendrier ---------------- */
+/* ---------------- Rendering calendrier ---------------- */
 async function renderCalendar(){
   const calendarEl = document.getElementById('calendar');
   const eventsLayer = document.getElementById('events-layer');
@@ -182,10 +179,9 @@ async function renderCalendar(){
       ...items1.map(i=>({...i, __type:'reception'})),
       ...items2.map(i=>({...i, __type:'navire'}))
     ];
-    saveCache(items, hashItems(items));
+    saveCache(items, JSON.stringify(items));
   }
 
-  // Normalisation des événements
   const norm = items.map(ev=>{
     const e = JSON.parse(JSON.stringify(ev));
     e.__type = e.__type || '';
@@ -198,9 +194,11 @@ async function renderCalendar(){
       if(e.end.dateTime) e._end = new Date(e.end.dateTime);
       else { e._end = new Date(e.end.date); e._end.setHours(0,0,0,0); }
     }
+
     if(e._isAllDay && e._end){
       const adj = new Date(e._end); adj.setDate(adj.getDate() - 1); adj.setHours(23,59,59,999); e._endInclusive = adj;
-    } else if(e._end){
+    } 
+    else if(e._end){
       const tmp = new Date(e._end);
       if(tmp.getHours()===0 && tmp.getMinutes()===0 && tmp.getSeconds()===0){
         const adj = new Date(tmp); adj.setDate(adj.getDate() - 1); adj.setHours(23,59,59,999); e._endInclusive = adj;
@@ -288,6 +286,16 @@ async function renderCalendar(){
     visibleLanesPerWeek[w] = lanes;
   }
 
+  /* -------------------------------------------------------------------
+     RÈGLE SPÉCIALE : multi-day commençant un dimanche
+     ------------------------------------------------------------------- */
+  function getFirstSegmentOfEvent(ev){
+    return segments.filter(s=>s.ev===ev).reduce((a,b)=>a.startIdx<b.startIdx?a:b);
+  }
+  function getLastSegmentOfEvent(ev){
+    return segments.filter(s=>s.ev===ev).reduce((a,b)=>a.endIdx>b.endIdx?a:b);
+  }
+
   segments.forEach(seg=>{
     const firstRect = cellRects[seg.startIdx];
     const lastRect = cellRects[seg.endIdx];
@@ -302,21 +310,48 @@ async function renderCalendar(){
     el.style.top = top + 'px';
     el.style.height = bandH + 'px';
 
-    const startSpan = document.createElement('span'); startSpan.className='start';
-    const evStartTime = seg.ev._isAllDay?'':fmtTime(seg.ev._start);
-    startSpan.textContent = (evStartTime?('<'+evStartTime+' '):'') + (seg.ev.summary||'');
-    const endSpan = document.createElement('span'); endSpan.className='end';
-    let endTimeText='';
-    if(!seg.ev._isAllDay){ const segEnd = new Date(seg.segEndDate); segEnd.setHours(23,59,59,999); endTimeText = '>' + fmtTime(seg.ev._end); }
-    endSpan.textContent = endTimeText;
+    const startSpan = document.createElement('span'); 
+    startSpan.className='start';
 
-    el.appendChild(startSpan); el.appendChild(endSpan);
+    const endSpan = document.createElement('span'); 
+    endSpan.className='end';
+
+    const ev = seg.ev;
+    const evStartTime = ev._isAllDay ? '' : fmtTime(ev._start);
+
+    const firstSeg = getFirstSegmentOfEvent(ev);
+    const lastSeg  = getLastSegmentOfEvent(ev);
+
+    const isFirstSegment = seg.startIdx === firstSeg.startIdx;
+    const isLastSegment  = seg.endIdx === lastSeg.endIdx;
+    const eventStartsSunday = ev._start.getDay() === 0;
+
+    /* ------------------ règles ------------------ */
+
+    if(eventStartsSunday){
+      if(isFirstSegment){
+        startSpan.textContent = (evStartTime ? '<' + evStartTime + ' ' : '') + (ev.summary||'');
+        endSpan.textContent = '';
+      } else {
+        startSpan.textContent = ev.summary || '';
+        endSpan.textContent = isLastSegment && !ev._isAllDay ? ('>' + fmtTime(ev._end)) : '';
+      }
+    } 
+    else {
+      // comportement normal
+      startSpan.textContent = (evStartTime?('<'+evStartTime+' '):'') + (ev.summary||'');
+      endSpan.textContent = (!ev._isAllDay && isLastSegment) ? ('>' + fmtTime(ev._end)) : '';
+    }
+
+    el.appendChild(startSpan);
+    el.appendChild(endSpan);
     seg._el = el;
+
     const visibleLanes = visibleLanesPerWeek[seg.weekIdx] || 0;
     el.style.display = seg.lane >= visibleLanes ? 'none':'flex';
     seg._isHidden = seg.lane >= visibleLanes;
 
-    el.addEventListener('click', e=>{ e.stopPropagation(); showEventModal(seg.ev); });
+    el.addEventListener('click', e=>{ e.stopPropagation(); showEventModal(ev); });
     eventsLayer.appendChild(el);
   });
 
@@ -422,7 +457,6 @@ function updateClock() {
 setInterval(updateClock, 1000);
 updateClock();
 
-/* initial render */
 renderCalendar().catch(err=>{ console.error('render error', err); document.getElementById('calendar-title').textContent='Erreur'; });
 </script>
 </body>
