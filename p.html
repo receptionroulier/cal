@@ -136,19 +136,27 @@ function normalizeData(data) {
 // =====================
 // FETCH MULTI-PROXY ALÉATOIRE
 // =====================
-async function fetchWithRandomProxy(url) {
-    const shuffledProxies = [...PROXIES].sort(() => Math.random() - 0.5);
-    for (const proxy of shuffledProxies) {
-        try {
-            const fullUrl = proxy + encodeURIComponent(url);
-            const res = await fetch(fullUrl);
-            if (!res.ok) throw new Error(`Proxy failed: ${res.status}`);
-            const data = await res.json();
-            return data.contents ? data.contents : data;
-        } catch (err) {
-            console.warn(`Échec du proxy ${proxy}:`, err.message);
-        }
+async function testProxy(proxy, url) {
+    try {
+        const res = await fetch(proxy + encodeURIComponent(url), { method: 'GET' });
+        if (!res.ok) throw new Error(`Statut HTTP ${res.status}`);
+        const data = await res.json();
+        return data.contents ? data.contents : data;
+    } catch (err) {
+        console.warn(`Échec du proxy ${proxy}:`, err.message);
+        return null;
     }
+}
+
+async function fetchWithRandomProxy(url) {
+    // Mélanger les proxys pour tester un ordre aléatoire
+    const shuffledProxies = [...PROXIES].sort(() => Math.random() - 0.5);
+    
+    for (const proxy of shuffledProxies) {
+        const result = await testProxy(proxy, url);
+        if (result !== null) return result; // Retourner dès qu’un proxy fonctionne
+    }
+    
     throw new Error("Tous les proxys ont échoué");
 }
 
