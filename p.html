@@ -98,17 +98,18 @@ const CACHE_EXPIRATION = 120000; // 2 minutes
 const REFRESH_INTERVAL = 60000; // 1 minute
 
 const PROXIES = [
-  "https://api.allorigins.win/get?url=",
-  "https://thingproxy.freeboard.io/fetch/",
-  "https://cors-anywhere.com/",                       // CORS Anywhere :contentReference[oaicite:1]{index=1}
-  "https://every-origin.vercel.app/",                 // EveryOrigin :contentReference[oaicite:3]{index=3}
-  "https://proxy.corsfix.com/?",                      // Corsfix :contentReference[oaicite:5]{index=5}
-  "https://yacdn.org/proxy/",                         // tiré d’une liste publique de proxys CORS :contentReference[oaicite:6]{index=6}
-  "https://jsonp.afeld.me/?callback=&url=",          // idem, proxy CORS gratuit :contentReference[oaicite:7]{index=7}
-  "https://crossorigin.me/",                          // crossorigin.me :contentReference[oaicite:9]{index=9}
-  "https://cors-proxy.htmldriven.com/?url=",         // autre proxy public listé dans les collections publiques :contentReference[oaicite:10]{index=10}
-  "https://test.cors.workers.dev/?",                  // proxy public via "workers" listé dans github :contentReference[oaicite:11]{index=11}
+    "https://api.allorigins.win/get?url=",
+    "https://thingproxy.freeboard.io/fetch/",
+    "https://cors-anywhere.com/",
+    "https://every-origin.vercel.app/",
+    "https://proxy.corsfix.com/?",
+    "https://yacdn.org/proxy/",
+    "https://jsonp.afeld.me/?callback=&url=",
+    "https://crossorigin.me/",
+    "https://cors-proxy.htmldriven.com/?url=",
+    "https://test.cors.workers.dev/?"
 ];
+
 // =====================
 // UTILITAIRES
 // =====================
@@ -120,7 +121,6 @@ async function sha256(str) {
         .join("");
 }
 
-// Tri et normalisation pour hash
 function normalizeData(data) {
     return JSON.stringify(data
         .map(p => ({
@@ -134,7 +134,7 @@ function normalizeData(data) {
 }
 
 // =====================
-// FETCH MULTI-PROXY ALÉATOIRE
+// FETCH MULTI-PROXY AVEC TEST
 // =====================
 async function testProxy(proxy, url) {
     try {
@@ -149,28 +149,29 @@ async function testProxy(proxy, url) {
 }
 
 async function fetchWithRandomProxy(url) {
-    // Mélanger les proxys pour tester un ordre aléatoire
     const shuffledProxies = [...PROXIES].sort(() => Math.random() - 0.5);
-    
     for (const proxy of shuffledProxies) {
         const result = await testProxy(proxy, url);
-        if (result !== null) return result; // Retourner dès qu’un proxy fonctionne
+        if (result !== null) return result;
     }
-    
     throw new Error("Tous les proxys ont échoué");
 }
 
 // =====================
 // LOGIQUE PONTS
 // =====================
-async function checkAndUpdate() {
+async function checkAndUpdate(forceUpdate = false) {
     const now = Date.now();
     const last = localStorage.getItem(CACHE_KEY_TIME);
     const container = document.getElementById("ponts-table");
 
-    if (last && now - last < CACHE_EXPIRATION) {
+    if (!forceUpdate && last && now - last < CACHE_EXPIRATION) {
         const cached = localStorage.getItem(CACHE_KEY_DATA);
-        if (cached) { renderPonts(JSON.parse(cached)); console.log("⚡ Cache utilisé"); return; }
+        if (cached) { 
+            renderPonts(JSON.parse(cached)); 
+            console.log("⚡ Cache utilisé"); 
+            return; 
+        }
     }
 
     try {
@@ -181,7 +182,6 @@ async function checkAndUpdate() {
         const ponts = Object.values(json);
         const unique = Array.from(new Map(ponts.map(p => [p.nom, p])).values());
 
-        // Tri priorité: fermé -> fermeture -> manœuvre -> ouvert
         const ordered = unique.sort((a, b) => {
             const score = p => {
                 const s = p.statutText.toLowerCase();
@@ -194,7 +194,6 @@ async function checkAndUpdate() {
             return score(a) - score(b);
         });
 
-        // Hash basé sur données normalisées
         const norm = normalizeData(ordered);
         const newHash = await sha256(norm);
         const oldHash = localStorage.getItem(CACHE_KEY_HASH);
@@ -243,8 +242,8 @@ function renderPonts(list) {
 // =====================
 // INITIALISATION
 // =====================
-checkAndUpdate();
-setInterval(checkAndUpdate, REFRESH_INTERVAL);
+checkAndUpdate(true); // Forcer la mise à jour au démarrage
+setInterval(() => checkAndUpdate(), REFRESH_INTERVAL);
 </script>
 </body>
 </html>
