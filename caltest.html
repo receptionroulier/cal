@@ -438,13 +438,18 @@
       renderCalendar();
     });
 
-    // [CORRECTION] Redimensionnement avec un délai pour éviter les bugs visuels
+    // [CORRECTION] Redimensionnement avec un délai et recalcul complet
     let resizeTimeout;
     window.addEventListener('resize', () => {
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(() => {
-        requestAnimationFrame(() => renderCalendar());
-      }, 100); // Délai de 100ms pour éviter les recalculs trop rapides
+        // Recalculer la hauteur des lignes et le rendu
+        const headerH = document.getElementById('calendar-header').getBoundingClientRect().height;
+        const availH = Math.max(240, window.innerHeight - headerH - 32);
+        const rowH = Math.floor((availH - 20) / weekView);
+        document.getElementById('calendar').style.gridAutoRows = `${rowH}px`;
+        renderCalendar();
+      }, 200); // Délai de 200ms pour éviter les recalculs trop rapides
     });
 
     document.getElementById('event-modal').addEventListener('click', hideModal);
