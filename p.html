@@ -1,13 +1,11 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Tableau de bord - Ponts</title>
 <style>
-/* =====================
-   GLOBAL
-===================== */
+/* ===================== GLOBAL ===================== */
 body {
     margin: 0;
     font-family: Arial, sans-serif;
@@ -16,10 +14,12 @@ body {
     display: flex;
     justify-content: center;
     padding: 20px;
+    scroll-behavior: smooth;
 }
 .container {
-    width: 95%;    
-    padding: 14px;
+    width: 95%;
+    max-width: 1200px;
+    padding: 12px;
     box-sizing: border-box;
     overflow-y: auto;
 }
@@ -28,17 +28,11 @@ h2 {
     color: #00e5ff;
     margin: 0 0 15px;
 }
-
-/* Responsive */
 @media (max-width: 768px) {
-    .container {
-        width: 90%;
-    }
+    .container { width: 100%; padding: 8px; }
 }
 
-/* =====================
-   CARTES PONTS
-===================== */
+/* ===================== CARTES PONTS ===================== */
 #ponts-table {
     display: flex;
     flex-direction: column;
@@ -51,6 +45,7 @@ h2 {
     box-shadow: 0 0 5px rgba(0,0,0,0.4);
     border-left: 4px solid #444;
     transition: transform 0.15s ease, box-shadow 0.3s ease;
+    word-break: break-word;
 }
 .pont-card:hover { transform: scale(1.02); }
 .pont-card.ferme { border-left-color: #ff4040; }
@@ -58,13 +53,12 @@ h2 {
 .pont-card.manoeuvre { border-left-color: #1c3cff; animation: pulse-blue 1.2s infinite; }
 .pont-card.ouvert { border-left-color: #58ff58; }
 .pastille { width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; display: inline-block; }
-.ferme .pastille    { background: #ff4040; }
+.ferme .pastille { background: #ff4040; }
 .fermeture .pastille { background: orange; }
 .manoeuvre .pastille { background: #1c3cff; }
-.ouvert .pastille   { background: #58ff58; }
+.ouvert .pastille { background: #58ff58; }
 .pont-nom { font-weight: bold; display: flex; align-items: center; }
 .pont-infos { font-size: 0.85em; color: #ccc; }
-
 @keyframes pulse-blue {
     0%,100% { box-shadow: 0 0 5px rgba(28,60,255,0.4); transform: scale(1); }
     50% { box-shadow: 0 0 20px rgba(28,60,255,0.7); transform: scale(1.02); }
@@ -88,47 +82,60 @@ h2 {
 </div>
 
 <script>
-/* ===========================================================
-   CONFIGURATION (modifie ces valeurs si nécessaire)
-   =========================================================== */
-const PROXY_STORE_KEY = "pontsProxyStore"; // stockage persisté des proxys valid/cassés
+/* ===================== CONFIGURATION ===================== */
+const PROXY_STORE_KEY = "pontsProxyStore";
 const CACHE_KEY_DATA = "pontsData";
 const CACHE_KEY_HASH = "pontsHash";
 const CACHE_KEY_TIME = "pontsCacheTime";
 
-const CACHE_EXPIRATION = 60000; // 1 minutes (durée pendant laquelle on utilise le cache sans refaire la requête)
-const REFRESH_INTERVAL = 30000; // fréquence de mise à jour des ponts (ms) -- ex : 30000 = 30s
-const PROXY_TEST_TIMEOUT = 8000; // timeout (ms) pour tester un proxy
-const FETCH_TIMEOUT = 10000; // timeout (ms) pour fetch via proxy
-const PROXY_RETEST_INTERVAL = 10 * 60 * 1000; // intervalle (ms) pour retester les proxys "cassés" (ex: 10 minutes)
-const RETEST_BATCH_SIZE = 5; // combien de proxys cassés retester par passe
+const CACHE_EXPIRATION = 60000; // 1 min
+const REFRESH_INTERVAL = 30000; // 30 s
+const PROXY_TEST_TIMEOUT = 8000;
+const FETCH_TIMEOUT = 10000;
+const PROXY_RETEST_INTERVAL = 10 * 60 * 1000;
+const RETEST_BATCH_SIZE = 5;
 
-/* Liste initiale de proxys (fallback) */
+// Liste initiale + proxys supplémentaires
 const INITIAL_PROXIES = [
     "https://api.allorigins.win/get?url=",
     "https://thingproxy.freeboard.io/fetch/",
-    "https://cors-anywhere.herokuapp.com/", // noter : cors-anywhere public souvent restreint
+    "https://cors-anywhere.herokuapp.com/",
     "https://every-origin.vercel.app/",
     "https://proxy.corsfix.com/?",
     "https://yacdn.org/proxy/",
     "https://jsonp.afeld.me/?callback=&url=",
     "https://crossorigin.me/",
     "https://cors-proxy.htmldriven.com/?url=",
-    "https://test.cors.workers.dev/?"
+    "https://test.cors.workers.dev/?",
+    "https://api.codetabs.com/v1/proxy?quest=",
+    "https://cors.bridged.cc/",
+    "https://corsproxy.io/?",
+    "https://allorigins.hexlet.app/get?url=",
+    "https://api.codetabs.com/v1/proxy?quest=",
+    "https://thingproxy.freeboard.io/fetch/",
+    "https://yacdn.org/proxy/",
+    "https://jsonp.afeld.me/?callback=&url=",
+    "https://crossorigin.me/",
+    "https://every-origin.vercel.app/",
+    "https://cors-anywhere.herokuapp.com/",
+    "https://proxy.corsfix.com/?",
+    "https://cors-proxy.htmldriven.com/?url=",
+    "https://test.cors.workers.dev/?",
+    "https://allorigins.hexlet.app/get?url=",
+    "https://cors.bridged.cc/",
+    "https://api.allorigins.win/raw?url=",
+    "https://thingproxy.freeboard.io/fetch/",
+    "https://yacdn.org/proxy/",
+    "https://jsonp.afeld.me/?callback=&url="
 ];
 
-/* ===========================================================
-   ÉTAT EN MÉMOIRE
-   =========================================================== */
+/* ===================== ÉTAT ===================== */
 let validProxies = [];
 let brokenProxies = [];
 let allProxies = Array.from(new Set(INITIAL_PROXIES));
 
-/* ===========================================================
-   UTILITAIRES
-   =========================================================== */
+/* ===================== UTILITAIRES ===================== */
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-
 async function withTimeout(promiseFactory, ms) {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), ms);
@@ -136,389 +143,166 @@ async function withTimeout(promiseFactory, ms) {
         const res = await promiseFactory(controller.signal);
         clearTimeout(id);
         return res;
-    } finally {
-        clearTimeout(id);
-    }
+    } finally { clearTimeout(id); }
 }
-
 async function fetchWithTimeout(url, options = {}, timeout = FETCH_TIMEOUT) {
-    return withTimeout(async (signal) => {
-        const merged = { ...options, signal };
-        return fetch(url, merged);
-    }, timeout);
+    return withTimeout(signal => fetch(url, {...options, signal}), timeout);
 }
-
 async function sha256(str) {
     const data = new TextEncoder().encode(str);
     const digest = await crypto.subtle.digest("SHA-256", data);
-    return Array.from(new Uint8Array(digest))
-        .map(b => b.toString(16).padStart(2, "0"))
-        .join("");
+    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, "0")).join("");
 }
-
 function normalizeData(data) {
-    return JSON.stringify(data
-        .map(p => ({
-            nom: p.nom,
-            statutText: p.statutText,
-            date: p.date,
-            forceText: p.forceText || ""
-        }))
-        .sort((a, b) => a.nom.localeCompare(b.nom))
-    );
+    return JSON.stringify(data.map(p => ({
+        nom: p.nom, statutText: p.statutText, date: p.date, forceText: p.forceText || ""
+    })).sort((a,b) => a.nom.localeCompare(b.nom)));
 }
 
-function parseProxyPayload(raw) {
-    if (!raw) return null;
-    if (typeof raw === "string") {
-        try { return JSON.parse(raw); } catch (e) { return null; }
-    }
-    if (typeof raw === "object") {
-        if (raw.contents && typeof raw.contents === "string") {
-            try { return JSON.parse(raw.contents); } catch (e) { return null; }
-        }
-        return raw;
-    }
-    return null;
-}
+/* ===================== PROXY STORE ===================== */
+function loadProxyStoreFromLS() { try { return JSON.parse(localStorage.getItem(PROXY_STORE_KEY)); } catch(e){return null;} }
+function saveProxyStoreToLS(store) { try { localStorage.setItem(PROXY_STORE_KEY, JSON.stringify(store)); } catch(e){} }
 
-/* ===========================================================
-   PERSISTENCE DES PROXYS
-   =========================================================== */
-function loadProxyStoreFromLS() {
-    try {
-        const raw = localStorage.getItem(PROXY_STORE_KEY);
-        if (!raw) return null;
-        return JSON.parse(raw);
-    } catch (e) { return null; }
-}
-
-function saveProxyStoreToLS(store) {
-    try {
-        localStorage.setItem(PROXY_STORE_KEY, JSON.stringify(store));
-    } catch (e) { /* ignore */ }
-}
-
-/* ===========================================================
-   TEST SIMPLE D'UN PROXY
-   - renvoie { ok: true, parsed } ou { ok: false, error/status }
-   =========================================================== */
+/* ===================== TEST PROXY ===================== */
 async function testProxySimple(proxy, targetUrl, timeout = PROXY_TEST_TIMEOUT) {
     try {
-        const res = await withTimeout(async (signal) => {
-            const full = proxy + encodeURIComponent(targetUrl);
-            return fetch(full, { method: 'GET', signal });
-        }, timeout);
-        if (!res.ok) return { ok: false, status: res.status };
-        const contentType = res.headers.get('content-type') || '';
+        const res = await withTimeout(signal => fetch(proxy + encodeURIComponent(targetUrl), { method: 'GET', signal }), timeout);
+        if(!res.ok) return {ok:false, status: res.status};
+        const ct = res.headers.get('content-type')||'';
         let parsed = null;
-        if (contentType.includes('application/json')) {
-            parsed = await res.json();
-        } else {
-            const text = await res.text();
-            try { parsed = JSON.parse(text); } catch (e) { parsed = text; }
-        }
-        return { ok: true, parsed };
-    } catch (err) {
-        return { ok: false, error: err && err.message ? err.message : String(err) };
-    }
+        if(ct.includes('application/json')) parsed = await res.json();
+        else { const text = await res.text(); try { parsed = JSON.parse(text); } catch(e){parsed=text;} }
+        return {ok:true, parsed};
+    } catch(err) { return {ok:false, error: err && err.message ? err.message : String(err)}; }
 }
 
-/* ===========================================================
-   PRÉ-TEST AU DÉMARRAGE
-   - on charge le store local si présent (fast start)
-   - on teste les proxys (batch) et on remplit validProxies / brokenProxies
-   =========================================================== */
-async function preTestProxies(targetUrl) {
+/* ===================== PRÉ-TEST PROXYS ===================== */
+async function preTestProxies(targetUrl){
     const store = loadProxyStoreFromLS();
-    if (store && Array.isArray(store.validProxies) && store.validProxies.length) {
-        validProxies = Array.from(new Set(store.validProxies));
-        brokenProxies = Array.isArray(store.brokenProxies) ? Array.from(new Set(store.brokenProxies)) : [];
-        allProxies = Array.from(new Set([...allProxies, ...validProxies, ...brokenProxies]));
-        console.log("💾 Proxies chargés depuis localStorage:", validProxies.length, "valide(s),", brokenProxies.length, "cassé(s)");
-    } else {
-        validProxies = [];
-        brokenProxies = Array.from(new Set(allProxies));
-    }
+    if(store){
+        validProxies = Array.from(new Set(store.validProxies||[]));
+        brokenProxies = Array.from(new Set(store.brokenProxies||[]));
+        allProxies = Array.from(new Set([...allProxies,...validProxies,...brokenProxies]));
+    } else { validProxies=[]; brokenProxies=Array.from(new Set(allProxies)); }
 
-    const toTest = Array.from(new Set([...validProxies, ...brokenProxies, ...allProxies]));
-    console.log("🔎 Pré-test des proxys (total list):", toTest.length);
-
-    const concurrency = 6;
-    const results = [];
-    let idx = 0;
-    async function worker() {
-        while (idx < toTest.length) {
-            const p = toTest[idx++];
-            try {
-                const r = await testProxySimple(p, targetUrl, PROXY_TEST_TIMEOUT);
-                results.push({ proxy: p, result: r });
-            } catch (e) {
-                results.push({ proxy: p, result: { ok: false, error: e && e.message ? e.message : String(e) } });
-            }
+    const toTest = Array.from(new Set([...validProxies,...brokenProxies,...allProxies]));
+    const concurrency = 6; let idx=0; const results=[];
+    async function worker(){
+        while(idx<toTest.length){
+            const p=toTest[idx++];
+            const r = await testProxySimple(p,targetUrl,PROXY_TEST_TIMEOUT).catch(e=>({ok:false,error:String(e)}));
+            results.push({proxy:p,result:r});
         }
     }
-    const workers = Array(concurrency).fill(0).map(() => worker());
-    await Promise.all(workers);
-
-    const newValids = [];
-    const newBroken = [];
-    for (const entry of results) {
-        if (entry.result && entry.result.ok) newValids.push(entry.proxy);
-        else newBroken.push(entry.proxy);
-    }
-
-    if (newValids.length === 0 && results.length > 0) {
-        // garder au moins un proxy pour tenter (éviter liste vide)
-        newValids.push(results[0].proxy);
-    }
-
+    await Promise.all(Array(concurrency).fill(0).map(()=>worker()));
+    const newValids=[],newBroken=[];
+    for(const entry of results){ if(entry.result && entry.result.ok) newValids.push(entry.proxy); else newBroken.push(entry.proxy);}
+    if(newValids.length===0 && results.length>0) newValids.push(results[0].proxy);
     validProxies = Array.from(new Set(newValids));
-    brokenProxies = Array.from(new Set(newBroken.filter(p => !validProxies.includes(p))));
-    allProxies = Array.from(new Set([...allProxies, ...validProxies, ...brokenProxies]));
-
-    saveProxyStoreToLS({ validProxies, brokenProxies, timestamp: Date.now() });
-
-    console.log(`✅ Pré-test terminé — valides: ${validProxies.length}, cassés: ${brokenProxies.length}`);
-    return { validProxies, brokenProxies };
+    brokenProxies = Array.from(new Set(newBroken.filter(p=>!validProxies.includes(p))));
+    allProxies = Array.from(new Set([...allProxies,...validProxies,...brokenProxies]));
+    saveProxyStoreToLS({validProxies,brokenProxies,timestamp:Date.now()});
 }
 
-/* ===========================================================
-   RETEST DES PROXYS CASSÉS (par batch, périodique)
-   =========================================================== */
-async function retestBrokenProxies(targetUrl) {
-    if (!brokenProxies || brokenProxies.length === 0) return;
-    const toRetest = brokenProxies.slice(0, RETEST_BATCH_SIZE);
-    console.log("🔁 Retest proxys cassés (batch):", toRetest);
-    for (const p of toRetest) {
-        const res = await testProxySimple(p, targetUrl, PROXY_TEST_TIMEOUT);
-        if (res.ok) {
-            validProxies.push(p);
-            brokenProxies = brokenProxies.filter(x => x !== p);
-            console.log("♻️ Proxy rétabli :", p);
-            saveProxyStoreToLS({ validProxies: Array.from(new Set(validProxies)), brokenProxies, timestamp: Date.now() });
-        } else {
-            // réplacer en fin de file pour rotation
-            brokenProxies = brokenProxies.filter(x => x !== p).concat(p);
-            console.log("⛔ Toujours cassé :", p);
-        }
-        await sleep(300); // petit délai entre tests pour ne pas surcharger
+/* ===================== RETEST PROXYS CASSÉS ===================== */
+async function retestBrokenProxies(targetUrl){
+    if(!brokenProxies.length) return;
+    const toRetest = brokenProxies.slice(0,RETEST_BATCH_SIZE);
+    for(const p of toRetest){
+        const res = await testProxySimple(p,targetUrl,PROXY_TEST_TIMEOUT);
+        if(res.ok){ validProxies.push(p); brokenProxies=brokenProxies.filter(x=>x!==p); saveProxyStoreToLS({validProxies:Array.from(new Set(validProxies)), brokenProxies,timestamp:Date.now()}); }
+        else { brokenProxies = brokenProxies.filter(x=>x!==p).concat(p); }
+        await sleep(300);
     }
 }
 
-/* ===========================================================
-   FETCH VIA POOL DE PROXYS
-   - on utilise d'abord validProxies, ensuite brokenProxies, puis allProxies
-   - chaque tentative a un timeout
-   - on marque proxys comme valid/broken selon résultat
-   =========================================================== */
-function shuffle(a) { return a.slice().sort(() => Math.random() - 0.5); }
-
-async function fetchWithPool(url) {
-    const lists = [shuffle(validProxies), shuffle(brokenProxies), shuffle(allProxies)];
-    for (const list of lists) {
-        if (!list || list.length === 0) continue;
-        for (const proxy of list) {
-            try {
-                const full = proxy + encodeURIComponent(url);
-                const res = await fetchWithTimeout(full, { method: 'GET' }, FETCH_TIMEOUT);
-                if (!res.ok) {
-                    console.warn(`Proxy ${proxy} renvoyé status ${res.status}`);
-                    if (res.status >= 500 && !brokenProxies.includes(proxy)) {
-                        brokenProxies.push(proxy);
-                        validProxies = validProxies.filter(p => p !== proxy);
-                        saveProxyStoreToLS({ validProxies, brokenProxies, timestamp: Date.now() });
-                    }
-                    continue;
-                }
-                const contentType = res.headers.get('content-type') || '';
-                let raw;
-                if (contentType.includes('application/json')) {
-                    raw = await res.json();
-                } else {
-                    const text = await res.text();
-                    try { raw = JSON.parse(text); } catch (e) { raw = text; }
-                }
-                if (!validProxies.includes(proxy)) {
-                    validProxies.push(proxy);
-                    brokenProxies = brokenProxies.filter(p => p !== proxy);
-                    saveProxyStoreToLS({ validProxies: Array.from(new Set(validProxies)), brokenProxies, timestamp: Date.now() });
-                }
+/* ===================== FETCH AVEC POOL ===================== */
+function shuffle(a){return a.slice().sort(()=>Math.random()-0.5);}
+async function fetchWithPool(url){
+    const lists=[shuffle(validProxies),shuffle(brokenProxies),shuffle(allProxies)];
+    for(const list of lists){ if(!list||!list.length) continue;
+        for(const proxy of list){
+            try{
+                const res = await fetchWithTimeout(proxy + encodeURIComponent(url),{method:'GET'},FETCH_TIMEOUT);
+                if(!res.ok){ if(res.status>=500 && !brokenProxies.includes(proxy)){brokenProxies.push(proxy); validProxies=validProxies.filter(p=>p!==proxy); saveProxyStoreToLS({validProxies,brokenProxies,timestamp:Date.now()}); } continue;}
+                const ct=res.headers.get('content-type')||''; let raw;
+                if(ct.includes('application/json')) raw=await res.json();
+                else { const text=await res.text(); try{raw=JSON.parse(text);}catch(e){raw=text;} }
+                if(!validProxies.includes(proxy)){ validProxies.push(proxy); brokenProxies=brokenProxies.filter(p=>p!==proxy); saveProxyStoreToLS({validProxies:Array.from(new Set(validProxies)),brokenProxies,timestamp:Date.now()}); }
                 return raw;
-            } catch (err) {
-                console.warn(`Erreur fetch via proxy ${proxy}:`, err && err.message ? err.message : err);
-                if (!brokenProxies.includes(proxy)) {
-                    brokenProxies.push(proxy);
-                    validProxies = validProxies.filter(p => p !== proxy);
-                    saveProxyStoreToLS({ validProxies, brokenProxies, timestamp: Date.now() });
-                }
-                await sleep(150);
-                continue;
-            }
+            } catch(err){ if(!brokenProxies.includes(proxy)){ brokenProxies.push(proxy); validProxies=validProxies.filter(p=>p!==proxy); saveProxyStoreToLS({validProxies,brokenProxies,timestamp:Date.now()}); } await sleep(150); continue; }
         }
-    }
-    return null; // aucun proxy n'a fonctionné
-}
-
-/* ===========================================================
-   LOGIQUE PONTS
-   =========================================================== */
-function parseRawContentToData(raw) {
-    try {
-        if (!raw) return null;
-        if (typeof raw === "string") {
-            let j = null;
-            try { j = JSON.parse(raw); } catch (e) { return null; }
-            if (j && j.data) return j.data;
-            return j;
-        }
-        if (typeof raw === "object") {
-            if (raw.data) return raw.data;
-            if (raw.contents) {
-                try {
-                    const inner = JSON.parse(raw.contents);
-                    if (inner && inner.data) return inner.data;
-                    return inner;
-                } catch (e) { return null; }
-            }
-            return raw;
-        }
-    } catch (e) {
-        return null;
     }
     return null;
 }
 
-async function checkAndUpdate(forceUpdate = false) {
-    const now = Date.now();
-    const last = localStorage.getItem(CACHE_KEY_TIME);
-    const container = document.getElementById("ponts-table");
+/* ===================== LOGIQUE PONTS ===================== */
+function parseRawContentToData(raw){
+    if(!raw) return null;
+    if(typeof raw==='string'){ try{ const j=JSON.parse(raw); return j?.data || j;}catch(e){return null;} }
+    if(typeof raw==='object'){ if(raw.data) return raw.data; if(raw.contents){ try{ const inner=JSON.parse(raw.contents); return inner?.data || inner;}catch(e){return null;} } return raw;}
+    return null;
+}
 
-    if (!forceUpdate && last && now - last < CACHE_EXPIRATION) {
-        const cached = localStorage.getItem(CACHE_KEY_DATA);
-        if (cached) {
-            try {
-                renderPonts(JSON.parse(cached));
-                console.log("⚡ Cache utilisé (valide)");
-                return;
-            } catch (e) {
-                console.warn("Erreur parsing cache:", e);
-            }
-        }
+async function checkAndUpdate(forceUpdate=false){
+    const now=Date.now();
+    const last=localStorage.getItem(CACHE_KEY_TIME);
+    const container=document.getElementById("ponts-table");
+    if(!forceUpdate && last && now-last<CACHE_EXPIRATION){
+        const cached=localStorage.getItem(CACHE_KEY_DATA);
+        if(cached){ try{ renderPonts(JSON.parse(cached)); return; } catch(e){} }
     }
-
-    try {
+    try{
         const raw = await fetchWithPool("https://www.havre-port.com/map/getPonts");
-        if (!raw) throw new Error("Aucun proxy n'a répondu");
-
-        const data = parseRawContentToData(raw);
-        if (!data) throw new Error("Impossible d'extraire les données de la réponse API");
-
+        if(!raw) throw new Error("Aucun proxy n'a répondu");
+        const data=parseRawContentToData(raw);
+        if(!data) throw new Error("Impossible d'extraire les données de la réponse API");
         const ponts = Object.values(data);
-        const unique = Array.from(new Map(ponts.map(p => [p.nom, p])).values());
-
-        const ordered = unique.sort((a, b) => {
-            const score = p => {
-                const s = (p.statutText || "").toLowerCase();
-                if (s.includes("fermé")) return 1;
-                if (s.includes("fermeture")) return 2;
-                if (s.includes("manoeuvre") || s.includes("manœuvre")) return 3;
-                if (s.includes("ouvert")) return 4;
-                return 5;
-            };
-            return score(a) - score(b);
+        const unique = Array.from(new Map(ponts.map(p=>[p.nom,p])).values());
+        const ordered = unique.sort((a,b)=>{
+            const score = p => { const s=(p.statutText||'').toLowerCase(); if(s.includes("fermé")) return 1; if(s.includes("fermeture")) return 2; if(s.includes("manoeuvre")||s.includes("manœuvre")) return 3; if(s.includes("ouvert")) return 4; return 5; };
+            return score(a)-score(b);
         });
-
         const norm = normalizeData(ordered);
         const newHash = await sha256(norm);
         const oldHash = localStorage.getItem(CACHE_KEY_HASH);
-
-        if (newHash !== oldHash) {
-            localStorage.setItem(CACHE_KEY_DATA, JSON.stringify(ordered));
-            localStorage.setItem(CACHE_KEY_HASH, newHash);
-            console.log("🔄 Cache mis à jour (nouveau hash)");
-        } else {
-            console.log("✅ Données inchangées (hash identique)");
+        if(newHash!==oldHash){
+            localStorage.setItem(CACHE_KEY_DATA,JSON.stringify(ordered));
+            localStorage.setItem(CACHE_KEY_HASH,newHash);
         }
-        localStorage.setItem(CACHE_KEY_TIME, Date.now());
+        localStorage.setItem(CACHE_KEY_TIME,Date.now());
         renderPonts(ordered);
-    } catch (err) {
-        console.warn("Erreur récupération ponts:", err && err.message ? err.message : err);
-        const cached = localStorage.getItem(CACHE_KEY_DATA);
-        if (cached) {
-            try {
-                renderPonts(JSON.parse(cached));
-                console.log("⚠️ Utilisation du dernier cache valide (fallback)");
-            } catch (e) {
-                container.innerHTML = `<div class="error-message">Impossible de récupérer les ponts et le cache est corrompu.</div>`;
-            }
-        } else {
-            container.innerHTML = `<div class="error-message">Impossible de récupérer les ponts et aucun cache disponible.</div>`;
-        }
+    } catch(err){
+        const cached=localStorage.getItem(CACHE_KEY_DATA);
+        if(cached){ try{ renderPonts(JSON.parse(cached)); } catch(e){ container.innerHTML='<div class="error-message">Impossible de récupérer les ponts et le cache est corrompu.</div>'; } }
+        else{ container.innerHTML='<div class="error-message">Impossible de récupérer les ponts et aucun cache disponible.</div>'; }
     }
 }
 
-/* ===========================================================
-   RENDER
-   =========================================================== */
-function renderPonts(list) {
-    const container = document.getElementById("ponts-table");
-    if (!list || !list.length) {
-        container.innerHTML = '<div class="error-message">Aucun pont disponible.</div>';
-        return;
-    }
-
-    container.innerHTML = list.map(p => {
-        const statut = (p.statutText || "").toLowerCase();
-        const open = statut.includes("ouvert");
-        const move = statut.includes("manoeuvre") || statut.includes("manœuvre");
-        const fermeture = statut.includes("fermeture");
-        const ferme = statut.includes("fermé") || statut.includes("ferme");
-        const cls = ferme ? "ferme" : fermeture ? "fermeture" : move ? "manoeuvre" : open ? "ouvert" : "ferme";
-        const info = p.forceText || `MàJ : ${p.date || "inconnue"}`;
-
-        return `
-            <div class="pont-card ${cls}">
-                <div class="pont-nom">
-                    <span class="pastille" aria-label="Statut: ${p.statutText || 'inconnu'}"></span>${p.nom || 'Pont sans nom'}
-                </div>
-                <div class="pont-etat">${p.statutText || ''}</div>
-                <div class="pont-infos">${info}</div>
-            </div>
-        `;
-    }).join("");
+/* ===================== RENDER ===================== */
+function renderPonts(list){
+    const container=document.getElementById("ponts-table");
+    if(!list||!list.length){ container.innerHTML='<div class="error-message">Aucun pont disponible.</div>'; return; }
+    container.innerHTML=list.map(p=>{
+        const statut=(p.statutText||'').toLowerCase();
+        const open=statut.includes('ouvert');
+        const move=statut.includes('manoeuvre')||statut.includes('manœuvre');
+        const fermeture=statut.includes('fermeture');
+        const ferme=statut.includes('fermé')||statut.includes('ferme');
+        const cls = ferme ? 'ferme' : fermeture ? 'fermeture' : move ? 'manoeuvre' : open ? 'ouvert' : 'ferme';
+        const info=p.forceText||`MàJ : ${p.date||'inconnue'}`;
+        return `<div class="pont-card ${cls}"><div class="pont-nom"><span class="pastille" aria-label="Statut: ${p.statutText||'inconnu'}"></span>${p.nom||'Pont sans nom'}</div><div class="pont-etat">${p.statutText||''}</div><div class="pont-infos">${info}</div></div>`;
+    }).join('');
 }
 
-/* ===========================================================
-   INITIALISATION
-   - pré-test des proxys au démarrage
-   - planification du retest périodique des proxys cassés (PROXY_RETEST_INTERVAL)
-   - checkAndUpdate(force=true) au démarrage
-   - boucle régulière REFRESH_INTERVAL pour mise à jour des ponts
-   =========================================================== */
-(async function init() {
-    const target = "https://www.havre-port.com/map/getPonts";
-    try {
-        await preTestProxies(target);
-    } catch (e) {
-        console.warn("Pré-test proxys a planté :", e);
-    }
-
-    // Lancer retest périodique des proxys cassés (utilise PROXY_RETEST_INTERVAL)
-    setInterval(() => {
-        retestBrokenProxies(target).catch(e => console.warn("Erreur retestBrokenProxies:", e));
-    }, PROXY_RETEST_INTERVAL);
-
-    // Forcer une mise à jour au démarrage pour obtenir l'état le plus récent
+/* ===================== INITIALISATION ===================== */
+(async function init(){
+    const target="https://www.havre-port.com/map/getPonts";
+    await preTestProxies(target).catch(e=>console.warn(e));
+    setInterval(()=>retestBrokenProxies(target).catch(e=>console.warn(e)),PROXY_RETEST_INTERVAL);
     checkAndUpdate(true);
-
-    // Boucle régulière pour mises à jour
-    setInterval(() => checkAndUpdate(false), REFRESH_INTERVAL);
-
-    // En background, relancer un pré-test court après quelques secondes pour raffiner validProxies
-    setTimeout(() => {
-        preTestProxies(target).catch(e => console.warn("Second preTest failed:", e));
-    }, 5000);
+    setInterval(()=>checkAndUpdate(false),REFRESH_INTERVAL);
+    setTimeout(()=>{ preTestProxies(target).catch(e=>console.warn(e)); },5000);
 })();
 </script>
 
