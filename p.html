@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Tableau de bord - Ponts</title>
 <style>
 /* =====================
@@ -88,16 +88,24 @@ h2 {
 </div>
 
 <script>
-// =====================
-// CONFIGURATION
-// =====================
+/* ===========================================================
+   CONFIGURATION
+   =========================================================== */
 const CACHE_KEY_DATA = "pontsData";
 const CACHE_KEY_HASH = "pontsHash";
 const CACHE_KEY_TIME = "pontsCacheTime";
-const CACHE_EXPIRATION = 120000; // 2 minutes
-const REFRESH_INTERVAL = 60000; // 1 minute
 
-const PROXIES = [
+const PROXY_STORE_KEY = "pontsProxyStore"; // persist valid/broken proxies
+const CACHE_EXPIRATION = 120000; // 2 minutes
+const REFRESH_INTERVAL = 60000; // 1 minute between updates
+const PROXY_TEST_TIMEOUT = 8000; // ms timeout pour tester un proxy
+const FETCH_TIMEOUT = 10000; // ms timeout pour fetch réel via proxy
+const RETEST_INTERVAL = 10 * 60 * 1000; // retest des proxys tombés toutes les 10 min
+const RETEST_BATCH_SIZE = 3; // combien de proxys "cassés" retester à chaque passe
+
+/* Liste initiale (fallback) de proxys à tester si rien en stockage.
+   Tu peux en ajouter/supprimer selon ton expérience */
+const INITIAL_PROXIES = [
     "https://api.allorigins.win/get?url=",
     "https://thingproxy.freeboard.io/fetch/",
     "https://cors-anywhere.com/",
@@ -110,9 +118,43 @@ const PROXIES = [
     "https://test.cors.workers.dev/?"
 ];
 
-// =====================
-// UTILITAIRES
-// =====================
+/* ===========================================================
+   ÉTAT LOCAL (en mémoire)
+   validProxies: proxys testés et valides (préférés)
+   brokenProxies: proxys qui ont échoué au test
+   allProxies: union / source
+   =========================================================== */
+let validProxies = [];
+let brokenProxies = [];
+let allProxies = [...INITIAL_PROXIES];
+
+/* ===========================================================
+   UTILITAIRES
+   =========================================================== */
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function withTimeout(promise, ms, onAbort) {
+    const controller = new AbortController();
+    const id = setTimeout(() => {
+        controller.abort();
+        if (typeof onAbort === "function") onAbort();
+    }, ms);
+    try {
+        const res = await promise(controller.signal);
+        clearTimeout(id);
+        return res;
+    } finally {
+        clearTimeout(id);
+    }
+}
+
+async function fetchWithTimeout(url, options = {}, timeout = FETCH_TIMEOUT) {
+    return withTimeout(async (signal) => {
+        const merged = { ...options, signal };
+        return fetch(url, merged);
+    }, timeout, () => {});
+}
+
 async function sha256(str) {
     const data = new TextEncoder().encode(str);
     const digest = await crypto.subtle.digest("SHA-256", data);
@@ -133,64 +175,315 @@ function normalizeData(data) {
     );
 }
 
-// =====================
-// FETCH MULTI-PROXY AVEC TEST
-// =====================
-async function testProxy(proxy, url) {
+/* Parse robuste de la réponse "raw" retournée par le proxy.
+   Peut recevoir :
+   - un objet JS (avec .data)
+   - une string (qui peut contenir JSON)
+   - un objet { contents: '...'} (allorigins)
+   On renvoie l'objet JS final (ou null si parse fail). */
+function parseProxyPayload(raw) {
+    if (!raw) return null;
+    // si c'est une string, tenter parse JSON
+    if (typeof raw === "string") {
+        try { return JSON.parse(raw); } catch (e) { return null; }
+    }
+    // si objet et a une propriété 'contents' (allorigins style), tenter parse contents
+    if (typeof raw === "object") {
+        if (raw.contents && typeof raw.contents === "string") {
+            try {
+                return JSON.parse(raw.contents);
+            } catch (e) {
+                return null;
+            }
+        }
+        return raw; // on suppose un objet déjà
+    }
+    return null;
+}
+
+/* ===========================================================
+   PERSISTENCE DES PROXYS (stocker valid/broken pour accélérer)
+   =========================================================== */
+function loadProxyStoreFromLS() {
     try {
-        const res = await fetch(proxy + encodeURIComponent(url), { method: 'GET' });
-        if (!res.ok) throw new Error(`Statut HTTP ${res.status}`);
-        const data = await res.json();
-        return data.contents ? data.contents : data;
+        const raw = localStorage.getItem(PROXY_STORE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        return parsed;
+    } catch (e) { return null; }
+}
+function saveProxyStoreToLS(store) {
+    try {
+        localStorage.setItem(PROXY_STORE_KEY, JSON.stringify(store));
+    } catch (e) { /* ignore */ }
+}
+
+/* ===========================================================
+   TEST DES PROXYS
+   - testProxySimple: teste un proxy une fois (avec timeout)
+   - preTestProxies: au démarrage, on teste tous (ou ceux en store)
+   =========================================================== */
+async function testProxySimple(proxy, targetUrl, timeout = PROXY_TEST_TIMEOUT) {
+    // On fait un fetch rapide avec timeout; si réponse ok on renvoie true + contenu
+    try {
+        const res = await withTimeout(async (signal) => {
+            // certains proxies attendent l'url encodée à la fin, d'autres utilisent param 'url='
+            // Ici on assume que la chaîne proxy est un préfixe où on concatène encodeURIComponent(url)
+            // (c'est le format utilisé dans INITIAL_PROXIES)
+            const full = proxy + encodeURIComponent(targetUrl);
+            const r = await fetch(full, { method: 'GET', signal });
+            return r;
+        }, timeout, () => {});
+        if (!res.ok) {
+            return { ok: false, status: res.status };
+        }
+        // essayer de parser JSON léger (ou au moins vérifier qu'on a quelque chose)
+        const contentType = res.headers.get('content-type') || '';
+        let parsed = null;
+        if (contentType.includes('application/json')) {
+            parsed = await res.json();
+        } else {
+            // tenter de parser en texte puis JSON (beaucoup de proxys renvoient JSON même si header absent)
+            const text = await res.text();
+            try { parsed = JSON.parse(text); } catch (e) { parsed = text; }
+        }
+        // Si on obtient quelque chose, considérer le proxy valide
+        return { ok: true, parsed };
     } catch (err) {
-        console.warn(`Échec du proxy ${proxy}:`, err.message);
+        return { ok: false, error: err.message || String(err) };
+    }
+}
+
+async function preTestProxies(targetUrl) {
+    // Charger store depuis LS si présent (pour accélérer)
+    const store = loadProxyStoreFromLS();
+    if (store && Array.isArray(store.validProxies) && store.validProxies.length) {
+        // On démarre avec ce store mais on va retester rapidement en background
+        validProxies = [...new Set(store.validProxies)];
+        brokenProxies = Array.isArray(store.brokenProxies) ? [...new Set(store.brokenProxies)] : [];
+        allProxies = Array.from(new Set([...allProxies, ...validProxies, ...brokenProxies]));
+        console.log("💾 Proxies chargés depuis localStorage:", validProxies.length, "valide(s),", brokenProxies.length, "cassé(s)");
+    } else {
+        // prendre la liste initiale
+        validProxies = [];
+        brokenProxies = [...allProxies];
+    }
+
+    // Si on a peu ou pas de validProxies, tester un ensemble initial
+    const toTest = Array.from(new Set([...validProxies, ...brokenProxies, ...allProxies]));
+    console.log("🔎 Pré-test des proxys (total list):", toTest.length);
+
+    // lancer tests en batch (limiter concurrence)
+    const concurrency = 6;
+    const results = [];
+    let idx = 0;
+    async function worker() {
+        while (idx < toTest.length) {
+            const p = toTest[idx++];
+            try {
+                const r = await testProxySimple(p, targetUrl, PROXY_TEST_TIMEOUT);
+                results.push({ proxy: p, result: r });
+            } catch (e) {
+                results.push({ proxy: p, result: { ok: false, error: e.message } });
+            }
+        }
+    }
+    // démarrer workers
+    const workers = Array(concurrency).fill(0).map(() => worker());
+    await Promise.all(workers);
+
+    // classer résultats
+    const newValids = [];
+    const newBroken = [];
+    for (const entry of results) {
+        if (entry.result && entry.result.ok) newValids.push(entry.proxy);
+        else newBroken.push(entry.proxy);
+    }
+
+    // si aucun valid trouvé, garder la plus probable (on veut avoir quelque chose pour essayer)
+    if (newValids.length === 0 && results.length > 0) {
+        // prendre le premier résultat "ok-like" (status < 500) ou sinon le premier proxy pour tenter
+        const prefer = results.find(r => r.result && r.result.ok) || results[0];
+        if (prefer) newValids.push(prefer.proxy);
+    }
+
+    // appliquer
+    validProxies = Array.from(new Set(newValids));
+    brokenProxies = Array.from(new Set(newBroken.filter(p => !validProxies.includes(p))));
+    allProxies = Array.from(new Set([...allProxies, ...validProxies, ...brokenProxies]));
+
+    // sauvegarder en localStorage pour accélérer prochains démarrages
+    saveProxyStoreToLS({ validProxies, brokenProxies, timestamp: Date.now() });
+
+    console.log(`✅ Pré-test terminé — valides: ${validProxies.length}, cassés: ${brokenProxies.length}`);
+    return { validProxies, brokenProxies };
+}
+
+/* ===========================================================
+   RETEST PROXYS "CASSÉS" EN ARRIÈRE-PLAN (par batch)
+   - retestBrokenProxies: reteste RETEST_BATCH_SIZE proxys cassés
+   - planifié périodiquement
+   =========================================================== */
+async function retestBrokenProxies(targetUrl) {
+    if (!brokenProxies || brokenProxies.length === 0) return;
+    const toRetest = brokenProxies.slice(0, RETEST_BATCH_SIZE);
+    console.log("🔁 Retest proxys cassés (batch):", toRetest);
+    for (const p of toRetest) {
+        const res = await testProxySimple(p, targetUrl, PROXY_TEST_TIMEOUT);
+        if (res.ok) {
+            // remettre dans valides
+            validProxies.push(p);
+            brokenProxies = brokenProxies.filter(x => x !== p);
+            console.log("♻️ Proxy rétabli :", p);
+            saveProxyStoreToLS({ validProxies: Array.from(new Set(validProxies)), brokenProxies, timestamp: Date.now() });
+        } else {
+            // le laisser cassé mais on peut le tourner vers la fin de liste
+            brokenProxies = brokenProxies.filter(x => x !== p).concat(p);
+            console.log("⛔ Toujours cassé :", p);
+        }
+        // petit délai pour éviter rafales
+        await sleep(400);
+    }
+}
+
+/* ===========================================================
+   FETCH AVEC POOL DE PROXYS
+   - On utilise d'abord validProxies (ordre mélangé)
+   - Si rien, on retente brokenProxies (ordre mélangé)
+   - Chaque tentative a un timeout; si réponse OK, on retourne le contenu
+   - Si aucun proxy ne répond, retourne null (caller fait fallback cache)
+   =========================================================== */
+function shuffle(a) { return a.slice().sort(() => Math.random() - 0.5); }
+
+async function fetchWithPool(url) {
+    const tryLists = [
+        shuffle(validProxies),
+        shuffle(brokenProxies),
+        shuffle(allProxies)
+    ];
+
+    for (const list of tryLists) {
+        if (!list || list.length === 0) continue;
+        for (const proxy of list) {
+            try {
+                // faire une requête via proxy avec timeout
+                const full = proxy + encodeURIComponent(url);
+                const res = await fetchWithTimeout(full, { method: 'GET' }, FETCH_TIMEOUT);
+                if (!res.ok) {
+                    console.warn(`Proxy ${proxy} renvoyé status ${res.status}`);
+                    // marquer comme cassé si 5xx
+                    if (res.status >= 500 && !brokenProxies.includes(proxy)) {
+                        brokenProxies.push(proxy);
+                        validProxies = validProxies.filter(p => p !== proxy);
+                        saveProxyStoreToLS({ validProxies, brokenProxies, timestamp: Date.now() });
+                    }
+                    continue;
+                }
+                // lire payload
+                const contentType = res.headers.get('content-type') || '';
+                let raw;
+                if (contentType.includes('application/json')) {
+                    raw = await res.json();
+                } else {
+                    raw = await res.text();
+                    // essayer de parser JSON si possible
+                    try { raw = JSON.parse(raw); } catch (e) { /* keep text */ }
+                }
+                // si ok, considérer proxy valide et sauvegarder si nouveau
+                if (!validProxies.includes(proxy)) {
+                    validProxies.push(proxy);
+                    brokenProxies = brokenProxies.filter(p => p !== proxy);
+                    saveProxyStoreToLS({ validProxies: Array.from(new Set(validProxies)), brokenProxies, timestamp: Date.now() });
+                }
+                return raw;
+            } catch (err) {
+                console.warn(`Erreur fetch via proxy ${proxy}:`, err && err.message ? err.message : err);
+                // marquer comme cassé localement (mais on continuera d'essayer d'autres proxys)
+                if (!brokenProxies.includes(proxy)) {
+                    brokenProxies.push(proxy);
+                    validProxies = validProxies.filter(p => p !== proxy);
+                    saveProxyStoreToLS({ validProxies, brokenProxies, timestamp: Date.now() });
+                }
+                // petite pause courte pour éviter rafales (et débordements des proxys)
+                await sleep(150);
+                continue;
+            }
+        }
+    }
+    // aucun proxy n'a fonctionné
+    return null;
+}
+
+/* ===========================================================
+   LOGIQUE PONTS (intégration complète)
+   =========================================================== */
+function parseRawContentToData(raw) {
+    // raw peut être :
+    // - objet contenant .data (déjà)
+    // - objet contenant .contents (string JSON)
+    // - une string JSON
+    try {
+        if (!raw) return null;
+        if (typeof raw === "string") {
+            // parse possible JSON
+            let j = null;
+            try { j = JSON.parse(raw); } catch (e) { return null; }
+            if (j && j.data) return j.data;
+            return j;
+        }
+        if (typeof raw === "object") {
+            if (raw.data) return raw.data;
+            if (raw.contents) {
+                try {
+                    const inner = JSON.parse(raw.contents);
+                    if (inner && inner.data) return inner.data;
+                    return inner;
+                } catch (e) { return null; }
+            }
+            return raw;
+        }
+    } catch (e) {
         return null;
     }
+    return null;
 }
 
-async function fetchWithRandomProxy(url) {
-    const shuffledProxies = [...PROXIES].sort(() => Math.random() - 0.5);
-    for (const proxy of shuffledProxies) {
-        const result = await testProxy(proxy, url);
-        if (result !== null) return result;
-    }
-    return null; // Aucun proxy n’a fonctionné, on retourne null
-}
-
-// =====================
-// LOGIQUE PONTS
-// =====================
 async function checkAndUpdate(forceUpdate = false) {
     const now = Date.now();
     const last = localStorage.getItem(CACHE_KEY_TIME);
     const container = document.getElementById("ponts-table");
 
+    // si cache récent et pas de forceUpdate -> afficher cache
     if (!forceUpdate && last && now - last < CACHE_EXPIRATION) {
         const cached = localStorage.getItem(CACHE_KEY_DATA);
-        if (cached) { 
-            renderPonts(JSON.parse(cached)); 
-            console.log("⚡ Cache utilisé"); 
-            return; 
+        if (cached) {
+            try {
+                renderPonts(JSON.parse(cached));
+                console.log("⚡ Cache utilisé (valid)");
+                return;
+            } catch (e) {
+                console.warn("Erreur parsing cache:", e);
+            }
         }
     }
 
+    // tenter fetch via pool de proxys
     try {
-        const rawContent = await fetchWithRandomProxy("https://www.havre-port.com/map/getPonts");
+        const raw = await fetchWithPool("https://www.havre-port.com/map/getPonts");
+        if (!raw) throw new Error("Aucun proxy n'a répondu");
 
-        if (!rawContent) throw new Error("Tous les proxys ont échoué");
+        const data = parseRawContentToData(raw);
+        if (!data) throw new Error("Impossible d'extraire les données de la réponse API");
 
-        const json = JSON.parse(rawContent).data;
-        if (!json) throw new Error("Données API manquantes");
-
-        const ponts = Object.values(json);
+        const ponts = Object.values(data);
         const unique = Array.from(new Map(ponts.map(p => [p.nom, p])).values());
 
         const ordered = unique.sort((a, b) => {
             const score = p => {
-                const s = p.statutText.toLowerCase();
+                const s = (p.statutText || "").toLowerCase();
                 if (s.includes("fermé")) return 1;
                 if (s.includes("fermeture")) return 2;
-                if (s.includes("manoeuvre")) return 3;
+                if (s.includes("manoeuvre") || s.includes("manœuvre")) return 3;
                 if (s.includes("ouvert")) return 4;
                 return 5;
             };
@@ -204,22 +497,32 @@ async function checkAndUpdate(forceUpdate = false) {
         if (newHash !== oldHash) {
             localStorage.setItem(CACHE_KEY_DATA, JSON.stringify(ordered));
             localStorage.setItem(CACHE_KEY_HASH, newHash);
+            console.log("🔄 Cache mis à jour (nouveau hash)");
+        } else {
+            console.log("✅ Données inchangées (hash identique)");
         }
         localStorage.setItem(CACHE_KEY_TIME, Date.now());
         renderPonts(ordered);
-
     } catch (err) {
-        console.warn("Erreur récupération ponts, utilisation du dernier cache valide :", err.message);
-
+        console.warn("Erreur récupération ponts:", err && err.message ? err.message : err);
+        // fallback: afficher dernier cache valide si présent
         const cached = localStorage.getItem(CACHE_KEY_DATA);
         if (cached) {
-            renderPonts(JSON.parse(cached));
+            try {
+                renderPonts(JSON.parse(cached));
+                console.log("⚠️ Utilisation du dernier cache valide (fallback)");
+            } catch (e) {
+                container.innerHTML = `<div class="error-message">Impossible de récupérer les ponts et le cache est corrompu.</div>`;
+            }
         } else {
             container.innerHTML = `<div class="error-message">Impossible de récupérer les ponts et aucun cache disponible.</div>`;
         }
     }
 }
 
+/* ===========================================================
+   RENDER
+   =========================================================== */
 function renderPonts(list) {
     const container = document.getElementById("ponts-table");
     if (!list || !list.length) {
@@ -228,31 +531,61 @@ function renderPonts(list) {
     }
 
     container.innerHTML = list.map(p => {
-        const statut = p.statutText.toLowerCase();
+        const statut = (p.statutText || "").toLowerCase();
         const open = statut.includes("ouvert");
-        const move = statut.includes("manoeuvre");
+        const move = statut.includes("manoeuvre") || statut.includes("manœuvre");
         const fermeture = statut.includes("fermeture");
-        const ferme = statut.includes("fermé");
+        const ferme = statut.includes("fermé") || statut.includes("ferme");
         const cls = ferme ? "ferme" : fermeture ? "fermeture" : move ? "manoeuvre" : open ? "ouvert" : "ferme";
-        const info = p.forceText || `MàJ : ${p.date}`;
+        const info = p.forceText || `MàJ : ${p.date || "inconnue"}`;
 
         return `
             <div class="pont-card ${cls}">
                 <div class="pont-nom">
-                    <span class="pastille" aria-label="Statut: ${p.statutText}"></span>${p.nom}
+                    <span class="pastille" aria-label="Statut: ${p.statutText || 'inconnu'}"></span>${p.nom || 'Pont sans nom'}
                 </div>
-                <div class="pont-etat">${p.statutText}</div>
+                <div class="pont-etat">${p.statutText || ''}</div>
                 <div class="pont-infos">${info}</div>
             </div>
         `;
     }).join("");
 }
 
-// =====================
-// INITIALISATION
-// =====================
-checkAndUpdate(true); // Forcer la mise à jour au démarrage
-setInterval(() => checkAndUpdate(), REFRESH_INTERVAL);
+/* ===========================================================
+   INITIALISATION
+   - pré-test proxies au démarrage
+   - planifier retest batches
+   - lancer checkAndUpdate(force=true)
+   - boucle périodique de rafraîchissement
+   =========================================================== */
+(async function init() {
+    const target = "https://www.havre-port.com/map/getPonts";
+    // charger store et pré-tester proxys
+    try {
+        // if no store, preTest will test INITIAL_PROXIES
+        await preTestProxies(target);
+    } catch (e) {
+        console.warn("Pré-test proxys a planté :", e);
+    }
+
+    // Démarrer retest périodique des proxys cassés
+    setInterval(() => {
+        retestBrokenProxies(target).catch(e => console.warn("Erreur retestBrokenProxies:", e));
+    }, RETEST_INTERVAL);
+
+    // Lancer update forcée au démarrage pour avoir l'état le plus frais possible
+    checkAndUpdate(true);
+
+    // Boucle régulière
+    setInterval(() => checkAndUpdate(false), REFRESH_INTERVAL);
+
+    // en background, retester rapidement tout un cycle après quelques secondes
+    // pour améliorer validProxies si on a démarré depuis old store
+    setTimeout(() => {
+        preTestProxies(target).catch(e => console.warn("Second preTest failed:", e));
+    }, 5000);
+})();
 </script>
+
 </body>
 </html>
