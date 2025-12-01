@@ -114,15 +114,10 @@
     <div class="modal-card" id="modal-content" onclick="event.stopPropagation()"></div>
   </div>
 <script>
-  // Attendre que le DOM soit chargé
   document.addEventListener('DOMContentLoaded', function() {
-    // Gestionnaire d'erreurs global pour les promesses non capturées
-    window.addEventListener('unhandledrejection', (event) => {
-      event.preventDefault();
-    });
+    window.addEventListener('unhandledrejection', (event) => { event.preventDefault(); });
 
-    // ---------------- utilitaires ----------------
-    const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
+    const API_KEY = 'AIzaSyDkQkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
     const CALENDAR_IDS = { reception: 'receptionroulier@gmail.com', navire: 'smr.programme@gmail.com' };
     const CACHE_KEY = 'caltest_v2_cache';
     const CACHE_TTL = 30000;
@@ -130,30 +125,18 @@
     let currentStartDate = new Date();
 
     function calculateHash(events) {
-      return JSON.stringify(
-        events.map(ev => ({
-          id: ev.id,
-          updated: ev.updated,
-          start: ev.start.dateTime || ev.start.date,
-          end: ev.end.dateTime || ev.end.date,
-          summary: ev.summary
-        }))
-      );
+      return JSON.stringify(events.map(ev => ({
+        id: ev.id,
+        updated: ev.updated,
+        start: ev.start.dateTime || ev.start.date,
+        end: ev.end.dateTime || ev.end.date,
+        summary: ev.summary
+      })));
     }
 
     function saveCache(items, hash) {
-      try {
-        localStorage.setItem(
-          CACHE_KEY,
-          JSON.stringify({
-            items,
-            hash,
-            ts: Date.now()
-          })
-        );
-      } catch (e) {
-        console.error("Erreur lors de la sauvegarde du cache :", e);
-      }
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify({ items, hash, ts: Date.now() })); }
+      catch (e) { console.error("Erreur sauvegarde cache :", e); }
     }
 
     function loadCache() {
@@ -163,9 +146,7 @@
         const obj = JSON.parse(raw);
         if (Date.now() - obj.ts > CACHE_TTL) return null;
         return obj;
-      } catch (e) {
-        return null;
-      }
+      } catch (e) { return null; }
     }
 
     function getMonday(d) {
@@ -178,11 +159,8 @@
     }
 
     function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
-
     function fmtTime(d) { return d ? new Date(d).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : ''; }
-
     function fmtDayLabel(d) { return d.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit' }); }
-
     function fmtFullDate(d) { return new Date(d).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long' }); }
 
     async function fetchCalendar(calendarId, timeMin, timeMax) {
@@ -193,36 +171,17 @@
       return res.json();
     }
 
-    // Fonction pour attendre que le layout soit prêt (version robuste)
+    // Attendre que le layout soit prêt (version ultra-robuste)
     function waitForLayoutReady() {
       return new Promise((resolve) => {
-        let attempts = 0;
-        const maxAttempts = 20;
-        const checkLayout = () => {
-          const firstCell = document.querySelector('.day-cell');
-          if (firstCell) {
-            const rect = firstCell.getBoundingClientRect();
-            if (rect.width > 0 && rect.height > 0) {
-              resolve();
-            } else if (attempts < maxAttempts) {
-              attempts++;
-              requestAnimationFrame(checkLayout);
-            } else {
-              // Si après 20 tentatives, le layout n'est toujours pas prêt, on force un délai
-              setTimeout(resolve, 50);
-            }
-          } else if (attempts < maxAttempts) {
-            attempts++;
-            requestAnimationFrame(checkLayout);
-          } else {
-            setTimeout(resolve, 50);
-          }
-        };
-        checkLayout();
+        setTimeout(() => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(resolve);
+          });
+        }, 100); // Délai minimal pour laisser le temps au navigateur
       });
     }
 
-    // ---------------- Rendering calendrier ----------------
     async function renderCalendar() {
       const calendarEl = document.getElementById('calendar');
       const eventsLayer = document.getElementById('events-layer');
@@ -248,12 +207,8 @@
         d.setHours(0, 0, 0, 0);
         const cell = document.createElement('div');
         cell.className = 'day-cell';
-        if (d > today) {
-          cell.classList.add('future-day');
-        }
-        if (d.getTime() === today.getTime()) {
-          cell.classList.add('today');
-        }
+        if (d > today) cell.classList.add('future-day');
+        if (d.getTime() === today.getTime()) cell.classList.add('today');
         const label = document.createElement('div');
         label.className = 'date-label';
         label.textContent = fmtDayLabel(d);
@@ -262,6 +217,9 @@
         cellMap.push({ date: d, el: cell, eventsList: [], visibleCount: 0 });
         months.add(capitalize(d.toLocaleString('fr-FR', { month: 'long' })));
       }
+
+      // Attendre que le layout soit prêt
+      await waitForLayoutReady();
 
       const timeMin = new Date(startDate);
       timeMin.setHours(0, 0, 0, 0);
@@ -383,12 +341,8 @@
         }
       });
 
-      // Attendre que le layout soit prêt (version robuste)
-      await waitForLayoutReady();
-
       // Forcer un reflow
       calendarEl.offsetHeight;
-
       const calendarRect = calendarEl.getBoundingClientRect();
       const cellRects = cellMap.map(c => c.el.getBoundingClientRect());
       const dateLabel = document.querySelector('.date-label');
