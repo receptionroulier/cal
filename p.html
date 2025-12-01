@@ -154,7 +154,7 @@ async function fetchWithRandomProxy(url) {
         const result = await testProxy(proxy, url);
         if (result !== null) return result;
     }
-    throw new Error("Tous les proxys ont échoué");
+    return null; // Aucun proxy n’a fonctionné, on retourne null
 }
 
 // =====================
@@ -176,6 +176,9 @@ async function checkAndUpdate(forceUpdate = false) {
 
     try {
         const rawContent = await fetchWithRandomProxy("https://www.havre-port.com/map/getPonts");
+
+        if (!rawContent) throw new Error("Tous les proxys ont échoué");
+
         const json = JSON.parse(rawContent).data;
         if (!json) throw new Error("Données API manquantes");
 
@@ -206,8 +209,14 @@ async function checkAndUpdate(forceUpdate = false) {
         renderPonts(ordered);
 
     } catch (err) {
-        console.error("Erreur récupération ponts:", err);
-        container.innerHTML = `<div class="error-message">Impossible de récupérer les ponts.<br>${err.message}</div>`;
+        console.warn("Erreur récupération ponts, utilisation du dernier cache valide :", err.message);
+
+        const cached = localStorage.getItem(CACHE_KEY_DATA);
+        if (cached) {
+            renderPonts(JSON.parse(cached));
+        } else {
+            container.innerHTML = `<div class="error-message">Impossible de récupérer les ponts et aucun cache disponible.</div>`;
+        }
     }
 }
 
