@@ -113,16 +113,13 @@
   <div id="event-modal" onclick="hideModal()">
     <div class="modal-card" id="modal-content" onclick="event.stopPropagation()"></div>
   </div>
-
 <script>
   // Attendre que le DOM soit chargé
   document.addEventListener('DOMContentLoaded', function() {
-
     // Gestionnaire d'erreurs global pour les promesses non capturées
     window.addEventListener('unhandledrejection', (event) => {
       event.preventDefault();
     });
-
     // ---------------- utilitaires ----------------
     const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
     const CALENDAR_IDS = { reception: 'receptionroulier@gmail.com', navire: 'smr.programme@gmail.com' };
@@ -131,7 +128,6 @@
     let weekView = 3;
     let currentStartDate = new Date();
 
-    // [NOUVEAU] Fonction pour calculer un hash optimisé
     function calculateHash(events) {
       return JSON.stringify(
         events.map(ev => ({
@@ -144,7 +140,6 @@
       );
     }
 
-    // [NOUVEAU] Sauvegarde le cache avec les événements et leur hash
     function saveCache(items, hash) {
       try {
         localStorage.setItem(
@@ -160,7 +155,6 @@
       }
     }
 
-    // [NOUVEAU] Charge le cache depuis localStorage
     function loadCache() {
       try {
         const raw = localStorage.getItem(CACHE_KEY);
@@ -183,8 +177,11 @@
     }
 
     function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+
     function fmtTime(d) { return d ? new Date(d).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : ''; }
+
     function fmtDayLabel(d) { return d.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit' }); }
+
     function fmtFullDate(d) { return new Date(d).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long' }); }
 
     async function fetchCalendar(calendarId, timeMin, timeMax) {
@@ -195,7 +192,22 @@
       return res.json();
     }
 
-    // ---------------- Rendering calendrier (modifié pour le hash) ----------------
+    // Fonction pour attendre que le layout soit prêt
+    function waitForLayoutReady() {
+      return new Promise((resolve) => {
+        const checkLayout = () => {
+          const firstCell = document.querySelector('.day-cell');
+          if (firstCell && firstCell.getBoundingClientRect().width > 0) {
+            resolve();
+          } else {
+            requestAnimationFrame(checkLayout);
+          }
+        };
+        checkLayout();
+      });
+    }
+
+    // ---------------- Rendering calendrier ----------------
     async function renderCalendar() {
       const calendarEl = document.getElementById('calendar');
       const eventsLayer = document.getElementById('events-layer');
@@ -214,6 +226,7 @@
       calendarEl.style.gridAutoRows = `${rowH}px`;
       const cellMap = [];
       const months = new Set();
+
       for (let i = 0; i < totalDays; i++) {
         const d = new Date(startDate);
         d.setDate(d.getDate() + i);
@@ -234,12 +247,12 @@
         cellMap.push({ date: d, el: cell, eventsList: [], visibleCount: 0 });
         months.add(capitalize(d.toLocaleString('fr-FR', { month: 'long' })));
       }
+
       const timeMin = new Date(startDate);
       timeMin.setHours(0, 0, 0, 0);
       const timeMax = new Date(timeMin);
       timeMax.setDate(timeMax.getDate() + totalDays);
 
-      // [NOUVEAU] Gestion du cache et du hash
       const cache = loadCache();
       let items;
       if (cache) {
@@ -251,7 +264,6 @@
         const items2 = r2.status === 'fulfilled' ? (r2.value.items || []) : [];
         const newItems = [...items1.map(i => ({ ...i, __type: 'reception' })), ...items2.map(i => ({ ...i, __type: 'navire' }))];
         const newHash = calculateHash(newItems);
-
         if (newHash !== cache.hash) {
           items = newItems;
           saveCache(items, newHash);
@@ -270,7 +282,6 @@
         saveCache(items, newHash);
       }
 
-      // (Le reste de ton code original pour la normalisation des événements et le rendu)
       const norm = items.map(ev => {
         const e = JSON.parse(JSON.stringify(ev));
         e.__type = e.__type || '';
@@ -300,7 +311,6 @@
         return e;
       }).filter(e => e._start && e._endInclusive);
 
-      // (Le reste de ton code original pour les segments, le rendu, etc.)
       const segments = [];
       norm.forEach(ev => {
         const sDay = new Date(ev._start);
@@ -347,6 +357,7 @@
         lanes[lane].push({ startIdx: seg.startIdx, endIdx: seg.endIdx });
         seg.lane = lane;
       });
+
       cellMap.forEach(c => { c.eventsList = []; c.totalSegments = 0; });
       segments.forEach(seg => {
         for (let i = seg.startIdx; i <= seg.endIdx; i++) {
@@ -356,7 +367,10 @@
           }
         }
       });
-      await new Promise(r => requestAnimationFrame(r));
+
+      // Attendre que le layout soit prêt
+      await waitForLayoutReady();
+
       const calendarRect = calendarEl.getBoundingClientRect();
       const cellRects = cellMap.map(c => c.el.getBoundingClientRect());
       const dateLabel = document.querySelector('.date-label');
@@ -375,12 +389,15 @@
         const lanes = Math.max(0, Math.floor((avail + laneGap) / bandSpacing));
         visibleLanesPerWeek[w] = lanes;
       }
+
       function getFirstSegmentOfEvent(ev) {
         return segments.filter(s => s.ev === ev).reduce((a, b) => a.startIdx < b.startIdx ? a : b);
       }
+
       function getLastSegmentOfEvent(ev) {
         return segments.filter(s => s.ev === ev).reduce((a, b) => a.endIdx > b.endIdx ? a : b);
       }
+
       cellMap.forEach((cellObj, idx) => {
         const cellDate = cellObj.date;
         if (cellDate < today) {
@@ -390,6 +407,7 @@
           cellObj.el.style.position = 'relative';
         }
       });
+
       segments.forEach(seg => {
         const firstRect = cellRects[seg.startIdx];
         const lastRect = cellRects[seg.endIdx];
@@ -435,6 +453,7 @@
         el.addEventListener('click', e => { e.stopPropagation(); showEventModal(ev); });
         eventsLayer.appendChild(el);
       });
+
       cellMap.forEach((c, idx) => {
         const weekIdx = Math.floor(idx / 7);
         const visibleLanes = visibleLanesPerWeek[weekIdx] || 0;
@@ -455,10 +474,11 @@
           c.el.appendChild(badge);
         }
       });
+
       document.getElementById('calendar-title').textContent = Array.from(months).join(' / ');
     }
 
-    // ---------------- Modals (inchangé) ----------------
+    // ---------------- Modals ----------------
     function showEventModal(ev) {
       const modal = document.getElementById('event-modal');
       const content = document.getElementById('modal-content');
@@ -493,39 +513,45 @@
       modal.style.display = 'flex';
     }
 
-    // ---------------- Navigation (inchangé) ----------------
+    // ---------------- Navigation ----------------
     document.getElementById('prev-btn').addEventListener('click', () => {
       currentStartDate.setDate(currentStartDate.getDate() - 7);
       localStorage.removeItem(CACHE_KEY);
       renderCalendar();
     });
+
     document.getElementById('next-btn').addEventListener('click', () => {
       currentStartDate.setDate(currentStartDate.getDate() + 7);
       localStorage.removeItem(CACHE_KEY);
       renderCalendar();
     });
+
     document.getElementById('today-btn').addEventListener('click', () => {
       currentStartDate = new Date();
       weekView = 3;
       localStorage.removeItem(CACHE_KEY);
       renderCalendar();
     });
+
     document.getElementById('view-3w').addEventListener('click', () => {
       weekView = 3;
       currentStartDate = getMonday(currentStartDate);
       localStorage.removeItem(CACHE_KEY);
       renderCalendar();
     });
+
     document.getElementById('view-4w').addEventListener('click', () => {
       weekView = 4;
       currentStartDate = getMonday(currentStartDate);
       localStorage.removeItem(CACHE_KEY);
       renderCalendar();
     });
+
     window.addEventListener('resize', () => { requestAnimationFrame(() => renderCalendar()); });
+
     document.getElementById('event-modal').addEventListener('click', hideModal);
 
-    // ---------------- Horloge (inchangé) ----------------
+    // ---------------- Horloge ----------------
     function updateClock() {
       const now = new Date();
       const hours = now.getHours().toString().padStart(2, '0');
@@ -533,18 +559,18 @@
       const seconds = now.getSeconds().toString().padStart(2, '0');
       document.getElementById('current-time').textContent = `${hours}:${minutes}:${seconds}`;
     }
+
     setInterval(updateClock, 1000);
     updateClock();
 
-    // [NOUVEAU] Rafraîchissement automatique toutes les 30 secondes
+    // Rafraîchissement automatique toutes les 30 secondes
     setInterval(() => {
       renderCalendar();
     }, CACHE_TTL);
 
     // Chargement initial
     renderCalendar().catch(err => { console.error('render error', err); document.getElementById('calendar-title').textContent = 'Erreur'; });
-
-  }); // Fermeture de DOMContentLoaded
+  });
 </script>
 </body>
 </html>
