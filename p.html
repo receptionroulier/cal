@@ -89,26 +89,25 @@ h2 {
 
 <script>
 /* ===========================================================
-   CONFIGURATION
+   CONFIGURATION (modifie ces valeurs si nécessaire)
    =========================================================== */
+const PROXY_STORE_KEY = "pontsProxyStore"; // stockage persisté des proxys valid/cassés
 const CACHE_KEY_DATA = "pontsData";
 const CACHE_KEY_HASH = "pontsHash";
 const CACHE_KEY_TIME = "pontsCacheTime";
 
-const PROXY_STORE_KEY = "pontsProxyStore"; // persist valid/broken proxies
-const CACHE_EXPIRATION = 60000; // 1 minutes
-const REFRESH_INTERVAL = 30000; // 30 segondes between updates
-const PROXY_TEST_TIMEOUT = 8000; // ms timeout pour tester un proxy
-const FETCH_TIMEOUT = 10000; // ms timeout pour fetch réel via proxy
-const RETEST_INTERVAL = 10 * 60 * 1000; // retest des proxys tombés toutes les 10 min
-const RETEST_BATCH_SIZE = 5; // combien de proxys "cassés" retester à chaque passe
+const CACHE_EXPIRATION = 120000; // 2 minutes (durée pendant laquelle on utilise le cache sans refaire la requête)
+const REFRESH_INTERVAL = 30000; // fréquence de mise à jour des ponts (ms) -- ex : 30000 = 30s
+const PROXY_TEST_TIMEOUT = 8000; // timeout (ms) pour tester un proxy
+const FETCH_TIMEOUT = 10000; // timeout (ms) pour fetch via proxy
+const PROXY_RETEST_INTERVAL = 10 * 60 * 1000; // intervalle (ms) pour retester les proxys "cassés" (ex: 10 minutes)
+const RETEST_BATCH_SIZE = 3; // combien de proxys cassés retester par passe
 
-/* Liste initiale (fallback) de proxys à tester si rien en stockage.
-   Tu peux en ajouter/supprimer selon ton expérience */
+/* Liste initiale de proxys (fallback) */
 const INITIAL_PROXIES = [
     "https://api.allorigins.win/get?url=",
     "https://thingproxy.freeboard.io/fetch/",
-    "https://cors-anywhere.com/",
+    "https://cors-anywhere.herokuapp.com/", // noter : cors-anywhere public souvent restreint
     "https://every-origin.vercel.app/",
     "https://proxy.corsfix.com/?",
     "https://yacdn.org/proxy/",
@@ -119,28 +118,22 @@ const INITIAL_PROXIES = [
 ];
 
 /* ===========================================================
-   ÉTAT LOCAL (en mémoire)
-   validProxies: proxys testés et valides (préférés)
-   brokenProxies: proxys qui ont échoué au test
-   allProxies: union / source
+   ÉTAT EN MÉMOIRE
    =========================================================== */
 let validProxies = [];
 let brokenProxies = [];
-let allProxies = [...INITIAL_PROXIES];
+let allProxies = Array.from(new Set(INITIAL_PROXIES));
 
 /* ===========================================================
    UTILITAIRES
    =========================================================== */
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-async function withTimeout(promise, ms, onAbort) {
+async function withTimeout(promiseFactory, ms) {
     const controller = new AbortController();
-    const id = setTimeout(() => {
-        controller.abort();
-        if (typeof onAbort === "function") onAbort();
-    }, ms);
+    const id = setTimeout(() => controller.abort(), ms);
     try {
-        const res = await promise(controller.signal);
+        const res = await promiseFactory(controller.signal);
         clearTimeout(id);
         return res;
     } finally {
@@ -152,7 +145,7 @@ async function fetchWithTimeout(url, options = {}, timeout = FETCH_TIMEOUT) {
     return withTimeout(async (signal) => {
         const merged = { ...options, signal };
         return fetch(url, merged);
-    }, timeout, () => {});
+    }, timeout);
 }
 
 async function sha256(str) {
@@ -175,43 +168,31 @@ function normalizeData(data) {
     );
 }
 
-/* Parse robuste de la réponse "raw" retournée par le proxy.
-   Peut recevoir :
-   - un objet JS (avec .data)
-   - une string (qui peut contenir JSON)
-   - un objet { contents: '...'} (allorigins)
-   On renvoie l'objet JS final (ou null si parse fail). */
 function parseProxyPayload(raw) {
     if (!raw) return null;
-    // si c'est une string, tenter parse JSON
     if (typeof raw === "string") {
         try { return JSON.parse(raw); } catch (e) { return null; }
     }
-    // si objet et a une propriété 'contents' (allorigins style), tenter parse contents
     if (typeof raw === "object") {
         if (raw.contents && typeof raw.contents === "string") {
-            try {
-                return JSON.parse(raw.contents);
-            } catch (e) {
-                return null;
-            }
+            try { return JSON.parse(raw.contents); } catch (e) { return null; }
         }
-        return raw; // on suppose un objet déjà
+        return raw;
     }
     return null;
 }
 
 /* ===========================================================
-   PERSISTENCE DES PROXYS (stocker valid/broken pour accélérer)
+   PERSISTENCE DES PROXYS
    =========================================================== */
 function loadProxyStoreFromLS() {
     try {
         const raw = localStorage.getItem(PROXY_STORE_KEY);
         if (!raw) return null;
-        const parsed = JSON.parse(raw);
-        return parsed;
+        return JSON.parse(raw);
     } catch (e) { return null; }
 }
+
 function saveProxyStoreToLS(store) {
     try {
         localStorage.setItem(PROXY_STORE_KEY, JSON.stringify(store));
@@ -219,61 +200,50 @@ function saveProxyStoreToLS(store) {
 }
 
 /* ===========================================================
-   TEST DES PROXYS
-   - testProxySimple: teste un proxy une fois (avec timeout)
-   - preTestProxies: au démarrage, on teste tous (ou ceux en store)
+   TEST SIMPLE D'UN PROXY
+   - renvoie { ok: true, parsed } ou { ok: false, error/status }
    =========================================================== */
 async function testProxySimple(proxy, targetUrl, timeout = PROXY_TEST_TIMEOUT) {
-    // On fait un fetch rapide avec timeout; si réponse ok on renvoie true + contenu
     try {
         const res = await withTimeout(async (signal) => {
-            // certains proxies attendent l'url encodée à la fin, d'autres utilisent param 'url='
-            // Ici on assume que la chaîne proxy est un préfixe où on concatène encodeURIComponent(url)
-            // (c'est le format utilisé dans INITIAL_PROXIES)
             const full = proxy + encodeURIComponent(targetUrl);
-            const r = await fetch(full, { method: 'GET', signal });
-            return r;
-        }, timeout, () => {});
-        if (!res.ok) {
-            return { ok: false, status: res.status };
-        }
-        // essayer de parser JSON léger (ou au moins vérifier qu'on a quelque chose)
+            return fetch(full, { method: 'GET', signal });
+        }, timeout);
+        if (!res.ok) return { ok: false, status: res.status };
         const contentType = res.headers.get('content-type') || '';
         let parsed = null;
         if (contentType.includes('application/json')) {
             parsed = await res.json();
         } else {
-            // tenter de parser en texte puis JSON (beaucoup de proxys renvoient JSON même si header absent)
             const text = await res.text();
             try { parsed = JSON.parse(text); } catch (e) { parsed = text; }
         }
-        // Si on obtient quelque chose, considérer le proxy valide
         return { ok: true, parsed };
     } catch (err) {
-        return { ok: false, error: err.message || String(err) };
+        return { ok: false, error: err && err.message ? err.message : String(err) };
     }
 }
 
+/* ===========================================================
+   PRÉ-TEST AU DÉMARRAGE
+   - on charge le store local si présent (fast start)
+   - on teste les proxys (batch) et on remplit validProxies / brokenProxies
+   =========================================================== */
 async function preTestProxies(targetUrl) {
-    // Charger store depuis LS si présent (pour accélérer)
     const store = loadProxyStoreFromLS();
     if (store && Array.isArray(store.validProxies) && store.validProxies.length) {
-        // On démarre avec ce store mais on va retester rapidement en background
-        validProxies = [...new Set(store.validProxies)];
-        brokenProxies = Array.isArray(store.brokenProxies) ? [...new Set(store.brokenProxies)] : [];
+        validProxies = Array.from(new Set(store.validProxies));
+        brokenProxies = Array.isArray(store.brokenProxies) ? Array.from(new Set(store.brokenProxies)) : [];
         allProxies = Array.from(new Set([...allProxies, ...validProxies, ...brokenProxies]));
         console.log("💾 Proxies chargés depuis localStorage:", validProxies.length, "valide(s),", brokenProxies.length, "cassé(s)");
     } else {
-        // prendre la liste initiale
         validProxies = [];
-        brokenProxies = [...allProxies];
+        brokenProxies = Array.from(new Set(allProxies));
     }
 
-    // Si on a peu ou pas de validProxies, tester un ensemble initial
     const toTest = Array.from(new Set([...validProxies, ...brokenProxies, ...allProxies]));
     console.log("🔎 Pré-test des proxys (total list):", toTest.length);
 
-    // lancer tests en batch (limiter concurrence)
     const concurrency = 6;
     const results = [];
     let idx = 0;
@@ -284,15 +254,13 @@ async function preTestProxies(targetUrl) {
                 const r = await testProxySimple(p, targetUrl, PROXY_TEST_TIMEOUT);
                 results.push({ proxy: p, result: r });
             } catch (e) {
-                results.push({ proxy: p, result: { ok: false, error: e.message } });
+                results.push({ proxy: p, result: { ok: false, error: e && e.message ? e.message : String(e) } });
             }
         }
     }
-    // démarrer workers
     const workers = Array(concurrency).fill(0).map(() => worker());
     await Promise.all(workers);
 
-    // classer résultats
     const newValids = [];
     const newBroken = [];
     for (const entry of results) {
@@ -300,19 +268,15 @@ async function preTestProxies(targetUrl) {
         else newBroken.push(entry.proxy);
     }
 
-    // si aucun valid trouvé, garder la plus probable (on veut avoir quelque chose pour essayer)
     if (newValids.length === 0 && results.length > 0) {
-        // prendre le premier résultat "ok-like" (status < 500) ou sinon le premier proxy pour tenter
-        const prefer = results.find(r => r.result && r.result.ok) || results[0];
-        if (prefer) newValids.push(prefer.proxy);
+        // garder au moins un proxy pour tenter (éviter liste vide)
+        newValids.push(results[0].proxy);
     }
 
-    // appliquer
     validProxies = Array.from(new Set(newValids));
     brokenProxies = Array.from(new Set(newBroken.filter(p => !validProxies.includes(p))));
     allProxies = Array.from(new Set([...allProxies, ...validProxies, ...brokenProxies]));
 
-    // sauvegarder en localStorage pour accélérer prochains démarrages
     saveProxyStoreToLS({ validProxies, brokenProxies, timestamp: Date.now() });
 
     console.log(`✅ Pré-test terminé — valides: ${validProxies.length}, cassés: ${brokenProxies.length}`);
@@ -320,9 +284,7 @@ async function preTestProxies(targetUrl) {
 }
 
 /* ===========================================================
-   RETEST PROXYS "CASSÉS" EN ARRIÈRE-PLAN (par batch)
-   - retestBrokenProxies: reteste RETEST_BATCH_SIZE proxys cassés
-   - planifié périodiquement
+   RETEST DES PROXYS CASSÉS (par batch, périodique)
    =========================================================== */
 async function retestBrokenProxies(targetUrl) {
     if (!brokenProxies || brokenProxies.length === 0) return;
@@ -331,47 +293,37 @@ async function retestBrokenProxies(targetUrl) {
     for (const p of toRetest) {
         const res = await testProxySimple(p, targetUrl, PROXY_TEST_TIMEOUT);
         if (res.ok) {
-            // remettre dans valides
             validProxies.push(p);
             brokenProxies = brokenProxies.filter(x => x !== p);
             console.log("♻️ Proxy rétabli :", p);
             saveProxyStoreToLS({ validProxies: Array.from(new Set(validProxies)), brokenProxies, timestamp: Date.now() });
         } else {
-            // le laisser cassé mais on peut le tourner vers la fin de liste
+            // réplacer en fin de file pour rotation
             brokenProxies = brokenProxies.filter(x => x !== p).concat(p);
             console.log("⛔ Toujours cassé :", p);
         }
-        // petit délai pour éviter rafales
-        await sleep(400);
+        await sleep(300); // petit délai entre tests pour ne pas surcharger
     }
 }
 
 /* ===========================================================
-   FETCH AVEC POOL DE PROXYS
-   - On utilise d'abord validProxies (ordre mélangé)
-   - Si rien, on retente brokenProxies (ordre mélangé)
-   - Chaque tentative a un timeout; si réponse OK, on retourne le contenu
-   - Si aucun proxy ne répond, retourne null (caller fait fallback cache)
+   FETCH VIA POOL DE PROXYS
+   - on utilise d'abord validProxies, ensuite brokenProxies, puis allProxies
+   - chaque tentative a un timeout
+   - on marque proxys comme valid/broken selon résultat
    =========================================================== */
 function shuffle(a) { return a.slice().sort(() => Math.random() - 0.5); }
 
 async function fetchWithPool(url) {
-    const tryLists = [
-        shuffle(validProxies),
-        shuffle(brokenProxies),
-        shuffle(allProxies)
-    ];
-
-    for (const list of tryLists) {
+    const lists = [shuffle(validProxies), shuffle(brokenProxies), shuffle(allProxies)];
+    for (const list of lists) {
         if (!list || list.length === 0) continue;
         for (const proxy of list) {
             try {
-                // faire une requête via proxy avec timeout
                 const full = proxy + encodeURIComponent(url);
                 const res = await fetchWithTimeout(full, { method: 'GET' }, FETCH_TIMEOUT);
                 if (!res.ok) {
                     console.warn(`Proxy ${proxy} renvoyé status ${res.status}`);
-                    // marquer comme cassé si 5xx
                     if (res.status >= 500 && !brokenProxies.includes(proxy)) {
                         brokenProxies.push(proxy);
                         validProxies = validProxies.filter(p => p !== proxy);
@@ -379,17 +331,14 @@ async function fetchWithPool(url) {
                     }
                     continue;
                 }
-                // lire payload
                 const contentType = res.headers.get('content-type') || '';
                 let raw;
                 if (contentType.includes('application/json')) {
                     raw = await res.json();
                 } else {
-                    raw = await res.text();
-                    // essayer de parser JSON si possible
-                    try { raw = JSON.parse(raw); } catch (e) { /* keep text */ }
+                    const text = await res.text();
+                    try { raw = JSON.parse(text); } catch (e) { raw = text; }
                 }
-                // si ok, considérer proxy valide et sauvegarder si nouveau
                 if (!validProxies.includes(proxy)) {
                     validProxies.push(proxy);
                     brokenProxies = brokenProxies.filter(p => p !== proxy);
@@ -398,34 +347,26 @@ async function fetchWithPool(url) {
                 return raw;
             } catch (err) {
                 console.warn(`Erreur fetch via proxy ${proxy}:`, err && err.message ? err.message : err);
-                // marquer comme cassé localement (mais on continuera d'essayer d'autres proxys)
                 if (!brokenProxies.includes(proxy)) {
                     brokenProxies.push(proxy);
                     validProxies = validProxies.filter(p => p !== proxy);
                     saveProxyStoreToLS({ validProxies, brokenProxies, timestamp: Date.now() });
                 }
-                // petite pause courte pour éviter rafales (et débordements des proxys)
                 await sleep(150);
                 continue;
             }
         }
     }
-    // aucun proxy n'a fonctionné
-    return null;
+    return null; // aucun proxy n'a fonctionné
 }
 
 /* ===========================================================
-   LOGIQUE PONTS (intégration complète)
+   LOGIQUE PONTS
    =========================================================== */
 function parseRawContentToData(raw) {
-    // raw peut être :
-    // - objet contenant .data (déjà)
-    // - objet contenant .contents (string JSON)
-    // - une string JSON
     try {
         if (!raw) return null;
         if (typeof raw === "string") {
-            // parse possible JSON
             let j = null;
             try { j = JSON.parse(raw); } catch (e) { return null; }
             if (j && j.data) return j.data;
@@ -453,13 +394,12 @@ async function checkAndUpdate(forceUpdate = false) {
     const last = localStorage.getItem(CACHE_KEY_TIME);
     const container = document.getElementById("ponts-table");
 
-    // si cache récent et pas de forceUpdate -> afficher cache
     if (!forceUpdate && last && now - last < CACHE_EXPIRATION) {
         const cached = localStorage.getItem(CACHE_KEY_DATA);
         if (cached) {
             try {
                 renderPonts(JSON.parse(cached));
-                console.log("⚡ Cache utilisé (valid)");
+                console.log("⚡ Cache utilisé (valide)");
                 return;
             } catch (e) {
                 console.warn("Erreur parsing cache:", e);
@@ -467,7 +407,6 @@ async function checkAndUpdate(forceUpdate = false) {
         }
     }
 
-    // tenter fetch via pool de proxys
     try {
         const raw = await fetchWithPool("https://www.havre-port.com/map/getPonts");
         if (!raw) throw new Error("Aucun proxy n'a répondu");
@@ -505,7 +444,6 @@ async function checkAndUpdate(forceUpdate = false) {
         renderPonts(ordered);
     } catch (err) {
         console.warn("Erreur récupération ponts:", err && err.message ? err.message : err);
-        // fallback: afficher dernier cache valide si présent
         const cached = localStorage.getItem(CACHE_KEY_DATA);
         if (cached) {
             try {
@@ -553,34 +491,31 @@ function renderPonts(list) {
 
 /* ===========================================================
    INITIALISATION
-   - pré-test proxies au démarrage
-   - planifier retest batches
-   - lancer checkAndUpdate(force=true)
-   - boucle périodique de rafraîchissement
+   - pré-test des proxys au démarrage
+   - planification du retest périodique des proxys cassés (PROXY_RETEST_INTERVAL)
+   - checkAndUpdate(force=true) au démarrage
+   - boucle régulière REFRESH_INTERVAL pour mise à jour des ponts
    =========================================================== */
 (async function init() {
     const target = "https://www.havre-port.com/map/getPonts";
-    // charger store et pré-tester proxys
     try {
-        // if no store, preTest will test INITIAL_PROXIES
         await preTestProxies(target);
     } catch (e) {
         console.warn("Pré-test proxys a planté :", e);
     }
 
-    // Démarrer retest périodique des proxys cassés
+    // Lancer retest périodique des proxys cassés (utilise PROXY_RETEST_INTERVAL)
     setInterval(() => {
         retestBrokenProxies(target).catch(e => console.warn("Erreur retestBrokenProxies:", e));
-    }, RETEST_INTERVAL);
+    }, PROXY_RETEST_INTERVAL);
 
-    // Lancer update forcée au démarrage pour avoir l'état le plus frais possible
+    // Forcer une mise à jour au démarrage pour obtenir l'état le plus récent
     checkAndUpdate(true);
 
-    // Boucle régulière
+    // Boucle régulière pour mises à jour
     setInterval(() => checkAndUpdate(false), REFRESH_INTERVAL);
 
-    // en background, retester rapidement tout un cycle après quelques secondes
-    // pour améliorer validProxies si on a démarré depuis old store
+    // En background, relancer un pré-test court après quelques secondes pour raffiner validProxies
     setTimeout(() => {
         preTestProxies(target).catch(e => console.warn("Second preTest failed:", e));
     }, 5000);
