@@ -31,7 +31,7 @@
   </div>
 
 <script>
-  // Attendre que le DOM soit chargé
+  // [CORRECTION] Attendre que le DOM soit chargé avant d'exécuter le script
   document.addEventListener('DOMContentLoaded', function() {
 
     // Gestionnaire d'erreurs global pour les promesses non capturées
@@ -216,6 +216,7 @@
         return e;
       }).filter(e => e._start && e._endInclusive);
 
+      // (Le reste de ton code original pour les segments, le rendu, etc.)
       const segments = [];
       norm.forEach(ev => {
         const sDay = new Date(ev._start);
@@ -252,6 +253,7 @@
         }
       });
 
+      // (Le reste de ton code original pour le rendu des événements)
       const weekLanes = Array.from({ length: weekView }, () => []);
       segments.forEach(seg => {
         const lanes = weekLanes[seg.weekIdx];
@@ -437,21 +439,7 @@
       localStorage.removeItem(CACHE_KEY);
       renderCalendar();
     });
-
-    // [CORRECTION] Redimensionnement avec un délai et recalcul complet
-    let resizeTimeout;
-    window.addEventListener('resize', () => {
-      clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(() => {
-        // Recalculer la hauteur des lignes et le rendu
-        const headerH = document.getElementById('calendar-header').getBoundingClientRect().height;
-        const availH = Math.max(240, window.innerHeight - headerH - 32);
-        const rowH = Math.floor((availH - 20) / weekView);
-        document.getElementById('calendar').style.gridAutoRows = `${rowH}px`;
-        renderCalendar();
-      }, 200); // Délai de 200ms pour éviter les recalculs trop rapides
-    });
-
+    window.addEventListener('resize', () => { requestAnimationFrame(() => renderCalendar()); });
     document.getElementById('event-modal').addEventListener('click', hideModal);
 
     // ---------------- Horloge (inchangé) ----------------
@@ -473,7 +461,7 @@
     // Chargement initial
     renderCalendar().catch(err => { console.error('render error', err); document.getElementById('calendar-title').textContent = 'Erreur'; });
 
-  }); // Fermeture de DOMContentLoaded
+  }); // [CORRECTION] Fermeture de l'écouteur DOMContentLoaded
 </script>
 </body>
 </html>
