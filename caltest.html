@@ -94,6 +94,8 @@
   .modal-item p{color:#dbe7ea;margin-top:6px}
   /* responsive */
   @media(max-width:720px){ .day-cell{min-height:68px} }
+  /* small perf tweak: will-change for event transforms where possible */
+  .multi-band, .single-evt { will-change: top, left, width, height; }
 </style>
 </head>
 <body>
@@ -195,12 +197,26 @@
       return res.json();
     }
 
-    // ---------------- Rendering calendrier (modifié pour le hash) ----------------
+    // ---------------- Rendering calendrier (modifié pour le hash + DOM-diff events) ----------------
+    // IMPORTANT : on conserve la création des cellules comme avant (pour garantir pas de régression),
+    // mais on n'efface PAS eventsLayer : on applique un diff pour créer / mettre à jour / supprimer uniquement les événements nécessaires.
+
+    // helper pour générer un id unique de segment (évite recréations inutiles)
+    function segmentIdFor(seg) {
+      // utilise id de l'événement + startIdx + endIdx + lane (unique par segment visible)
+      const evId = seg.ev && seg.ev.id ? seg.ev.id : (seg.ev && seg.ev.summary ? seg.ev.summary : 'ev');
+      return `${evId}::${seg.startIdx}::${seg.endIdx}::${seg.lane}`;
+    }
+
     async function renderCalendar() {
       const calendarEl = document.getElementById('calendar');
       const eventsLayer = document.getElementById('events-layer');
+
+      // on reconstruit les cellules (identique à avant) — pas de changement de logique pour éviter toute régression.
       calendarEl.innerHTML = '';
-      eventsLayer.innerHTML = '';
+      // NOTE : événements NE sont PAS vidés ici — diffUpdateEvents s'en chargera.
+      // eventsLayer.innerHTML = ''; // <-- supprimé par DOM-diff
+
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const thisMonday = getMonday(currentStartDate);
@@ -270,7 +286,7 @@
         saveCache(items, newHash);
       }
 
-      // (Le reste de ton code original pour la normalisation des événements et le rendu)
+      // normalisation des événements (identique à ton code)
       const norm = items.map(ev => {
         const e = JSON.parse(JSON.stringify(ev));
         e.__type = e.__type || '';
@@ -300,7 +316,7 @@
         return e;
       }).filter(e => e._start && e._endInclusive);
 
-      // (Le reste de ton code original pour les segments, le rendu, etc.)
+      // segments (identique à ton code)
       const segments = [];
       norm.forEach(ev => {
         const sDay = new Date(ev._start);
@@ -337,6 +353,7 @@
         }
       });
 
+      // lanes, overlaps, etc. (identique)
       const weekLanes = Array.from({ length: weekView }, () => []);
       segments.forEach(seg => {
         const lanes = weekLanes[seg.weekIdx];
@@ -356,6 +373,8 @@
           }
         }
       });
+
+      // mesure pour le positionnement
       await new Promise(r => requestAnimationFrame(r));
       const calendarRect = calendarEl.getBoundingClientRect();
       const cellRects = cellMap.map(c => c.el.getBoundingClientRect());
@@ -381,60 +400,67 @@
       function getLastSegmentOfEvent(ev) {
         return segments.filter(s => s.ev === ev).reduce((a, b) => a.endIdx > b.endIdx ? a : b);
       }
+
+      // Ajout des overlays passés (identique)
       cellMap.forEach((cellObj, idx) => {
         const cellDate = cellObj.date;
         if (cellDate < today) {
-          const overlay = document.createElement('div');
-          overlay.className = 'past-day-overlay';
-          cellObj.el.appendChild(overlay);
-          cellObj.el.style.position = 'relative';
+          // éviter d'empiler plusieurs overlays si renderCalendar est appelé souvent
+          if (!cellObj._hasOverlay) {
+            const overlay = document.createElement('div');
+            overlay.className = 'past-day-overlay';
+            cellObj.el.appendChild(overlay);
+            cellObj.el.style.position = 'relative';
+            cellObj._hasOverlay = true;
+          }
+        } else {
+          // si on était en arrière et que le jour devient futur (rare), on peut retirer le voile
+          if (cellObj._hasOverlay && cellObj.date >= today) {
+            const overlay = cellObj.el.querySelector('.past-day-overlay');
+            if (overlay) overlay.remove();
+            cellObj._hasOverlay = false;
+          }
         }
       });
-      segments.forEach(seg => {
+
+      // === Construire la liste "segmentsRenderable" avec positions exactes pour chaque segment ===
+      const segmentsRenderable = segments.map(seg => {
         const firstRect = cellRects[seg.startIdx];
         const lastRect = cellRects[seg.endIdx];
-        if (!firstRect || !lastRect) return;
+        if (!firstRect || !lastRect) return null;
         const left = firstRect.left - calendarRect.left;
         const width = (lastRect.left + lastRect.width) - firstRect.left - 6;
-        const el = document.createElement('div');
-        el.className = 'multi-band ' + (seg.ev.__type || '');
-        el.style.left = `${left}px`;
-        el.style.width = `${Math.max(36, width)}px`;
         const top = (weekTopBase[seg.weekIdx] || 0) + dateLabelH + 6 + (seg.lane * bandSpacing);
-        el.style.top = `${top}px`;
-        el.style.height = `${bandH}px`;
-        const textContainer = document.createElement('div');
-        textContainer.className = 'event-text-container';
-        const eventText = document.createElement('div');
-        eventText.className = 'event-text';
+        const visibleLanes = visibleLanesPerWeek[seg.weekIdx] || 0;
+        const isHidden = seg.lane >= visibleLanes;
+        // Texte
         const ev = seg.ev;
         const evStartTime = ev._isAllDay ? '' : fmtTime(ev._start);
         const evEndTime = (!ev._isAllDay && seg.endIdx === getLastSegmentOfEvent(ev).endIdx) ? ('>' + fmtTime(ev._end)) : '';
         const isFirstSegment = seg.startIdx === getFirstSegmentOfEvent(ev).startIdx;
         let fullText = '';
-        if (isFirstSegment && evStartTime) {
-          fullText += `<${evStartTime} `;
-        }
+        if (isFirstSegment && evStartTime) fullText += `<${evStartTime} `;
         fullText += ev.summary || '(sans titre)';
-        if (evEndTime) {
-          fullText += ` ${evEndTime}`;
-        }
-        eventText.textContent = fullText;
-        eventText.setAttribute('data-text', fullText);
-        textContainer.appendChild(eventText);
-        el.appendChild(textContainer);
-        seg._el = el;
-        const visibleLanes = visibleLanesPerWeek[seg.weekIdx] || 0;
-        el.style.display = seg.lane >= visibleLanes ? 'none' : 'flex';
-        seg._isHidden = seg.lane >= visibleLanes;
-        setTimeout(() => {
-          if (eventText.scrollWidth > textContainer.clientWidth) {
-            eventText.classList.add('scrolling');
-          }
-        }, 100);
-        el.addEventListener('click', e => { e.stopPropagation(); showEventModal(ev); });
-        eventsLayer.appendChild(el);
-      });
+        if (evEndTime) fullText += ` ${evEndTime}`;
+
+        return {
+          id: segmentIdFor(seg),
+          evId: ev.id || (ev.summary || '') ,
+          seg,
+          left: Math.round(left),
+          width: Math.round(Math.max(36, width)),
+          top: Math.round(top),
+          height: bandH,
+          text: fullText,
+          type: seg.ev.__type || '',
+          hidden: isHidden
+        };
+      }).filter(Boolean);
+
+      // Now apply DOM-diff on segmentsRenderable
+      diffUpdateEvents(segmentsRenderable);
+
+      // Badges "+X autres" (identique)
       cellMap.forEach((c, idx) => {
         const weekIdx = Math.floor(idx / 7);
         const visibleLanes = visibleLanesPerWeek[weekIdx] || 0;
@@ -447,6 +473,9 @@
         });
         c.visibleCount = visibleCount;
         c.hiddenCount = hiddenCount;
+        // enlever ancien badge si présent
+        const existingBadge = c.el.querySelector('.more-events');
+        if (existingBadge) existingBadge.remove();
         if (hiddenCount > 0) {
           const badge = document.createElement('div');
           badge.className = 'more-events';
@@ -455,7 +484,112 @@
           c.el.appendChild(badge);
         }
       });
+
       document.getElementById('calendar-title').textContent = Array.from(months).join(' / ');
+    }
+
+    // ---------------- DOM-diff implementation for events ----------------
+    function diffUpdateEvents(newSegments) {
+      const layer = document.getElementById('events-layer');
+      const existing = new Map();
+      // index existing nodes by data-seg-id
+      Array.from(layer.children).forEach(child => {
+        const id = child.dataset.segId;
+        if (id) existing.set(id, child);
+      });
+
+      const used = new Set();
+
+      newSegments.forEach(s => {
+        const node = existing.get(s.id);
+        if (s.hidden) {
+          // if segment is marked hidden, ensure it's removed if exists
+          if (node) {
+            node.remove();
+            existing.delete(s.id);
+          }
+          return;
+        }
+
+        if (node) {
+          // Update only if needed
+          let changed = false;
+          if (node.style.left !== s.left + 'px') { node.style.left = s.left + 'px'; changed = true; }
+          if (node.style.top !== s.top + 'px') { node.style.top = s.top + 'px'; changed = true; }
+          if (node.style.width !== s.width + 'px') { node.style.width = s.width + 'px'; changed = true; }
+          if (node.style.height !== s.height + 'px') { node.style.height = s.height + 'px'; changed = true; }
+          // text is inside .event-text
+          const textNode = node.querySelector('.event-text');
+          if (textNode && textNode.textContent !== s.text) {
+            textNode.textContent = s.text;
+            textNode.setAttribute('data-text', s.text);
+            // reset scrolling class if necessary
+            textNode.classList.remove('scrolling');
+            // re-evaluate scrolling after a slight timeout
+            setTimeout(() => {
+              const container = node.querySelector('.event-text-container');
+              if (textNode.scrollWidth > (container ? container.clientWidth : 0)) {
+                textNode.classList.add('scrolling');
+              }
+            }, 80);
+          }
+          used.add(s.id);
+        } else {
+          // create new element
+          const el = document.createElement('div');
+          el.className = 'multi-band ' + (s.type || '');
+          el.dataset.segId = s.id;
+          el.style.position = 'absolute';
+          el.style.left = s.left + 'px';
+          el.style.top = s.top + 'px';
+          el.style.width = s.width + 'px';
+          el.style.height = s.height + 'px';
+          el.style.display = 'flex';
+          el.style.alignItems = 'center';
+          // build inner text container like before
+          const textContainer = document.createElement('div');
+          textContainer.className = 'event-text-container';
+          textContainer.style.width = '100%';
+          const eventText = document.createElement('div');
+          eventText.className = 'event-text';
+          eventText.textContent = s.text;
+          eventText.setAttribute('data-text', s.text);
+          textContainer.appendChild(eventText);
+          el.appendChild(textContainer);
+          // click handler to open modal: we need the original event object.
+          // We can store evId to retrieve description later by searching loaded items (norm) if needed.
+          el.addEventListener('click', (e) => {
+            e.stopPropagation();
+            // find the segment's original ev in the last cached items; fallback does nothing
+            // We stored seg.ev reference earlier in renderCalendar scope, but here we don't have direct access.
+            // To keep parity, store the event object on the DOM node when created by renderCalendar (we pass it via s.seg.ev)
+            // We'll set el._ev when created below.
+            if (el._ev) showEventModal(el._ev);
+          });
+          // set ev reference for modal (we have access to s.seg.ev)
+          // s.seg is available only when called from renderCalendar; ensure caller passed it.
+          if (s.seg && s.seg.ev) el._ev = s.seg.ev;
+
+          // determine scrolling after inserted into DOM
+          layer.appendChild(el);
+          setTimeout(() => {
+            const container = el.querySelector('.event-text-container');
+            const eventText = el.querySelector('.event-text');
+            if (eventText && container && eventText.scrollWidth > container.clientWidth) {
+              eventText.classList.add('scrolling');
+            }
+          }, 80);
+
+          used.add(s.id);
+        }
+      });
+
+      // remove nodes not used anymore
+      existing.forEach((node, id) => {
+        if (!used.has(id)) {
+          node.remove();
+        }
+      });
     }
 
     // ---------------- Modals (inchangé) ----------------
