@@ -120,6 +120,7 @@
     window.addEventListener('unhandledrejection', (event) => {
       event.preventDefault();
     });
+
     // ---------------- utilitaires ----------------
     const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
     const CALENDAR_IDS = { reception: 'receptionroulier@gmail.com', navire: 'smr.programme@gmail.com' };
@@ -192,15 +193,29 @@
       return res.json();
     }
 
-    // Fonction pour attendre que le layout soit prêt
+    // Fonction pour attendre que le layout soit prêt (version robuste)
     function waitForLayoutReady() {
       return new Promise((resolve) => {
+        let attempts = 0;
+        const maxAttempts = 20;
         const checkLayout = () => {
           const firstCell = document.querySelector('.day-cell');
-          if (firstCell && firstCell.getBoundingClientRect().width > 0) {
-            resolve();
-          } else {
+          if (firstCell) {
+            const rect = firstCell.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+              resolve();
+            } else if (attempts < maxAttempts) {
+              attempts++;
+              requestAnimationFrame(checkLayout);
+            } else {
+              // Si après 20 tentatives, le layout n'est toujours pas prêt, on force un délai
+              setTimeout(resolve, 50);
+            }
+          } else if (attempts < maxAttempts) {
+            attempts++;
             requestAnimationFrame(checkLayout);
+          } else {
+            setTimeout(resolve, 50);
           }
         };
         checkLayout();
@@ -368,8 +383,11 @@
         }
       });
 
-      // Attendre que le layout soit prêt
+      // Attendre que le layout soit prêt (version robuste)
       await waitForLayoutReady();
+
+      // Forcer un reflow
+      calendarEl.offsetHeight;
 
       const calendarRect = calendarEl.getBoundingClientRect();
       const cellRects = cellMap.map(c => c.el.getBoundingClientRect());
