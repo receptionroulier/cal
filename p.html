@@ -96,12 +96,12 @@ const CACHE_KEY_HASH = "pontsHash";
 const CACHE_KEY_TIME = "pontsCacheTime";
 
 const PROXY_STORE_KEY = "pontsProxyStore"; // persist valid/broken proxies
-const CACHE_EXPIRATION = 120000; // 2 minutes
-const REFRESH_INTERVAL = 60000; // 1 minute between updates
+const CACHE_EXPIRATION = 60000; // 1 minutes
+const REFRESH_INTERVAL = 30000; // 30 segondes between updates
 const PROXY_TEST_TIMEOUT = 8000; // ms timeout pour tester un proxy
 const FETCH_TIMEOUT = 10000; // ms timeout pour fetch réel via proxy
 const RETEST_INTERVAL = 10 * 60 * 1000; // retest des proxys tombés toutes les 10 min
-const RETEST_BATCH_SIZE = 3; // combien de proxys "cassés" retester à chaque passe
+const RETEST_BATCH_SIZE = 5; // combien de proxys "cassés" retester à chaque passe
 
 /* Liste initiale (fallback) de proxys à tester si rien en stockage.
    Tu peux en ajouter/supprimer selon ton expérience */
