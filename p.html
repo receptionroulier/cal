@@ -98,10 +98,17 @@ const CACHE_EXPIRATION = 120000; // 2 minutes
 const REFRESH_INTERVAL = 60000; // 1 minute
 
 const PROXIES = [
-    "https://api.allorigins.win/get?url=",
-    "https://thingproxy.freeboard.io/fetch/"
+  "https://api.allorigins.win/get?url=",
+  "https://thingproxy.freeboard.io/fetch/",
+  "https://cors-anywhere.com/",                       // CORS Anywhere :contentReference[oaicite:1]{index=1}
+  "https://every-origin.vercel.app/",                 // EveryOrigin :contentReference[oaicite:3]{index=3}
+  "https://proxy.corsfix.com/?",                      // Corsfix :contentReference[oaicite:5]{index=5}
+  "https://yacdn.org/proxy/",                         // tiré d’une liste publique de proxys CORS :contentReference[oaicite:6]{index=6}
+  "https://jsonp.afeld.me/?callback=&url=",          // idem, proxy CORS gratuit :contentReference[oaicite:7]{index=7}
+  "https://crossorigin.me/",                          // crossorigin.me :contentReference[oaicite:9]{index=9}
+  "https://cors-proxy.htmldriven.com/?url=",         // autre proxy public listé dans les collections publiques :contentReference[oaicite:10]{index=10}
+  "https://test.cors.workers.dev/?",                  // proxy public via "workers" listé dans github :contentReference[oaicite:11]{index=11}
 ];
-
 // =====================
 // UTILITAIRES
 // =====================
