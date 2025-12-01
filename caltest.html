@@ -123,7 +123,6 @@
     const CACHE_TTL = 30000;
     let weekView = 3;
     let currentStartDate = new Date();
-    let resizeTimeout;
 
     function calculateHash(events) {
       return JSON.stringify(events.map(ev => ({
@@ -204,16 +203,6 @@
           }
         };
         checkCells();
-      });
-    }
-
-    function updateScrollingEvents() {
-      document.querySelectorAll('.event-text.scrolling').forEach(el => {
-        el.classList.remove('scrolling');
-        const container = el.parentElement;
-        if (el.scrollWidth > container.clientWidth) {
-          el.classList.add('scrolling');
-        }
       });
     }
 
@@ -449,6 +438,12 @@
         const visibleLanes = visibleLanesPerWeek[seg.weekIdx] || 0;
         el.style.display = seg.lane >= visibleLanes ? 'none' : 'flex';
         seg._isHidden = seg.lane >= visibleLanes;
+        setTimeout(() => {
+          if (eventText.scrollWidth > textContainer.clientWidth) {
+            eventText.classList.add('scrolling');
+          }
+        }, 100);
+        el.addEventListener('click', e => { e.stopPropagation(); showEventModal(ev); });
         eventsLayer.appendChild(el);
       });
 
@@ -473,7 +468,6 @@
         }
       });
 
-      updateScrollingEvents();
       document.getElementById('calendar-title').textContent = Array.from(months).join(' / ');
     }
 
@@ -544,13 +538,7 @@
       renderCalendar();
     });
 
-    window.addEventListener('resize', () => {
-      clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(() => {
-        renderCalendar();
-      }, 200);
-    });
-
+    window.addEventListener('resize', () => { requestAnimationFrame(() => renderCalendar()); });
     document.getElementById('event-modal').addEventListener('click', hideModal);
 
     function updateClock() {
