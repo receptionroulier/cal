@@ -1,207 +1,258 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Ponts du Havre</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tableau de bord - Ponts</title>
 <style>
 body {
+    margin: 0;
     font-family: Arial, sans-serif;
-    background: #222;
-    color: #fff;
-    text-align: center;
+    background: #101010;
+    color: #eaeaea;
+    display: flex;
+    justify-content: center;
     padding: 20px;
+    scroll-behavior: smooth;
 }
-.pont {
+.container {
+    width: 95%;
+    max-width: 1200px;
     padding: 12px;
-    margin: 10px auto;
-    width: 300px;
-    border-radius: 10px;
-    background: #333;
-    font-size: 20px;
-    transition: background 0.3s ease;
+    box-sizing: border-box;
+    overflow-y: auto;
 }
-.manoeuvre {
-    animation: clignoteBleu 1s infinite;
+h2 {
+    text-align: center;
+    color: #00e5ff;
+    margin: 0 0 5px;
 }
-@keyframes clignoteBleu {
-    0% { background-color: #0055ff; }
-    50% { background-color: #002266; }
-    100% { background-color: #0055ff; }
+#cache-info {
+    text-align:center;
+    margin-bottom:14px;
+    font-size:0.7em;
+    color:#ccc;
 }
-.ferme {
-    animation: clignoteOrange 1s infinite;
+.cache-ok { color:#58ff58; font-weight:bold; }
+.cache-fail { color:#ff4040; font-weight:bold; }
+@media (max-width: 768px) {
+    .container { width: 100%; padding: 8px; }
 }
-@keyframes clignoteOrange {
-    0% { background-color: #ff8800; }
-    50% { background-color: #663300; }
-    100% { background-color: #ff8800; }
+#ponts-table {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
-.indicateur {
-    margin-top: 15px;
-    font-size: 16px;
-    padding: 8px;
-    display: inline-block;
+.pont-card {
+    background: #1f1f1f;
     border-radius: 8px;
+    padding: 10px 12px;
+    box-shadow: 0 0 5px rgba(0,0,0,0.4);
+    border-left: 4px solid #444;
+    transition: transform 0.15s ease, box-shadow 0.3s ease;
+    word-break: break-word;
 }
-.indicateur.vert {
-    background: #0a0;
+.pont-card:hover { transform: scale(1.02); }
+.pont-card.ferme { border-left-color: #ff4040; }
+.pont-card.fermeture { border-left-color: orange; animation: pulse-orange 1.2s infinite; }
+.pont-card.manoeuvre { border-left-color: #1c3cff; animation: pulse-blue 1.2s infinite; }
+.pont-card.ouvert { border-left-color: #58ff58; }
+.pastille { width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; display: inline-block; }
+.ferme .pastille { background: #ff4040; }
+.fermeture .pastille { background: orange; }
+.manoeuvre .pastille { background: #1c3cff; }
+.ouvert .pastille { background: #58ff58; }
+.pont-nom { font-weight: bold; display: flex; align-items: center; }
+.pont-infos { font-size: 0.85em; color: #ccc; }
+@keyframes pulse-blue {
+    0%,100% { box-shadow: 0 0 5px rgba(28,60,255,0.4); transform: scale(1); }
+    50% { box-shadow: 0 0 20px rgba(28,60,255,0.7); transform: scale(1.02); }
 }
-.indicateur.rouge {
-    background: #a00;
+@keyframes pulse-orange {
+    0%,100% { box-shadow: 0 0 5px rgba(255,165,0,0.4); transform: scale(1); }
+    50% { box-shadow: 0 0 20px rgba(255,165,0,0.7); transform: scale(1.02); }
 }
+.error-message { text-align: center; color: #ff4040; font-weight: bold; }
 </style>
 </head>
 <body>
-
-<h1>État des Ponts</h1>
-
-<div id="ponts-container"></div>
-
-<div id="indicMaj" class="indicateur">Initialisation…</div>
+<div class="container">
+    <h2>État des Ponts</h2>
+    <div id="cache-info">
+        <span id="cache-status"></span>
+        <span id="cache-time"></span>
+    </div>
+    <div id="ponts-table">Chargement...</div>
+</div>
 
 <script>
-/* ----------------------------------------
-   CONFIG
------------------------------------------ */
-const PROXIES = [
-    "https://www.havre-port.com/map/getPonts",
-    "https://proxy1.example.com/ponts",
-    "https://proxy2.example.com/ponts"
+const CACHE_KEY_DATA = "pontsData";
+const CACHE_KEY_HASH = "pontsHash";
+const CACHE_KEY_CHECK = "pontsLastCheck";
+const CACHE_KEY_QUALITY = "pontsCacheQuality";
+
+const REFRESH_INTERVAL = 30000;
+const FETCH_TIMEOUT = 10000;
+const INITIAL_PROXIES = [
+    "https://proxy.corsfix.com/?",
+    "https://yacdn.org/proxy/",
+    "https://jsonp.afeld.me/?callback=&url=",
+    "https://crossorigin.me/",
+    "https://cors-proxy.htmldriven.com/?url=",
+    "https://test.cors.workers.dev/?",
+    "https://api.codetabs.com/v1/proxy?quest=",
+    "https://cors.bridged.cc/",
+    "https://corsproxy.io/?",
+    "https://allorigins.hexlet.app/get?url=",
+    "https://api.allorigins.win/raw?url=",
+    "https://jsonp.afeld.me/?callback=&url="
 ];
 
-let cachePonts = null;          // dernier cache accepté
-let cacheMaxDate = null;        // date max du dernier cache
-let derniereMajTexte = "";      // texte indicateur
-let derniereMajCouleur = "";    // classe CSS
+let validProxies = [];
+let brokenProxies = [];
+let proxyStats = {};
+let allProxies = Array.from(new Set(INITIAL_PROXIES));
 
-/* ----------------------------------------
-   UTILITAIRE : extraire date max d'un JSON
------------------------------------------ */
-function extractMaxDate(json) {
-    try {
-        let dates = Object.values(json).map(p => new Date(p.date));
-        return new Date(Math.max(...dates));
-    } catch {
-        return null;
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+async function withTimeout(promiseFactory, ms){
+    const controller = new AbortController();
+    const id = setTimeout(()=>controller.abort(), ms);
+    try{ const res = await promiseFactory(controller.signal); clearTimeout(id); return res; }
+    finally{ clearTimeout(id); }
+}
+async function fetchWithTimeout(url, options={}, timeout=FETCH_TIMEOUT){
+    return withTimeout(signal=>fetch(url,{...options,signal}), timeout);
+}
+async function sha256(str){
+    const data = new TextEncoder().encode(str);
+    const digest = await crypto.subtle.digest("SHA-256",data);
+    return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+function normalizeData(data){
+    return JSON.stringify(data.map(p=>({nom:p.nom,statutText:p.statutText,date:p.date,forceText:p.forceText||""})).sort((a,b)=>a.nom.localeCompare(b.nom)));
+}
+function isProxyDisabled(proxy){ 
+    return proxyStats[proxy]?.disabledUntil && proxyStats[proxy].disabledUntil > Date.now(); 
+}
+function shuffle(a){return a.slice().sort(()=>Math.random()-0.5);}
+async function fetchWithPool(url){
+    const lists=[shuffle(validProxies),shuffle(brokenProxies),shuffle(allProxies)];
+    for(const list of lists){
+        const promises = list.map(proxy=>{
+            if(isProxyDisabled(proxy)) return Promise.reject();
+            return fetchWithTimeout(proxy+encodeURIComponent(url),{method:'GET'},FETCH_TIMEOUT)
+                .then(res=>res.ok?res:Promise.reject())
+                .catch(()=>Promise.reject());
+        });
+        try{
+            const first = await Promise.any(promises);
+            return first.json().catch(()=>first.text());
+        }catch(e){ continue; }
+    }
+    return null;
+}
+function parseRawContentToData(raw){
+    if(!raw) return null;
+    if(typeof raw==='string'){ try{const j=JSON.parse(raw); return j?.data||j;}catch(e){return null;} }
+    if(typeof raw==='object'){ if(raw.data) return raw.data; if(raw.contents){ try{const inner=JSON.parse(raw.contents); return inner?.data||inner;}catch(e){return null;} } return raw; }
+    return null;
+}
+function updateCacheDisplay(state,date){
+    const status = document.getElementById("cache-status");
+    const t = document.getElementById("cache-time");
+    if(state==='fresh'){
+        status.innerHTML = '<span class="cache-ok">🟢 </span>';
+        t.textContent = " — MàJ : " + date;
+    } else if(state==='unchanged'){
+        status.innerHTML = '<span class="cache-ok">🟢 </span>';
+        t.textContent = " — MàJ vérifié : " + date;
+    } else if(state==='fallback'){
+        status.innerHTML = '<span class="cache-fail">🔴 </span>';
+        t.textContent = " — MàJ : " + date;
     }
 }
 
-/* ----------------------------------------
-   AFFICHAGE
------------------------------------------ */
-function afficherPonts(json) {
-    const cont = document.getElementById("ponts-container");
-    cont.innerHTML = "";
+async function checkAndUpdate(){
+    const container = document.getElementById("ponts-table");
+    const cachedRaw = localStorage.getItem(CACHE_KEY_DATA);
+    const cachedHash = localStorage.getItem(CACHE_KEY_HASH);
+    const lastCheck = new Date().toLocaleString('fr-FR');
 
-    for (let nom in json) {
-        const pont = json[nom];
-        const div = document.createElement("div");
+    let ponts = null;
+    let newHash = null;
 
-        div.className = "pont";
-        div.textContent = `${pont.nom} — ${pont.etat}`;
+    // Essayer plusieurs fetch rapides pour attraper la dernière version
+    for(let attempt=0; attempt<3; attempt++){
+        const raw = await fetchWithPool("https://www.havre-port.com/map/getPonts");
+        const data = parseRawContentToData(raw);
 
-        if (pont.etat === "MANOEUVRE") div.classList.add("manoeuvre");
-        if (pont.etat === "FERME") div.classList.add("ferme");
-
-        cont.appendChild(div);
-    }
-}
-
-function afficherIndicateur() {
-    const i = document.getElementById("indicMaj");
-    i.textContent = derniereMajTexte;
-    i.className = "indicateur " + derniereMajCouleur;
-}
-
-/* ----------------------------------------
-   LECTURE VIA PROXY (aléatoire)
------------------------------------------ */
-async function fetchViaProxy() {
-    let proxiesMelanges = [...PROXIES].sort(() => Math.random() - 0.5);
-
-    for (let url of proxiesMelanges) {
-        try {
-            let rep = await fetch(url, { cache: "no-store" });
-            if (!rep.ok) continue;
-            return await rep.json();
-        } catch {
-            continue;
+        if(data){
+            ponts = Object.values(data).sort((a,b)=>{
+                const score = p=>{
+                    const s = (p.statutText||'').toLowerCase();
+                    if(s.includes('fermé')) return 1;
+                    if(s.includes('fermeture')) return 2;
+                    if(s.includes('manoeuvre')||s.includes('manœuvre')) return 3;
+                    if(s.includes('ouvert')) return 4;
+                    return 5;
+                }; return score(a)-score(b);
+            });
+            const norm = normalizeData(ponts);
+            newHash = await sha256(norm);
+            break; // sortie dès qu'on récupère des données valides
         }
+        await sleep(200); // attendre 200ms entre tentatives
     }
-    return null; // tous KO
-}
 
-/* ----------------------------------------
-   MISE À JOUR TOUTES LES 30s
------------------------------------------ */
-async function miseAJour() {
-    let json = await fetchViaProxy();
-
-    // 1) Problème proxy → on garde le cache actuel
-    if (!json) {
-        if (cachePonts) {
-            derniereMajTexte = "Utilisation du cache (tous les proxy KO) — " +
-                cacheMaxDate.toLocaleString();
-            derniereMajCouleur = "rouge";
-            afficherIndicateur();
-            afficherPonts(cachePonts);
+    if(ponts && newHash){
+        if(newHash !== cachedHash){
+            // données différentes → remplacer cache
+            localStorage.setItem(CACHE_KEY_DATA,JSON.stringify(ponts));
+            localStorage.setItem(CACHE_KEY_HASH,newHash);
+            localStorage.setItem(CACHE_KEY_CHECK, Date.now());
+            localStorage.setItem(CACHE_KEY_QUALITY,'fresh');
+            renderPonts(ponts);
+            updateCacheDisplay('fresh', lastCheck);
+        } else {
+            // identique → garder cache précédent
+            renderPonts(JSON.parse(cachedRaw));
+            updateCacheDisplay('unchanged', lastCheck);
         }
         return;
     }
 
-    // 2) On calcule la date max reçue
-    let newMaxDate = extractMaxDate(json);
-    if (!newMaxDate) return;
-
-    // PREMIER LANCEMENT → on accepte immédiatement
-    if (!cachePonts) {
-        cachePonts = json;
-        cacheMaxDate = newMaxDate;
-        afficherPonts(cachePonts);
-        derniereMajTexte = "Mise à jour initiale : " + cacheMaxDate.toLocaleString();
-        derniereMajCouleur = "vert";
-        afficherIndicateur();
-        return;
+    // si tous les proxies ont échoué
+    if(cachedRaw){
+        renderPonts(JSON.parse(cachedRaw));
+        updateCacheDisplay('fallback', lastCheck);
+    } else {
+        container.innerHTML='<div class="error-message">Impossible de récupérer les ponts et aucun cache disponible.</div>';
     }
-
-    // 3) Protection anti-retour-en-arrière
-    if (newMaxDate < cacheMaxDate) {
-        // JSON plus vieux → on ignore
-        derniereMajTexte = "Données plus anciennes ignorées — " + cacheMaxDate.toLocaleString();
-        derniereMajCouleur = "vert";
-        afficherIndicateur();
-        afficherPonts(cachePonts);
-        return;
-    }
-
-    // 4) JSON au moins aussi récent → on doit comparer les contenus
-    let inchanges = JSON.stringify(json) === JSON.stringify(cachePonts);
-
-    if (inchanges) {
-        // inchangé
-        derniereMajTexte = "Données inchangées (vérifié) — " + newMaxDate.toLocaleString();
-        derniereMajCouleur = "vert";
-        afficherIndicateur();
-        afficherPonts(cachePonts);
-        return;
-    }
-
-    // 5) JSON plus récent → on remplace le cache
-    cachePonts = json;
-    cacheMaxDate = newMaxDate;
-
-    afficherPonts(cachePonts);
-    derniereMajTexte = "Mise à jour — " + cacheMaxDate.toLocaleString();
-    derniereMajCouleur = "vert";
-    afficherIndicateur();
 }
 
-/* ----------------------------------------
-   DÉMARRAGE
------------------------------------------ */
-miseAJour();
-setInterval(miseAJour, 30000);
+function renderPonts(list){
+    const container=document.getElementById("ponts-table");
+    if(!list||!list.length){ container.innerHTML='<div class="error-message">Aucun pont disponible.</div>'; return; }
+    container.innerHTML=list.map(p=>{
+        const statut=(p.statutText||'').toLowerCase();
+        const open=statut.includes('ouvert');
+        const move=statut.includes('manoeuvre')||statut.includes('manœuvre');
+        const fermeture=statut.includes('fermeture');
+        const ferme=statut.includes('fermé')||statut.includes('ferme');
+        const cls = ferme?'ferme':fermeture?'fermeture':move?'manoeuvre':open?'ouvert':'ferme';
+        const info=p.forceText||`MàJ : ${p.date||'inconnue'}`;
+        return `<div class="pont-card ${cls}">
+            <div class="pont-nom"><span class="pastille"></span>${p.nom||'Pont sans nom'}</div>
+            <div class="pont-etat">${p.statutText||''}</div>
+            <div class="pont-infos">${info}</div>
+        </div>`;
+    }).join('');
+}
+
+(async function init(){
+    await checkAndUpdate();
+    setInterval(checkAndUpdate, REFRESH_INTERVAL);
+})();
 </script>
 </body>
 </html>
