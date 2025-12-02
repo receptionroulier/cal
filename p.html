@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Tableau de bord - Ponts</title>
 <style>
-/* ===================== GLOBAL ===================== */
 body {
     margin: 0;
     font-family: Arial, sans-serif;
@@ -28,22 +27,17 @@ h2 {
     color: #00e5ff;
     margin: 0 0 5px;
 }
-
-/* Indicateur cache */
 #cache-info {
     text-align:center;
     margin-bottom:14px;
-    font-size:0.7em; /* texte plus discret */
+    font-size:0.7em;
     color:#ccc;
 }
 .cache-ok { color:#58ff58; font-weight:bold; }
 .cache-fail { color:#ff4040; font-weight:bold; }
-
 @media (max-width: 768px) {
     .container { width: 100%; padding: 8px; }
 }
-
-/* ===================== CARTES PONTS ===================== */
 #ponts-table {
     display: flex;
     flex-direction: column;
@@ -70,7 +64,6 @@ h2 {
 .ouvert .pastille { background: #58ff58; }
 .pont-nom { font-weight: bold; display: flex; align-items: center; }
 .pont-infos { font-size: 0.85em; color: #ccc; }
-
 @keyframes pulse-blue {
     0%,100% { box-shadow: 0 0 5px rgba(28,60,255,0.4); transform: scale(1); }
     50% { box-shadow: 0 0 20px rgba(28,60,255,0.7); transform: scale(1.02); }
@@ -79,15 +72,10 @@ h2 {
     0%,100% { box-shadow: 0 0 5px rgba(255,165,0,0.4); transform: scale(1); }
     50% { box-shadow: 0 0 20px rgba(255,165,0,0.7); transform: scale(1.02); }
 }
-.error-message {
-    text-align: center;
-    color: #ff4040;
-    font-weight: bold;
-}
+.error-message { text-align: center; color: #ff4040; font-weight: bold; }
 </style>
 </head>
 <body>
-
 <div class="container">
     <h2>État des Ponts</h2>
     <div id="cache-info">
@@ -98,20 +86,18 @@ h2 {
 </div>
 
 <script>
-/* ===================== CONFIGURATION ===================== */
 const PROXY_STORE_KEY = "pontsProxyStore";
 const CACHE_KEY_DATA = "pontsData";
 const CACHE_KEY_TIME = "pontsCacheTime";
+const CACHE_KEY_HASH = "pontsHash";
 const CACHE_KEY_QUALITY = "pontsCacheQuality";
 
-const CACHE_EXPIRATION_SHORT = 60000; // 1 min pour fallback
-const CACHE_EXPIRATION_LONG = 15*60000; // 15 min pour fresh
+const CACHE_EXPIRATION_SHORT = 60000; // 1 min fallback
+const CACHE_EXPIRATION_LONG = 15*60000; // 15 min fresh
 const REFRESH_INTERVAL = 30000;
 const PROXY_TEST_TIMEOUT = 8000;
 const FETCH_TIMEOUT = 10000;
-const PROXY_RETEST_INTERVAL = 10 * 60 * 1000;
 const RETEST_BATCH_SIZE = 5;
-const MAX_PROXY_FAILURES = 3;
 const INITIAL_PROXIES = [
     "https://api.allorigins.win/get?url=",
     "https://thingproxy.freeboard.io/fetch/",
@@ -126,70 +112,61 @@ const INITIAL_PROXIES = [
     "https://api.codetabs.com/v1/proxy?quest=",
     "https://cors.bridged.cc/",
     "https://corsproxy.io/?",
-    "https://allorigins.hexlet.app/get?url="
+    "https://allorigins.hexlet.app/get?url=",
+    "https://api.codetabs.com/v1/proxy?quest=",
+    "https://thingproxy.freeboard.io/fetch/",
+    "https://yacdn.org/proxy/",
+    "https://jsonp.afeld.me/?callback=&url=",
+    "https://crossorigin.me/",
+    "https://every-origin.vercel.app/",
+    "https://cors-anywhere.herokuapp.com/",
+    "https://proxy.corsfix.com/?",
+    "https://cors-proxy.htmldriven.com/?url=",
+    "https://test.cors.workers.dev/?",
+    "https://allorigins.hexlet.app/get?url=",
+    "https://cors.bridged.cc/",
+    "https://api.allorigins.win/raw?url=",
+    "https://thingproxy.freeboard.io/fetch/",
+    "https://yacdn.org/proxy/",
+    "https://jsonp.afeld.me/?callback=&url="
 ];
 
-/* ===================== ÉTAT ===================== */
 let validProxies = [];
 let brokenProxies = [];
-let proxyStats = {}; // {proxy: {success: n, fail: n, disabledUntil: timestamp}}
+let proxyStats = {};
 let allProxies = Array.from(new Set(INITIAL_PROXIES));
 
-/* ===================== UTILITAIRES ===================== */
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-async function withTimeout(promiseFactory, ms) {
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+async function withTimeout(promiseFactory, ms){
     const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), ms);
-    try {
-        const res = await promiseFactory(controller.signal);
-        clearTimeout(id);
-        return res;
-    } finally { clearTimeout(id); }
+    const id = setTimeout(()=>controller.abort(), ms);
+    try{ const res = await promiseFactory(controller.signal); clearTimeout(id); return res; }
+    finally{ clearTimeout(id); }
 }
-async function fetchWithTimeout(url, options = {}, timeout = FETCH_TIMEOUT) {
-    return withTimeout(signal => fetch(url, {...options, signal}), timeout);
+async function fetchWithTimeout(url, options={}, timeout=FETCH_TIMEOUT){
+    return withTimeout(signal=>fetch(url,{...options,signal}), timeout);
 }
-async function sha256(str) {
+async function sha256(str){
     const data = new TextEncoder().encode(str);
-    const digest = await crypto.subtle.digest("SHA-256", data);
-    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2,"0")).join("");
+    const digest = await crypto.subtle.digest("SHA-256",data);
+    return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");
 }
 function normalizeData(data){
-    return JSON.stringify(data.map(p=>({nom:p.nom,statutText:p.statutText,date:p.date,forceText:p.forceText||""}))
-        .sort((a,b)=>a.nom.localeCompare(b.nom)));
+    return JSON.stringify(data.map(p=>({nom:p.nom,statutText:p.statutText,date:p.date,forceText:p.forceText||""})).sort((a,b)=>a.nom.localeCompare(b.nom)));
 }
 function isProxyDisabled(proxy){ 
     return proxyStats[proxy]?.disabledUntil && proxyStats[proxy].disabledUntil > Date.now(); 
 }
+function loadProxyStoreFromLS(){ try{return JSON.parse(localStorage.getItem(PROXY_STORE_KEY));}catch(e){return null;} }
+function saveProxyStoreToLS(store){ try{localStorage.setItem(PROXY_STORE_KEY,JSON.stringify(store));}catch(e){} }
 
-/* ===================== PROXY STORE ===================== */
-function loadProxyStoreFromLS() { try { return JSON.parse(localStorage.getItem(PROXY_STORE_KEY)); } catch(e){return null;} }
-function saveProxyStoreToLS(store) { try { localStorage.setItem(PROXY_STORE_KEY, JSON.stringify(store)); } catch(e){} }
-
-/* ===================== TEST PROXY ===================== */
-async function testProxySimple(proxy, targetUrl, timeout=PROXY_TEST_TIMEOUT){
-    try{
-        const res = await withTimeout(signal => fetch(proxy + encodeURIComponent(targetUrl), {method:'GET', signal}), timeout);
-        if(!res.ok) return {ok:false};
-        if(!proxyStats[proxy]) proxyStats[proxy]={success:0,fail:0};
-        proxyStats[proxy].success++;
-        return {ok:true};
-    }catch(e){
-        if(!proxyStats[proxy]) proxyStats[proxy]={success:0,fail:0};
-        proxyStats[proxy].fail++;
-        if(proxyStats[proxy].fail>=MAX_PROXY_FAILURES) proxyStats[proxy].disabledUntil=Date.now()+5*60*1000;
-        return {ok:false};
-    }
-}
-
-/* ===================== UTILITÉ FETCH POOL ===================== */
 function shuffle(a){return a.slice().sort(()=>Math.random()-0.5);}
 async function fetchWithPool(url){
     const lists=[shuffle(validProxies),shuffle(brokenProxies),shuffle(allProxies)];
     for(const list of lists){
         const promises = list.map(proxy=>{
             if(isProxyDisabled(proxy)) return Promise.reject();
-            return fetchWithTimeout(proxy+encodeURIComponent(url), {method:'GET'}, FETCH_TIMEOUT)
+            return fetchWithTimeout(proxy+encodeURIComponent(url),{method:'GET'},FETCH_TIMEOUT)
                 .then(res=>res.ok?res:Promise.reject())
                 .catch(()=>Promise.reject());
         });
@@ -201,82 +178,94 @@ async function fetchWithPool(url){
     return null;
 }
 
-/* ===================== LOGIQUE PONTS ===================== */
 function parseRawContentToData(raw){
     if(!raw) return null;
-    if(typeof raw==='string'){ try{ const j=JSON.parse(raw); return j?.data || j;}catch(e){return null;} }
-    if(typeof raw==='object'){ if(raw.data) return raw.data; if(raw.contents){ try{ const inner=JSON.parse(raw.contents); return inner?.data || inner;}catch(e){return null;} } return raw;}
+    if(typeof raw==='string'){ try{const j=JSON.parse(raw); return j?.data||j;}catch(e){return null;} }
+    if(typeof raw==='object'){ if(raw.data) return raw.data; if(raw.contents){ try{const inner=JSON.parse(raw.contents); return inner?.data||inner;}catch(e){return null;} } return raw; }
     return null;
 }
 
-function updateCacheDisplay(isNewCache){
+function updateCacheDisplay(state){
     const status = document.getElementById("cache-status");
     const t = document.getElementById("cache-time");
     const stamp = localStorage.getItem(CACHE_KEY_TIME);
     const date = stamp ? new Date(parseInt(stamp)).toLocaleString("fr-FR") : "inconnue";
-    status.innerHTML = isNewCache ? '<span class="cache-ok">🟢 </span>' : '<span class="cache-fail">🔴 </span>';
+
+    if(state==='fresh'){
+        status.innerHTML = '<span class="cache-ok">🟢 </span>';
+    } else if(state==='unchanged'){
+        status.innerHTML = '<span class="cache-ok">🟢 </span>';
+    } else if(state==='fallback'){
+        status.innerHTML = '<span class="cache-fail">🔴 </span>';
+    }
     t.textContent = " — MàJ : " + date;
 }
 
 async function checkAndUpdate(forceUpdate=false){
-    const now=Date.now();
-    const last=localStorage.getItem(CACHE_KEY_TIME);
-    const container=document.getElementById("ponts-table");
+    const now = Date.now();
+    const last = localStorage.getItem(CACHE_KEY_TIME);
+    const container = document.getElementById("ponts-table");
     let cacheUsed = false;
+    const cached = localStorage.getItem(CACHE_KEY_DATA);
+    const quality = localStorage.getItem(CACHE_KEY_QUALITY);
+    const ttl = quality==='fresh'?CACHE_EXPIRATION_LONG:CACHE_EXPIRATION_SHORT;
 
-    // Vérifier cache existant
-    if(!forceUpdate && last){
-        const cached = localStorage.getItem(CACHE_KEY_DATA);
-        const quality = localStorage.getItem(CACHE_KEY_QUALITY);
-        const ttl = quality==='fresh'?CACHE_EXPIRATION_LONG:CACHE_EXPIRATION_SHORT;
-        if(cached && now - last < ttl){
-            renderPonts(JSON.parse(cached));
-            updateCacheDisplay(false);
-            cacheUsed = true;
-        }
+    if(cached && !forceUpdate && last && now-last<ttl){
+        renderPonts(JSON.parse(cached));
+        updateCacheDisplay('unchanged');
+        cacheUsed = true;
     }
 
-    // Si cache trop vieux ou forceUpdate, fetch
     if(!cacheUsed){
         const raw = await fetchWithPool("https://www.havre-port.com/map/getPonts");
+
         if(raw){
             const data = parseRawContentToData(raw);
             if(data){
                 const ponts = Object.values(data);
                 const unique = Array.from(new Map(ponts.map(p=>[p.nom,p])).values());
                 const ordered = unique.sort((a,b)=>{
-                    const score = p => {
+                    const score = p=>{
                         const s = (p.statutText||'').toLowerCase();
                         if(s.includes('fermé')) return 1;
                         if(s.includes('fermeture')) return 2;
                         if(s.includes('manoeuvre')||s.includes('manœuvre')) return 3;
                         if(s.includes('ouvert')) return 4;
                         return 5;
-                    };
-                    return score(a)-score(b);
+                    }; return score(a)-score(b);
                 });
+
+                const norm = normalizeData(ordered);
+                const oldHash = localStorage.getItem(CACHE_KEY_HASH);
+                const newHash = await sha256(norm);
 
                 localStorage.setItem(CACHE_KEY_DATA,JSON.stringify(ordered));
                 localStorage.setItem(CACHE_KEY_TIME,Date.now());
-                localStorage.setItem(CACHE_KEY_QUALITY,'fresh');
-                updateCacheDisplay(true);
+
+                if(newHash!==oldHash){
+                    localStorage.setItem(CACHE_KEY_HASH,newHash);
+                    localStorage.setItem(CACHE_KEY_QUALITY,'fresh');
+                    updateCacheDisplay('fresh');
+                } else {
+                    localStorage.setItem(CACHE_KEY_QUALITY,'unchanged');
+                    updateCacheDisplay('unchanged');
+                }
+
                 renderPonts(ordered);
                 return;
             }
         }
 
-        // fallback sur cache si fetch échoue
-        const cached = localStorage.getItem(CACHE_KEY_DATA);
         if(cached){
             renderPonts(JSON.parse(cached));
-            updateCacheDisplay(false);
+            localStorage.setItem(CACHE_KEY_QUALITY,'fallback');
+            updateCacheDisplay('fallback');
         } else {
             container.innerHTML='<div class="error-message">Impossible de récupérer les ponts et aucun cache disponible.</div>';
         }
     }
 }
 
-/* ===================== RENDER ===================== */
 function renderPonts(list){
     const container=document.getElementById("ponts-table");
     if(!list||!list.length){ container.innerHTML='<div class="error-message">Aucun pont disponible.</div>'; return; }
@@ -286,7 +275,7 @@ function renderPonts(list){
         const move=statut.includes('manoeuvre')||statut.includes('manœuvre');
         const fermeture=statut.includes('fermeture');
         const ferme=statut.includes('fermé')||statut.includes('ferme');
-        const cls = ferme ? 'ferme' : fermeture ? 'fermeture' : move ? 'manoeuvre' : open ? 'ouvert' : 'ferme';
+        const cls = ferme?'ferme':fermeture?'fermeture':move?'manoeuvre':open?'ouvert':'ferme';
         const info=p.forceText||`MàJ : ${p.date||'inconnue'}`;
         return `<div class="pont-card ${cls}">
             <div class="pont-nom"><span class="pastille"></span>${p.nom||'Pont sans nom'}</div>
@@ -296,12 +285,10 @@ function renderPonts(list){
     }).join('');
 }
 
-/* ===================== INITIALISATION ===================== */
 (async function init(){
     checkAndUpdate(true);
     setInterval(()=>checkAndUpdate(false), REFRESH_INTERVAL);
 })();
 </script>
-
 </body>
 </html>
