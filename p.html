@@ -178,7 +178,7 @@ function updateCacheDisplay(state){
         t.textContent = " — MàJ : " + cacheDate;
     } else if(state==='unchanged'){
         status.innerHTML = '<span class="cache-ok">🟢 </span>';
-        t.textContent = " — MàJ : " + checkDate;
+        t.textContent = " — MàJ inchangée: " + checkDate;
     } else if(state==='fallback'){
         status.innerHTML = '<span class="cache-fail">🔴 </span>';
         t.textContent = " — MàJ : " + cacheDate;
