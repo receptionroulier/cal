@@ -47,8 +47,8 @@
     position:absolute;
     display:flex;
     align-items:center;
-    padding:0 8px;
-    height:22px;
+    padding:2px 8px 0; /* Padding haut réduit */
+    height:20px; /* Hauteur légèrement réduite */
     border-radius:6px;
     font-size:0.78rem;
     color:#fff;
@@ -127,7 +127,8 @@
     let resizeTimeout;
     let lastRenderTime = 0;
     let isRendering = false;
-    let rowH = 80; // Valeur par défaut
+    let rowH = 80;
+    let cellMap = []; // Variable globale pour stocker les cellules
 
     function calculateHash(events) {
       return JSON.stringify(events.map(ev => ({
@@ -243,6 +244,26 @@
       bufferLayer.style.visibility = 'visible';
     }
 
+    function addMoreEventsBadges() {
+      cellMap.forEach((c, idx) => {
+        const weekIdx = Math.floor(idx / 7);
+        const visibleLanes = visibleLanesPerWeek[weekIdx] || 0;
+        const existingBadge = c.el.querySelector('.more-events');
+
+        if (existingBadge) {
+          c.el.removeChild(existingBadge);
+        }
+
+        if (c.hiddenCount > 0) {
+          const badge = document.createElement('div');
+          badge.className = 'more-events';
+          badge.textContent = `+${c.hiddenCount} autres`;
+          badge.addEventListener('click', e => { e.stopPropagation(); showModalForCell(c); });
+          c.el.appendChild(badge);
+        }
+      });
+    }
+
     async function prepareEventsLayer() {
       const calendarEl = document.getElementById('calendar');
       const bufferLayer = document.getElementById('events-layer-buffer');
@@ -259,14 +280,22 @@
       const availH = Math.max(240, window.innerHeight - headerH - 32);
       rowH = Math.floor((availH - 20) / weekView);
 
-      const cellMap = [];
       const cells = calendarEl.querySelectorAll('.day-cell');
+      cellMap = [];
+      const months = new Set();
 
       for (let i = 0; i < totalDays; i++) {
         const d = new Date(startDate);
         d.setDate(d.getDate() + i);
         d.setHours(0, 0, 0, 0);
-        cellMap.push({ date: d, el: cells[i], eventsList: [], visibleCount: 0 });
+        cellMap.push({
+          date: d,
+          el: cells[i],
+          eventsList: [],
+          visibleCount: 0,
+          hiddenCount: 0
+        });
+        months.add(capitalize(d.toLocaleString('fr-FR', { month: 'long' })));
       }
 
       const calendarRect = calendarEl.getBoundingClientRect();
@@ -382,9 +411,22 @@
         seg.lane = lane;
       });
 
+      // Réinitialiser les comptes
+      cellMap.forEach(c => { c.eventsList = []; c.visibleCount = 0; c.hiddenCount = 0; });
+
+      // Compter les événements visibles et cachés
+      segments.forEach(seg => {
+        for (let i = seg.startIdx; i <= seg.endIdx; i++) {
+          if (i >= 0 && i < cellMap.length) {
+            cellMap[i].totalSegments = (cellMap[i].totalSegments || 0) + 1;
+            if (!cellMap[i].eventsList.includes(seg.ev)) cellMap[i].eventsList.push(seg.ev);
+          }
+        }
+      });
+
       const dateLabel = document.querySelector('.date-label');
       const dateLabelH = dateLabel ? dateLabel.getBoundingClientRect().height : 18;
-      const bandH = 22;
+      const bandH = 20; // Correspond à la hauteur CSS
       const laneGap = 6;
       const bandSpacing = bandH + laneGap;
       const weekTopBase = [];
@@ -407,6 +449,23 @@
         return segments.filter(s => s.ev === ev).reduce((a, b) => a.endIdx > b.endIdx ? a : b);
       }
 
+      // Compter les événements visibles et cachés par cellule
+      cellMap.forEach((c, idx) => {
+        const weekIdx = Math.floor(idx / 7);
+        const visibleLanes = visibleLanesPerWeek[weekIdx] || 0;
+        let visibleCount = 0, hiddenCount = 0;
+
+        segments.forEach(seg => {
+          if (seg.startIdx <= idx && seg.endIdx >= idx && seg.weekIdx === weekIdx) {
+            if (seg.lane < visibleLanes) visibleCount++;
+            else hiddenCount++;
+          }
+        });
+
+        c.visibleCount = visibleCount;
+        c.hiddenCount = hiddenCount;
+      });
+
       segments.forEach(seg => {
         const firstRect = cellRects[seg.startIdx];
         const lastRect = cellRects[seg.endIdx];
@@ -417,7 +476,7 @@
         el.className = 'multi-band ' + (seg.ev.__type || '');
         el.style.left = `${left}px`;
         el.style.width = `${Math.max(36, width)}px`;
-        const top = (weekTopBase[seg.weekIdx] || 0) + dateLabelH + 4 + (seg.lane * bandSpacing);
+        const top = (weekTopBase[seg.weekIdx] || 0) + dateLabelH + 4 + (seg.lane * bandSpacing); // Ajustement du padding top
         el.style.top = `${top}px`;
         el.style.height = `${bandH}px`;
         const textContainer = document.createElement('div');
@@ -457,6 +516,8 @@
           }
         });
       }, 50);
+
+      return months;
     }
 
     async function renderCalendar(force = false) {
@@ -485,7 +546,6 @@
 
       // Conserver les anciennes cellules si possible
       const existingCells = Array.from(calendarEl.querySelectorAll('.day-cell'));
-      const cellMap = [];
       const months = new Set();
 
       // Réutiliser les cellules existantes si elles correspondent aux nouvelles dates
@@ -518,7 +578,6 @@
         label.className = 'date-label';
         label.textContent = fmtDayLabel(d);
         cell.appendChild(label);
-        cellMap.push({ date: d, el: cell, eventsList: [], visibleCount: 0 });
         months.add(capitalize(d.toLocaleString('fr-FR', { month: 'long' })));
       }
 
@@ -530,13 +589,16 @@
       await waitForCellsRendered(calendarEl);
 
       // Préparer la nouvelle couche d'événements en arrière-plan
-      await prepareEventsLayer();
+      const preparedMonths = await prepareEventsLayer();
 
       // Basculer les couches instantanément
       swapEventsLayers();
 
+      // Ajouter les badges "+X autres"
+      addMoreEventsBadges();
+
       // Mettre à jour le titre
-      document.getElementById('calendar-title').textContent = Array.from(months).join(' / ');
+      document.getElementById('calendar-title').textContent = Array.from(preparedMonths).join(' / ');
       isRendering = false;
     }
 
