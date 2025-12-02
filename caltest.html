@@ -109,7 +109,6 @@
   <div id="calendar-wrap">
     <div id="calendar" role="grid" aria-label="Calendrier"></div>
     <div id="events-layer" aria-hidden="false"></div>
-    <!-- Nouvelle couche pour les mises à jour invisibles -->
     <div id="events-layer-buffer" aria-hidden="true" style="position:absolute;left:2px;right:6px;top:10px;bottom:10px;pointer-events:none;visibility:hidden;"></div>
   </div>
   <div id="event-modal" onclick="hideModal()">
@@ -128,6 +127,7 @@
     let resizeTimeout;
     let lastRenderTime = 0;
     let isRendering = false;
+    let rowH = 80; // Valeur par défaut
 
     function calculateHash(events) {
       return JSON.stringify(events.map(ev => ({
@@ -237,7 +237,6 @@
       const currentLayer = document.getElementById('events-layer');
       const bufferLayer = document.getElementById('events-layer-buffer');
 
-      // Échanger les couches
       bufferLayer.id = 'events-layer';
       currentLayer.id = 'events-layer-buffer';
       currentLayer.style.visibility = 'hidden';
@@ -256,6 +255,10 @@
       pastMonday.setDate(thisMonday.getDate() - 7);
       const startDate = pastMonday;
       const totalDays = weekView * 7;
+      const headerH = document.getElementById('calendar-header').getBoundingClientRect().height;
+      const availH = Math.max(240, window.innerHeight - headerH - 32);
+      rowH = Math.floor((availH - 20) / weekView);
+
       const cellMap = [];
       const cells = calendarEl.querySelectorAll('.day-cell');
 
@@ -379,16 +382,6 @@
         seg.lane = lane;
       });
 
-      cellMap.forEach(c => { c.eventsList = []; c.totalSegments = 0; });
-      segments.forEach(seg => {
-        for (let i = seg.startIdx; i <= seg.endIdx; i++) {
-          if (i >= 0 && i < cellMap.length) {
-            cellMap[i].totalSegments++;
-            if (!cellMap[i].eventsList.includes(seg.ev)) cellMap[i].eventsList.push(seg.ev);
-          }
-        }
-      });
-
       const dateLabel = document.querySelector('.date-label');
       const dateLabelH = dateLabel ? dateLabel.getBoundingClientRect().height : 18;
       const bandH = 22;
@@ -477,6 +470,8 @@
 
       isRendering = true;
       const calendarEl = document.getElementById('calendar');
+      const headerH = document.getElementById('calendar-header').getBoundingClientRect().height;
+      const availH = Math.max(240, window.innerHeight - headerH - 32);
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -485,9 +480,7 @@
       pastMonday.setDate(thisMonday.getDate() - 7);
       const startDate = pastMonday;
       const totalDays = weekView * 7;
-      const headerH = document.getElementById('calendar-header').getBoundingClientRect().height;
-      const availH = Math.max(240, window.innerHeight - headerH - 32);
-      const rowH = Math.floor((availH - 20) / weekView);
+      rowH = Math.floor((availH - 20) / weekView);
       calendarEl.style.gridAutoRows = `${rowH}px`;
 
       // Conserver les anciennes cellules si possible
