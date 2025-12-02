@@ -194,7 +194,7 @@ function updateCacheDisplay(state){
     if(state==='fresh'){
         status.innerHTML = '<span class="cache-ok">🟢 </span>';
     } else if(state==='unchanged'){
-        status.innerHTML = '<span class="cache-ok">🟢 </span>';
+        status.innerHTML = '<span class="cache-ok">🟢 Pas de changement depuis </span>';
     } else if(state==='fallback'){
         status.innerHTML = '<span class="cache-fail">🔴 </span>';
     }
