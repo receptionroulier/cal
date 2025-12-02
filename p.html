@@ -86,7 +86,6 @@ h2 {
 </div>
 
 <script>
-const PROXY_STORE_KEY = "pontsProxyStore";
 const CACHE_KEY_DATA = "pontsData";
 const CACHE_KEY_TIME = "pontsCacheTime";
 const CACHE_KEY_HASH = "pontsHash";
@@ -150,8 +149,17 @@ async function fetchWithPool(url){
         const promises = list.map(proxy=>{
             if(isProxyDisabled(proxy)) return Promise.reject();
             return fetchWithTimeout(proxy+encodeURIComponent(url),{method:'GET'},FETCH_TIMEOUT)
-                .then(res=>res.ok?res:Promise.reject())
-                .catch(()=>Promise.reject());
+                .then(res=>{
+                    if(res.ok){
+                        if(!validProxies.includes(proxy)) validProxies.push(proxy);
+                        return res;
+                    }
+                    return Promise.reject();
+                })
+                .catch(()=>{
+                    if(!brokenProxies.includes(proxy)) brokenProxies.push(proxy);
+                    return Promise.reject();
+                });
         });
         try{
             const first = await Promise.any(promises);
@@ -216,7 +224,6 @@ async function checkAndUpdate(forceUpdate=false){
     const quality = localStorage.getItem(CACHE_KEY_QUALITY);
     const ttl = quality==='fresh'?CACHE_EXPIRATION_LONG:CACHE_EXPIRATION_SHORT;
 
-    // On utilise le cache si toujours valide
     if(cached && !forceUpdate && last && now-last<ttl){
         renderPonts(JSON.parse(cached));
         localStorage.setItem(CACHE_KEY_CHECK, now);
@@ -224,7 +231,6 @@ async function checkAndUpdate(forceUpdate=false){
         cacheUsed = true;
     }
 
-    // Fonction interne pour récupérer les données via pool et parse
     async function fetchDataOnce(){
         const raw = await fetchWithPool("https://www.havre-port.com/map/getPonts");
         if(!raw) return null;
@@ -246,7 +252,6 @@ async function checkAndUpdate(forceUpdate=false){
 
     let newData = null;
 
-    // Boucle rapide initiale si pas de cache ou forceUpdate
     if(!cached || forceUpdate){
         for(let i=0;i<3;i++){
             newData = await fetchDataOnce();
@@ -263,7 +268,6 @@ async function checkAndUpdate(forceUpdate=false){
         const oldData = cached ? JSON.parse(cached) : [];
         let applyNew = true;
 
-        // Vérification des dates pour ne pas appliquer si une date recule
         for(const p of newData){
             const oldP = oldData.find(op=>op.nom===p.nom);
             if(oldP && p.date && oldP.date && p.date < oldP.date){
@@ -282,12 +286,10 @@ async function checkAndUpdate(forceUpdate=false){
             updateCacheDisplay(newHash!==oldHash ? 'fresh' : 'verified');
             renderPonts(newData);
         } else {
-            // On garde le cache précédent
             renderPonts(oldData);
             updateCacheDisplay('verified');
         }
     } else {
-        // Tous les proxies ont échoué, fallback
         if(cached){
             renderPonts(JSON.parse(cached));
             localStorage.setItem(CACHE_KEY_QUALITY,'fallback');
