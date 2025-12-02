@@ -91,6 +91,7 @@ const CACHE_KEY_DATA = "pontsData";
 const CACHE_KEY_TIME = "pontsCacheTime";
 const CACHE_KEY_HASH = "pontsHash";
 const CACHE_KEY_QUALITY = "pontsCacheQuality";
+const CACHE_KEY_CHECK = "pontsLastCheck";
 
 const CACHE_EXPIRATION_SHORT = 60000; // 1 min fallback
 const CACHE_EXPIRATION_LONG = 15*60000; // 15 min fresh
@@ -157,9 +158,6 @@ function normalizeData(data){
 function isProxyDisabled(proxy){ 
     return proxyStats[proxy]?.disabledUntil && proxyStats[proxy].disabledUntil > Date.now(); 
 }
-function loadProxyStoreFromLS(){ try{return JSON.parse(localStorage.getItem(PROXY_STORE_KEY));}catch(e){return null;} }
-function saveProxyStoreToLS(store){ try{localStorage.setItem(PROXY_STORE_KEY,JSON.stringify(store));}catch(e){} }
-
 function shuffle(a){return a.slice().sort(()=>Math.random()-0.5);}
 async function fetchWithPool(url){
     const lists=[shuffle(validProxies),shuffle(brokenProxies),shuffle(allProxies)];
@@ -188,17 +186,21 @@ function parseRawContentToData(raw){
 function updateCacheDisplay(state){
     const status = document.getElementById("cache-status");
     const t = document.getElementById("cache-time");
-    const stamp = localStorage.getItem(CACHE_KEY_TIME);
-    const date = stamp ? new Date(parseInt(stamp)).toLocaleString("fr-FR") : "inconnue";
+    const cacheStamp = localStorage.getItem(CACHE_KEY_TIME);
+    const checkStamp = localStorage.getItem(CACHE_KEY_CHECK);
+    const cacheDate = cacheStamp ? new Date(parseInt(cacheStamp)).toLocaleString("fr-FR") : "inconnue";
+    const checkDate = checkStamp ? new Date(parseInt(checkStamp)).toLocaleString("fr-FR") : "inconnue";
 
     if(state==='fresh'){
         status.innerHTML = '<span class="cache-ok">🟢 </span>';
+        t.textContent = " — MàJ : " + cacheDate;
     } else if(state==='unchanged'){
-        status.innerHTML = '<span class="cache-ok">🟢 Pas de changement depuis </span>';
+        status.innerHTML = '<span class="cache-ok">🟢 </span>';
+        t.textContent = " — Dernière vérification : " + checkDate;
     } else if(state==='fallback'){
         status.innerHTML = '<span class="cache-fail">🔴 </span>';
+        t.textContent = " — MàJ : " + cacheDate;
     }
-    t.textContent = " — MàJ : " + date;
 }
 
 async function checkAndUpdate(forceUpdate=false){
@@ -212,6 +214,7 @@ async function checkAndUpdate(forceUpdate=false){
 
     if(cached && !forceUpdate && last && now-last<ttl){
         renderPonts(JSON.parse(cached));
+        localStorage.setItem(CACHE_KEY_CHECK, now);
         updateCacheDisplay('unchanged');
         cacheUsed = true;
     }
@@ -241,6 +244,7 @@ async function checkAndUpdate(forceUpdate=false){
 
                 localStorage.setItem(CACHE_KEY_DATA,JSON.stringify(ordered));
                 localStorage.setItem(CACHE_KEY_TIME,Date.now());
+                localStorage.setItem(CACHE_KEY_CHECK, Date.now());
 
                 if(newHash!==oldHash){
                     localStorage.setItem(CACHE_KEY_HASH,newHash);
