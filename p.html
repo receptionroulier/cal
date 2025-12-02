@@ -88,17 +88,13 @@ h2 {
 <script>
 const PROXY_STORE_KEY = "pontsProxyStore";
 const CACHE_KEY_DATA = "pontsData";
-const CACHE_KEY_TIME = "pontsCacheTime";
 const CACHE_KEY_HASH = "pontsHash";
-const CACHE_KEY_QUALITY = "pontsCacheQuality";
 const CACHE_KEY_CHECK = "pontsLastCheck";
+const CACHE_KEY_QUALITY = "pontsCacheQuality";
 
-const CACHE_EXPIRATION_SHORT = 60000; // 1 min fallback
-const CACHE_EXPIRATION_LONG = 15*60000; // 15 min fresh
 const REFRESH_INTERVAL = 30000;
-const PROXY_TEST_TIMEOUT = 8000;
 const FETCH_TIMEOUT = 10000;
-const RETEST_BATCH_SIZE = 5;
+
 const INITIAL_PROXIES = [
     "https://proxy.corsfix.com/?",
     "https://yacdn.org/proxy/",
@@ -157,98 +153,76 @@ async function fetchWithPool(url){
     }
     return null;
 }
-
 function parseRawContentToData(raw){
     if(!raw) return null;
     if(typeof raw==='string'){ try{const j=JSON.parse(raw); return j?.data||j;}catch(e){return null;} }
     if(typeof raw==='object'){ if(raw.data) return raw.data; if(raw.contents){ try{const inner=JSON.parse(raw.contents); return inner?.data||inner;}catch(e){return null;} } return raw; }
     return null;
 }
-
-function updateCacheDisplay(state){
+function updateCacheDisplay(state,date){
     const status = document.getElementById("cache-status");
     const t = document.getElementById("cache-time");
-    const cacheStamp = localStorage.getItem(CACHE_KEY_TIME);
-    const checkStamp = localStorage.getItem(CACHE_KEY_CHECK);
-    const cacheDate = cacheStamp ? new Date(parseInt(cacheStamp)).toLocaleString("fr-FR") : "inconnue";
-    const checkDate = checkStamp ? new Date(parseInt(checkStamp)).toLocaleString("fr-FR") : "inconnue";
-
     if(state==='fresh'){
         status.innerHTML = '<span class="cache-ok">🟢 </span>';
-        t.textContent = " — MàJ : " + cacheDate;
+        t.textContent = " — MàJ : " + date;
     } else if(state==='unchanged'){
         status.innerHTML = '<span class="cache-ok">🟢 </span>';
-        t.textContent = " — MàJ inchangée: " + checkDate;
+        t.textContent = " — MàJ vérifié : " + date;
     } else if(state==='fallback'){
         status.innerHTML = '<span class="cache-fail">🔴 </span>';
-        t.textContent = " — MàJ : " + cacheDate;
+        t.textContent = " — MàJ : " + date;
     }
 }
 
-async function checkAndUpdate(forceUpdate=false){
-    const now = Date.now();
-    const last = localStorage.getItem(CACHE_KEY_TIME);
+async function checkAndUpdate(){
     const container = document.getElementById("ponts-table");
-    let cacheUsed = false;
-    const cached = localStorage.getItem(CACHE_KEY_DATA);
-    const quality = localStorage.getItem(CACHE_KEY_QUALITY);
-    const ttl = quality==='fresh'?CACHE_EXPIRATION_LONG:CACHE_EXPIRATION_SHORT;
+    const cachedRaw = localStorage.getItem(CACHE_KEY_DATA);
+    const cachedHash = localStorage.getItem(CACHE_KEY_HASH);
+    const lastCheck = new Date().toLocaleString('fr-FR');
 
-    if(cached && !forceUpdate && last && now-last<ttl){
-        renderPonts(JSON.parse(cached));
-        localStorage.setItem(CACHE_KEY_CHECK, now);
-        updateCacheDisplay('unchanged');
-        cacheUsed = true;
+    // tentative de récupération
+    const raw = await fetchWithPool("https://www.havre-port.com/map/getPonts");
+    const data = parseRawContentToData(raw);
+    let ponts = null;
+
+    if(data){
+        ponts = Object.values(data).sort((a,b)=>{
+            const score = p=>{
+                const s = (p.statutText||'').toLowerCase();
+                if(s.includes('fermé')) return 1;
+                if(s.includes('fermeture')) return 2;
+                if(s.includes('manoeuvre')||s.includes('manœuvre')) return 3;
+                if(s.includes('ouvert')) return 4;
+                return 5;
+            }; return score(a)-score(b);
+        });
+
+        const norm = normalizeData(ponts);
+        const newHash = await sha256(norm);
+
+        if(newHash !== cachedHash){
+            // données différentes → remplacer cache
+            localStorage.setItem(CACHE_KEY_DATA,JSON.stringify(ponts));
+            localStorage.setItem(CACHE_KEY_HASH,newHash);
+            localStorage.setItem(CACHE_KEY_CHECK, Date.now());
+            localStorage.setItem(CACHE_KEY_QUALITY,'fresh');
+            renderPonts(ponts);
+            updateCacheDisplay('fresh', lastCheck);
+            return;
+        } else {
+            // données identiques → garder cache précédent
+            renderPonts(JSON.parse(cachedRaw));
+            updateCacheDisplay('unchanged', lastCheck);
+            return;
+        }
     }
 
-    if(!cacheUsed){
-        const raw = await fetchWithPool("https://www.havre-port.com/map/getPonts");
-
-        if(raw){
-            const data = parseRawContentToData(raw);
-            if(data){
-                const ponts = Object.values(data);
-                const unique = Array.from(new Map(ponts.map(p=>[p.nom,p])).values());
-                const ordered = unique.sort((a,b)=>{
-                    const score = p=>{
-                        const s = (p.statutText||'').toLowerCase();
-                        if(s.includes('fermé')) return 1;
-                        if(s.includes('fermeture')) return 2;
-                        if(s.includes('manoeuvre')||s.includes('manœuvre')) return 3;
-                        if(s.includes('ouvert')) return 4;
-                        return 5;
-                    }; return score(a)-score(b);
-                });
-
-                const norm = normalizeData(ordered);
-                const oldHash = localStorage.getItem(CACHE_KEY_HASH);
-                const newHash = await sha256(norm);
-
-                localStorage.setItem(CACHE_KEY_DATA,JSON.stringify(ordered));
-                localStorage.setItem(CACHE_KEY_TIME,Date.now());
-                localStorage.setItem(CACHE_KEY_CHECK, Date.now());
-
-                if(newHash!==oldHash){
-                    localStorage.setItem(CACHE_KEY_HASH,newHash);
-                    localStorage.setItem(CACHE_KEY_QUALITY,'fresh');
-                    updateCacheDisplay('fresh');
-                } else {
-                    localStorage.setItem(CACHE_KEY_QUALITY,'unchanged');
-                    updateCacheDisplay('unchanged');
-                }
-
-                renderPonts(ordered);
-                return;
-            }
-        }
-
-        if(cached){
-            renderPonts(JSON.parse(cached));
-            localStorage.setItem(CACHE_KEY_QUALITY,'fallback');
-            updateCacheDisplay('fallback');
-        } else {
-            container.innerHTML='<div class="error-message">Impossible de récupérer les ponts et aucun cache disponible.</div>';
-        }
+    // si tous les proxies ont échoué
+    if(cachedRaw){
+        renderPonts(JSON.parse(cachedRaw));
+        updateCacheDisplay('fallback', lastCheck);
+    } else {
+        container.innerHTML='<div class="error-message">Impossible de récupérer les ponts et aucun cache disponible.</div>';
     }
 }
 
@@ -272,8 +246,8 @@ function renderPonts(list){
 }
 
 (async function init(){
-    checkAndUpdate(true);
-    setInterval(()=>checkAndUpdate(false), REFRESH_INTERVAL);
+    await checkAndUpdate();
+    setInterval(checkAndUpdate, REFRESH_INTERVAL);
 })();
 </script>
 </body>
