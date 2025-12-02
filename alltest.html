@@ -5,14 +5,40 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Tableau de bord - Ponts - Navires & Calendrier Réception</title>
   <style>
-    html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial}
-    .container{display:flex;height:100vh;}
-    .left{width:20%;min-width:180px; /* afin d'éviter d'être trop petit */overflow:hidden;border-right:1px solid #e0e0e0}
-   .right{flex:1;overflow:hidden}
-    
-    iframe{width:100%;height:100%;border:0}
-
-    .note{position:fixed;left:8px;bottom:8px;background:#fff;padding:8px;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,.08);font-size:13px}
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial;
+    }
+    .container {
+      display: flex;
+      height: 100vh;
+    }
+    .left {
+      width: 20%;
+      min-width: 180px; /* éviter d'être trop petit */
+      overflow: hidden;
+      border-right: 1px solid #e0e0e0;
+    }
+    .right {
+      flex: 1;
+      overflow: hidden;
+    }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+    .note {
+      position: fixed;
+      left: 8px;
+      bottom: 8px;
+      background: #fff;
+      padding: 8px;
+      border-radius: 6px;
+      box-shadow: 0 2px 6px rgba(0,0,0,.08);
+      font-size: 13px;
+    }
   </style>
 </head>
 <body>
@@ -21,31 +47,38 @@
     <div class="left">
       <iframe id="leftFrame" src="https://receptionroulier.github.io/cal/p.html" title="Ponts"></iframe>
     </div>
+
     <div class="right">
       <iframe id="rightFrame" src="https://receptionroulier.github.io/cal/caltest.html" title="Calendriers"></iframe>
     </div>
   </div>
 
   <script>
-  function softReload(id) {
-    const iframe = document.getElementById(id);
-    const ghost = document.createElement('iframe');
-    ghost.style.display = 'none';
-    ghost.src = iframe.src + '?t=' + Date.now();
+    // Fonction de rechargement fluide
+    function smoothReload(iframeId) {
+      const iframe = document.getElementById(iframeId);
+      const newSrc = iframe.src.split('?')[0] + '?t=' + Date.now(); // éviter cache
 
-    ghost.onload = () => {
-      iframe.src = ghost.src;
-      ghost.remove();
-    };
+      // Précharger le contenu dans un iframe temporaire
+      const preloader = document.createElement('iframe');
+      preloader.style.display = 'none';
+      preloader.src = newSrc;
 
-    document.body.appendChild(ghost);
-  }
+      preloader.onload = () => {
+        // Remplacer l'iframe visible une fois chargé
+        iframe.src = preloader.src;
+        preloader.remove();
+      };
 
-  setInterval(() => {
-    softReload('leftFrame');
-    softReload('rightFrame');
-  }, 15000);
-</script>
+      document.body.appendChild(preloader);
+    }
+
+    // Rechargement toutes les 15 secondes
+    setInterval(() => {
+      smoothReload('leftFrame');
+      smoothReload('rightFrame');
+    }, 15000);
+  </script>
 
 </body>
 </html>
