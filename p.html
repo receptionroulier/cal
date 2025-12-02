@@ -237,7 +237,6 @@ function renderPontsPartial(list){
             container.appendChild(div);
         }
     });
-    // supprimer cartes obsolètes
     Object.keys(existing).forEach(id=>{
         if(!seen.has(id)) existing[id].remove();
     });
@@ -265,6 +264,7 @@ async function checkAndUpdate(forceUpdate=false){
         if(!data) return null;
         const ponts = Object.values(data);
         const unique = Array.from(new Map(ponts.map(p=>[p.nom,p])).values());
+        // Tri principal par statut puis secondaire par date (plus récentes en haut)
         return unique.sort((a,b)=>{
             const score = p=>{
                 const s = (p.statutText||'').toLowerCase();
@@ -273,7 +273,12 @@ async function checkAndUpdate(forceUpdate=false){
                 if(s.includes('manoeuvre')||s.includes('manœuvre')) return 3;
                 if(s.includes('ouvert')) return 4;
                 return 5;
-            }; return score(a)-score(b);
+            };
+            const s = score(a)-score(b);
+            if(s !== 0) return s;
+            const da = a.date ? new Date(a.date) : new Date(0);
+            const db = b.date ? new Date(b.date) : new Date(0);
+            return db - da;
         });
     }
 
