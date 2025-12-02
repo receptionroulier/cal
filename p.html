@@ -90,6 +90,7 @@ h2 {
 
 <div class="container">
     <h2>État des Ponts <span id="status-indicator"></span></h2>
+    <div id="maj-info" style="text-align:center;font-size:0.8em;color:#aaa;margin-top:-10px;margin-bottom:10px;">MàJ : —</div>
     <div id="ponts-table">Chargement...</div>
 </div>
 
@@ -240,7 +241,10 @@ async function checkAndUpdate(){
     const cached = localStorage.getItem(CACHE_KEY_DATA);
 
     if(cached && now-last < CACHE_EXPIRATION){
-        renderPonts(JSON.parse(cached));
+        const data = JSON.parse(cached);
+        renderPonts(data);
+        const t = localStorage.getItem(CACHE_KEY_TIME);
+        if(t) document.getElementById("maj-info").textContent = "MàJ : " + new Date(parseInt(t)).toLocaleString();
     }
 
     try{
@@ -263,6 +267,7 @@ async function checkAndUpdate(){
             localStorage.setItem(CACHE_KEY_HASH, newHash);
             localStorage.setItem(CACHE_KEY_TIME, Date.now());
             renderPonts(ordered);
+            document.getElementById("maj-info").textContent = "MàJ : " + new Date().toLocaleString();
         }
 
     }catch(err){
