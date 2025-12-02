@@ -93,7 +93,6 @@ const CACHE_KEY_QUALITY = "pontsCacheQuality";
 
 const REFRESH_INTERVAL = 30000;
 const FETCH_TIMEOUT = 10000;
-
 const INITIAL_PROXIES = [
     "https://proxy.corsfix.com/?",
     "https://yacdn.org/proxy/",
@@ -179,26 +178,33 @@ async function checkAndUpdate(){
     const cachedHash = localStorage.getItem(CACHE_KEY_HASH);
     const lastCheck = new Date().toLocaleString('fr-FR');
 
-    // tentative de récupération
-    const raw = await fetchWithPool("https://www.havre-port.com/map/getPonts");
-    const data = parseRawContentToData(raw);
     let ponts = null;
+    let newHash = null;
 
-    if(data){
-        ponts = Object.values(data).sort((a,b)=>{
-            const score = p=>{
-                const s = (p.statutText||'').toLowerCase();
-                if(s.includes('fermé')) return 1;
-                if(s.includes('fermeture')) return 2;
-                if(s.includes('manoeuvre')||s.includes('manœuvre')) return 3;
-                if(s.includes('ouvert')) return 4;
-                return 5;
-            }; return score(a)-score(b);
-        });
+    // Essayer plusieurs fetch rapides pour attraper la dernière version
+    for(let attempt=0; attempt<3; attempt++){
+        const raw = await fetchWithPool("https://www.havre-port.com/map/getPonts");
+        const data = parseRawContentToData(raw);
 
-        const norm = normalizeData(ponts);
-        const newHash = await sha256(norm);
+        if(data){
+            ponts = Object.values(data).sort((a,b)=>{
+                const score = p=>{
+                    const s = (p.statutText||'').toLowerCase();
+                    if(s.includes('fermé')) return 1;
+                    if(s.includes('fermeture')) return 2;
+                    if(s.includes('manoeuvre')||s.includes('manœuvre')) return 3;
+                    if(s.includes('ouvert')) return 4;
+                    return 5;
+                }; return score(a)-score(b);
+            });
+            const norm = normalizeData(ponts);
+            newHash = await sha256(norm);
+            break; // sortie dès qu'on récupère des données valides
+        }
+        await sleep(200); // attendre 200ms entre tentatives
+    }
 
+    if(ponts && newHash){
         if(newHash !== cachedHash){
             // données différentes → remplacer cache
             localStorage.setItem(CACHE_KEY_DATA,JSON.stringify(ponts));
@@ -207,13 +213,12 @@ async function checkAndUpdate(){
             localStorage.setItem(CACHE_KEY_QUALITY,'fresh');
             renderPonts(ponts);
             updateCacheDisplay('fresh', lastCheck);
-            return;
         } else {
-            // données identiques → garder cache précédent
+            // identique → garder cache précédent
             renderPonts(JSON.parse(cachedRaw));
             updateCacheDisplay('unchanged', lastCheck);
-            return;
         }
+        return;
     }
 
     // si tous les proxies ont échoué
