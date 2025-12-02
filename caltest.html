@@ -17,9 +17,9 @@
   #current-time{position:absolute;right:50px;top:50%;transform:translateY(-50%);font-size:3rem;font-weight:bold;color:#00e5ff;font-family:Trebuchet MS}
   /* calendar */
   #calendar-wrap{flex:1;display:flex;flex-direction:column;min-height:0;position:relative}
-  #calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;padding:10px;align-content:start;position:relative;opacity:1;transition:opacity 0.3s ease}
+  #calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;padding:10px;align-content:start;position:relative}
   /* day cell */
-  .day-cell{background:#1c1c1c;border:1px solid #333;border-radius:10px;padding:6px;position:relative;overflow:hidden;min-height:80px;transition:all 0.2s ease}
+  .day-cell{background:#1c1c1c;border:1px solid #333;border-radius:10px;padding:6px;position:relative;overflow:hidden;min-height:80px}
   .day-cell.future-day { border: 1px solid rgba(0, 229, 255, 0.3); box-shadow: 0 0 4px rgba(0, 229, 255, 0.2); }
   .day-cell.today { border: 2px solid rgba(0, 229, 255, 0.8); box-shadow: 0 0 8px rgba(0, 229, 255, 0.6); animation: pulse 2s infinite; }
   @keyframes pulse {
@@ -55,7 +55,6 @@
     white-space:nowrap;
     overflow:hidden;
     box-shadow:0 1px 0 rgba(0,0,0,0.2) inset;
-    transition:all 0.2s ease;
   }
   .reception{background:#109c53}
   .navire{background:#3644b3}
@@ -110,6 +109,8 @@
   <div id="calendar-wrap">
     <div id="calendar" role="grid" aria-label="Calendrier"></div>
     <div id="events-layer" aria-hidden="false"></div>
+    <!-- Nouvelle couche pour les mises à jour invisibles -->
+    <div id="events-layer-buffer" aria-hidden="true" style="position:absolute;left:2px;right:6px;top:10px;bottom:10px;pointer-events:none;visibility:hidden;"></div>
   </div>
   <div id="event-modal" onclick="hideModal()">
     <div class="modal-card" id="modal-content" onclick="event.stopPropagation()"></div>
@@ -126,6 +127,7 @@
     let currentStartDate = new Date();
     let resizeTimeout;
     let lastRenderTime = 0;
+    let isRendering = false;
 
     function calculateHash(events) {
       return JSON.stringify(events.map(ev => ({
@@ -231,16 +233,21 @@
       return true;
     }
 
-    async function renderCalendar(force = false) {
-      if (!force && !shouldRender()) {
-        return;
-      }
+    function swapEventsLayers() {
+      const currentLayer = document.getElementById('events-layer');
+      const bufferLayer = document.getElementById('events-layer-buffer');
 
+      // Échanger les couches
+      bufferLayer.id = 'events-layer';
+      currentLayer.id = 'events-layer-buffer';
+      currentLayer.style.visibility = 'hidden';
+      bufferLayer.style.visibility = 'visible';
+    }
+
+    async function prepareEventsLayer() {
       const calendarEl = document.getElementById('calendar');
-      const eventsLayer = document.getElementById('events-layer');
-
-      // Réduire l'opacité pendant le rendu pour éviter le flicker
-      calendarEl.style.opacity = '0.7';
+      const bufferLayer = document.getElementById('events-layer-buffer');
+      bufferLayer.innerHTML = '';
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -249,56 +256,16 @@
       pastMonday.setDate(thisMonday.getDate() - 7);
       const startDate = pastMonday;
       const totalDays = weekView * 7;
-      const headerH = document.getElementById('calendar-header').getBoundingClientRect().height;
-      const availH = Math.max(240, window.innerHeight - headerH - 32);
-      const rowH = Math.floor((availH - 20) / weekView);
-      calendarEl.style.gridAutoRows = `${rowH}px`;
-
-      // Conserver les anciennes cellules si possible
-      const existingCells = Array.from(calendarEl.querySelectorAll('.day-cell'));
       const cellMap = [];
-      const months = new Set();
+      const cells = calendarEl.querySelectorAll('.day-cell');
 
-      // Réutiliser les cellules existantes si elles correspondent aux nouvelles dates
       for (let i = 0; i < totalDays; i++) {
         const d = new Date(startDate);
         d.setDate(d.getDate() + i);
         d.setHours(0, 0, 0, 0);
-
-        let cell;
-        if (i < existingCells.length) {
-          cell = existingCells[i];
-          cell.innerHTML = '';
-        } else {
-          cell = document.createElement('div');
-          cell.className = 'day-cell';
-          calendarEl.appendChild(cell);
-        }
-
-        if (d > today) {
-          cell.classList.add('future-day');
-          cell.classList.remove('today');
-        } else if (d.getTime() === today.getTime()) {
-          cell.classList.add('today');
-          cell.classList.remove('future-day');
-        } else {
-          cell.classList.remove('today', 'future-day');
-        }
-
-        const label = document.createElement('div');
-        label.className = 'date-label';
-        label.textContent = fmtDayLabel(d);
-        cell.appendChild(label);
-        cellMap.push({ date: d, el: cell, eventsList: [], visibleCount: 0 });
-        months.add(capitalize(d.toLocaleString('fr-FR', { month: 'long' })));
+        cellMap.push({ date: d, el: cells[i], eventsList: [], visibleCount: 0 });
       }
 
-      // Supprimer les cellules en trop
-      while (calendarEl.children.length > totalDays) {
-        calendarEl.removeChild(calendarEl.lastChild);
-      }
-
-      await waitForCellsRendered(calendarEl);
       const calendarRect = calendarEl.getBoundingClientRect();
       const cellRects = cellMap.map(c => c.el.getBoundingClientRect());
 
@@ -422,9 +389,6 @@
         }
       });
 
-      // Effacer les anciens événements
-      eventsLayer.innerHTML = '';
-
       const dateLabel = document.querySelector('.date-label');
       const dateLabelH = dateLabel ? dateLabel.getBoundingClientRect().height : 18;
       const bandH = 22;
@@ -449,23 +413,6 @@
       function getLastSegmentOfEvent(ev) {
         return segments.filter(s => s.ev === ev).reduce((a, b) => a.endIdx > b.endIdx ? a : b);
       }
-
-      cellMap.forEach((cellObj, idx) => {
-        const cellDate = cellObj.date;
-        if (cellDate < today) {
-          if (!cellObj.el.querySelector('.past-day-overlay')) {
-            const overlay = document.createElement('div');
-            overlay.className = 'past-day-overlay';
-            cellObj.el.appendChild(overlay);
-          }
-          cellObj.el.style.position = 'relative';
-        } else {
-          const overlay = cellObj.el.querySelector('.past-day-overlay');
-          if (overlay) {
-            cellObj.el.removeChild(overlay);
-          }
-        }
-      });
 
       segments.forEach(seg => {
         const firstRect = cellRects[seg.startIdx];
@@ -505,42 +452,99 @@
         el.style.display = seg.lane >= visibleLanes ? 'none' : 'flex';
         seg._isHidden = seg.lane >= visibleLanes;
         el.addEventListener('click', e => { e.stopPropagation(); showEventModal(ev); });
-        eventsLayer.appendChild(el);
+        bufferLayer.appendChild(el);
       });
 
-      cellMap.forEach((c, idx) => {
-        const weekIdx = Math.floor(idx / 7);
-        const visibleLanes = visibleLanesPerWeek[weekIdx] || 0;
-        let visibleCount = 0, hiddenCount = 0;
-        segments.forEach(seg => {
-          if (seg.startIdx <= idx && seg.endIdx >= idx && seg.weekIdx === weekIdx) {
-            if (seg.lane < visibleLanes) visibleCount++;
-            else hiddenCount++;
+      // Appliquer les animations de défilement
+      setTimeout(() => {
+        bufferLayer.querySelectorAll('.event-text').forEach(el => {
+          const container = el.parentElement;
+          if (el.scrollWidth > container.clientWidth) {
+            el.classList.add('scrolling');
           }
         });
-        c.visibleCount = visibleCount;
-        c.hiddenCount = hiddenCount;
-        const existingBadge = c.el.querySelector('.more-events');
-        if (existingBadge) {
-          c.el.removeChild(existingBadge);
-        }
-        if (hiddenCount > 0) {
-          const badge = document.createElement('div');
-          badge.className = 'more-events';
-          badge.textContent = `+${hiddenCount} autres`;
-          badge.addEventListener('click', e => { e.stopPropagation(); showModalForCell(c); });
-          c.el.appendChild(badge);
-        }
-      });
+      }, 50);
+    }
 
-      // Réappliquer les animations de défilement après un court délai
-      setTimeout(updateScrollingEvents, 100);
+    async function renderCalendar(force = false) {
+      if (isRendering && !force) {
+        return;
+      }
+
+      if (!force && !shouldRender()) {
+        return;
+      }
+
+      isRendering = true;
+      const calendarEl = document.getElementById('calendar');
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const thisMonday = getMonday(currentStartDate);
+      const pastMonday = new Date(thisMonday);
+      pastMonday.setDate(thisMonday.getDate() - 7);
+      const startDate = pastMonday;
+      const totalDays = weekView * 7;
+      const headerH = document.getElementById('calendar-header').getBoundingClientRect().height;
+      const availH = Math.max(240, window.innerHeight - headerH - 32);
+      const rowH = Math.floor((availH - 20) / weekView);
+      calendarEl.style.gridAutoRows = `${rowH}px`;
+
+      // Conserver les anciennes cellules si possible
+      const existingCells = Array.from(calendarEl.querySelectorAll('.day-cell'));
+      const cellMap = [];
+      const months = new Set();
+
+      // Réutiliser les cellules existantes si elles correspondent aux nouvelles dates
+      for (let i = 0; i < totalDays; i++) {
+        const d = new Date(startDate);
+        d.setDate(d.getDate() + i);
+        d.setHours(0, 0, 0, 0);
+
+        let cell;
+        if (i < existingCells.length) {
+          cell = existingCells[i];
+          cell.innerHTML = '';
+        } else {
+          cell = document.createElement('div');
+          cell.className = 'day-cell';
+          calendarEl.appendChild(cell);
+        }
+
+        if (d > today) {
+          cell.classList.add('future-day');
+          cell.classList.remove('today');
+        } else if (d.getTime() === today.getTime()) {
+          cell.classList.add('today');
+          cell.classList.remove('future-day');
+        } else {
+          cell.classList.remove('today', 'future-day');
+        }
+
+        const label = document.createElement('div');
+        label.className = 'date-label';
+        label.textContent = fmtDayLabel(d);
+        cell.appendChild(label);
+        cellMap.push({ date: d, el: cell, eventsList: [], visibleCount: 0 });
+        months.add(capitalize(d.toLocaleString('fr-FR', { month: 'long' })));
+      }
+
+      // Supprimer les cellules en trop
+      while (calendarEl.children.length > totalDays) {
+        calendarEl.removeChild(calendarEl.lastChild);
+      }
+
+      await waitForCellsRendered(calendarEl);
+
+      // Préparer la nouvelle couche d'événements en arrière-plan
+      await prepareEventsLayer();
+
+      // Basculer les couches instantanément
+      swapEventsLayers();
+
+      // Mettre à jour le titre
       document.getElementById('calendar-title').textContent = Array.from(months).join(' / ');
-
-      // Rétablir l'opacité
-      setTimeout(() => {
-        calendarEl.style.opacity = '1';
-      }, 100);
+      isRendering = false;
     }
 
     function showEventModal(ev) {
