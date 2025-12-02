@@ -47,8 +47,8 @@
     position:absolute;
     display:flex;
     align-items:center;
-    padding:2px 8px 0; /* Padding haut réduit */
-    height:20px; /* Hauteur légèrement réduite */
+    padding:0 8px;
+    height:22px;
     border-radius:6px;
     font-size:0.78rem;
     color:#fff;
@@ -109,7 +109,6 @@
   <div id="calendar-wrap">
     <div id="calendar" role="grid" aria-label="Calendrier"></div>
     <div id="events-layer" aria-hidden="false"></div>
-    <div id="events-layer-buffer" aria-hidden="true" style="position:absolute;left:2px;right:6px;top:10px;bottom:10px;pointer-events:none;visibility:hidden;"></div>
   </div>
   <div id="event-modal" onclick="hideModal()">
     <div class="modal-card" id="modal-content" onclick="event.stopPropagation()"></div>
@@ -125,10 +124,6 @@
     let weekView = 3;
     let currentStartDate = new Date();
     let resizeTimeout;
-    let lastRenderTime = 0;
-    let isRendering = false;
-    let rowH = 80;
-    let cellMap = []; // Variable globale pour stocker les cellules
 
     function calculateHash(events) {
       return JSON.stringify(events.map(ev => ({
@@ -225,50 +220,11 @@
       });
     }
 
-    function shouldRender() {
-      const now = Date.now();
-      if (now - lastRenderTime < 500) {
-        return false;
-      }
-      lastRenderTime = now;
-      return true;
-    }
-
-    function swapEventsLayers() {
-      const currentLayer = document.getElementById('events-layer');
-      const bufferLayer = document.getElementById('events-layer-buffer');
-
-      bufferLayer.id = 'events-layer';
-      currentLayer.id = 'events-layer-buffer';
-      currentLayer.style.visibility = 'hidden';
-      bufferLayer.style.visibility = 'visible';
-    }
-
-    function addMoreEventsBadges() {
-      cellMap.forEach((c, idx) => {
-        const weekIdx = Math.floor(idx / 7);
-        const visibleLanes = visibleLanesPerWeek[weekIdx] || 0;
-        const existingBadge = c.el.querySelector('.more-events');
-
-        if (existingBadge) {
-          c.el.removeChild(existingBadge);
-        }
-
-        if (c.hiddenCount > 0) {
-          const badge = document.createElement('div');
-          badge.className = 'more-events';
-          badge.textContent = `+${c.hiddenCount} autres`;
-          badge.addEventListener('click', e => { e.stopPropagation(); showModalForCell(c); });
-          c.el.appendChild(badge);
-        }
-      });
-    }
-
-    async function prepareEventsLayer() {
+    async function renderCalendar() {
       const calendarEl = document.getElementById('calendar');
-      const bufferLayer = document.getElementById('events-layer-buffer');
-      bufferLayer.innerHTML = '';
-
+      const eventsLayer = document.getElementById('events-layer');
+      calendarEl.innerHTML = '';
+      eventsLayer.innerHTML = '';
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const thisMonday = getMonday(currentStartDate);
@@ -278,26 +234,29 @@
       const totalDays = weekView * 7;
       const headerH = document.getElementById('calendar-header').getBoundingClientRect().height;
       const availH = Math.max(240, window.innerHeight - headerH - 32);
-      rowH = Math.floor((availH - 20) / weekView);
-
-      const cells = calendarEl.querySelectorAll('.day-cell');
-      cellMap = [];
+      const rowH = Math.floor((availH - 20) / weekView);
+      calendarEl.style.gridAutoRows = `${rowH}px`;
+      const cellMap = [];
       const months = new Set();
 
       for (let i = 0; i < totalDays; i++) {
         const d = new Date(startDate);
         d.setDate(d.getDate() + i);
         d.setHours(0, 0, 0, 0);
-        cellMap.push({
-          date: d,
-          el: cells[i],
-          eventsList: [],
-          visibleCount: 0,
-          hiddenCount: 0
-        });
+        const cell = document.createElement('div');
+        cell.className = 'day-cell';
+        if (d > today) cell.classList.add('future-day');
+        if (d.getTime() === today.getTime()) cell.classList.add('today');
+        const label = document.createElement('div');
+        label.className = 'date-label';
+        label.textContent = fmtDayLabel(d);
+        cell.appendChild(label);
+        calendarEl.appendChild(cell);
+        cellMap.push({ date: d, el: cell, eventsList: [], visibleCount: 0 });
         months.add(capitalize(d.toLocaleString('fr-FR', { month: 'long' })));
       }
 
+      await waitForCellsRendered(calendarEl);
       const calendarRect = calendarEl.getBoundingClientRect();
       const cellRects = cellMap.map(c => c.el.getBoundingClientRect());
 
@@ -411,14 +370,11 @@
         seg.lane = lane;
       });
 
-      // Réinitialiser les comptes
-      cellMap.forEach(c => { c.eventsList = []; c.visibleCount = 0; c.hiddenCount = 0; });
-
-      // Compter les événements visibles et cachés
+      cellMap.forEach(c => { c.eventsList = []; c.totalSegments = 0; });
       segments.forEach(seg => {
         for (let i = seg.startIdx; i <= seg.endIdx; i++) {
           if (i >= 0 && i < cellMap.length) {
-            cellMap[i].totalSegments = (cellMap[i].totalSegments || 0) + 1;
+            cellMap[i].totalSegments++;
             if (!cellMap[i].eventsList.includes(seg.ev)) cellMap[i].eventsList.push(seg.ev);
           }
         }
@@ -426,7 +382,7 @@
 
       const dateLabel = document.querySelector('.date-label');
       const dateLabelH = dateLabel ? dateLabel.getBoundingClientRect().height : 18;
-      const bandH = 20; // Correspond à la hauteur CSS
+      const bandH = 22;
       const laneGap = 6;
       const bandSpacing = bandH + laneGap;
       const weekTopBase = [];
@@ -449,21 +405,14 @@
         return segments.filter(s => s.ev === ev).reduce((a, b) => a.endIdx > b.endIdx ? a : b);
       }
 
-      // Compter les événements visibles et cachés par cellule
-      cellMap.forEach((c, idx) => {
-        const weekIdx = Math.floor(idx / 7);
-        const visibleLanes = visibleLanesPerWeek[weekIdx] || 0;
-        let visibleCount = 0, hiddenCount = 0;
-
-        segments.forEach(seg => {
-          if (seg.startIdx <= idx && seg.endIdx >= idx && seg.weekIdx === weekIdx) {
-            if (seg.lane < visibleLanes) visibleCount++;
-            else hiddenCount++;
-          }
-        });
-
-        c.visibleCount = visibleCount;
-        c.hiddenCount = hiddenCount;
+      cellMap.forEach((cellObj, idx) => {
+        const cellDate = cellObj.date;
+        if (cellDate < today) {
+          const overlay = document.createElement('div');
+          overlay.className = 'past-day-overlay';
+          cellObj.el.appendChild(overlay);
+          cellObj.el.style.position = 'relative';
+        }
       });
 
       segments.forEach(seg => {
@@ -476,7 +425,7 @@
         el.className = 'multi-band ' + (seg.ev.__type || '');
         el.style.left = `${left}px`;
         el.style.width = `${Math.max(36, width)}px`;
-        const top = (weekTopBase[seg.weekIdx] || 0) + dateLabelH + 4 + (seg.lane * bandSpacing); // Ajustement du padding top
+        const top = (weekTopBase[seg.weekIdx] || 0) + dateLabelH + 5 + (seg.lane * bandSpacing);
         el.style.top = `${top}px`;
         el.style.height = `${bandH}px`;
         const textContainer = document.createElement('div');
@@ -503,103 +452,33 @@
         const visibleLanes = visibleLanesPerWeek[seg.weekIdx] || 0;
         el.style.display = seg.lane >= visibleLanes ? 'none' : 'flex';
         seg._isHidden = seg.lane >= visibleLanes;
-        el.addEventListener('click', e => { e.stopPropagation(); showEventModal(ev); });
-        bufferLayer.appendChild(el);
+        eventsLayer.appendChild(el);
       });
 
-      // Appliquer les animations de défilement
-      setTimeout(() => {
-        bufferLayer.querySelectorAll('.event-text').forEach(el => {
-          const container = el.parentElement;
-          if (el.scrollWidth > container.clientWidth) {
-            el.classList.add('scrolling');
+      cellMap.forEach((c, idx) => {
+        const weekIdx = Math.floor(idx / 7);
+        const visibleLanes = visibleLanesPerWeek[weekIdx] || 0;
+        let visibleCount = 0, hiddenCount = 0;
+        segments.forEach(seg => {
+          if (seg.startIdx <= idx && seg.endIdx >= idx && seg.weekIdx === weekIdx) {
+            if (seg.lane < visibleLanes) visibleCount++;
+            else hiddenCount++;
           }
         });
-      }, 50);
-
-      return months;
-    }
-
-    async function renderCalendar(force = false) {
-      if (isRendering && !force) {
-        return;
-      }
-
-      if (!force && !shouldRender()) {
-        return;
-      }
-
-      isRendering = true;
-      const calendarEl = document.getElementById('calendar');
-      const headerH = document.getElementById('calendar-header').getBoundingClientRect().height;
-      const availH = Math.max(240, window.innerHeight - headerH - 32);
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const thisMonday = getMonday(currentStartDate);
-      const pastMonday = new Date(thisMonday);
-      pastMonday.setDate(thisMonday.getDate() - 7);
-      const startDate = pastMonday;
-      const totalDays = weekView * 7;
-      rowH = Math.floor((availH - 20) / weekView);
-      calendarEl.style.gridAutoRows = `${rowH}px`;
-
-      // Conserver les anciennes cellules si possible
-      const existingCells = Array.from(calendarEl.querySelectorAll('.day-cell'));
-      const months = new Set();
-
-      // Réutiliser les cellules existantes si elles correspondent aux nouvelles dates
-      for (let i = 0; i < totalDays; i++) {
-        const d = new Date(startDate);
-        d.setDate(d.getDate() + i);
-        d.setHours(0, 0, 0, 0);
-
-        let cell;
-        if (i < existingCells.length) {
-          cell = existingCells[i];
-          cell.innerHTML = '';
-        } else {
-          cell = document.createElement('div');
-          cell.className = 'day-cell';
-          calendarEl.appendChild(cell);
+        c.visibleCount = visibleCount;
+        c.hiddenCount = hiddenCount;
+        if (hiddenCount > 0) {
+          const badge = document.createElement('div');
+          badge.className = 'more-events';
+          badge.textContent = `+${hiddenCount} autres`;
+          badge.addEventListener('click', e => { e.stopPropagation(); showModalForCell(c); });
+          c.el.appendChild(badge);
         }
+      });
 
-        if (d > today) {
-          cell.classList.add('future-day');
-          cell.classList.remove('today');
-        } else if (d.getTime() === today.getTime()) {
-          cell.classList.add('today');
-          cell.classList.remove('future-day');
-        } else {
-          cell.classList.remove('today', 'future-day');
-        }
-
-        const label = document.createElement('div');
-        label.className = 'date-label';
-        label.textContent = fmtDayLabel(d);
-        cell.appendChild(label);
-        months.add(capitalize(d.toLocaleString('fr-FR', { month: 'long' })));
-      }
-
-      // Supprimer les cellules en trop
-      while (calendarEl.children.length > totalDays) {
-        calendarEl.removeChild(calendarEl.lastChild);
-      }
-
-      await waitForCellsRendered(calendarEl);
-
-      // Préparer la nouvelle couche d'événements en arrière-plan
-      const preparedMonths = await prepareEventsLayer();
-
-      // Basculer les couches instantanément
-      swapEventsLayers();
-
-      // Ajouter les badges "+X autres"
-      addMoreEventsBadges();
-
-      // Mettre à jour le titre
-      document.getElementById('calendar-title').textContent = Array.from(preparedMonths).join(' / ');
-      isRendering = false;
+      // Appliquer les animations de défilement après un court délai
+      setTimeout(updateScrollingEvents, 100);
+      document.getElementById('calendar-title').textContent = Array.from(months).join(' / ');
     }
 
     function showEventModal(ev) {
@@ -639,34 +518,34 @@
     document.getElementById('prev-btn').addEventListener('click', () => {
       currentStartDate.setDate(currentStartDate.getDate() - 7);
       localStorage.removeItem(CACHE_KEY);
-      renderCalendar(true);
+      renderCalendar();
     });
 
     document.getElementById('next-btn').addEventListener('click', () => {
       currentStartDate.setDate(currentStartDate.getDate() + 7);
       localStorage.removeItem(CACHE_KEY);
-      renderCalendar(true);
+      renderCalendar();
     });
 
     document.getElementById('today-btn').addEventListener('click', () => {
       currentStartDate = new Date();
       weekView = 3;
       localStorage.removeItem(CACHE_KEY);
-      renderCalendar(true);
+      renderCalendar();
     });
 
     document.getElementById('view-3w').addEventListener('click', () => {
       weekView = 3;
       currentStartDate = getMonday(currentStartDate);
       localStorage.removeItem(CACHE_KEY);
-      renderCalendar(true);
+      renderCalendar();
     });
 
     document.getElementById('view-4w').addEventListener('click', () => {
       weekView = 4;
       currentStartDate = getMonday(currentStartDate);
       localStorage.removeItem(CACHE_KEY);
-      renderCalendar(true);
+      renderCalendar();
     });
 
     window.addEventListener('resize', () => {
@@ -688,7 +567,7 @@
 
     setInterval(updateClock, 1000);
     setInterval(() => { renderCalendar(); }, CACHE_TTL);
-    renderCalendar(true).catch(err => { console.error('render error', err); document.getElementById('calendar-title').textContent = 'Erreur'; });
+    renderCalendar().catch(err => { console.error('render error', err); document.getElementById('calendar-title').textContent = 'Erreur'; });
   });
 </script>
 </body>
