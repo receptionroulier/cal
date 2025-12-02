@@ -17,9 +17,9 @@
   #current-time{position:absolute;right:50px;top:50%;transform:translateY(-50%);font-size:3rem;font-weight:bold;color:#00e5ff;font-family:Trebuchet MS}
   /* calendar */
   #calendar-wrap{flex:1;display:flex;flex-direction:column;min-height:0;position:relative}
-  #calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;padding:10px;align-content:start;position:relative}
+  #calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;padding:10px;align-content:start;position:relative;opacity:1;transition:opacity 0.3s ease}
   /* day cell */
-  .day-cell{background:#1c1c1c;border:1px solid #333;border-radius:10px;padding:6px;position:relative;overflow:hidden;min-height:80px}
+  .day-cell{background:#1c1c1c;border:1px solid #333;border-radius:10px;padding:6px;position:relative;overflow:hidden;min-height:80px;transition:all 0.2s ease}
   .day-cell.future-day { border: 1px solid rgba(0, 229, 255, 0.3); box-shadow: 0 0 4px rgba(0, 229, 255, 0.2); }
   .day-cell.today { border: 2px solid rgba(0, 229, 255, 0.8); box-shadow: 0 0 8px rgba(0, 229, 255, 0.6); animation: pulse 2s infinite; }
   @keyframes pulse {
@@ -55,6 +55,7 @@
     white-space:nowrap;
     overflow:hidden;
     box-shadow:0 1px 0 rgba(0,0,0,0.2) inset;
+    transition:all 0.2s ease;
   }
   .reception{background:#109c53}
   .navire{background:#3644b3}
@@ -124,6 +125,7 @@
     let weekView = 3;
     let currentStartDate = new Date();
     let resizeTimeout;
+    let lastRenderTime = 0;
 
     function calculateHash(events) {
       return JSON.stringify(events.map(ev => ({
@@ -220,11 +222,26 @@
       });
     }
 
-    async function renderCalendar() {
+    function shouldRender() {
+      const now = Date.now();
+      if (now - lastRenderTime < 500) {
+        return false;
+      }
+      lastRenderTime = now;
+      return true;
+    }
+
+    async function renderCalendar(force = false) {
+      if (!force && !shouldRender()) {
+        return;
+      }
+
       const calendarEl = document.getElementById('calendar');
       const eventsLayer = document.getElementById('events-layer');
-      calendarEl.innerHTML = '';
-      eventsLayer.innerHTML = '';
+
+      // Réduire l'opacité pendant le rendu pour éviter le flicker
+      calendarEl.style.opacity = '0.7';
+
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const thisMonday = getMonday(currentStartDate);
@@ -236,24 +253,49 @@
       const availH = Math.max(240, window.innerHeight - headerH - 32);
       const rowH = Math.floor((availH - 20) / weekView);
       calendarEl.style.gridAutoRows = `${rowH}px`;
+
+      // Conserver les anciennes cellules si possible
+      const existingCells = Array.from(calendarEl.querySelectorAll('.day-cell'));
       const cellMap = [];
       const months = new Set();
 
+      // Réutiliser les cellules existantes si elles correspondent aux nouvelles dates
       for (let i = 0; i < totalDays; i++) {
         const d = new Date(startDate);
         d.setDate(d.getDate() + i);
         d.setHours(0, 0, 0, 0);
-        const cell = document.createElement('div');
-        cell.className = 'day-cell';
-        if (d > today) cell.classList.add('future-day');
-        if (d.getTime() === today.getTime()) cell.classList.add('today');
+
+        let cell;
+        if (i < existingCells.length) {
+          cell = existingCells[i];
+          cell.innerHTML = '';
+        } else {
+          cell = document.createElement('div');
+          cell.className = 'day-cell';
+          calendarEl.appendChild(cell);
+        }
+
+        if (d > today) {
+          cell.classList.add('future-day');
+          cell.classList.remove('today');
+        } else if (d.getTime() === today.getTime()) {
+          cell.classList.add('today');
+          cell.classList.remove('future-day');
+        } else {
+          cell.classList.remove('today', 'future-day');
+        }
+
         const label = document.createElement('div');
         label.className = 'date-label';
         label.textContent = fmtDayLabel(d);
         cell.appendChild(label);
-        calendarEl.appendChild(cell);
         cellMap.push({ date: d, el: cell, eventsList: [], visibleCount: 0 });
         months.add(capitalize(d.toLocaleString('fr-FR', { month: 'long' })));
+      }
+
+      // Supprimer les cellules en trop
+      while (calendarEl.children.length > totalDays) {
+        calendarEl.removeChild(calendarEl.lastChild);
       }
 
       await waitForCellsRendered(calendarEl);
@@ -380,6 +422,9 @@
         }
       });
 
+      // Effacer les anciens événements
+      eventsLayer.innerHTML = '';
+
       const dateLabel = document.querySelector('.date-label');
       const dateLabelH = dateLabel ? dateLabel.getBoundingClientRect().height : 18;
       const bandH = 22;
@@ -408,10 +453,17 @@
       cellMap.forEach((cellObj, idx) => {
         const cellDate = cellObj.date;
         if (cellDate < today) {
-          const overlay = document.createElement('div');
-          overlay.className = 'past-day-overlay';
-          cellObj.el.appendChild(overlay);
+          if (!cellObj.el.querySelector('.past-day-overlay')) {
+            const overlay = document.createElement('div');
+            overlay.className = 'past-day-overlay';
+            cellObj.el.appendChild(overlay);
+          }
           cellObj.el.style.position = 'relative';
+        } else {
+          const overlay = cellObj.el.querySelector('.past-day-overlay');
+          if (overlay) {
+            cellObj.el.removeChild(overlay);
+          }
         }
       });
 
@@ -452,6 +504,7 @@
         const visibleLanes = visibleLanesPerWeek[seg.weekIdx] || 0;
         el.style.display = seg.lane >= visibleLanes ? 'none' : 'flex';
         seg._isHidden = seg.lane >= visibleLanes;
+        el.addEventListener('click', e => { e.stopPropagation(); showEventModal(ev); });
         eventsLayer.appendChild(el);
       });
 
@@ -467,6 +520,10 @@
         });
         c.visibleCount = visibleCount;
         c.hiddenCount = hiddenCount;
+        const existingBadge = c.el.querySelector('.more-events');
+        if (existingBadge) {
+          c.el.removeChild(existingBadge);
+        }
         if (hiddenCount > 0) {
           const badge = document.createElement('div');
           badge.className = 'more-events';
@@ -476,9 +533,14 @@
         }
       });
 
-      // Appliquer les animations de défilement après un court délai
+      // Réappliquer les animations de défilement après un court délai
       setTimeout(updateScrollingEvents, 100);
       document.getElementById('calendar-title').textContent = Array.from(months).join(' / ');
+
+      // Rétablir l'opacité
+      setTimeout(() => {
+        calendarEl.style.opacity = '1';
+      }, 100);
     }
 
     function showEventModal(ev) {
@@ -518,34 +580,34 @@
     document.getElementById('prev-btn').addEventListener('click', () => {
       currentStartDate.setDate(currentStartDate.getDate() - 7);
       localStorage.removeItem(CACHE_KEY);
-      renderCalendar();
+      renderCalendar(true);
     });
 
     document.getElementById('next-btn').addEventListener('click', () => {
       currentStartDate.setDate(currentStartDate.getDate() + 7);
       localStorage.removeItem(CACHE_KEY);
-      renderCalendar();
+      renderCalendar(true);
     });
 
     document.getElementById('today-btn').addEventListener('click', () => {
       currentStartDate = new Date();
       weekView = 3;
       localStorage.removeItem(CACHE_KEY);
-      renderCalendar();
+      renderCalendar(true);
     });
 
     document.getElementById('view-3w').addEventListener('click', () => {
       weekView = 3;
       currentStartDate = getMonday(currentStartDate);
       localStorage.removeItem(CACHE_KEY);
-      renderCalendar();
+      renderCalendar(true);
     });
 
     document.getElementById('view-4w').addEventListener('click', () => {
       weekView = 4;
       currentStartDate = getMonday(currentStartDate);
       localStorage.removeItem(CACHE_KEY);
-      renderCalendar();
+      renderCalendar(true);
     });
 
     window.addEventListener('resize', () => {
@@ -567,7 +629,7 @@
 
     setInterval(updateClock, 1000);
     setInterval(() => { renderCalendar(); }, CACHE_TTL);
-    renderCalendar().catch(err => { console.error('render error', err); document.getElementById('calendar-title').textContent = 'Erreur'; });
+    renderCalendar(true).catch(err => { console.error('render error', err); document.getElementById('calendar-title').textContent = 'Erreur'; });
   });
 </script>
 </body>
