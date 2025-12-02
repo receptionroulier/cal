@@ -54,8 +54,8 @@ h2 {
 }
 .pont-card:hover { transform: scale(1.02); }
 .pont-card.ferme { border-left-color: #ff4040; }
-.pont-card.fermeture { border-left-color: orange; animation: pulse-orange 1.2s infinite; }
-.pont-card.manoeuvre { border-left-color: #1c3cff; animation: pulse-blue 1.2s infinite; }
+.pont-card.fermeture { border-left-color: orange; animation: pulse-orange 1.2s infinite; will-change: box-shadow, transform; }
+.pont-card.manoeuvre { border-left-color: #1c3cff; animation: pulse-blue 1.2s infinite; will-change: box-shadow, transform; }
 .pont-card.ouvert { border-left-color: #58ff58; }
 .pastille { width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; display: inline-block; }
 .ferme .pastille { background: #ff4040; }
@@ -93,12 +93,12 @@ const CACHE_KEY_HASH = "pontsHash";
 const CACHE_KEY_QUALITY = "pontsCacheQuality";
 const CACHE_KEY_CHECK = "pontsLastCheck";
 
-const CACHE_EXPIRATION_SHORT = 60000; // 1 min fallback
-const CACHE_EXPIRATION_LONG = 15*60000; // 15 min fresh
+const CACHE_EXPIRATION_SHORT = 60000;
+const CACHE_EXPIRATION_LONG = 15*60000;
 const REFRESH_INTERVAL = 30000;
 const PROXY_TEST_TIMEOUT = 8000;
 const FETCH_TIMEOUT = 10000;
-const PROXY_REBUILD_INTERVAL = 6*60*60*1000; // toutes les 6h
+const PROXY_REBUILD_INTERVAL = 6*60*60*1000; // 6h
 
 const INITIAL_PROXIES = [
     "https://proxy.corsfix.com/?",
@@ -153,7 +153,7 @@ async function testProxySimple(proxy, targetUrl){
     }catch(e){
         proxyStats[proxy] = proxyStats[proxy] || {success:0,fail:0};
         proxyStats[proxy].fail++;
-        if(proxyStats[proxy].fail >= 3) blacklist[proxy] = Date.now() + 5*60*1000; // blacklist temporaire 5min
+        if(proxyStats[proxy].fail >= 3) blacklist[proxy] = Date.now() + 5*60*1000;
         return {ok:false};
     }
 }
@@ -303,9 +303,14 @@ async function checkAndUpdate(forceUpdate=false){
     }
 }
 
+// ===================== RENDER PONTS AVEC ANIMATIONS =====================
 function renderPonts(list){
     const container=document.getElementById("ponts-table");
-    if(!list||!list.length){ container.innerHTML='<div class="error-message">Aucun pont disponible.</div>'; return; }
+    if(!list||!list.length){ 
+        container.innerHTML='<div class="error-message">Aucun pont disponible.</div>'; 
+        return; 
+    }
+
     container.innerHTML=list.map(p=>{
         const statut=(p.statutText||'').toLowerCase();
         const open=statut.includes('ouvert');
@@ -314,21 +319,32 @@ function renderPonts(list){
         const ferme=statut.includes('fermé')||statut.includes('ferme');
         const cls = ferme?'ferme':fermeture?'fermeture':move?'manoeuvre':open?'ouvert':'ferme';
         const info=p.forceText||`MàJ : ${p.date||'inconnue'}`;
+
         return `<div class="pont-card ${cls}">
             <div class="pont-nom"><span class="pastille"></span>${p.nom||'Pont sans nom'}</div>
             <div class="pont-etat">${p.statutText||''}</div>
             <div class="pont-infos">${info}</div>
         </div>`;
     }).join('');
+
+    // Relancer les animations après le rendu
+    requestAnimationFrame(()=>{
+        ['manoeuvre','fermeture'].forEach(clsName=>{
+            const nodes = container.querySelectorAll('.pont-card.'+clsName);
+            nodes.forEach(node=>{
+                node.classList.remove(clsName);
+                void node.offsetWidth; // force reflow
+                node.classList.add(clsName);
+            });
+        });
+    });
 }
 
 // ===================== INITIALISATION =====================
 (async function init(){
-    // reconstruction initiale du pool et mise à jour périodique
     await rebuildProxyPool();
     setInterval(rebuildProxyPool, PROXY_REBUILD_INTERVAL);
 
-    // check et update des ponts
     await checkAndUpdate(true);
     setInterval(()=>checkAndUpdate(false), REFRESH_INTERVAL);
 })();
