@@ -100,7 +100,7 @@ const PROXY_TEST_TIMEOUT = 8000;
 const FETCH_TIMEOUT = 10000;
 const RETEST_BATCH_SIZE = 5;
 const INITIAL_PROXIES = [
-    "https://api.allorigins.win/get?url=",
+    "https://api.allorigins.win/get?url=,
     "https://thingproxy.freeboard.io/fetch/",
     "https://cors-anywhere.herokuapp.com/",
     "https://every-origin.vercel.app/",
@@ -114,22 +114,7 @@ const INITIAL_PROXIES = [
     "https://cors.bridged.cc/",
     "https://corsproxy.io/?",
     "https://allorigins.hexlet.app/get?url=",
-    "https://api.codetabs.com/v1/proxy?quest=",
-    "https://thingproxy.freeboard.io/fetch/",
-    "https://yacdn.org/proxy/",
-    "https://jsonp.afeld.me/?callback=&url=",
-    "https://crossorigin.me/",
-    "https://every-origin.vercel.app/",
-    "https://cors-anywhere.herokuapp.com/",
-    "https://proxy.corsfix.com/?",
-    "https://cors-proxy.htmldriven.com/?url=",
-    "https://test.cors.workers.dev/?",
-    "https://allorigins.hexlet.app/get?url=",
-    "https://cors.bridged.cc/",
-    "https://api.allorigins.win/raw?url=",
-    "https://thingproxy.freeboard.io/fetch/",
-    "https://yacdn.org/proxy/",
-    "https://jsonp.afeld.me/?callback=&url="
+
 ];
 
 let validProxies = [];
@@ -196,7 +181,7 @@ function updateCacheDisplay(state){
         t.textContent = " — MàJ : " + cacheDate;
     } else if(state==='unchanged'){
         status.innerHTML = '<span class="cache-ok">🟢 </span>';
-        t.textContent = " — Dernière vérification : " + checkDate;
+        t.textContent = " — MàJ : " + checkDate;
     } else if(state==='fallback'){
         status.innerHTML = '<span class="cache-fail">🔴 </span>';
         t.textContent = " — MàJ : " + cacheDate;
