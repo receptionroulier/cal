@@ -34,7 +34,7 @@
         Remplacez l'URL suivante par l'adresse que vous voulez afficher dans la colonne gauche.
         Exemple : src="http://example-left.com" ou "https://mon-serveur/chemin"
       -->
-      <iframe id="leftFrame" src="http://URL_DE_LA_COLONNE_GAUCHE_EXEMPLE" title="Gauche"></iframe>
+      <iframe id="leftFrame" src="https://receptionroulier.github.io/cal/p.html" title="Gauche"></iframe>
     </div>
 
     <!-- Colonne droite : iframe qui prend tout le reste -->
@@ -43,7 +43,7 @@
         Remplacez l'URL suivante par l'adresse que vous voulez afficher dans la colonne droite.
         Exemple : src="http://example-right.com" ou "https://mon-serveur/chemin"
       -->
-      <iframe id="rightFrame" src="http://URL_DE_LA_COLONNE_DROITE_EXEMPLE" title="Droite"></iframe>
+      <iframe id="rightFrame" src="https://receptionroulier.github.io/cal/caltest.html" title="Droite"></iframe>
     </div>
 
   </div>
@@ -54,10 +54,10 @@
   <!--
   <script>
     // Exemple : recharger les iframes toutes les 15 secondes
-    // setInterval(() => {
-    //   document.getElementById('leftFrame').contentWindow.location.reload();
-    //   document.getElementById('rightFrame').contentWindow.location.reload();
-    // }, 15000);
+    setInterval(() => {
+    document.getElementById('leftFrame').contentWindow.location.reload();
+    document.getElementById('rightFrame').contentWindow.location.reload();
+    }, 15000);
   </script>
   -->
 
@@ -88,3 +88,4 @@
 
 </body>
 </html>
+
