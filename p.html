@@ -33,7 +33,7 @@ h2 {
 #cache-info {
     text-align:center;
     margin-bottom:14px;
-    font-size: 0.9em;
+    font-size: 0.7em;
     color:#ccc;
 }
 .cache-ok { color:#58ff58; font-weight:bold; }
@@ -128,7 +128,23 @@ const INITIAL_PROXIES = [
     "https://api.codetabs.com/v1/proxy?quest=",
     "https://cors.bridged.cc/",
     "https://corsproxy.io/?",
-    "https://allorigins.hexlet.app/get?url="
+    "https://allorigins.hexlet.app/get?url=",
+    "https://api.codetabs.com/v1/proxy?quest=",
+    "https://thingproxy.freeboard.io/fetch/",
+    "https://yacdn.org/proxy/",
+    "https://jsonp.afeld.me/?callback=&url=",
+    "https://crossorigin.me/",
+    "https://every-origin.vercel.app/",
+    "https://cors-anywhere.herokuapp.com/",
+    "https://proxy.corsfix.com/?",
+    "https://cors-proxy.htmldriven.com/?url=",
+    "https://test.cors.workers.dev/?",
+    "https://allorigins.hexlet.app/get?url=",
+    "https://cors.bridged.cc/",
+    "https://api.allorigins.win/raw?url=",
+    "https://thingproxy.freeboard.io/fetch/",
+    "https://yacdn.org/proxy/",
+    "https://jsonp.afeld.me/?callback=&url="
 ];
 
 /* ===================== ÉTAT ===================== */
@@ -258,9 +274,9 @@ function updateCacheDisplay(isNewCache){
     const date = stamp ? new Date(parseInt(stamp)).toLocaleString("fr-FR") : "inconnue";
 
     if(isNewCache){
-        status.innerHTML = `<span class="cache-ok">🟢 Nouveau cache</span>`;
+        status.innerHTML = `<span class="cache-ok">🟢 </span>`;
     } else {
-        status.innerHTML = `<span class="cache-fail">🔴 Cache ancien</span>`;
+        status.innerHTML = `<span class="cache-fail">🔴 </span>`;
     }
 
     t.textContent = " — MàJ : " + date;
