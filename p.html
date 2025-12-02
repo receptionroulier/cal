@@ -193,7 +193,7 @@ function updateCacheDisplay(state){
 // transforme "Travaux" en fond orange + texte blanc
 function highlightTravaux(text){
     if(!text) return "";
-    return text.replace(/(travaux)/i,'<strong>$1</strong>, '<span class="travaux-highlight">$1</span>');
+   return text.replace(/(travaux)/i, '<span class="travaux-highlight"><strong>$1</strong></span>');
 }
 
 function createCard(p){
