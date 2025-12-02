@@ -1,4 +1,4 @@
- <!doctype html>
+<!doctype html>
 <html lang="fr">
 <head>
 <meta charset="utf-8"/>
@@ -425,7 +425,7 @@
         el.className = 'multi-band ' + (seg.ev.__type || '');
         el.style.left = `${left}px`;
         el.style.width = `${Math.max(36, width)}px`;
-        const top = (weekTopBase[seg.weekIdx] || 0) + dateLabelH + 3 + (seg.lane * bandSpacing);
+        const top = (weekTopBase[seg.weekIdx] || 0) + dateLabelH + 2 + (seg.lane * bandSpacing);
         el.style.top = `${top}px`;
         el.style.height = `${bandH}px`;
         const textContainer = document.createElement('div');
