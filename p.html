@@ -86,7 +86,6 @@ h2 {
 </div>
 
 <script>
-// ===================== CONFIG =====================
 const PROXY_STORE_KEY = "pontsProxyStore";
 const CACHE_KEY_DATA = "pontsData";
 const CACHE_KEY_TIME = "pontsCacheTime";
@@ -96,12 +95,11 @@ const CACHE_KEY_CHECK = "pontsLastCheck";
 
 const CACHE_EXPIRATION_SHORT = 60000; // 1 min fallback
 const CACHE_EXPIRATION_LONG = 15*60000; // 15 min fresh
-const REFRESH_INTERVAL = 30000; // 30 sec
-const FETCH_TIMEOUT = 10000; // 10 sec
-const PROXY_TEST_TIMEOUT = 8000; // 8 sec
-const PROXY_REBUILD_INTERVAL = 6*60*60*1000; // 6h
+const REFRESH_INTERVAL = 30000;
+const PROXY_TEST_TIMEOUT = 8000;
+const FETCH_TIMEOUT = 10000;
+const PROXY_REBUILD_INTERVAL = 6*60*60*1000; // toutes les 6h
 
-// ===================== PROXIES INIT =====================
 const INITIAL_PROXIES = [
     "https://proxy.corsfix.com/?",
     "https://yacdn.org/proxy/",
@@ -118,16 +116,16 @@ const INITIAL_PROXIES = [
 
 let validProxies = [];
 let brokenProxies = [];
-let proxyStats = {};
 let allProxies = Array.from(new Set(INITIAL_PROXIES));
+let proxyStats = {};
 let blacklist = {};
 
-// ===================== UTIL =====================
+// ===================== UTILITAIRES =====================
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 async function withTimeout(promiseFactory, ms){
     const controller = new AbortController();
     const id = setTimeout(()=>controller.abort(), ms);
-    try { const res = await promiseFactory(controller.signal); clearTimeout(id); return res; }
+    try{ const res = await promiseFactory(controller.signal); clearTimeout(id); return res; }
     finally{ clearTimeout(id); }
 }
 async function fetchWithTimeout(url, options={}, timeout=FETCH_TIMEOUT){
@@ -138,36 +136,35 @@ async function sha256(str){
     const digest = await crypto.subtle.digest("SHA-256",data);
     return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");
 }
-function shuffle(a){return a.slice().sort(()=>Math.random()-0.5);}
+function normalizeData(data){
+    return JSON.stringify(data.map(p=>({nom:p.nom,statutText:p.statutText,date:p.date,forceText:p.forceText||""})).sort((a,b)=>a.nom.localeCompare(b.nom)));
+}
 function isProxyDisabled(proxy){ 
     return proxyStats[proxy]?.disabledUntil && proxyStats[proxy].disabledUntil > Date.now(); 
 }
-
-// ===================== PROXY LOGIC =====================
-async function testProxySimple(proxy, targetUrl, timeout=PROXY_TEST_TIMEOUT){
-    if(blacklist[proxy]) return {ok:false};
+function shuffle(a){return a.slice().sort(()=>Math.random()-0.5);}
+async function testProxySimple(proxy, targetUrl){
     try{
-        const res = await withTimeout(signal => fetch(proxy + encodeURIComponent(targetUrl), {method:'GET', signal}), timeout);
+        const res = await fetchWithTimeout(proxy + encodeURIComponent(targetUrl), {method:'GET'}, PROXY_TEST_TIMEOUT);
         if(!res.ok) throw new Error();
-        proxyStats[proxy] = proxyStats[proxy]||{success:0,fail:0};
+        proxyStats[proxy] = proxyStats[proxy] || {success:0,fail:0};
         proxyStats[proxy].success++;
         return {ok:true};
-    } catch(e){
-        proxyStats[proxy] = proxyStats[proxy]||{success:0,fail:0};
+    }catch(e){
+        proxyStats[proxy] = proxyStats[proxy] || {success:0,fail:0};
         proxyStats[proxy].fail++;
-        if(proxyStats[proxy].fail>=3){ // blacklist temporaire
-            blacklist[proxy] = Date.now() + 5*60*1000; // 5 min
-        }
+        if(proxyStats[proxy].fail >= 3) blacklist[proxy] = Date.now() + 5*60*1000; // blacklist temporaire 5min
         return {ok:false};
     }
 }
 
+// ===================== POOL FETCH =====================
 async function fetchWithPool(url){
     const lists = [shuffle(validProxies), shuffle(brokenProxies), shuffle(allProxies)];
     for(const list of lists){
         const promises = list.map(proxy=>{
-            if(isProxyDisabled(proxy) || (blacklist[proxy] && blacklist[proxy]>Date.now())) return Promise.reject();
-            return fetchWithTimeout(proxy+encodeURIComponent(url),{method:'GET'},FETCH_TIMEOUT)
+            if(isProxyDisabled(proxy) || (blacklist[proxy] && blacklist[proxy] > Date.now())) return Promise.reject();
+            return fetchWithTimeout(proxy+encodeURIComponent(url), {method:'GET'}, FETCH_TIMEOUT)
                 .then(res=>res.ok?res:Promise.reject())
                 .catch(()=>Promise.reject());
         });
@@ -179,38 +176,44 @@ async function fetchWithPool(url){
     return null;
 }
 
-// ===================== FETCH PROXIES DYNAMIQUES =====================
-async function fetchProxiesFromAPI(){
-    try{
-        const res = await fetch("https://api.getproxylist.com/proxy?protocol=http");
-        if(!res.ok) return [];
-        const json = await res.json();
-        if(!json.ip || !json.port) return [];
-        return [`http://${json.ip}:${json.port}`];
-    } catch(e){ return []; }
+// ===================== PROXIES DYNAMIQUES =====================
+async function fetchProxiesBatch(count = 10){
+    const proxies = [];
+    for(let i=0;i<count;i++){
+        try{
+            const res = await fetch("https://api.getproxylist.com/proxy?protocol=http");
+            if(!res.ok) continue;
+            const json = await res.json();
+            if(json.ip && json.port){
+                proxies.push(`http://${json.ip}:${json.port}`);
+            }
+        }catch(e){ continue; }
+    }
+    return proxies;
 }
 
 async function rebuildProxyPool(){
-    // garder les valides existants
     validProxies = validProxies.filter(p=>!blacklist[p]);
     brokenProxies = brokenProxies.filter(p=>!blacklist[p]);
-    const newProxies = await fetchProxiesFromAPI();
-    for(const p of newProxies){
+
+    const newProxies = await fetchProxiesBatch(10);
+    const testResults = await Promise.all(newProxies.map(async p=>{
         const test = await testProxySimple(p, "https://www.havre-port.com/map/getPonts");
-        if(test.ok && !allProxies.includes(p)) allProxies.push(p);
-    }
-}
-setInterval(rebuildProxyPool, PROXY_REBUILD_INTERVAL);
+        return {proxy:p, ok:test.ok};
+    }));
 
-// ===================== CACHE & RENDER =====================
-function normalizeData(data){
-    return JSON.stringify(data.map(p=>({nom:p.nom,statutText:p.statutText,date:p.date,forceText:p.forceText||""})).sort((a,b)=>a.nom.localeCompare(b.nom)));
+    testResults.forEach(r=>{
+        if(r.ok && !allProxies.includes(r.proxy)) allProxies.push(r.proxy);
+    });
+
+    console.log(`[ProxyPool] Ajoutés ${testResults.filter(r=>r.ok).length} nouveaux proxies`);
 }
 
+// ===================== CACHE ET PONTS =====================
 function parseRawContentToData(raw){
     if(!raw) return null;
     if(typeof raw==='string'){ try{const j=JSON.parse(raw); return j?.data||j;}catch(e){return null;} }
-    if(typeof raw==='object'){ if(raw.data) return raw.data; if(raw.contents){ try{return JSON.parse(raw.contents)?.data||raw;}catch(e){return raw;} } return raw; }
+    if(typeof raw==='object'){ if(raw.data) return raw.data; if(raw.contents){ try{const inner=JSON.parse(raw.contents); return inner?.data||inner;}catch(e){return null;} } return raw; }
     return null;
 }
 
@@ -234,25 +237,6 @@ function updateCacheDisplay(state){
     }
 }
 
-function renderPonts(list){
-    const container=document.getElementById("ponts-table");
-    if(!list||!list.length){ container.innerHTML='<div class="error-message">Aucun pont disponible.</div>'; return; }
-    container.innerHTML=list.map(p=>{
-        const statut=(p.statutText||'').toLowerCase();
-        const open=statut.includes('ouvert');
-        const move=statut.includes('manoeuvre')||statut.includes('manœuvre');
-        const fermeture=statut.includes('fermeture');
-        const ferme=statut.includes('fermé')||statut.includes('ferme');
-        const cls = ferme?'ferme':fermeture?'fermeture':move?'manoeuvre':open?'ouvert':'ferme';
-        const info=p.forceText||`MàJ : ${p.date||'inconnue'}`;
-        return `<div class="pont-card ${cls}">
-            <div class="pont-nom"><span class="pastille"></span>${p.nom||'Pont sans nom'}</div>
-            <div class="pont-etat">${p.statutText||''}</div>
-            <div class="pont-infos">${info}</div>
-        </div>`;
-    }).join('');
-}
-
 async function checkAndUpdate(forceUpdate=false){
     const now = Date.now();
     const last = localStorage.getItem(CACHE_KEY_TIME);
@@ -271,7 +255,6 @@ async function checkAndUpdate(forceUpdate=false){
 
     if(!cacheUsed){
         const raw = await fetchWithPool("https://www.havre-port.com/map/getPonts");
-
         if(raw){
             const data = parseRawContentToData(raw);
             if(data){
@@ -320,10 +303,33 @@ async function checkAndUpdate(forceUpdate=false){
     }
 }
 
-// ===================== INIT =====================
+function renderPonts(list){
+    const container=document.getElementById("ponts-table");
+    if(!list||!list.length){ container.innerHTML='<div class="error-message">Aucun pont disponible.</div>'; return; }
+    container.innerHTML=list.map(p=>{
+        const statut=(p.statutText||'').toLowerCase();
+        const open=statut.includes('ouvert');
+        const move=statut.includes('manoeuvre')||statut.includes('manœuvre');
+        const fermeture=statut.includes('fermeture');
+        const ferme=statut.includes('fermé')||statut.includes('ferme');
+        const cls = ferme?'ferme':fermeture?'fermeture':move?'manoeuvre':open?'ouvert':'ferme';
+        const info=p.forceText||`MàJ : ${p.date||'inconnue'}`;
+        return `<div class="pont-card ${cls}">
+            <div class="pont-nom"><span class="pastille"></span>${p.nom||'Pont sans nom'}</div>
+            <div class="pont-etat">${p.statutText||''}</div>
+            <div class="pont-infos">${info}</div>
+        </div>`;
+    }).join('');
+}
+
+// ===================== INITIALISATION =====================
 (async function init(){
+    // reconstruction initiale du pool et mise à jour périodique
     await rebuildProxyPool();
-    checkAndUpdate(true);
+    setInterval(rebuildProxyPool, PROXY_REBUILD_INTERVAL);
+
+    // check et update des ponts
+    await checkAndUpdate(true);
     setInterval(()=>checkAndUpdate(false), REFRESH_INTERVAL);
 })();
 </script>
