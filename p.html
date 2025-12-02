@@ -112,37 +112,30 @@ const INITIAL_PROXIES = [
 let allProxies = INITIAL_PROXIES.map(p=>({url:p, score:1, fails:0, disabledUntil:0}));
 
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
-
 async function withTimeout(promiseFactory, ms){
     const controller = new AbortController();
     const id = setTimeout(()=>controller.abort(), ms);
     try{ const res = await promiseFactory(controller.signal); clearTimeout(id); return res; }
     finally{ clearTimeout(id); }
 }
-
 async function fetchWithTimeout(url, options={}, timeout=FETCH_TIMEOUT){
     return withTimeout(signal=>fetch(url,{...options,signal}), timeout);
 }
-
 async function sha256(str){
     const data = new TextEncoder().encode(str);
     const digest = await crypto.subtle.digest("SHA-256",data);
     return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");
 }
-
 function normalizeData(data){
     return JSON.stringify(data.map(p=>({nom:p.nom,statutText:p.statutText,date:p.date})).sort((a,b)=>a.nom.localeCompare(b.nom)));
 }
-
 function shuffle(a){ return a.slice().sort(()=>Math.random()-0.5); }
-
 function getSortedProxies(){
     const now = Date.now();
     return allProxies
         .filter(p=>p.disabledUntil<=now)
         .sort((a,b)=>b.score-b.score);
 }
-
 async function fetchWithPool(url){
     const proxies = getSortedProxies();
     for(const proxy of proxies){
@@ -159,21 +152,19 @@ async function fetchWithPool(url){
             proxy.fails++;
             proxy.score = Math.max(proxy.score-1,0);
             if(proxy.fails>=3){
-                proxy.disabledUntil = Date.now()+30000; // désactivation 30s
+                proxy.disabledUntil = Date.now()+30000;
                 proxy.fails = 0;
             }
         }
     }
     return null;
 }
-
 function parseRawContentToData(raw){
     if(!raw) return null;
     if(typeof raw==='string'){ try{const j=JSON.parse(raw); return j?.data||j;}catch(e){return null;} }
     if(typeof raw==='object'){ if(raw.data) return raw.data; if(raw.contents){ try{const inner=JSON.parse(raw.contents); return inner?.data||inner;}catch(e){return null;} } return raw; }
     return null;
 }
-
 function updateCacheDisplay(state){
     const status = document.getElementById("cache-status");
     const t = document.getElementById("cache-time");
@@ -194,36 +185,74 @@ function updateCacheDisplay(state){
     }
 }
 
-function renderPonts(list){
+function createCard(p){
+    const div = document.createElement("div");
+    div.className = "pont-card";
+    div.id = "pont-"+p.nom.replace(/\s+/g,'_');
+    div.dataset.statut = p.statutText||"";
+    div.dataset.date = p.date||"";
+    const statut = (p.statutText||"").toLowerCase();
+    const open=statut.includes('ouvert');
+    const move=statut.includes('manoeuvre')||statut.includes('manœuvre');
+    const fermeture=statut.includes('fermeture');
+    const ferme=statut.includes('fermé')||statut.includes('ferme');
+    const cls = ferme?'ferme':fermeture?'fermeture':move?'manoeuvre':open?'ouvert':'ferme';
+    div.classList.add(cls);
+    div.innerHTML = `<div class="pont-nom"><span class="pastille"></span>${p.nom||'Pont sans nom'}</div>
+                     <div class="pont-etat">${p.statutText||''}</div>
+                     <div class="pont-infos">${p.forceText||`MàJ : ${p.date||'inconnue'}`}</div>`;
+    return div;
+}
+
+function updateCard(div,p){
+    div.dataset.statut = p.statutText||"";
+    div.dataset.date = p.date||"";
+    const statut = (p.statutText||"").toLowerCase();
+    div.className = "pont-card";
+    const open=statut.includes('ouvert');
+    const move=statut.includes('manoeuvre')||statut.includes('manœuvre');
+    const fermeture=statut.includes('fermeture');
+    const ferme=statut.includes('fermé')||statut.includes('ferme');
+    const cls = ferme?'ferme':fermeture?'fermeture':move?'manoeuvre':open?'ouvert':'ferme';
+    div.classList.add(cls);
+    div.querySelector(".pont-etat").textContent = p.statutText||"";
+    div.querySelector(".pont-infos").textContent = p.forceText||`MàJ : ${p.date||'inconnue'}`;
+}
+
+function renderPontsPartial(list){
     const container=document.getElementById("ponts-table");
-    if(!list||!list.length){ container.innerHTML='<div class="error-message">Aucun pont disponible.</div>'; return; }
-    container.innerHTML=list.map(p=>{
-        const statut=(p.statutText||'').toLowerCase();
-        const open=statut.includes('ouvert');
-        const move=statut.includes('manoeuvre')||statut.includes('manœuvre');
-        const fermeture=statut.includes('fermeture');
-        const ferme=statut.includes('fermé')||statut.includes('ferme');
-        const cls = ferme?'ferme':fermeture?'fermeture':move?'manoeuvre':open?'ouvert':'ferme';
-        const info=p.forceText||`MàJ : ${p.date||'inconnue'}`;
-        return `<div class="pont-card ${cls}">
-            <div class="pont-nom"><span class="pastille"></span>${p.nom||'Pont sans nom'}</div>
-            <div class="pont-etat">${p.statutText||''}</div>
-            <div class="pont-infos">${info}</div>
-        </div>`;
-    }).join('');
+    const existing = {};
+    container.querySelectorAll(".pont-card").forEach(c=>existing[c.id]=c);
+    const seen = new Set();
+    list.forEach(p=>{
+        const id = "pont-"+p.nom.replace(/\s+/g,'_');
+        seen.add(id);
+        if(existing[id]){
+            const div = existing[id];
+            if(div.dataset.statut!==p.statutText || div.dataset.date!==p.date){
+                updateCard(div,p);
+            }
+        } else {
+            const div = createCard(p);
+            container.appendChild(div);
+        }
+    });
+    // supprimer cartes obsolètes
+    Object.keys(existing).forEach(id=>{
+        if(!seen.has(id)) existing[id].remove();
+    });
 }
 
 async function checkAndUpdate(forceUpdate=false){
     const now = Date.now();
     const last = localStorage.getItem(CACHE_KEY_TIME);
-    const container = document.getElementById("ponts-table");
     let cacheUsed = false;
     const cached = localStorage.getItem(CACHE_KEY_DATA);
     const quality = localStorage.getItem(CACHE_KEY_QUALITY);
     const ttl = quality==='fresh'?CACHE_EXPIRATION_LONG:CACHE_EXPIRATION_SHORT;
 
     if(cached && !forceUpdate && last && now-last<ttl){
-        renderPonts(JSON.parse(cached));
+        renderPontsPartial(JSON.parse(cached));
         localStorage.setItem(CACHE_KEY_CHECK, now);
         updateCacheDisplay('verified');
         cacheUsed = true;
@@ -282,18 +311,18 @@ async function checkAndUpdate(forceUpdate=false){
             localStorage.setItem(CACHE_KEY_HASH,newHash);
             localStorage.setItem(CACHE_KEY_QUALITY, newHash!==oldHash ? 'fresh' : 'verified');
             updateCacheDisplay(newHash!==oldHash ? 'fresh' : 'verified');
-            renderPonts(newData);
+            renderPontsPartial(newData);
         } else {
-            renderPonts(oldData);
+            renderPontsPartial(oldData);
             updateCacheDisplay('verified');
         }
     } else {
         if(cached){
-            renderPonts(JSON.parse(cached));
+            renderPontsPartial(JSON.parse(cached));
             localStorage.setItem(CACHE_KEY_QUALITY,'fallback');
             updateCacheDisplay('fallback');
         } else {
-            container.innerHTML='<div class="error-message">Impossible de récupérer les ponts et aucun cache disponible.</div>';
+            document.getElementById("ponts-table").innerHTML='<div class="error-message">Impossible de récupérer les ponts et aucun cache disponible.</div>';
         }
     }
 }
