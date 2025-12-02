@@ -54,17 +54,27 @@ h2 {
 }
 .pont-card:hover { transform: scale(1.02); }
 .pont-card.ferme { border-left-color: #ff4040; }
-.pont-card.ferme-travaux { border-left-color: #ff4040; }    
+.pont-card.ferme-travaux { border-left-color: #ff4040; }
 .pont-card.fermeture { border-left-color: orange; animation: pulse-orange 1.2s infinite; }
 .pont-card.manoeuvre { border-left-color: #1c3cff; animation: pulse-blue 1.2s infinite; }
 .pont-card.ouvert { border-left-color: #58ff58; }
 .pastille { width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; display: inline-block; }
-.ferme .pastille { background: #ff4040; }
+.ferme .pastille,
 .ferme-travaux .pastille { background: #ff4040; }
 .fermeture .pastille { background: orange; }
 .manoeuvre .pastille { background: #1c3cff; }
 .ouvert .pastille { background: #58ff58; }
 .pont-nom { font-weight: bold; display: flex; align-items: center; }
+.travaux-label {
+    display: inline-block;
+    background: orange;
+    color: #101010;
+    font-size: 0.75em;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 6px;
+}
 .pont-infos { font-size: 0.85em; color: #ccc; }
 @keyframes pulse-blue {
     0%,100% { box-shadow: 0 0 5px rgba(28,60,255,0.4); transform: scale(1); }
@@ -202,7 +212,8 @@ function createCard(p){
     else if(open) cls="ouvert";
     else cls="ferme";
     div.classList.add(cls);
-    div.innerHTML = `<div class="pont-nom"><span class="pastille"></span>${p.nom||'Pont sans nom'}</div>
+    const travauxLabel = cls==="ferme-travaux"?'<span class="travaux-label">Travaux</span>':'';
+    div.innerHTML = `<div class="pont-nom"><span class="pastille"></span>${p.nom||'Pont sans nom'} ${travauxLabel}</div>
                      <div class="pont-etat">${p.statutText||''}</div>
                      <div class="pont-infos">${p.forceText||`MàJ : ${p.date||'inconnue'}`}</div>`;
     return div;
@@ -225,6 +236,8 @@ function updateCard(div,p){
     else if(open) cls="ouvert";
     else cls="ferme";
     div.classList.add(cls);
+    const travauxLabel = cls==="ferme-travaux"?'<span class="travaux-label">Travaux</span>':'';
+    div.querySelector(".pont-nom").innerHTML = `<span class="pastille"></span>${p.nom||'Pont sans nom'} ${travauxLabel}`;
     div.querySelector(".pont-etat").textContent = p.statutText||"";
     div.querySelector(".pont-infos").textContent = p.forceText||`MàJ : ${p.date||'inconnue'}`;
 }
