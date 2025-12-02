@@ -54,8 +54,8 @@ h2 {
 }
 .pont-card:hover { transform: scale(1.02); }
 .pont-card.ferme { border-left-color: #ff4040; }
-.pont-card.fermeture { border-left-color: orange; animation: pulse-orange 1.2s infinite; will-change: box-shadow, transform; }
-.pont-card.manoeuvre { border-left-color: #1c3cff; animation: pulse-blue 1.2s infinite; will-change: box-shadow, transform; }
+.pont-card.fermeture { border-left-color: orange; animation: pulse-orange 1.2s infinite; }
+.pont-card.manoeuvre { border-left-color: #1c3cff; animation: pulse-blue 1.2s infinite; }
 .pont-card.ouvert { border-left-color: #58ff58; }
 .pastille { width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; display: inline-block; }
 .ferme .pastille { background: #ff4040; }
@@ -98,7 +98,7 @@ const CACHE_EXPIRATION_LONG = 15*60000;
 const REFRESH_INTERVAL = 30000;
 const PROXY_TEST_TIMEOUT = 8000;
 const FETCH_TIMEOUT = 10000;
-const PROXY_REBUILD_INTERVAL = 6*60*60*1000; // 6h
+const PROXY_REBUILD_INTERVAL = 6*60*60*1000;
 
 const INITIAL_PROXIES = [
     "https://proxy.corsfix.com/?",
@@ -120,7 +120,7 @@ let allProxies = Array.from(new Set(INITIAL_PROXIES));
 let proxyStats = {};
 let blacklist = {};
 
-// ===================== UTILITAIRES =====================
+// ============ UTILITAIRES ============
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 async function withTimeout(promiseFactory, ms){
     const controller = new AbortController();
@@ -158,7 +158,7 @@ async function testProxySimple(proxy, targetUrl){
     }
 }
 
-// ===================== POOL FETCH =====================
+// ============ POOL FETCH ============
 async function fetchWithPool(url){
     const lists = [shuffle(validProxies), shuffle(brokenProxies), shuffle(allProxies)];
     for(const list of lists){
@@ -176,7 +176,7 @@ async function fetchWithPool(url){
     return null;
 }
 
-// ===================== PROXIES DYNAMIQUES =====================
+// ============ PROXIES DYNAMIQUES ============
 async function fetchProxiesBatch(count = 10){
     const proxies = [];
     for(let i=0;i<count;i++){
@@ -195,21 +195,18 @@ async function fetchProxiesBatch(count = 10){
 async function rebuildProxyPool(){
     validProxies = validProxies.filter(p=>!blacklist[p]);
     brokenProxies = brokenProxies.filter(p=>!blacklist[p]);
-
     const newProxies = await fetchProxiesBatch(10);
     const testResults = await Promise.all(newProxies.map(async p=>{
         const test = await testProxySimple(p, "https://www.havre-port.com/map/getPonts");
         return {proxy:p, ok:test.ok};
     }));
-
     testResults.forEach(r=>{
         if(r.ok && !allProxies.includes(r.proxy)) allProxies.push(r.proxy);
     });
-
     console.log(`[ProxyPool] Ajoutés ${testResults.filter(r=>r.ok).length} nouveaux proxies`);
 }
 
-// ===================== CACHE ET PONTS =====================
+// ============ CACHE ET PONTS ============
 function parseRawContentToData(raw){
     if(!raw) return null;
     if(typeof raw==='string'){ try{const j=JSON.parse(raw); return j?.data||j;}catch(e){return null;} }
@@ -303,44 +300,48 @@ async function checkAndUpdate(forceUpdate=false){
     }
 }
 
-// ===================== RENDER PONTS AVEC ANIMATIONS =====================
 function renderPonts(list){
-    const container=document.getElementById("ponts-table");
+    const container = document.getElementById("ponts-table");
     if(!list||!list.length){ 
-        container.innerHTML='<div class="error-message">Aucun pont disponible.</div>'; 
+        container.innerHTML = '<div class="error-message">Aucun pont disponible.</div>'; 
         return; 
     }
 
-    container.innerHTML=list.map(p=>{
-        const statut=(p.statutText||'').toLowerCase();
-        const open=statut.includes('ouvert');
-        const move=statut.includes('manoeuvre')||statut.includes('manœuvre');
-        const fermeture=statut.includes('fermeture');
-        const ferme=statut.includes('fermé')||statut.includes('ferme');
-        const cls = ferme?'ferme':fermeture?'fermeture':move?'manoeuvre':open?'ouvert':'ferme';
-        const info=p.forceText||`MàJ : ${p.date||'inconnue'}`;
+    const fragment = document.createDocumentFragment();
+    list.forEach(p => {
+        const statut = (p.statutText||'').toLowerCase();
+        const open = statut.includes('ouvert');
+        const move = statut.includes('manoeuvre')||statut.includes('manœuvre');
+        const fermeture = statut.includes('fermeture');
+        const ferme = statut.includes('fermé')||statut.includes('ferme');
+        const cls = ferme ? 'ferme' : fermeture ? 'fermeture' : move ? 'manoeuvre' : open ? 'ouvert' : 'ferme';
+        const info = p.forceText || `MàJ : ${p.date||'inconnue'}`;
 
-        return `<div class="pont-card ${cls}">
+        const card = document.createElement('div');
+        card.className = 'pont-card ' + cls;
+        card.innerHTML = `
             <div class="pont-nom"><span class="pastille"></span>${p.nom||'Pont sans nom'}</div>
             <div class="pont-etat">${p.statutText||''}</div>
             <div class="pont-infos">${info}</div>
-        </div>`;
-    }).join('');
+        `;
+        fragment.appendChild(card);
+    });
 
-    // Relancer les animations après le rendu
-    requestAnimationFrame(()=>{
-        ['manoeuvre','fermeture'].forEach(clsName=>{
-            const nodes = container.querySelectorAll('.pont-card.'+clsName);
-            nodes.forEach(node=>{
-                node.classList.remove(clsName);
-                void node.offsetWidth; // force reflow
-                node.classList.add(clsName);
-            });
+    container.innerHTML = '';
+    container.appendChild(fragment);
+
+    // Relancer les animations
+    ['manoeuvre','fermeture'].forEach(clsName=>{
+        const nodes = container.querySelectorAll('.pont-card.'+clsName);
+        nodes.forEach(node=>{
+            node.style.animation = 'none';
+            void node.offsetHeight;
+            node.style.animation = '';
         });
     });
 }
 
-// ===================== INITIALISATION =====================
+// ============ INITIALISATION ============
 (async function init(){
     await rebuildProxyPool();
     setInterval(rebuildProxyPool, PROXY_REBUILD_INTERVAL);
