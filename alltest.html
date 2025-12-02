@@ -3,24 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Page avec 2 iframes (gauche 20%)</title>
+  <title>Tableau de bord - Ponts - Navires & Calendrier Réception</title>
   <style>
-    /* Reset basique */
     html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial}
-
-    /* Conteneur en flex : colonne complète */
     .container{display:flex;height:100vh;}
-
-    /* Colonne gauche fixe 20% */
     .left{width:20%;min-width:180px; /* afin d'éviter d'être trop petit */overflow:hidden;border-right:1px solid #e0e0e0}
-
-    /* Colonne droite prend le reste */
-    .right{flex:1;overflow:hidden}
-
-    /* Ifames remplies et pas de bordures par défaut */
+   .right{flex:1;overflow:hidden}
+    
     iframe{width:100%;height:100%;border:0}
 
-    /* Petits styles utiles */
     .note{position:fixed;left:8px;bottom:8px;background:#fff;padding:8px;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,.08);font-size:13px}
   </style>
 </head>
@@ -28,32 +19,17 @@
 
   <div class="container">
 
-    <!-- Colonne gauche : iframe 20% -->
+    
     <div class="left">
-      <!--
-        Remplacez l'URL suivante par l'adresse que vous voulez afficher dans la colonne gauche.
-        Exemple : src="http://example-left.com" ou "https://mon-serveur/chemin"
-      -->
-      <iframe id="leftFrame" src="https://receptionroulier.github.io/cal/p.html" title="Gauche"></iframe>
+      <iframe id="leftFrame" src="https://receptionroulier.github.io/cal/p.html" title="Ponts"></iframe>
     </div>
 
-    <!-- Colonne droite : iframe qui prend tout le reste -->
     <div class="right">
-      <!--
-        Remplacez l'URL suivante par l'adresse que vous voulez afficher dans la colonne droite.
-        Exemple : src="http://example-right.com" ou "https://mon-serveur/chemin"
-      -->
-      <iframe id="rightFrame" src="https://receptionroulier.github.io/cal/caltest.html" title="Droite"></iframe>
+      <iframe id="rightFrame" src="https://receptionroulier.github.io/cal/alltest.html" title="Calendriers"></iframe>
     </div>
 
   </div>
 
-  <div class="note">Remplacez les valeurs <code>http://URL_DE_...</code> par vos adresses HTTP/HTTPS réelles, puis enregistrez sous <code>.html</code> et ouvrez dans votre navigateur.</div>
-
-  <!-- Script optionnel : recharger les iframes (ex : toutes les 15s) - décommentez si vous voulez -->
-  <!--
-  <script>
-    // Exemple : recharger les iframes toutes les 15 secondes
     setInterval(() => {
     document.getElementById('leftFrame').contentWindow.location.reload();
     document.getElementById('rightFrame').contentWindow.location.reload();
@@ -88,4 +64,3 @@
 
 </body>
 </html>
-
