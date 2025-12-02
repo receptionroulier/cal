@@ -18,49 +18,34 @@
 <body>
 
   <div class="container">
-
-    
     <div class="left">
       <iframe id="leftFrame" src="https://receptionroulier.github.io/cal/p.html" title="Ponts"></iframe>
     </div>
-
     <div class="right">
       <iframe id="rightFrame" src="https://receptionroulier.github.io/cal/caltest.html" title="Calendriers"></iframe>
     </div>
-
   </div>
 
   <script>
-    setInterval(() => {
-    document.getElementById('leftFrame').contentWindow.location.reload();
-    document.getElementById('rightFrame').contentWindow.location.reload();
-    }, 15000);
-  </script>
+  function softReload(id) {
+    const iframe = document.getElementById(id);
+    const ghost = document.createElement('iframe');
+    ghost.style.display = 'none';
+    ghost.src = iframe.src + '?t=' + Date.now();
 
-  <script>
-    // Rechargement sans flicker : on recharge dans un iframe "fantôme"
-    function softReload(id) {
-      const iframe = document.getElementById(id);
+    ghost.onload = () => {
+      iframe.src = ghost.src;
+      ghost.remove();
+    };
 
-      // Créer un iframe caché qui va charger en arrière-plan
-      const ghost = document.createElement('iframe');
-      ghost.style.display = 'none';
-      ghost.src = iframe.src + '?t=' + Date.now(); // éviter le cache
+    document.body.appendChild(ghost);
+  }
 
-      ghost.onload = () => {
-        // Une fois chargé, remplacer le contenu sans effet visuel
-        iframe.src = ghost.src;
-        ghost.remove();
-      };
-
-      document.body.appendChild(ghost);
-    }
-
-    setInterval(() => {
-      softReload('leftFrame');
-      softReload('rightFrame');
-    }, 15000);
-  </script>
+  setInterval(() => {
+    softReload('leftFrame');
+    softReload('rightFrame');
+  }, 15000);
+</script>
 
 </body>
 </html>
