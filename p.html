@@ -29,7 +29,7 @@ h2 {
 }
 #update-indicator {
     text-align: center;
-     font-size: 0.7em;
+    font-size: 0.7em;
     opacity: 0.85;      
     font-weight: bold;
     margin-bottom: 15px;
@@ -53,15 +53,8 @@ h2 {
 
 .pont-card.ferme,
 .pont-card.ferme-travaux { border-left-color: #ff4040; }
-
-.pont-card.fermeture {
-    border-left-color: orange;
-    animation: pulse-orange 1.2s infinite;
-}
-.pont-card.manoeuvre {
-    border-left-color: #1c3cff;
-    animation: pulse-blue 1.2s infinite;
-}
+.pont-card.fermeture { border-left-color: orange; animation: pulse-orange 1.2s infinite; }
+.pont-card.manoeuvre { border-left-color: #1c3cff; animation: pulse-blue 1.2s infinite; }
 .pont-card.ouvert { border-left-color: #58ff58; }
 
 .pastille {
@@ -231,17 +224,22 @@ async function preTestProxies(targetUrl){
     saveProxyStoreToLS({validProxies, brokenProxies, timestamp:Date.now()});
 }
 
-/* ===================== RETEST BROKEN ===================== */
+/* ===================== RETEST BROKEN BATCH ===================== */
 async function retestBrokenProxies(targetUrl){
+    if(!brokenProxies.length) return;
     const batch = brokenProxies.slice(0, RETEST_BATCH_SIZE);
-    for(const proxy of batch){
+    const promises = batch.map(async proxy=>{
         const result = await testProxySimple(proxy,targetUrl).catch(()=>({ok:false}));
         if(result.ok){
             validProxies.push(proxy);
             brokenProxies = brokenProxies.filter(p=>p!==proxy);
+            console.log(`[PROXY OK] ${proxy}`);
+        } else {
+            console.log(`[PROXY FAIL] ${proxy}`);
         }
-    }
-    saveProxyStoreToLS({validProxies, brokenProxies, timestamp:Date.now()});
+    });
+    await Promise.all(promises);
+    saveProxyStoreToLS({validProxies:Array.from(new Set(validProxies)), brokenProxies, timestamp:Date.now()});
 }
 
 /* ===================== FETCH AVEC POOL ===================== */
@@ -393,6 +391,7 @@ async function checkAndUpdate(forceUpdate=false){
         renderPonts(ordered);
 
     } catch(err){
+        console.warn(err);
         const cached = localStorage.getItem(CACHE_KEY_DATA);
         const lastWrite = parseInt(localStorage.getItem(CACHE_KEY_TIME)||0);
 
