@@ -190,10 +190,10 @@ function updateCacheDisplay(state){
     }
 }
 
-// transforme "Travaux" en fond orange + texte blanc
+// transforme "Travaux" en fond orange + texte blanc (gras)
 function highlightTravaux(text){
     if(!text) return "";
-   return text.replace(/(travaux)/i, '<span class="travaux-highlight"><strong>$1</strong></span>');
+    return text.replace(/(travaux)/i, '<span class="travaux-highlight"><strong>$1</strong></span>');
 }
 
 function createCard(p){
@@ -213,6 +213,10 @@ function createCard(p){
     else cls="ferme";
     div.classList.add(cls);
 
+    // keep dataset for partial update checks
+    div.dataset.statut = p.statutText||"";
+    div.dataset.date = p.date||"";
+
     div.innerHTML = `<div class="pont-nom"><span class="pastille"></span>${p.nom||'Pont sans nom'}</div>
                      <div class="pont-etat">${highlightTravaux(p.statutText)}</div>
                      <div class="pont-infos">${p.forceText||`MàJ : ${p.date||'inconnue'}`}</div>`;
@@ -220,6 +224,10 @@ function createCard(p){
 }
 
 function updateCard(div,p){
+    // update dataset for change detection
+    div.dataset.statut = p.statutText||"";
+    div.dataset.date = p.date||"";
+
     const statut = (p.statutText||"").toLowerCase();
     div.className = "pont-card";
     const open=statut.includes('ouvert');
@@ -264,6 +272,26 @@ function renderPontsPartial(list){
     });
 }
 
+// parse dates robustly (expects "DD/MM/YYYY HH:MM" or uses Date.parse fallback)
+function parseTimeToMillis(dateStr){
+    if(!dateStr) return 0;
+    // try dd/mm/yyyy hh:mm
+    const m = dateStr.match(/^\s*(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s+(\d{1,2}):(\d{2}))?\s*$/);
+    if(m){
+        const day = parseInt(m[1],10);
+        const month = parseInt(m[2],10) - 1;
+        const year = parseInt(m[3],10);
+        const hour = m[4] ? parseInt(m[4],10) : 0;
+        const minute = m[5] ? parseInt(m[5],10) : 0;
+        const dt = new Date(year, month, day, hour, minute);
+        const t = dt.getTime();
+        return isNaN(t) ? 0 : t;
+    }
+    // fallback to Date.parse (handles ISO, RFC, and some locale variants)
+    const t2 = Date.parse(dateStr);
+    return isNaN(t2) ? 0 : t2;
+}
+
 async function checkAndUpdate(forceUpdate=false){
     const now = Date.now();
     const last = localStorage.getItem(CACHE_KEY_TIME);
@@ -285,8 +313,11 @@ async function checkAndUpdate(forceUpdate=false){
         const data = parseRawContentToData(raw);
         if(!data) return null;
         const ponts = Object.values(data);
-        const unique = Array.from(new Map(ponts.map(p=>[p.nom,p])).values());
-        return unique.sort((a,b)=>{
+        // preserve original index for stable sort
+        const withIndex = Array.from(new Map(ponts.map(p=>[p.nom,p])).values()).map((p, idx) => ({p, idx}));
+        // sort by category score first, then by date descending only if same category, then by original index
+        withIndex.sort((A,B)=>{
+            const a = A.p, b = B.p;
             const score = p=>{
                 const s = (p.statutText||'').toLowerCase();
                 if(s.includes('fermé') && !s.includes('travaux')) return 1;
@@ -296,12 +327,15 @@ async function checkAndUpdate(forceUpdate=false){
                 if(s.includes('ouvert')) return 5;
                 return 6;
             };
-            const s = score(a)-score(b);
-            if(s !== 0) return s;
-            const da = a.date ? new Date(a.date) : new Date(0);
-            const db = b.date ? new Date(b.date) : new Date(0);
-            return db - da;
+            const sa = score(a);
+            const sb = score(b);
+            if(sa !== sb) return sa - sb;
+            const ta = parseTimeToMillis(a.date);
+            const tb = parseTimeToMillis(b.date);
+            if(ta !== tb) return tb - ta; // recent first within same category
+            return A.idx - B.idx; // stable fallback
         });
+        return withIndex.map(x=>x.p);
     }
 
     let newData = null;
@@ -323,7 +357,7 @@ async function checkAndUpdate(forceUpdate=false){
 
         for(const p of newData){
             const oldP = oldData.find(op=>op.nom===p.nom);
-            if(oldP && p.date && oldP.date && p.date < oldP.date){
+            if(oldP && p.date && oldP.date && parseTimeToMillis(p.date) < parseTimeToMillis(oldP.date)){
                 applyNew = false;
                 break;
             }
