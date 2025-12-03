@@ -123,7 +123,7 @@ const CACHE_EXPIRATION = 60000;
 const REFRESH_INTERVAL = 30000;
 const PROXY_TEST_TIMEOUT = 8000;
 const FETCH_TIMEOUT = 10000;
-const PROXY_RETEST_INTERVAL = 10 * 60 * 1000;
+const PROXY_RETEST_INTERVAL = 5 * 60 * 1000;
 const RETEST_BATCH_SIZE = 5;
 
 const INITIAL_PROXIES = [
@@ -141,7 +141,17 @@ const INITIAL_PROXIES = [
     "https://cors.bridged.cc/",
     "https://corsproxy.io/?",
     "https://allorigins.hexlet.app/get?url=",
-    "https://api.allorigins.win/raw?url="
+    "https://api.allorigins.win/raw?url=",
+    "https://test.cors.workers.dev/",
+    "https://codetabs.com/cors-proxy/cors-proxy.html?url=",
+    "https://cors.lol/",
+    "https://cors.x2u.in/",
+  // Des listes externes (à vérifier ponctuellement) :
+    "https://raw.githubusercontent.com/clarketm/proxy-list/master/proxy-list-raw.txt",
+    "https://proxyscrape.com/proxy-list/http",
+    "https://free-proxy.fr/",
+    "https://free.geonix.com/",
+
 ];
 
 /* ===================== UTILITAIRES ===================== */
