@@ -201,19 +201,41 @@ function parseRawContentToData(raw){
     return null;
 }
 
-function sortPonts(a,b){
-    const getScore = p => {
-        const s = (p.statutText||'').toLowerCase();
-        if(s.includes('fermé') && !s.includes('travaux')) return 1;
-        if(s.includes('travaux')) return 2;
-        if(s.includes('fermeture')) return 3;
-        if(s.includes('manoeuvre')||s.includes('manœuvre')) return 4;
-        if(s.includes('ouvert')) return 5;
-        return 6;
+function sortPonts(a, b) {
+
+    const score = p => {
+        const s = (p.statutText || "").toLowerCase();
+
+        // 1 — Fermé (mais pas travaux)
+        if (s.includes("fermé") && !s.includes("travaux")) return 1;
+
+        // 2 — Fermé Travaux
+        if (s.includes("fermé") && s.includes("travaux")) return 2;
+
+        // 3 — Fermeture
+        if (s.includes("fermeture")) return 3;
+
+        // 4 — Manœuvre
+        if (s.includes("manoeuvre") || s.includes("manœuvre")) return 4;
+
+        // 5 — Ouvert
+        if (s.includes("ouvert")) return 5;
+
+        return 6; // Cas non reconnu
     };
-    if(getScore(a) !== getScore(b)) return getScore(a)-getScore(b);
-    return new Date(b.date || 0) - new Date(a.date || 0);
+
+    const sa = score(a);
+    const sb = score(b);
+
+    if (sa !== sb) return sa - sb;
+
+    // Dates décroissantes dans la même catégorie
+    const da = new Date(a.date || 0).getTime();
+    const db = new Date(b.date || 0).getTime();
+
+    return db - da; 
 }
+
 
 function highlightTravaux(text){
     return text.replace(/(travaux)/gi,'<span class="works-highlight">$1</span>');
