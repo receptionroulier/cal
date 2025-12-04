@@ -1,219 +1,458 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Tableau de bord - Ponts</title>
 <style>
-body { margin: 0; font-family: Arial, sans-serif; background: #101010; color: #eaeaea; display: flex; justify-content: center; padding: 20px; scroll-behavior: smooth; }
+/* ===================== GLOBAL ===================== */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #101010;
+  color: #eaeaea;
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+  scroll-behavior: smooth;
+}
 .container { width: 95%; max-width: 1200px; padding: 12px; box-sizing: border-box; }
 h2 { text-align: center; color: #00e5ff; margin: 0 0 5px; }
 #update-indicator { text-align: center; font-size: 0.7em; opacity: 0.85; font-weight: bold; margin-bottom: 15px; }
-#ponts-table { display: flex; flex-direction: column; gap: 10px; }
-.pont-card { background: #1f1f1f; border-radius: 8px; padding: 10px 12px; box-shadow: 0 0 5px rgba(0,0,0,0.4); border-left: 4px solid #444; transition: transform 0.15s ease, box-shadow 0.3s ease; }
+
+/* ===================== CARTES PONTS ===================== */
+#ponts-table { display:flex; flex-direction:column; gap:10px; }
+.pont-card { background:#1f1f1f; border-radius:8px; padding:10px 12px; box-shadow:0 0 5px rgba(0,0,0,0.4); border-left:4px solid #444; transition: transform .15s ease, box-shadow .3s ease; }
 .pont-card:hover { transform: scale(1.02); }
-.pont-card.ferme, .pont-card.ferme-travaux { border-left-color: #ff4040; }
-.pont-card.fermeture { border-left-color: orange; animation: pulse-orange 1.2s infinite; }
-.pont-card.manoeuvre { border-left-color: #1c3cff; animation: pulse-blue 1.2s infinite; }
-.pont-card.ouvert { border-left-color: #58ff58; }
-.pastille { width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; display: inline-block; }
-.ferme .pastille, .ferme-travaux .pastille { background: #ff4040; }
-.fermeture .pastille { background: orange; }
-.manoeuvre .pastille { background: #1c3cff; }
-.ouvert .pastille { background: #58ff58; }
-.pont-nom { font-weight: bold; display: flex; align-items: center; }
-.pont-infos { font-size: 0.85em; color: #ccc; }
-.texte-travaux { font-weight: bold; color: #fff; background-color: orange; padding: 0 4px; border-radius: 2px; }
-@keyframes pulse-blue { 0%,100% { box-shadow: 0 0 5px rgba(28,60,255,0.4); transform: scale(1); } 50% { box-shadow: 0 0 20px rgba(28,60,255,0.7); transform: scale(1.02); } }
-@keyframes pulse-orange { 0%,100% { box-shadow: 0 0 5px rgba(255,165,0,0.4); transform: scale(1); } 50% { box-shadow: 0 0 20px rgba(255,165,0,0.7); transform: scale(1.02); } }
-.error-message { text-align: center; color: #ff4040; font-weight: bold; }
+.pont-card.ferme, .pont-card.ferme-travaux { border-left-color:#ff4040; }
+.pont-card.fermeture { border-left-color:orange; animation:pulse-orange 1.2s infinite; }
+.pont-card.manoeuvre { border-left-color:#1c3cff; animation:pulse-blue 1.2s infinite; }
+.pont-card.ouvert { border-left-color:#58ff58; }
+.pastille { width:10px; height:10px; border-radius:50%; margin-right:6px; display:inline-block; }
+.ferme .pastille, .ferme-travaux .pastille { background:#ff4040; }
+.fermeture .pastille { background:orange; }
+.manoeuvre .pastille { background:#1c3cff; }
+.ouvert .pastille { background:#58ff58; }
+.pont-nom { font-weight:bold; display:flex; align-items:center; }
+.pont-infos { font-size:.85em; color:#ccc; }
+.texte-travaux { font-weight:bold; color:#fff; background-color:orange; padding:0 4px; border-radius:2px; }
+
+@keyframes pulse-blue {
+  0%,100%{ box-shadow:0 0 5px rgba(28,60,255,0.4); transform:scale(1); }
+  50%{ box-shadow:0 0 20px rgba(28,60,255,0.7); transform:scale(1.02); }
+}
+@keyframes pulse-orange {
+  0%,100%{ box-shadow:0 0 5px rgba(255,165,0,0.4); transform:scale(1); }
+  50%{ box-shadow:0 0 20px rgba(255,165,0,0.7); transform:scale(1.02); }
+}
+.error-message { text-align:center; color:#ff4040; font-weight:bold; }
 </style>
 </head>
 <body>
-
-<div class="container">
+  <div class="container">
     <h2>État des Ponts</h2>
     <div id="update-indicator">Chargement...</div>
     <div id="ponts-table">Chargement...</div>
-</div>
+  </div>
 
 <script>
 /* ===================== CONFIG ===================== */
 const CACHE_KEY_DATA = "pontsData";
 const CACHE_KEY_HASH = "pontsHash";
 const CACHE_KEY_TIME = "pontsCacheTime";
-const CACHE_EXPIRATION = 60000;
-const REFRESH_INTERVAL = 30000;
+
+const CACHE_EXPIRATION = 60_000;       // 1 minute cache validity
+const REFRESH_INTERVAL = 30_000;       // update UI every 30s
+const PROXY_SCORE_INTERVAL = 5*60_000; // rescore proxies every 5min
+const FETCH_TIMEOUT = 8_000;           // per-proxy timeout (ms)
 const TARGET_URL = "https://www.havre-port.com/map/getPonts";
 
-/* ===================== PROXIES ===================== */
+/* ===================== PROXY LIST (on garde tout comme demandé) ===================== */
 const PROXY_LIST = [
-    "https://api.allorigins.win/get?url=",
-    "https://thingproxy.freeboard.io/fetch/",
-    "https://cors-anywhere.herokuapp.com/",
-    "https://every-origin.vercel.app/",
-    "https://proxy.corsfix.com/?",
-    "https://yacdn.org/proxy/",
-    "https://jsonp.afeld.me/?callback=&url=",
-    "https://crossorigin.me/",
-    "https://cors-proxy.htmldriven.com/?url=",
-    "https://test.cors.workers.dev/?",
-    "https://api.codetabs.com/v1/proxy?quest=",
-    "https://cors.bridged.cc/",
-    "https://corsproxy.io/?",
-    "https://allorigins.hexlet.app/get?url=",
-    "https://api.allorigins.win/raw?url=",
-    "https://codetabs.com/cors-proxy/cors-proxy.html?url=",
-    "https://cors.lol/",
-    "https://cors.x2u.in/"
+  "https://api.allorigins.win/get?url=",
+  "https://thingproxy.freeboard.io/fetch/",
+  "https://cors-anywhere.herokuapp.com/",
+  "https://every-origin.vercel.app/",
+  "https://proxy.corsfix.com/?",
+  "https://yacdn.org/proxy/",
+  "https://jsonp.afeld.me/?callback=&url=",
+  "https://crossorigin.me/",
+  "https://cors-proxy.htmldriven.com/?url=",
+  "https://test.cors.workers.dev/?",
+  "https://api.codetabs.com/v1/proxy?quest=",
+  "https://cors.bridged.cc/",
+  "https://corsproxy.io/?",
+  "https://allorigins.hexlet.app/get?url=",
+  "https://api.allorigins.win/raw?url=",
+  "https://codetabs.com/cors-proxy/cors-proxy.html?url=",
+  "https://cors.lol/",
+  "https://cors.x2u.in/"
 ];
 
-let proxies = PROXY_LIST.map(p => ({ url: p, score: 5 }));
+/* proxies state */
+let proxies = PROXY_LIST.map(url => ({ url, score: 5 }));
 
-/* ===================== UTILITAIRES ===================== */
-function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
-function shuffleArray(a){ return a.slice().sort(() => Math.random() - 0.5); }
-
-/* ===================== TEST PROXY ===================== */
-async function testProxy(proxy, targetUrl, timeout=8000){
-    try {
-        const controller = new AbortController();
-        const id = setTimeout(() => controller.abort(), timeout);
-        const res = await fetch(proxy.url + targetUrl, { signal: controller.signal });
-        clearTimeout(id);
-        if(res.ok){ proxy.score = Math.min(proxy.score+1, 10); return true; }
-        else { proxy.score = Math.max(proxy.score-1, 0); return false; }
-    } catch(e){ proxy.score = Math.max(proxy.score-1, 0); return false; }
-}
-
-/* ===================== FETCH AVEC SCORES ===================== */
-async function fetchWithProxies(targetUrl){
-    const proxiesByScore = {};
-    proxies.forEach(p => {
-        if(!proxiesByScore[p.score]) proxiesByScore[p.score] = [];
-        proxiesByScore[p.score].push(p);
-    });
-    const scores = Object.keys(proxiesByScore).map(Number).sort((a,b)=>b-a);
-    
-    for(const score of scores){
-        const list = shuffleArray(proxiesByScore[score]);
-        for(const proxy of list){
-            const ok = await testProxy(proxy, targetUrl);
-            if(ok) return { proxy: proxy.url, ok: true };
-        }
-    }
-    return { ok: false };
-}
-
-/* ===================== UPDATE SCORES ===================== */
-async function updateProxyScores(){
-    await Promise.all(proxies.map(p => testProxy(p, TARGET_URL).catch(()=>{})));
-    console.log("Proxy scores:", proxies.map(p=>({url:p.url, score:p.score})));
-}
-
-/* ===================== UTILITAIRES DATA ===================== */
+/* ===================== UTIL ===================== */
+function shuffleArray(arr) { return arr.slice().sort(()=>Math.random()-0.5); }
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 async function sha256(str){
-    const data = new TextEncoder().encode(str);
-    const digest = await crypto.subtle.digest("SHA-256", data);
-    return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");
+  const data = new TextEncoder().encode(str);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+
+/* ===================== PROXY TEST & PARSE ===================== */
+/**
+ * testProxyAndParse:
+ *   - fetches proxy.url + TARGET_URL (no encoding, as requested)
+ *   - validates response is usable (JSON, or object with 'contents' that can be parsed)
+ *   - returns { ok: true, data, text, status } on success
+ *   - returns { ok: false, reason } on failure
+ *
+ * It also adjusts proxy.score locally (caller can persist later).
+ */
+async function testProxyAndParse(proxy, target, timeout = FETCH_TIMEOUT) {
+  // Use AbortController for timeout
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  const attemptUrl = proxy.url + target; // NOTE: user wanted "original" concatenation (no encode)
+  try {
+    const res = await fetch(attemptUrl, { signal: controller.signal });
+    clearTimeout(id);
+    const status = res.status;
+
+    // if status not OK, we still might get usable content but usually treat non-2xx as failure
+    if (!res.ok) {
+      return { ok: false, reason: `status ${status}` };
+    }
+
+    // Try to get text first (some proxies return JSON, some wrap in contents, some return HTML)
+    const text = await res.text();
+
+    // quick detect of HTML page (likely not the API data)
+    const lowered = text.trim().slice(0, 200).toLowerCase();
+    if (lowered.startsWith("<!doctype") || lowered.startsWith("<html") || lowered.includes("<html")) {
+      return { ok: false, reason: "html-response" };
+    }
+
+    // Try parse JSON
+    try {
+      const j = JSON.parse(text);
+
+      // common proxy wrappers: { contents: "<...>" } OR { data: { ... } } OR raw object
+      if (j && typeof j === "object") {
+        // if wrapper with 'contents' which itself might be JSON
+        if (typeof j.contents === "string") {
+          // try parse inner contents
+          try {
+            const inner = JSON.parse(j.contents);
+            // prefer an object containing a 'data' key
+            return { ok: true, data: inner.data || inner, text, status };
+          } catch(e) {
+            // not JSON — return raw contents as text (may be HTML => earlier filtered)
+            return { ok: true, data: j.contents, text, status };
+          }
+        }
+        // if API returned { data: ... }
+        if (j.data) return { ok: true, data: j.data, text, status };
+        // if calendar-like { items: [...] }
+        if (j.items) return { ok: true, data: j.items, text, status };
+        // otherwise return whole object
+        return { ok: true, data: j, text, status };
+      }
+    } catch (errJson) {
+      // Not JSON — if text looks like plain JSON-ish, try later, otherwise fail
+      // If text is small and not HTML, consider as string result (but likely unusable)
+      if (text && text.length < 200 && !text.includes("<")) {
+        // could be raw CSV / small value — treat as raw but not ideal
+        return { ok: true, data: text, text, status };
+      }
+      return { ok: false, reason: "not-json" };
+    }
+
+    // fallback
+    return { ok: false, reason: "unknown-format" };
+
+  } catch (err) {
+    clearTimeout(id);
+    // timeout or network error
+    return { ok: false, reason: err && err.name ? err.name : String(err) };
+  }
+}
+
+/* ===================== FETCH WITH PROXIES (par score, parallel per score) ===================== */
+/**
+ * Strategy:
+ *  - group proxies by score desc
+ *  - for each score:
+ *      start testProms = proxiesOfScore.map(p => testProxyAndParse(p))
+ *      use Promise.any-like behavior: we want the first successful test (ok:true)
+ *      since Promise.any expects resolved Promises, wrap testProxyAndParse to resolve on success and reject on failure
+ *      add a safety per-score timeout (slightly > FETCH_TIMEOUT)
+ *  - returns { ok:true, proxy, data } on first success OR { ok:false } if none succeeded
+ */
+async function fetchWithProxiesAndGetData(target) {
+  // regroup by score
+  const map = new Map();
+  proxies.forEach(p => {
+    if (!map.has(p.score)) map.set(p.score, []);
+    map.get(p.score).push(p);
+  });
+  const scores = Array.from(map.keys()).sort((a,b)=>b-a);
+
+  for (const score of scores) {
+    const list = map.get(score);
+    // shuffle within same score to avoid always using same proxy
+    const shuffled = shuffleArray(list);
+
+    // Build array of wrapped promises: resolve with { proxy, result } on success, reject on failure
+    const wrapped = shuffled.map(proxy => {
+      return new Promise(async (resolve, reject) => {
+        const r = await testProxyAndParse(proxy, target).catch(()=>({ ok:false, reason:'exception' }));
+        if (r && r.ok) {
+          // Good proxy — bump score
+          proxy.score = Math.min(10, (proxy.score||5) + 1);
+          resolve({ proxy, data: r.data, rawText: r.text, status: r.status });
+        } else {
+          // bad proxy — penalize
+          proxy.score = Math.max(0, (proxy.score||5) - 1);
+          reject({ proxy, reason: r && r.reason ? r.reason : 'failed' });
+        }
+      });
+    });
+
+    // Wait for the first successful one among wrapped promises (with a safety timeout for the whole batch)
+    try {
+      // Promise.any semantics: if any resolves, we get it; if all reject -> AggregateError
+      const TIMEOUT_BATCH = FETCH_TIMEOUT + 1500; // a little extra for batch
+      const res = await promiseAnyWithTimeout(wrapped, TIMEOUT_BATCH);
+      // persist updated scores to localStorage
+      persistProxyScores();
+      return { ok: true, proxyUrl: res.proxy.url, data: res.data, rawText: res.rawText, status: res.status };
+    } catch (aggErr) {
+      // none succeeded in this score — continue to next score
+      // ensure scores persisted (we adjusted them while failing)
+      persistProxyScores();
+      continue;
+    }
+  }
+
+  // no proxy at any score answered
+  persistProxyScores();
+  return { ok: false };
+}
+
+/* helper that implements Promise.any with timeout */
+function promiseAnyWithTimeout(promises, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let rejections = 0;
+    const total = promises.length;
+    const errors = [];
+
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        reject(new AggregateError(errors, "timeout"));
+      }
+    }, timeoutMs);
+
+    promises.forEach(p => {
+      p.then(val => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(val);
+      }).catch(err => {
+        errors.push(err);
+        rejections++;
+        if (rejections === total && !settled) {
+          settled = true;
+          clearTimeout(timer);
+          reject(new AggregateError(errors, "all rejected"));
+        }
+      });
+    });
+  });
+}
+
+/* ===================== PERSISTENCE for proxy scores ===================== */
+const PROXY_SCORE_STORE = "pontsProxyScores_v1";
+function persistProxyScores(){
+  try {
+    const payload = proxies.map(p => ({ url: p.url, score: p.score }));
+    localStorage.setItem(PROXY_SCORE_STORE, JSON.stringify(payload));
+  } catch(e){}
+}
+function loadProxyScoresFromStore(){
+  try {
+    const raw = localStorage.getItem(PROXY_SCORE_STORE);
+    if (!raw) return;
+    const arr = JSON.parse(raw);
+    // merge with current proxies preserving order (and keep only those in PROXY_LIST)
+    const map = new Map(arr.map(x => [x.url, x.score]));
+    proxies.forEach(p => {
+      if (map.has(p.url)) p.score = map.get(p.url);
+    });
+  } catch(e){}
+}
+
+/* ===================== UTIL: parseRawContentToData (used if we need) ===================== */
+function parseRawContentToData(raw){
+  if(!raw) return null;
+  if(typeof raw === "string"){
+    try{ const j=JSON.parse(raw); return j?.data || j; } catch(e){ return null; }
+  }
+  if(typeof raw === "object"){
+    if(raw.data) return raw.data;
+    if(raw.contents){
+      try{ const inner = JSON.parse(raw.contents); return inner?.data || inner; } catch(e){ return raw.contents; }
+    }
+    return raw;
+  }
+  return null;
+}
+
+/* ===================== RENDER / HASH / NORMALIZE ===================== */
+function renderPonts(list){
+  const container = document.getElementById("ponts-table");
+  if(!list || !list.length){ container.innerHTML = '<div class="error-message">Aucun pont disponible.</div>'; return; }
+  container.innerHTML = list.map(p=>{
+    const statut=(p.statutText||"").toLowerCase();
+    const open=statut.includes("ouvert");
+    const move=statut.includes("manoeuvre")||statut.includes("manœuvre");
+    const fermeture=statut.includes("fermeture");
+    const ferme=statut.includes("fermé");
+    const travaux=statut.includes("travaux");
+    let cls = (ferme&&travaux) ? "ferme-travaux" : ferme ? "ferme" : fermeture ? "fermeture" : move ? "manoeuvre" : open ? "ouvert" : "ferme";
+    let texteEtat = p.statutText || "";
+    if(travaux) texteEtat = texteEtat.replace(/(travaux)/i, '<span class="texte-travaux">$1</span>');
+    const info = p.forceText || `MàJ : ${p.date || "inconnue"}`;
+    return `<div class="pont-card ${cls}"><div class="pont-nom"><span class="pastille" aria-hidden></span>${p.nom}</div><div class="pont-etat">${texteEtat}</div><div class="pont-infos">${info}</div></div>`;
+  }).join("");
 }
 
 function normalizeData(data){
-    return JSON.stringify(
-        data.map(p=>({nom:p.nom,date:p.date?new Date(p.date).toISOString():""}))
-            .sort((a,b)=>a.nom.localeCompare(b.nom))
-    );
+  return JSON.stringify(
+    data.map(p=>({nom:p.nom, date: p.date ? new Date(p.date).toISOString() : ""})).sort((a,b)=>a.nom.localeCompare(b.nom))
+  );
 }
 
-function parseRawContentToData(raw){
-    if(!raw) return null;
-    if(typeof raw === "string"){ try{ const j=JSON.parse(raw); return j?.data||j; } catch(e){ return null; } }
-    if(typeof raw === "object"){ if(raw.data) return raw.data; if(raw.contents){ try{ const inner=JSON.parse(raw.contents); return inner?.data||inner; } catch(e){ return null; } } return raw; }
-    return null;
-}
+/* ===================== CHECK + UPDATE (utilise fetchWithProxiesAndGetData which returns parsed data) ===================== */
+async function checkAndUpdate(force=false){
+  const now = Date.now();
+  const last = localStorage.getItem(CACHE_KEY_TIME);
+  const indicator = document.getElementById("update-indicator");
 
-/* ===================== RENDER ===================== */
-function renderPonts(list){
-    const container = document.getElementById("ponts-table");
-    if(!list || !list.length){ container.innerHTML='<div class="error-message">Aucun pont disponible.</div>'; return; }
-    container.innerHTML = list.map(p=>{
-        const statut=(p.statutText||"").toLowerCase();
-        const open=statut.includes("ouvert");
-        const move=statut.includes("manoeuvre")||statut.includes("manœuvre");
-        const fermeture=statut.includes("fermeture");
-        const ferme=statut.includes("fermé");
-        const travaux=statut.includes("travaux");
-        let cls=(ferme&&travaux)?"ferme-travaux":ferme?"ferme":fermeture?"fermeture":move?"manoeuvre":open?"ouvert":"ferme";
-        let texteEtat=p.statutText||"";
-        if(travaux) texteEtat=texteEtat.replace(/(travaux)/i,'<span class="texte-travaux">$1</span>');
-        const info=p.forceText||`MàJ : ${p.date||"inconnue"}`;
-        return `<div class="pont-card ${cls}"><div class="pont-nom"><span class="pastille"></span>${p.nom}</div><div class="pont-etat">${texteEtat}</div><div class="pont-infos">${info}</div></div>`;
-    }).join("");
-}
+  if(!force && last && now - last < CACHE_EXPIRATION){
+    const cached = localStorage.getItem(CACHE_KEY_DATA);
+    if(cached){
+      renderPonts(JSON.parse(cached));
+      indicator.textContent = "🟢 — MàJ vérifiée : " + new Date(parseInt(last)).toLocaleString();
+      return;
+    }
+  }
 
-/* ===================== CHECK + UPDATE ===================== */
-async function checkAndUpdate(forceUpdate=false){
-    const now = Date.now();
-    const last = localStorage.getItem(CACHE_KEY_TIME);
-    const indicator = document.getElementById("update-indicator");
+  try {
+    // Attempts: use proxies to BOTH test and return parsed data to avoid double fetch
+    const attempt = await fetchWithProxiesAndGetData(TARGET_URL);
+    if(!attempt.ok) throw new Error("Aucun proxy n'a répondu");
 
-    if(!forceUpdate && last && now-last < CACHE_EXPIRATION){
-        const cached = localStorage.getItem(CACHE_KEY_DATA);
-        if(cached){ renderPonts(JSON.parse(cached)); indicator.textContent="🟢 — MàJ vérifiée : "+new Date(parseInt(last)).toLocaleString(); return; }
+    const { proxyUrl, data } = attempt; // data is the parsed content returned by testProxyAndParse
+    // data might be an object wrapper or directly the API data. Parse into usable object:
+    const parsedAPI = parseRawContentToData(data) || data;
+
+    if(!parsedAPI) throw new Error("Impossible d'extraire les données API depuis le proxy");
+
+    // Build ponts array usually located in parsedAPI.data or parsedAPI (depending on proxy)
+    const pontsObj = (typeof parsedAPI === 'object' && parsedAPI.data) ? parsedAPI.data : parsedAPI;
+    const ponts = Object.values(pontsObj);
+
+    // dedupe/order
+    const unique = Array.from(new Map(ponts.map(p=>[p.nom,p])).values());
+    const ordered = unique.sort((a,b)=>{
+      const score = p => {
+        const s = (p.statutText||"").toLowerCase();
+        if(s.includes("fermé") && s.includes("travaux")) return 2;
+        if(s.includes("fermé")) return 1;
+        if(s.includes("fermeture")) return 3;
+        if(s.includes("manoeuvre")||s.includes("manœuvre")) return 4;
+        if(s.includes("ouvert")) return 5;
+        return 6;
+      };
+      if(score(a)!==score(b)) return score(a)-score(b);
+      return new Date(b.date||0) - new Date(a.date||0);
+    });
+
+    // persist if changed
+    const norm = normalizeData(ordered);
+    const newHash = await sha256(norm);
+    const oldHash = localStorage.getItem(CACHE_KEY_HASH);
+    if(newHash !== oldHash){
+      localStorage.setItem(CACHE_KEY_DATA, JSON.stringify(ordered));
+      localStorage.setItem(CACHE_KEY_HASH, newHash);
+      localStorage.setItem(CACHE_KEY_TIME, Date.now().toString());
+      indicator.textContent = "🟢 — MàJ : " + new Date().toLocaleString();
+    } else {
+      indicator.textContent = "🟢 — MàJ vérifiée : " + new Date(parseInt(last || Date.now())).toLocaleString();
     }
 
-    try{
-        const result = await fetchWithProxies(TARGET_URL);
-        if(!result.ok) throw new Error("Aucun proxy n'a répondu");
-
-        const raw = await fetch(result.proxy + TARGET_URL);
-        const data = parseRawContentToData(await raw.json());
-        if(!data) throw new Error("Impossible d'extraire les données API");
-
-        const ponts = Object.values(data);
-        const unique = Array.from(new Map(ponts.map(p=>[p.nom,p])).values());
-        const ordered = unique.sort((a,b)=>{
-            const score=p=>{ const s=(p.statutText||"").toLowerCase(); if(s.includes("fermé")&&s.includes("travaux")) return 2; if(s.includes("fermé")) return 1; if(s.includes("fermeture")) return 3; if(s.includes("manoeuvre")||s.includes("manœuvre")) return 4; if(s.includes("ouvert")) return 5; return 6; };
-            if(score(a)!==score(b)) return score(a)-score(b); return new Date(b.date||0)-new Date(a.date||0);
-        });
-
-        const norm = normalizeData(ordered);
-        const newHash = await sha256(norm);
-        const oldHash = localStorage.getItem(CACHE_KEY_HASH);
-
-        if(newHash!==oldHash){
-            localStorage.setItem(CACHE_KEY_DATA, JSON.stringify(ordered));
-            localStorage.setItem(CACHE_KEY_HASH, newHash);
-            localStorage.setItem(CACHE_KEY_TIME, Date.now());
-            indicator.textContent="🟢 — MàJ : "+new Date().toLocaleString();
-        } else indicator.textContent="🟢 — MàJ vérifiée : "+new Date(parseInt(last)).toLocaleString();
-
-        renderPonts(ordered);
-    } catch(err){
-        const cached = localStorage.getItem(CACHE_KEY_DATA);
-        const lastWrite = parseInt(localStorage.getItem(CACHE_KEY_TIME)||0);
-        if(cached){
-            renderPonts(JSON.parse(cached));
-            indicator.textContent="🔴 — MàJ échouée : "+new Date(lastWrite).toLocaleString();
-        } else {
-            document.getElementById("ponts-table").innerHTML='<div class="error-message">Impossible de récupérer les ponts et aucun cache disponible.</div>';
-            indicator.textContent="🔴 — MàJ échouée : aucun cache";
-        }
+    renderPonts(ordered);
+  } catch (err) {
+    // fallback to cache
+    const cached = localStorage.getItem(CACHE_KEY_DATA);
+    const lastWrite = parseInt(localStorage.getItem(CACHE_KEY_TIME) || 0);
+    if(cached){
+      try {
+        renderPonts(JSON.parse(cached));
+        document.getElementById("update-indicator").textContent = "🔴 — MàJ échouée : " + new Date(lastWrite).toLocaleString();
+      } catch(e){
+        document.getElementById("ponts-table").innerHTML = '<div class="error-message">Impossible de récupérer les ponts et le cache est corrompu.</div>';
+      }
+    } else {
+      document.getElementById("ponts-table").innerHTML = '<div class="error-message">Impossible de récupérer les ponts et aucun cache disponible.</div>';
+      document.getElementById("update-indicator").textContent = "🔴 — MàJ échouée : aucun cache";
     }
+    console.warn("checkAndUpdate error:", err);
+  }
 }
 
-/* ===================== INIT ===================== */
-(async function(){
-    // test initial
-    const result = await fetchWithProxies(TARGET_URL);
-    if(result.ok) console.log("Premier proxy valide:", result.proxy);
-    else console.warn("Aucun proxy ne répond au démarrage");
+/* ===================== Background: rescore proxies (every 5min) ===================== */
+async function updateProxyScoresBackground(){
+  // test all proxies in parallel but limited to avoid spamming (we run in background)
+  await Promise.all(proxies.map(p => testProxyAndParse(p, TARGET_URL).then(r=>{
+    if(r && r.ok) p.score = Math.min(10, (p.score||5)+1);
+    else p.score = Math.max(0, (p.score||5)-1);
+  }).catch(()=>{ p.score = Math.max(0, (p.score||5)-1); })));
+  persistProxyScores();
+  console.log("Proxy scores updated (background):", proxies.map(p=>({url:p.url,score:p.score})));
+}
 
-    checkAndUpdate(true);
-    setInterval(()=>checkAndUpdate(false), REFRESH_INTERVAL);
-    setInterval(updateProxyScores, 5*60*1000);
+/* ===================== Initialization ===================== */
+(async function init(){
+  // load previous scores if present
+  loadProxyScoresFromStore();
+
+  // First: try to find a proxy quickly and display data asap.
+  // We call fetchWithProxiesAndGetData which returns the first valid proxy data.
+  try {
+    const first = await fetchWithProxiesAndGetData(TARGET_URL);
+    if(first.ok) {
+      console.log("Premier proxy valide:", first.proxyUrl);
+    } else {
+      console.warn("Aucun proxy valide trouvé au démarrage (tentative initiale)");
+    }
+  } catch(e){
+    console.warn("Erreur tentative initiale proxies:", e);
+  }
+
+  // Initial full update (force)
+  await checkAndUpdate(true);
+
+  // Periodic updates
+  setInterval(()=>checkAndUpdate(false), REFRESH_INTERVAL);         // every 30s
+  setInterval(()=>updateProxyScoresBackground(), PROXY_SCORE_INTERVAL); // every 5min
 })();
 </script>
-
 </body>
 </html>
