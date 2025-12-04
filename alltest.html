@@ -2,8 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Tableau double iframe – Rechargement intelligent</title>
-
+<title>Double iframe – Rechargement intelligent</title>
 <style>
   html, body {
     margin: 0;
@@ -42,65 +41,55 @@
   }
 </style>
 </head>
-
 <body>
 
 <div id="container">
-  
   <!-- Zone gauche (25%) -->
-  <div class="frame-wrapper" style="width: 25%;">
+  <div class="frame-wrapper" style="width:25%;">
     <iframe id="leftA" class="visible"
             src="https://receptionroulier.github.io/cal/p.html"></iframe>
     <iframe id="leftB" class="hidden"></iframe>
   </div>
 
   <!-- Zone droite (75%) -->
-  <div class="frame-wrapper" style="width: 75%;">
+  <div class="frame-wrapper" style="width:75%;">
     <iframe id="rightA" class="visible"
             src="https://receptionroulier.github.io/cal/caltest.html"></iframe>
     <iframe id="rightB" class="hidden"></iframe>
   </div>
-
 </div>
 
 <script>
-/*
-    Fonction de surveillance :
-    - Vérifie le fichier version toutes les 1 seconde
-    - Si la version change → recharge l’iframe (double-buffer)
-*/
 function monitor(urlVersion, iframeA, iframeB, pageUrl) {
     let lastVersion = null;
 
     setInterval(async () => {
         try {
-            // On ajoute un timestamp pour éviter le cache
             const response = await fetch(urlVersion + "?_=" + Date.now());
             const version = await response.text();
 
             if (version !== lastVersion) {
                 lastVersion = version;
 
-                // On recharge dans l’iframe cachée (double-buffer)
+                // Préchargement dans l'iframe cachée
                 iframeB.src = pageUrl + "?v=" + version;
 
                 iframeB.onload = () => {
-                    // Swap : B devient visible, A devient cachée
+                    // Swap fluide
                     iframeA.classList.add("hidden");
                     iframeA.classList.remove("visible");
-
                     iframeB.classList.add("visible");
                     iframeB.classList.remove("hidden");
 
-                    // Permutation des références
+                    // Échange des références
                     const temp = iframeA;
                     iframeA = iframeB;
                     iframeB = temp;
                 };
             }
 
-        } catch (error) {
-            console.error("Erreur lors de la vérification :", error);
+        } catch (e) {
+            console.error("Erreur lors de la vérification :", e);
         }
     }, 1000); // Vérification toutes les secondes
 }
