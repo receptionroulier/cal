@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Tableau de bord - Ponts</title>
 <style>
 /* ===================== GLOBAL ===================== */
@@ -30,7 +30,7 @@ h2 {
 #update-indicator {
     text-align: center;
     font-size: 0.7em;
-    opacity: 0.85;
+    opacity: 0.85;      
     font-weight: bold;
     margin-bottom: 15px;
 }
@@ -114,17 +114,21 @@ h2 {
 
 <script>
 /* ===================== CONFIG ===================== */
+const PROXY_STORE_KEY = "pontsProxyStore";
 const CACHE_KEY_DATA = "pontsData";
 const CACHE_KEY_HASH = "pontsHash";
 const CACHE_KEY_TIME = "pontsCacheTime";
 
-const CACHE_EXPIRATION = 60000; // 1 min
-const REFRESH_INTERVAL = 30000; // 30 sec
-const FETCH_TIMEOUT = 10000;    // ms
-const SCORE_RETEST_INTERVAL = 5 * 60 * 1000; // 5 minutes
+const CACHE_EXPIRATION = 60000;        // 1 minute
+const REFRESH_INTERVAL = 30000;        // 30s checkAndUpdate
+const PROXY_TEST_TIMEOUT = 8000;       // timeout pour test proxy
+const FETCH_TIMEOUT = 10000;           // timeout pour fetchWithTimeout
+const PROXY_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes (auto-tests)
+const MAX_SCORE = 10;
+const MIN_SCORE = 1;
 
-/* ===================== PROXIES ===================== */
-const INITIAL_PROXIES = [
+/* ===================== PROXIES (liste de base fournie) ===================== */
+const BASE_PROXIES = [
     "https://api.allorigins.win/get?url=",
     "https://thingproxy.freeboard.io/fetch/",
     "https://cors-anywhere.herokuapp.com/",
@@ -146,191 +150,285 @@ const INITIAL_PROXIES = [
     "https://cors.x2u.in/"
 ];
 
-let allProxies = [...INITIAL_PROXIES];
-let proxyScores = {}; // { proxyUrl: score }
-
 /* ===================== UTILITAIRES ===================== */
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
-
-async function withTimeout(promiseFactory, ms){
+async function withTimeout(factory, ms){
     const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), ms);
-    try { return await promiseFactory(controller.signal); }
+    const id = setTimeout(()=>controller.abort(), ms);
+    try { return await factory(controller.signal); }
     finally { clearTimeout(id); }
 }
-
 async function fetchWithTimeout(url, opts={}, timeout=FETCH_TIMEOUT){
     return withTimeout(signal => fetch(url, {...opts, signal}), timeout);
 }
-
 async function sha256(str){
     const data = new TextEncoder().encode(str);
     const digest = await crypto.subtle.digest("SHA-256", data);
     return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");
 }
-
-function safeDateToISOString(d) {
-    if (!d) return "";
-    const dt = new Date(d);
-    return isFinite(dt.getTime()) ? dt.toISOString() : "";
+function safeISO(value){
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? "" : d.toISOString();
 }
 
+/* Normalisation = nom + date (utilise safeISO pour éviter crash) */
 function normalizeData(data){
     return JSON.stringify(
-        data.map(p=>({nom:p.nom, date: safeDateToISOString(p.date)}))
-            .sort((a,b)=>a.nom.localeCompare(b.nom))
+        data
+        .map(p => ({ nom: p.nom, date: safeISO(p.date) }))
+        .sort((a,b)=>a.nom.localeCompare(b.nom))
     );
 }
 
-/* shuffle in-place copy */
-function shuffleCopy(arr) {
-    const a = arr.slice();
-    for (let i=a.length-1;i>0;i--){
+/* ===================== PROXY POOL SIMPLE + SCORE ===================== */
+/* Structure: { url, score, lastCheckMs, lastDurationMs, lastOk } */
+let proxyPool = BASE_PROXIES.map(u => ({
+    url: u,
+    score: 5,            // score initial neutre (1..10)
+    lastCheckMs: null,
+    lastDurationMs: null,
+    lastOk: false
+}));
+
+function saveProxyStore(){
+    try {
+        localStorage.setItem(PROXY_STORE_KEY, JSON.stringify(proxyPool));
+    } catch(e){}
+}
+function loadProxyStore(){
+    try {
+        const raw = localStorage.getItem(PROXY_STORE_KEY);
+        if(!raw) return;
+        const arr = JSON.parse(raw);
+        if(Array.isArray(arr)){
+            // merge preserving order: base proxies first, but keep stored scores
+            const map = new Map(arr.map(p=>[p.url,p]));
+            proxyPool = BASE_PROXIES.map(u => {
+                if(map.has(u)){
+                    const s = map.get(u);
+                    return {
+                        url: u,
+                        score: typeof s.score === 'number' ? Math.max(MIN_SCORE, Math.min(MAX_SCORE, Math.round(s.score))) : 5,
+                        lastCheckMs: s.lastCheckMs || null,
+                        lastDurationMs: s.lastDurationMs || null,
+                        lastOk: !!s.lastOk
+                    };
+                } else {
+                    return { url: u, score: 5, lastCheckMs: null, lastDurationMs: null, lastOk: false };
+                }
+            });
+        }
+    } catch(e){}
+}
+
+/* shuffle Fisher-Yates */
+function shuffle(a){
+    for(let i=a.length-1;i>0;i--){
         const j = Math.floor(Math.random()*(i+1));
-        [a[i], a[j]] = [a[j], a[i]];
+        [a[i],a[j]] = [a[j],a[i]];
     }
     return a;
 }
 
-/* Build ordered proxies array according to scores.
-   Proxies with same score are shuffled to avoid hitting same first every time. */
-function getProxiesOrderedByScore() {
-    // create map score => [proxies]
-    const buckets = {};
-    for (const p of allProxies) {
-        const s = proxyScores[p] ?? 0;
-        if (!buckets[s]) buckets[s] = [];
-        buckets[s].push(p);
+/* pick weighted: weight = score (>=MIN_SCORE) */
+function pickProxyWeighted(){
+    const list = proxyPool.slice();
+    // ensure no negative; use score as weight
+    const weights = list.map(p => Math.max(MIN_SCORE, p.score));
+    const total = weights.reduce((s,x)=>s+x,0);
+    let r = Math.random()*total;
+    for(let i=0;i<list.length;i++){
+        if(r < weights[i]) return list[i];
+        r -= weights[i];
     }
-    const scores = Object.keys(buckets).map(Number).sort((a,b)=>b-a); // high -> low
-    const ordered = [];
-    for (const s of scores) {
-        const group = shuffleCopy(buckets[s]); // shuffle same-scored proxies
-        ordered.push(...group);
+    return list[0];
+}
+
+/* Test minimal: test returns { ok, durationMs } */
+async function testProxySimple(proxyUrl, targetUrl){
+    const testUrl = proxyUrl + encodeURIComponent(targetUrl);
+    const start = performance.now();
+    try{
+        const res = await fetchWithTimeout(testUrl, { method: 'GET' }, PROXY_TEST_TIMEOUT);
+        const duration = Math.round(performance.now()-start);
+        if(res && res.ok) return { ok:true, durationMs: duration, status: res.status };
+        return { ok:false, durationMs: duration, status: res && res.status ? res.status : null };
+    } catch(err){
+        const duration = Math.round(performance.now()-start);
+        return { ok:false, durationMs: duration, error: String(err) };
     }
-    return ordered.length ? ordered : allProxies.slice(); // fallback
+}
+
+/* update scores after test result */
+function adjustScoreForProxy(proxyObj, result){
+    // result: { ok:boolean, durationMs:number }
+    if(result.ok){
+        // success -> reward more if faster
+        if(result.durationMs < 800) proxyObj.score = Math.min(MAX_SCORE, proxyObj.score + 2);
+        else proxyObj.score = Math.min(MAX_SCORE, proxyObj.score + 1);
+        proxyObj.lastOk = true;
+    } else {
+        // failure -> penalize
+        proxyObj.score = Math.max(MIN_SCORE, proxyObj.score - 2);
+        proxyObj.lastOk = false;
+    }
+    proxyObj.lastCheckMs = Date.now();
+    proxyObj.lastDurationMs = typeof result.durationMs === 'number' ? result.durationMs : null;
+}
+
+/* update scores for all proxies (parallel with concurrency) */
+async function updateProxyScores(targetUrl){
+    console.log("[PROXY] updateProxyScores: testing proxies against", targetUrl);
+    // test in small concurrency
+    const concurrency = 6;
+    const pool = proxyPool.slice();
+    let idx = 0;
+    const workers = Array.from({length:concurrency}, async () => {
+        while(true){
+            const i = idx++;
+            if(i >= pool.length) break;
+            const p = pool[i];
+            const res = await testProxySimple(p.url, targetUrl);
+            adjustScoreForProxy(p, res);
+            // update the real pool object (by url)
+            const real = proxyPool.find(x=>x.url === p.url);
+            if(real){
+                real.score = p.score;
+                real.lastCheckMs = p.lastCheckMs;
+                real.lastDurationMs = p.lastDurationMs;
+                real.lastOk = p.lastOk;
+            }
+            // small pause to be polite
+            await sleep(100);
+        }
+    });
+    await Promise.all(workers);
+    saveProxyStore();
+    // log scoreboard to console
+    console.log("[PROXY SCOREBOARD]", proxyPool.map(p => ({ url: p.url, score: p.score, lastOk: p.lastOk, lastDurationMs: p.lastDurationMs })));
+}
+
+/* get a proxied fetch: try a few proxies (up to attempts) using weighted pick */
+async function fetchWithPool(url, attempts = 5){
+    // if pool empty fallback direct fetch
+    if(!proxyPool || proxyPool.length === 0) return fetchWithTimeout(url, {}, FETCH_TIMEOUT).then(r=>r.text()).catch(()=>null);
+
+    const tried = new Set();
+    for(let i=0;i<attempts;i++){
+        // pick weighted but ensure not repeating same immediately if possible
+        let candidate = pickProxyWeighted();
+        let tries = 0;
+        while(tried.has(candidate.url) && tries < 6){
+            candidate = proxyPool[Math.floor(Math.random()*proxyPool.length)];
+            tries++;
+        }
+        tried.add(candidate.url);
+        try {
+            const res = await fetchWithTimeout(candidate.url + encodeURIComponent(url), { method: 'GET' }, FETCH_TIMEOUT);
+            if(res && res.ok){
+                // parse body: prefer JSON if content-type contains json
+                const ct = (res.headers.get('content-type') || '').toLowerCase();
+                let raw;
+                if(ct.includes('application/json') || ct.includes('json')) raw = await res.json();
+                else {
+                    const text = await res.text();
+                    try{ raw = JSON.parse(text); } catch(e){ raw = text; }
+                }
+                // reward proxy (fast path)
+                adjustScoreForProxy(candidate, { ok: true, durationMs: 200 });
+                // persist updated score to pool
+                const real = proxyPool.find(p=>p.url===candidate.url);
+                if(real){
+                    real.score = candidate.score;
+                    real.lastCheckMs = candidate.lastCheckMs;
+                    real.lastDurationMs = candidate.lastDurationMs;
+                    real.lastOk = candidate.lastOk;
+                }
+                saveProxyStore();
+                return raw;
+            } else {
+                // penalize on non-ok
+                adjustScoreForProxy(candidate, { ok: false, durationMs: 0 });
+                const real = proxyPool.find(p=>p.url===candidate.url);
+                if(real) real.score = candidate.score;
+                saveProxyStore();
+                continue;
+            }
+        } catch(err){
+            // penalize on exception
+            adjustScoreForProxy(candidate, { ok: false, durationMs: 0 });
+            const real = proxyPool.find(p=>p.url===candidate.url);
+            if(real) real.score = candidate.score;
+            saveProxyStore();
+            continue;
+        }
+    }
+    // all attempts failed: return null
+    return null;
 }
 
 /* ===================== PARSE DATA ===================== */
 function parseRawContentToData(raw){
-    if (!raw) return null;
-
-    // many proxies return an object with "contents" or "data"
-    if (typeof raw === "string") {
-        try { const j = JSON.parse(raw); return j?.data || j; } catch(e) { return null; }
+    if(!raw) return null;
+    if(typeof raw === "string"){
+        try{
+            const j = JSON.parse(raw);
+            return j?.data || j;
+        } catch(e){ return null; }
     }
-    if (typeof raw === "object") {
-        if (raw.data) return raw.data;
-        if (raw.contents) {
-            try { const inner = JSON.parse(raw.contents); return inner?.data || inner; } catch(e) { /* fallthrough */ }
+    if(typeof raw === "object"){
+        if(raw.data) return raw.data;
+        if(raw.contents){
+            try{
+                const inner = JSON.parse(raw.contents);
+                return inner?.data || inner;
+            } catch(e){ return null; }
         }
         return raw;
     }
     return null;
 }
 
-/* ===================== FETCH CORE: try proxies in order until one returns ===================== */
-async function fetchWithPool(url) {
-    // use proxies ordered by score (shuffle within equal score)
-    const ordered = getProxiesOrderedByScore();
-    console.log("fetchWithPool -> trying proxies (ordered):", ordered);
-
-    for (const proxy of ordered) {
-        const full = proxy + encodeURIComponent(url);
-        try {
-            const res = await fetchWithTimeout(full, { method: "GET" }, FETCH_TIMEOUT);
-            if (!res.ok) {
-                console.warn("fetch failed status:", res.status, "proxy:", proxy);
-                proxyScores[proxy] = (proxyScores[proxy] ?? 0) - 1;
-                continue;
-            }
-
-            // Try to parse as JSON if possible, else text
-            let raw;
-            const ct = res.headers.get("content-type") || "";
-            if (ct.includes("json")) raw = await res.json();
-            else {
-                const text = await res.text();
-                try { raw = JSON.parse(text); } catch(e) { raw = text; }
-            }
-
-            // success: increment score and return raw
-            proxyScores[proxy] = (proxyScores[proxy] ?? 0) + 1;
-            console.log("✔ Proxy OK:", proxy, "score:", proxyScores[proxy]);
-            return raw;
-
-        } catch (err) {
-            // network / timeout error
-            console.warn("✖ Proxy error:", proxy, err && (err.name || err.message));
-            proxyScores[proxy] = (proxyScores[proxy] ?? 0) - 1;
-            // continue to next proxy
-        }
-    }
-
-    // none responded
-    console.warn("Aucun proxy n'a répondu (tous tentés).");
-    return null;
-}
-
-/* ===================== SCORING: re-evaluate all proxies every 5 minutes ===================== */
-async function rescoreProxies() {
-    console.log("🔄 rescoreProxies: début");
-
-    const testTarget = "https://www.havre-port.com/map/getPonts";
-    // We'll test each proxy quickly (timeout short)
-    const promises = [];
-    for (const proxy of allProxies) {
-        const full = proxy + encodeURIComponent(testTarget);
-        // sequentially (not to hammer), but with short timeout.
-        // do one-by-one to avoid rate-limits; small delay between tests helps.
-        promises.push((async () => {
-            try {
-                const res = await fetchWithTimeout(full, {}, 3000);
-                if (res && res.ok) {
-                    proxyScores[proxy] = (proxyScores[proxy] ?? 0) + 1;
-                    console.log("rescore: OK", proxy);
-                } else {
-                    proxyScores[proxy] = (proxyScores[proxy] ?? 0) - 1;
-                    console.log("rescore: KO status", proxy, res && res.status);
-                }
-            } catch (err) {
-                proxyScores[proxy] = (proxyScores[proxy] ?? 0) - 1;
-                console.log("rescore: KO err", proxy, err && err.name);
-            }
-            // small pause to reduce bursts
-            await sleep(120);
-        })());
-    }
-
-    // wait all
-    await Promise.all(promises);
-
-    // After updating scores, sort allProxies by descending score (in-place)
-    allProxies.sort((a, b) => (proxyScores[b] ?? 0) - (proxyScores[a] ?? 0));
-
-    console.log("🔢 rescoreProxies: scores", proxyScores);
-    console.log("🔁 rescoreProxies: allProxies sorted (top 10):", allProxies.slice(0,10));
-}
-
-/* ===================== RENDER ===================== */
+/* ===================== RENDER PONTS ===================== */
 function renderPonts(list){
     const container = document.getElementById("ponts-table");
     if(!list || !list.length){
         container.innerHTML = '<div class="error-message">Aucun pont disponible.</div>';
         return;
     }
+
     container.innerHTML = list.map(p=>{
-        const statut=(p.statutText||"").toLowerCase();
-        const open=statut.includes("ouvert");
-        const move=statut.includes("manoeuvre")||statut.includes("manœuvre");
-        const fermeture=statut.includes("fermeture");
-        const ferme=statut.includes("fermé");
-        const travaux=statut.includes("travaux");
-        let cls=(ferme&&travaux)?"ferme-travaux":ferme?"ferme":fermeture?"fermeture":move?"manoeuvre":open?"ouvert":"ferme";
-        let texteEtat=p.statutText||"";
-        if(travaux) texteEtat=texteEtat.replace(/(travaux)/i,'<span class="texte-travaux">$1</span>');
-        const info=p.forceText||`MàJ : ${p.date||"inconnue"}`;
-        return `<div class="pont-card ${cls}"><div class="pont-nom"><span class="pastille"></span>${p.nom}</div><div class="pont-etat">${texteEtat}</div><div class="pont-infos">${info}</div></div>`;
+        const statut = (p.statutText||"").toLowerCase();
+
+        const open = statut.includes("ouvert");
+        const move = statut.includes("manoeuvre") || statut.includes("manœuvre");
+        const fermeture = statut.includes("fermeture");
+        const ferme = statut.includes("fermé");
+        const travaux = statut.includes("travaux");
+
+        let cls =
+            (ferme && travaux) ? "ferme-travaux" :
+            ferme ? "ferme" :
+            fermeture ? "fermeture" :
+            move ? "manoeuvre" :
+            open ? "ouvert" :
+            "ferme";
+
+        let texteEtat = p.statutText || "";
+        if(travaux){
+            texteEtat = texteEtat.replace(/(travaux)/i,'<span class="texte-travaux">$1</span>');
+        }
+
+        const info = p.forceText || `MàJ : ${p.date||"inconnue"}`;
+
+        return `
+        <div class="pont-card ${cls}">
+            <div class="pont-nom">
+                <span class="pastille"></span>${p.nom}
+            </div>
+            <div class="pont-etat">${texteEtat}</div>
+            <div class="pont-infos">${info}</div>
+        </div>`;
     }).join("");
 }
 
@@ -341,74 +439,66 @@ async function checkAndUpdate(forceUpdate=false){
     const container = document.getElementById("ponts-table");
     const indicator = document.getElementById("update-indicator");
 
+    /* ----- Mode cache si pas expiré ----- */
     if(!forceUpdate && last && now - last < CACHE_EXPIRATION){
         const cached = localStorage.getItem(CACHE_KEY_DATA);
         if(cached){
-            try {
+            try{
                 renderPonts(JSON.parse(cached));
-                indicator.textContent = "🟢 — MàJ OK — États inchangés depuis le : " + new Date(parseInt(last)).toLocaleString();
+                indicator.textContent = "🟢 — États inchangé depuis le : " + new Date(parseInt(last)).toLocaleString();
                 return;
-            } catch(e){
-                console.warn("cache parse error", e);
-            }
+            } catch(e){}
         }
     }
 
-    try {
-        const raw = await fetchWithPool("https://www.havre-port.com/map/getPonts");
-        if (!raw) throw new Error("Aucun proxy n'a répondu");
+    try{
+        /* ----- FETCH (via pool) ----- */
+        const rawContent = await fetchWithPool("https://www.havre-port.com/map/getPonts");
+        if(!rawContent) throw new Error("Aucun proxy n'a répondu");
 
-        // raw might be object or string; parse into data
-        const data = parseRawContentToData(raw);
-        if (!data) throw new Error("Impossible d'extraire les données API");
+        const data = parseRawContentToData(rawContent);
+        if(!data) throw new Error("Impossible d'extraire les données API");
 
         const ponts = Object.values(data);
-        const unique = Array.from(new Map(ponts.map(p=>[p.nom,p])).values());
+        const unique = Array.from(new Map(ponts.map(p => [p.nom, p])).values());
 
+        /* ----- TRI ----- */
         const ordered = unique.sort((a,b)=>{
             const score = p => {
                 const s = (p.statutText||"").toLowerCase();
-                if(s.includes("fermé")&&s.includes("travaux")) return 2;
+                if(s.includes("fermé") && s.includes("travaux")) return 2;
                 if(s.includes("fermé")) return 1;
                 if(s.includes("fermeture")) return 3;
-                if(s.includes("manoeuvre")||s.includes("manœuvre")) return 4;
+                if(s.includes("manoeuvre") || s.includes("manœuvre")) return 4;
                 if(s.includes("ouvert")) return 5;
                 return 6;
             };
-            if(score(a)!==score(b)) return score(a)-score(b);
-            const ta = isFinite(new Date(a.date||0).getTime()) ? new Date(a.date).getTime() : 0;
-            const tb = isFinite(new Date(b.date||0).getTime()) ? new Date(b.date).getTime() : 0;
-            return tb - ta;
+            if(score(a) !== score(b)) return score(a) - score(b);
+            return new Date(b.date||0) - new Date(a.date||0);
         });
 
-        // protection anti-retour-arrière
-        const newestDate = ordered.length ? Math.max(...ordered.map(p=> {
-            const t = new Date(p.date||0).getTime();
-            return isFinite(t) ? t : 0;
-        })) : 0;
-        const lastWriteTime = parseInt(localStorage.getItem(CACHE_KEY_TIME)||0,10) || 0;
+        /* ===================== PROTECTION ANTI-RETOUR-ARrière ===================== */
+        const newestDate = Math.max(...ordered.map(p => new Date(p.date||0).getTime()));
+        const lastWriteTime = parseInt(localStorage.getItem(CACHE_KEY_TIME)||0);
 
-        if (newestDate < lastWriteTime) {
+        if(newestDate < lastWriteTime){
             const cached = localStorage.getItem(CACHE_KEY_DATA);
-            if (cached) {
-                try {
-                    renderPonts(JSON.parse(cached));
-                    indicator.textContent = "🟢 — MàJ OK — États inchangés depuis le : " + new Date(lastWriteTime).toLocaleString();
-                    return;
-                } catch(e){
-                    console.warn("cache parse fallback error", e);
-                }
+            if(cached){
+                renderPonts(JSON.parse(cached));
+                indicator.textContent = "🟢 — MàJ OK — États inchangés depuis le : " + new Date(lastWriteTime).toLocaleString();
+                return;
             }
         }
 
+        /* ----- HASH ----- */
         const norm = normalizeData(ordered);
         const newHash = await sha256(norm);
         const oldHash = localStorage.getItem(CACHE_KEY_HASH);
 
-        if (newHash !== oldHash) {
+        if(newHash !== oldHash){
             localStorage.setItem(CACHE_KEY_DATA, JSON.stringify(ordered));
             localStorage.setItem(CACHE_KEY_HASH, newHash);
-            localStorage.setItem(CACHE_KEY_TIME, Date.now().toString());
+            localStorage.setItem(CACHE_KEY_TIME, Date.now());
             indicator.textContent = "🟢 — MàJ OK — États au : " + new Date().toLocaleString();
         } else {
             indicator.textContent = "🟢 — MàJ OK — États inchangés depuis le : " + new Date(lastWriteTime).toLocaleString();
@@ -416,16 +506,20 @@ async function checkAndUpdate(forceUpdate=false){
 
         renderPonts(ordered);
 
-    } catch (err) {
-        console.error("checkAndUpdate error:", err && (err.message || err));
+    } catch(err){
         const cached = localStorage.getItem(CACHE_KEY_DATA);
-        const lastWrite = parseInt(localStorage.getItem(CACHE_KEY_TIME)||0,10) || 0;
+        const lastWrite = parseInt(localStorage.getItem(CACHE_KEY_TIME)||0);
 
-        if (cached) {
-            try {
+        if(cached){
+            try{
                 renderPonts(JSON.parse(cached));
                 indicator.textContent = "🔴 — MàJ échouée — États au : " + new Date(lastWrite).toLocaleString();
-            } catch (e) {
+
+                const target = "https://www.havre-port.com/map/getPonts";
+                // schedule a lightweight pool score update to try to recover
+                updateProxyScores(target).catch(e=>console.warn(e));
+
+            } catch(e){
                 container.innerHTML = '<div class="error-message">Impossible de récupérer les ponts et le cache est corrompu.</div>';
             }
         } else {
@@ -437,64 +531,23 @@ async function checkAndUpdate(forceUpdate=false){
 
 /* ===================== INIT ===================== */
 (async function init(){
+    const target = "https://www.havre-port.com/map/getPonts";
 
-    // initial quick probe: shuffle proxies, try until first success, display quickly,
-    // but after that we still call checkAndUpdate which will fetch again via fetchWithPool
-    // (so this probe mainly for quick feedback + initial score updates)
-    (async function initialProbe() {
-        const shuffled = shuffleCopy(allProxies);
-        console.log("initialProbe -> order:", shuffled);
-        for (const proxy of shuffled) {
-            const full = proxy + encodeURIComponent("https://www.havre-port.com/map/getPonts");
-            try {
-                const res = await fetchWithTimeout(full, {}, 5000);
-                if (!res || !res.ok) {
-                    proxyScores[proxy] = (proxyScores[proxy] || 0) - 1;
-                    console.warn("initialProbe KO", proxy, res && res.status);
-                    continue;
-                }
-                let raw;
-                const ct = res.headers.get("content-type") || "";
-                if (ct.includes("json")) raw = await res.json();
-                else {
-                    const text = await res.text();
-                    try { raw = JSON.parse(text); } catch(e) { raw = text; }
-                }
-                // found one: boost score and stop probe
-                proxyScores[proxy] = (proxyScores[proxy] || 0) + 2;
-                console.log("initialProbe -> premier proxy valide:", proxy);
-                // update scores ordering immediately
-                allProxies.sort((a,b) => (proxyScores[b] ?? 0) - (proxyScores[a] ?? 0));
-                // Use this raw to render immediately if possible
-                const data = parseRawContentToData(raw);
-                if (data) {
-                    // render result immediately and store cache/hash etc in checkAndUpdate later
-                    try {
-                        const ponts = Object.values(data);
-                        const unique = Array.from(new Map(ponts.map(p=>[p.nom,p])).values());
-                        renderPonts(unique);
-                        localStorage.setItem(CACHE_KEY_DATA, JSON.stringify(unique));
-                        localStorage.setItem(CACHE_KEY_TIME, Date.now().toString());
-                        console.log("initialProbe -> affichage initial basé sur proxy", proxy);
-                    } catch(e) { console.warn("initialProbe: parse/render error", e); }
-                }
-                break; // stop after first success
-            } catch (e) {
-                proxyScores[proxy] = (proxyScores[proxy] || 0) - 1;
-                console.warn("initialProbe error proxy:", proxy, e && e.name);
-            }
-        }
-    })();
+    // load stored proxy scores if any
+    loadProxyStore();
 
-    // Start normal update loop
+    // initial quick test of pool (non bloquant) - update scores
+    updateProxyScores(target).catch(e=>console.warn(e));
+
+    // schedule periodic proxy scoring (auto-test every PROXY_REFRESH_INTERVAL)
+    setInterval(() => {
+        console.log("[PROXY] scheduled update of proxy scores");
+        updateProxyScores(target).catch(e=>console.warn(e));
+    }, PROXY_REFRESH_INTERVAL);
+
+    // schedule periodic checkAndUpdate (core)
     checkAndUpdate(true);
     setInterval(()=>checkAndUpdate(false), REFRESH_INTERVAL);
-
-    // Re-evaluate scores every 5 minutes and reorder 'allProxies'
-    // First call shortly after init to populate proxyScores
-    setTimeout(rescoreProxies, 2000);
-    setInterval(rescoreProxies, SCORE_RETEST_INTERVAL);
-
 })();
 </script>
 
