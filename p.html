@@ -445,7 +445,7 @@ async function checkAndUpdate(forceUpdate=false){
         if(cached){
             try{
                 renderPonts(JSON.parse(cached));
-                indicator.textContent = "🟢 — MàJ vérifiée : " + new Date(parseInt(last)).toLocaleString();
+                indicator.textContent = "🟢 — États inchangé depuis le : " + new Date(parseInt(last)).toLocaleString();
                 return;
             } catch(e){}
         }
@@ -485,7 +485,7 @@ async function checkAndUpdate(forceUpdate=false){
             const cached = localStorage.getItem(CACHE_KEY_DATA);
             if(cached){
                 renderPonts(JSON.parse(cached));
-                indicator.textContent = "🟢 — MàJ vérifiée : " + new Date(lastWriteTime).toLocaleString();
+                indicator.textContent = "🟢 — MàJ OK — États inchangés depuis le : " + new Date(lastWriteTime).toLocaleString();
                 return;
             }
         }
@@ -499,9 +499,9 @@ async function checkAndUpdate(forceUpdate=false){
             localStorage.setItem(CACHE_KEY_DATA, JSON.stringify(ordered));
             localStorage.setItem(CACHE_KEY_HASH, newHash);
             localStorage.setItem(CACHE_KEY_TIME, Date.now());
-            indicator.textContent = "🟢 — MàJ : " + new Date().toLocaleString();
+            indicator.textContent = "🟢 — MàJ OK — États au : " + new Date().toLocaleString();
         } else {
-            indicator.textContent = "🟢 — MàJ vérifiée : " + new Date(lastWriteTime).toLocaleString();
+            indicator.textContent = "🟢 — MàJ OK — États inchangés depuis le : " + new Date(lastWriteTime).toLocaleString();
         }
 
         renderPonts(ordered);
@@ -513,7 +513,7 @@ async function checkAndUpdate(forceUpdate=false){
         if(cached){
             try{
                 renderPonts(JSON.parse(cached));
-                indicator.textContent = "🔴 — MàJ échouée : " + new Date(lastWrite).toLocaleString();
+                indicator.textContent = "🔴 — MàJ échouée — États au : " + new Date(lastWrite).toLocaleString();
 
                 const target = "https://www.havre-port.com/map/getPonts";
                 // schedule a lightweight pool score update to try to recover
