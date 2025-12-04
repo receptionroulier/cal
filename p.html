@@ -324,7 +324,7 @@ function renderPonts(list){
     }).join("");
 }
 
-/* ===================== CHECK+UPDATE AVEC MERGE PONT PAR PONT ===================== */
+/* ===================== CHECK+UPDATE ===================== */
 async function checkAndUpdate(forceUpdate=false){
     const now = Date.now();
     const lastWriteTime = parseInt(localStorage.getItem(CACHE_KEY_TIME)||0);
@@ -333,7 +333,11 @@ async function checkAndUpdate(forceUpdate=false){
 
     if(!forceUpdate && lastWriteTime && now - lastWriteTime < CACHE_EXPIRATION){
         const cached = localStorage.getItem(CACHE_KEY_DATA);
-        if(cached){ renderPonts(JSON.parse(cached)); indicator.textContent = "🟢 — États inchangés depuis le : " + new Date(lastWriteTime).toLocaleString(); return; }
+        if(cached){ 
+            renderPonts(JSON.parse(cached)); 
+            indicator.textContent = "🟢 — États inchangés depuis le : " + new Date(lastWriteTime).toLocaleString(); 
+            return; 
+        }
     }
 
     try{
@@ -346,8 +350,19 @@ async function checkAndUpdate(forceUpdate=false){
         const ponts = Object.values(data);
         const unique = Array.from(new Map(ponts.map(p => [p.nom, p])).values());
 
-        /* TRI */
-        const ordered = unique.sort((a,b)=>{
+        /* MERGE PONT PAR PONT AVEC CACHE */
+        const cachedRaw = localStorage.getItem(CACHE_KEY_DATA);
+        const cachedData = cachedRaw ? JSON.parse(cachedRaw) : [];
+        const merged = unique.map(p=>{
+            const cachedPont = cachedData.find(c => c.nom === p.nom);
+            if(!cachedPont) return p;
+            const newDate = new Date(p.date||0).getTime();
+            const oldDate = new Date(cachedPont.date||0).getTime();
+            return (newDate >= oldDate) ? p : cachedPont;
+        });
+
+        /* TRI APRÈS MERGE */
+        const mergedSorted = merged.sort((a,b)=>{
             const score = p=>{
                 const s=(p.statutText||"").toLowerCase();
                 if(s.includes("fermé") && s.includes("travaux")) return 2;
@@ -361,24 +376,13 @@ async function checkAndUpdate(forceUpdate=false){
             return new Date(b.date||0)-new Date(a.date||0);
         });
 
-        /* MERGE PONT PAR PONT */
-        const cachedRaw = localStorage.getItem(CACHE_KEY_DATA);
-        const cachedData = cachedRaw ? JSON.parse(cachedRaw) : [];
-        const merged = ordered.map(p=>{
-            const cachedPont = cachedData.find(c => c.nom === p.nom);
-            if(!cachedPont) return p;
-            const newDate = new Date(p.date||0).getTime();
-            const oldDate = new Date(cachedPont.date||0).getTime();
-            return (newDate >= oldDate) ? p : cachedPont;
-        });
-
         /* HASH */
-        const norm = normalizeData(merged);
+        const norm = normalizeData(mergedSorted);
         const newHash = await sha256(norm);
         const oldHash = localStorage.getItem(CACHE_KEY_HASH);
 
         if(newHash !== oldHash){
-            localStorage.setItem(CACHE_KEY_DATA, JSON.stringify(merged));
+            localStorage.setItem(CACHE_KEY_DATA, JSON.stringify(mergedSorted));
             localStorage.setItem(CACHE_KEY_HASH, newHash);
             localStorage.setItem(CACHE_KEY_TIME, Date.now());
             indicator.textContent = "🟢 — MàJ OK — États au : " + new Date().toLocaleString();
@@ -386,7 +390,7 @@ async function checkAndUpdate(forceUpdate=false){
             indicator.textContent = "🟢 — MàJ OK — États inchangés depuis le : " + new Date(lastWriteTime).toLocaleString();
         }
 
-        renderPonts(merged);
+        renderPonts(mergedSorted);
 
     } catch(err){
         const cachedRaw = localStorage.getItem(CACHE_KEY_DATA);
@@ -413,7 +417,7 @@ async function checkAndUpdate(forceUpdate=false){
     setInterval(()=>checkAndUpdate(false), REFRESH_INTERVAL);
 
     // Réinitialiser scores proxies toutes les 5 min
-    setInterval(()=>{
+    setInterval(()=>{ 
         proxyPool.forEach(p=>{ if(typeof p.score !== 'number') p.score=5; });
         saveProxyStore();
         console.log("⏱️ Scores proxies recalculés", proxyPool.map(p=>({url:p.url,score:p.score})));
