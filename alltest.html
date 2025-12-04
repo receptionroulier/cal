@@ -2,13 +2,15 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Double iframe ultra fluide</title>
+<title>Tableau double iframe – Rechargement intelligent</title>
+
 <style>
   html, body {
     margin: 0;
     padding: 0;
     height: 100%;
   }
+
   #container {
     display: flex;
     height: 100vh;
@@ -23,11 +25,11 @@
 
   iframe {
     position: absolute;
-    top: 0;
-    left: 0;
+    inset: 0;
     width: 100%;
     height: 100%;
     border: none;
+    transition: opacity 0.25s linear;
   }
 
   .hidden {
@@ -38,59 +40,86 @@
   .visible {
     opacity: 1;
   }
-
-  /* Transition douce si tu veux */
-  iframe {
-    transition: opacity 0.3s linear;
-  }
 </style>
 </head>
+
 <body>
 
 <div id="container">
-  <!-- Zone gauche -->
-  <div class="frame-wrapper" style="width:25%">
+  
+  <!-- Zone gauche (25%) -->
+  <div class="frame-wrapper" style="width: 25%;">
     <iframe id="leftA" class="visible"
             src="https://receptionroulier.github.io/cal/p.html"></iframe>
     <iframe id="leftB" class="hidden"></iframe>
   </div>
 
-  <!-- Zone droite -->
-  <div class="frame-wrapper" style="width:75%">
+  <!-- Zone droite (75%) -->
+  <div class="frame-wrapper" style="width: 75%;">
     <iframe id="rightA" class="visible"
             src="https://receptionroulier.github.io/cal/caltest.html"></iframe>
     <iframe id="rightB" class="hidden"></iframe>
   </div>
+
 </div>
 
 <script>
-const REFRESH_MS = 5000; // 5 secondes
+/*
+    Fonction de surveillance :
+    - Vérifie le fichier version toutes les 1 seconde
+    - Si la version change → recharge l’iframe (double-buffer)
+*/
+function monitor(urlVersion, iframeA, iframeB, pageUrl) {
+    let lastVersion = null;
 
-function setupDoubleBuffer(idA, idB, url) {
-  let visible = document.getElementById(idA);
-  let hidden  = document.getElementById(idB);
+    setInterval(async () => {
+        try {
+            // On ajoute un timestamp pour éviter le cache
+            const response = await fetch(urlVersion + "?_=" + Date.now());
+            const version = await response.text();
 
-  setInterval(() => {
-    // charger en arrière-plan
-    hidden.src = url;
+            if (version !== lastVersion) {
+                lastVersion = version;
 
-    hidden.onload = () => {
-      // swap instantané
-      visible.classList.add("hidden");
-      visible.classList.remove("visible");
+                // On recharge dans l’iframe cachée (double-buffer)
+                iframeB.src = pageUrl + "?v=" + version;
 
-      hidden.classList.add("visible");
-      hidden.classList.remove("hidden");
+                iframeB.onload = () => {
+                    // Swap : B devient visible, A devient cachée
+                    iframeA.classList.add("hidden");
+                    iframeA.classList.remove("visible");
 
-      // inverser les rôles
-      [visible, hidden] = [hidden, visible];
-    };
-  }, REFRESH_MS);
+                    iframeB.classList.add("visible");
+                    iframeB.classList.remove("hidden");
+
+                    // Permutation des références
+                    const temp = iframeA;
+                    iframeA = iframeB;
+                    iframeB = temp;
+                };
+            }
+
+        } catch (error) {
+            console.error("Erreur lors de la vérification :", error);
+        }
+    }, 1000); // Vérification toutes les secondes
 }
 
-// Activation double buffering
-setupDoubleBuffer("leftA",  "leftB",  "https://receptionroulier.github.io/cal/p.html");
-setupDoubleBuffer("rightA", "rightB", "https://receptionroulier.github.io/cal/caltest.html");
+// Activation pour la page de gauche
+monitor(
+    "https://receptionroulier.github.io/cal/p.version.txt",
+    document.getElementById("leftA"),
+    document.getElementById("leftB"),
+    "https://receptionroulier.github.io/cal/p.html"
+);
+
+// Activation pour la page de droite
+monitor(
+    "https://receptionroulier.github.io/cal/caltest.version.txt",
+    document.getElementById("rightA"),
+    document.getElementById("rightB"),
+    "https://receptionroulier.github.io/cal/caltest.html"
+);
 </script>
 
 </body>
