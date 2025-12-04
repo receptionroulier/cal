@@ -346,7 +346,7 @@ async function checkAndUpdate(forceUpdate=false){
         if(cached){
             try {
                 renderPonts(JSON.parse(cached));
-                indicator.textContent = "🟢 — MàJ vérifiée : " + new Date(parseInt(last)).toLocaleString();
+                indicator.textContent = "🟢 — MàJ OK — États inchangés depuis le : " + new Date(parseInt(last)).toLocaleString();
                 return;
             } catch(e){
                 console.warn("cache parse error", e);
