@@ -338,7 +338,7 @@ async function checkAndUpdate(forceUpdate=false){
         const cached = localStorage.getItem(CACHE_KEY_DATA);
         if(cached){ 
             renderPonts(JSON.parse(cached)); 
-            indicator.textContent = `🟢 — MàJ OK à ${nowStr} — États inchangés depuis le ${lastStr}`;
+            indicator.textContent = `🟢 — MàJ OK le ${nowStr} — États inchangés depuis le ${lastStr}`;
             return; 
         }
     }
@@ -388,9 +388,9 @@ async function checkAndUpdate(forceUpdate=false){
             localStorage.setItem(CACHE_KEY_DATA, JSON.stringify(mergedSorted));
             localStorage.setItem(CACHE_KEY_HASH, newHash);
             localStorage.setItem(CACHE_KEY_TIME, Date.now());
-            indicator.textContent = `🟢 — MàJ OK à ${nowStr} — États mis à jour`;
+            indicator.textContent = `🟢 — MàJ OK le ${nowStr} — États mis à jour`;
         } else {
-            indicator.textContent = `🟢 — MàJ OK à ${nowStr} — États inchangés depuis le ${lastStr}`;
+            indicator.textContent = `🟢 — MàJ OK le ${nowStr} — États inchangés depuis le ${lastStr}`;
         }
 
         renderPonts(mergedSorted);
@@ -403,14 +403,14 @@ async function checkAndUpdate(forceUpdate=false){
         if(cachedRaw){
             try{
                 renderPonts(JSON.parse(cachedRaw));
-                indicator.textContent = `🔴 — MàJ échouée à ${nowStr} — États au ${lastStr}`;
+                indicator.textContent = `🔴 — MàJ échouée le ${nowStr} — États au ${lastStr}`;
                 updateProxyScores("https://www.havre-port.com/map/getPonts").catch(e=>console.warn(e));
             } catch(e){
                 container.innerHTML='<div class="error-message">Impossible de récupérer les ponts et le cache est corrompu.</div>';
             }
         } else {
             container.innerHTML='<div class="error-message">Impossible de récupérer les ponts et aucun cache disponible.</div>';
-            indicator.textContent=`🔴 — MàJ échouée à ${nowStr} : aucun cache`;
+            indicator.textContent=`🔴 — MàJ échouée le ${nowStr} : aucun cache`;
         }
     }
 }
