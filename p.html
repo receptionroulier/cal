@@ -327,7 +327,10 @@ function renderPonts(list){
 /* ===================== CHECK+UPDATE ===================== */
 async function checkAndUpdate(forceUpdate=false){
     const now = Date.now();
+    const nowStr = new Date(now).toLocaleString();
     const lastWriteTime = parseInt(localStorage.getItem(CACHE_KEY_TIME)||0);
+    const lastStr = lastWriteTime ? new Date(lastWriteTime).toLocaleString() : "inconnue";
+
     const container = document.getElementById("ponts-table");
     const indicator = document.getElementById("update-indicator");
 
@@ -335,7 +338,7 @@ async function checkAndUpdate(forceUpdate=false){
         const cached = localStorage.getItem(CACHE_KEY_DATA);
         if(cached){ 
             renderPonts(JSON.parse(cached)); 
-            indicator.textContent = "🟢 — États inchangés depuis le : " + new Date(lastWriteTime).toLocaleString(); 
+            indicator.textContent = `🟢 — MàJ OK à ${nowStr} — États inchangés depuis le ${lastStr}`;
             return; 
         }
     }
@@ -385,9 +388,9 @@ async function checkAndUpdate(forceUpdate=false){
             localStorage.setItem(CACHE_KEY_DATA, JSON.stringify(mergedSorted));
             localStorage.setItem(CACHE_KEY_HASH, newHash);
             localStorage.setItem(CACHE_KEY_TIME, Date.now());
-            indicator.textContent = "🟢 — MàJ OK — États au : " + new Date().toLocaleString();
+            indicator.textContent = `🟢 — MàJ OK à ${nowStr} — États mis à jour`;
         } else {
-            indicator.textContent = "🟢 — MàJ OK — États inchangés depuis le : " + new Date(lastWriteTime).toLocaleString();
+            indicator.textContent = `🟢 — MàJ OK à ${nowStr} — États inchangés depuis le ${lastStr}`;
         }
 
         renderPonts(mergedSorted);
@@ -395,17 +398,19 @@ async function checkAndUpdate(forceUpdate=false){
     } catch(err){
         const cachedRaw = localStorage.getItem(CACHE_KEY_DATA);
         const lastWrite = parseInt(localStorage.getItem(CACHE_KEY_TIME)||0);
+        const lastStr = lastWrite ? new Date(lastWrite).toLocaleString() : "inconnue";
+
         if(cachedRaw){
             try{
                 renderPonts(JSON.parse(cachedRaw));
-                indicator.textContent = "🔴 — MàJ échouée — États au : " + new Date(lastWrite).toLocaleString();
+                indicator.textContent = `🔴 — MàJ échouée à ${nowStr} — États au ${lastStr}`;
                 updateProxyScores("https://www.havre-port.com/map/getPonts").catch(e=>console.warn(e));
             } catch(e){
                 container.innerHTML='<div class="error-message">Impossible de récupérer les ponts et le cache est corrompu.</div>';
             }
         } else {
             container.innerHTML='<div class="error-message">Impossible de récupérer les ponts et aucun cache disponible.</div>';
-            indicator.textContent="🔴 — MàJ échouée : aucun cache";
+            indicator.textContent=`🔴 — MàJ échouée à ${nowStr} : aucun cache`;
         }
     }
 }
