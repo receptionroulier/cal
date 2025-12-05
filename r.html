@@ -1,645 +1,151 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tableau de bord - Ponts - Navires & Calendrier Réception</title>
-    <style>
-        /* Reset et styles globaux */
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: Arial, sans-serif;
-            background: #101010;
-            color: #eaeaea;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            height: 100vh;
-            overflow: hidden;
-        }
-        .main-container {
-            display: flex;
-            width: 100%;
-            height: 100vh;
-        }
-        .page {
-            height: 100%;
-            box-sizing: border-box;
-            overflow-y: auto;
-            padding: 5px;
-        }
-        .page:first-child {
-            flex: 0.2; /* 20% pour la gauche */
-            border-right: 1px solid #333;
-        }
-        .page:last-child {
-            flex: 0.8; /* 80% pour la droite */
-        }
-        /* Conteneur du calendrier */
-        #calendar-container {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-        }
-    </style>
+<meta charset="UTF-8">
+<title>Tableau de bord - Ponts - Navires & Calendrier Réception</title>
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+}
+
+#container {
+    display: flex;
+    height: 100vh;
+    width: 100%;
+}
+
+.frame-wrapper {
+    position: relative;
+    height: 100%;
+    overflow: hidden;
+}
+
+iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.6s ease-in-out;
+}
+
+.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+</style>
 </head>
 <body>
-    <div class="main-container">
-        <!-- Page de gauche : Ponts -->
-        <div class="page">
-            <div class="container">
-                <h2>État des Ponts</h2>
-                <div id="ponts-table">Chargement...</div>
-            </div>
-            <style>
-                /* Styles spécifiques à la page des ponts */
-                .container {
-                    width: 100%;
-                    padding: 5px;
-                    box-sizing: border-box;
-                    overflow-y: auto;
-                    height: 100%;
-                }
-                h2 {
-                    text-align: center;
-                    color: #00e5ff;
-                    margin: 0 0 15px;
-                }
-                #ponts-table {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 10px;
-                }
-                .pont-card {
-                    background: #1f1f1f;
-                    border-radius: 8px;
-                    padding: 5px 12px;
-                    box-shadow: 0 0 5px rgba(0,0,0,0.4);
-                    border-left: 4px solid #444;
-                    transition: transform 0.15s ease, box-shadow 0.3s ease;
-                }
-                .pont-card:hover { transform: scale(1.02); }
-                .pont-card.ferme { border-left-color: #ff4040; }
-                .pont-card.fermeture { border-left-color: orange; animation: pulse-orange 1.2s infinite; }
-                .pont-card.manoeuvre { border-left-color: #1c3cff; animation: pulse-blue 1.2s infinite; }
-                .pont-card.ouvert { border-left-color: #58ff58; }
-                .pastille { width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; display: inline-block; }
-                .ferme .pastille { background: #ff4040; }
-                .fermeture .pastille { background: orange; }
-                .manoeuvre .pastille { background: #1c3cff; }
-                .ouvert .pastille { background: #58ff58; }
-                .pont-nom { font-weight: bold; display: flex; align-items: center; }
-                .pont-infos { font-size: 0.85em; color: #ccc; }
-                @keyframes pulse-blue {
-                    0%, 100% { box-shadow: 0 0 5px rgba(28,60,255,0.4); transform: scale(1); }
-                    50% { box-shadow: 0 0 20px rgba(28,60,255,0.7); transform: scale(1.02); }
-                }
-                @keyframes pulse-orange {
-                    0%, 100% { box-shadow: 0 0 5px rgba(255,165,0,0.4); transform: scale(1); }
-                    50% { box-shadow: 0 0 20px rgba(255,165,0,0.7); transform: scale(1.02); }
-                }
-                .error-message {
-                    text-align: center;
-                    color: #ff4040;
-                    font-weight: bold;
-                }
-            </style>
-            <script>
-                // Scripts pour la page des ponts
-                const CACHE_KEY_DATA = "pontsData";
-                const CACHE_KEY_HASH = "pontsHash";
-                const CACHE_KEY_TIME = "pontsCacheTime";
-                const CACHE_EXPIRATION = 120000;
-                const REFRESH_INTERVAL = 60000;
-                const PROXIES = [
-                    "https://api.allorigins.win/get?url=",
-                    "https://thingproxy.freeboard.io/fetch/"
-                ];
-                async function sha256(str) {
-                    const data = new TextEncoder().encode(str);
-                    const digest = await crypto.subtle.digest("SHA-256", data);
-                    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, "0")).join("");
-                }
-                function normalizeData(data) {
-                    return JSON.stringify(data.map(p => ({ nom: p.nom, statutText: p.statutText, date: p.date, forceText: p.forceText || "" })).sort((a, b) => a.nom.localeCompare(b.nom)));
-                }
-                async function fetchWithRandomProxy(url) {
-                    const shuffledProxies = [...PROXIES].sort(() => Math.random() - 0.5);
-                    for (const proxy of shuffledProxies) {
-                        try {
-                            const fullUrl = proxy + encodeURIComponent(url);
-                            const res = await fetch(fullUrl);
-                            if (!res.ok) throw new Error(`Proxy failed: ${res.status}`);
-                            const data = await res.json();
-                            return data.contents ? data.contents : data;
-                        } catch (err) { console.warn(`Échec du proxy ${proxy}:`, err.message); }
-                    }
-                    throw new Error("Tous les proxys ont échoué");
-                }
-                async function checkAndUpdate() {
-                    const now = Date.now();
-                    const last = localStorage.getItem(CACHE_KEY_TIME);
-                    const container = document.getElementById("ponts-table");
-                    if (last && now - last < CACHE_EXPIRATION) {
-                        const cached = localStorage.getItem(CACHE_KEY_DATA);
-                        if (cached) { renderPonts(JSON.parse(cached)); return; }
-                    }
-                    try {
-                        const rawContent = await fetchWithRandomProxy("https://www.havre-port.com/map/getPonts");
-                        const json = JSON.parse(rawContent).data;
-                        if (!json) throw new Error("Données API manquantes");
-                        const ponts = Object.values(json);
-                        const unique = Array.from(new Map(ponts.map(p => [p.nom, p])).values());
-                        const ordered = unique.sort((a, b) => {
-                            const score = p => {
-                                const s = p.statutText.toLowerCase();
-                                if (s.includes("fermé")) return 1;
-                                if (s.includes("fermeture")) return 2;
-                                if (s.includes("manoeuvre")) return 3;
-                                if (s.includes("ouvert")) return 4;
-                                return 5;
-                            };
-                            return score(a) - score(b);
-                        });
-                        const norm = normalizeData(ordered);
-                        const newHash = await sha256(norm);
-                        const oldHash = localStorage.getItem(CACHE_KEY_HASH);
-                        if (newHash !== oldHash) {
-                            localStorage.setItem(CACHE_KEY_DATA, JSON.stringify(ordered));
-                            localStorage.setItem(CACHE_KEY_HASH, newHash);
-                        }
-                        localStorage.setItem(CACHE_KEY_TIME, Date.now());
-                        renderPonts(ordered);
-                    } catch (err) {
-                        console.error("Erreur récupération ponts:", err);
-                        container.innerHTML = `<div class="error-message">Impossible de récupérer les ponts.<br>${err.message}</div>`;
-                    }
-                }
-                function renderPonts(list) {
-                    const container = document.getElementById("ponts-table");
-                    if (!list || !list.length) {
-                        container.innerHTML = '<div class="error-message">Aucun pont disponible.</div>';
-                        return;
-                    }
-                    container.innerHTML = list.map(p => {
-                        const statut = p.statutText.toLowerCase();
-                        const open = statut.includes("ouvert");
-                        const move = statut.includes("manoeuvre");
-                        const fermeture = statut.includes("fermeture");
-                        const ferme = statut.includes("fermé");
-                        const cls = ferme ? "ferme" : fermeture ? "fermeture" : move ? "manoeuvre" : open ? "ouvert" : "ferme";
-                        const info = p.forceText || `MàJ : ${p.date}`;
-                        return `<div class="pont-card ${cls}"><div class="pont-nom"><span class="pastille" aria-label="Statut: ${p.statutText}"></span>${p.nom}</div><div class="pont-etat">${p.statutText}</div><div class="pont-infos">${info}</div></div>`;
-                    }).join("");
-                }
-                checkAndUpdate();
-                setInterval(checkAndUpdate, REFRESH_INTERVAL);
-            </script>
-        </div>
 
-        <!-- Page de droite : Calendrier -->
-        <div class="page" id="calendar-container">
-            <div id="calendar-header">
-                <span class="nav-btn" id="prev-btn">‹</span>
-                <span id="calendar-title">Chargement…</span>
-                <span class="nav-btn" id="next-btn">›</span>
-                <span class="view-btn" id="view-3w">3 semaines</span>
-                <span class="view-btn" id="view-4w">4 semaines</span>
-                <span class="nav-btn" id="today-btn" style="font-size:16px">Aujourd’hui</span>
-            </div>
-            <div id="calendar-wrap">
-                <div id="calendar" role="grid" aria-label="Calendrier"></div>
-                <div id="events-layer" aria-hidden="false"></div>
-            </div>
-            <div id="event-modal" onclick="hideModal()">
-                <div class="modal-card" id="modal-content" onclick="event.stopPropagation()"></div>
-            </div>
-            <style>
-                /* Styles spécifiques au calendrier */
-                #calendar-header {
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 12px;
-                    padding: 12px 10px;
-                    color: #00e5ff;
-                    border-bottom: 1px solid #333;
-                }
-                .nav-btn {
-                    cursor: pointer;
-                    color: #00e5ff;
-                    font-size: 26px;
-                    padding: 4px 10px;
-                    border-radius: 6px;
-                }
-                .nav-btn:hover { background: #222; }
-                .view-btn {
-                    cursor: pointer;
-                    font-size: 14px;
-                    padding: 4px 10px;
-                    background: #222;
-                    border-radius: 6px;
-                    border: 1px solid #333;
-                    color: #00e5ff;
-                }
-                .view-btn:hover { background: #333; }
-                #calendar-wrap {
-                    flex: 1;
-                    display: flex;
-                    flex-direction: column;
-                    min-height: 0;
-                    position: relative;
-                    height: calc(100% - 44px);
-                }
-                #calendar {
-                    display: grid;
-                    grid-template-columns: repeat(7, 1fr);
-                    gap: 6px;
-                    padding: 10px;
-                    align-content: start;
-                    position: relative;
-                    width: 100%;
-                }
-                .day-cell {
-                    background: #1c1c1c;
-                    border: 1px solid #333;
-                    border-radius: 10px;
-                    padding: 6px;
-                    position: relative;
-                    overflow: hidden;
-                    min-height: 80px;
-                }
-                .date-label {
-                    font-size: 0.72rem;
-                    color: #cbd6da;
-                    margin-bottom: 6px;
-                    font-weight: 400;
-                }
-                #events-layer {
-                    position: absolute;
-                    left: 2px;
-                    right: 6px;
-                    top: 10px;
-                    bottom: 10px;
-                    pointer-events: none;
-                }
-                .multi-band, .single-evt {
-                    pointer-events: auto;
-                    position: absolute;
-                    display: flex;
-                    align-items: center;
-                    padding: 0 8px;
-                    height: 22px;
-                    border-radius: 6px;
-                    font-size: 0.78rem;
-                    color: #fff;
-                    white-space: nowrap;
-                    overflow: hidden;
-                    box-shadow: 0 1px 0 rgba(0,0,0,0.2) inset;
-                }
-                .reception { background: #109c53; }
-                .navire { background: #3644b3; }
-                .multi-band .start {
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                    white-space: nowrap;
-                    margin-right: 8px;
-                }
-                .multi-band .end { margin-left: auto; }
-                .single-evt {
-                    border-radius: 6px;
-                    padding: 0 8px;
-                    display: flex;
-                    align-items: center;
-                }
-                .more-events {
-                    position: absolute;
-                    top: 6px;
-                    right: 8px;
-                    padding: 2px 6px;
-                    background: rgba(0,0,0,0.45);
-                    border-radius: 6px;
-                    font-size: 0.72rem;
-                    cursor: pointer;
-                    z-index: 60;
-                    pointer-events: auto;
-                }
-                #event-modal {
-                    position: fixed;
-                    inset: 0;
-                    display: none;
-                    align-items: center;
-                    justify-content: center;
-                    background: rgba(0,0,0,0.65);
-                    z-index: 999;
-                }
-                .modal-card {
-                    background: #222;
-                    padding: 18px;
-                    border-radius: 10px;
-                    max-width: 720px;
-                    width: 94%;
-                }
-                .modal-card h3 { margin-bottom: 6px; }
-                .modal-item { margin-bottom: 10px; }
-                .modal-item p {
-                    color: #dbe7ea;
-                    margin-top: 6px;
-                }
-                @media (max-width: 720px) { .day-cell { min-height: 68px; } }
-            </style>
-            <script>
-                // Scripts pour le calendrier
-                const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
-                const CALENDAR_IDS = { reception: 'receptionroulier@gmail.com', navire: 'smr.programme@gmail.com' };
-                const CACHE_KEY = 'caltest_v2_cache';
-                const CACHE_TTL = 30000;
-                let weekView = 3;
-                let currentStartDate = new Date();
-                function getMonday(d) {
-                    const date = new Date(d);
-                    const day = date.getDay();
-                    const diff = (day === 0 ? -6 : 1 - day);
-                    date.setDate(date.getDate() + diff);
-                    date.setHours(0, 0, 0, 0);
-                    return date;
-                }
-                function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
-                function fmtTime(d) { return d ? new Date(d).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : ''; }
-                function fmtDayLabel(d) { return d.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit' }); }
-                function fmtFullDate(d) { return new Date(d).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long' }); }
-                function saveCache(items, hash) { try { localStorage.setItem(CACHE_KEY, JSON.stringify({ items, hash, ts: Date.now() })); } catch(e) {} }
-                function loadCache() {
-                    try {
-                        const raw = localStorage.getItem(CACHE_KEY);
-                        if (!raw) return null;
-                        const obj = JSON.parse(raw);
-                        if (Date.now() - (obj.ts || 0) > CACHE_TTL) return null;
-                        return obj;
-                    } catch(e) { return null; }
-                }
-                function hashItems(items) {
-                    return JSON.stringify(items).split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0);
-                }
-                async function fetchCalendar(calendarId, timeMin, timeMax) {
-                    const base = 'https://www.googleapis.com/calendar/v3/calendars/';
-                    const url = base + encodeURIComponent(calendarId) + '/events' + '?key=' + encodeURIComponent(API_KEY) + '&singleEvents=true&orderBy=startTime' + '&timeMin=' + encodeURIComponent(timeMin.toISOString()) + '&timeMax=' + encodeURIComponent(timeMax.toISOString());
-                    const res = await fetch(url);
-                    if (!res.ok) throw new Error('Erreur fetch calendar ' + res.status);
-                    return res.json();
-                }
-                async function renderCalendar() {
-                    const calendarEl = document.getElementById('calendar');
-                    const eventsLayer = document.getElementById('events-layer');
-                    calendarEl.innerHTML = '';
-                    eventsLayer.innerHTML = '';
-                    const today = new Date(currentStartDate);
-                    const thisMonday = getMonday(today);
-                    const pastMonday = new Date(thisMonday);
-                    pastMonday.setDate(thisMonday.getDate() - 7);
-                    const startDate = pastMonday;
-                    const totalDays = weekView * 7;
-                    const headerH = document.getElementById('calendar-header').getBoundingClientRect().height;
-                    const availH = Math.max(240, window.innerHeight - headerH - 32);
-                    const rowH = Math.floor((availH - 20) / weekView);
-                    calendarEl.style.gridAutoRows = rowH + 'px';
-                    const cellMap = [];
-                    const months = new Set();
-                    for (let i = 0; i < totalDays; i++) {
-                        const d = new Date(startDate);
-                        d.setDate(d.getDate() + i);
-                        d.setHours(0, 0, 0, 0);
-                        const cell = document.createElement('div');
-                        cell.className = 'day-cell';
-                        const label = document.createElement('div');
-                        label.className = 'date-label';
-                        label.textContent = fmtDayLabel(d);
-                        cell.appendChild(label);
-                        calendarEl.appendChild(cell);
-                        cellMap.push({ date: d, el: cell, eventsList: [], visibleCount: 0 });
-                        months.add(capitalize(d.toLocaleString('fr-FR', { month: 'long' })));
-                    }
-                    const timeMin = new Date(startDate);
-                    timeMin.setHours(0, 0, 0, 0);
-                    const timeMax = new Date(timeMin);
-                    timeMax.setDate(timeMax.getDate() + totalDays);
-                    const cache = loadCache();
-                    let items;
-                    if (cache) items = cache.items;
-                    else {
-                        const [r1, r2] = await Promise.allSettled([
-                            fetchCalendar(CALENDAR_IDS.reception, timeMin, timeMax),
-                            fetchCalendar(CALENDAR_IDS.navire, timeMin, timeMax)
-                        ]);
-                        const items1 = r1.status === 'fulfilled' ? (r1.value.items || []) : [];
-                        const items2 = r2.status === 'fulfilled' ? (r2.value.items || []) : [];
-                        items = [
-                            ...items1.map(i => ({ ...i, __type: 'reception' })),
-                            ...items2.map(i => ({ ...i, __type: 'navire' }))
-                        ];
-                        saveCache(items, hashItems(items));
-                    }
-                    const norm = items.map(ev => {
-                        const e = JSON.parse(JSON.stringify(ev));
-                        e.__type = e.__type || '';
-                        e._isAllDay = !!(e.start && e.start.date && !e.start.dateTime);
-                        if (e.start) {
-                            if (e.start.dateTime) e._start = new Date(e.start.dateTime);
-                            else { e._start = new Date(e.start.date); e._start.setHours(0, 0, 0, 0); }
-                        }
-                        if (e.end) {
-                            if (e.end.dateTime) e._end = new Date(e.end.dateTime);
-                            else { e._end = new Date(e.end.date); e._end.setHours(0, 0, 0, 0); }
-                        }
-                        if (e._isAllDay && e._end) {
-                            const adj = new Date(e._end);
-                            adj.setDate(adj.getDate() - 1);
-                            adj.setHours(23, 59, 59, 999);
-                            e._endInclusive = adj;
-                        } else if (e._end) {
-                            const tmp = new Date(e._end);
-                            if (tmp.getHours() === 0 && tmp.getMinutes() === 0 && tmp.getSeconds() === 0) {
-                                const adj = new Date(tmp);
-                                adj.setDate(adj.getDate() - 1);
-                                adj.setHours(23, 59, 59, 999);
-                                e._endInclusive = adj;
-                            } else { e._endInclusive = new Date(e._end); }
-                        }
-                        return e;
-                    }).filter(e => e._start && e._endInclusive);
-                    const segments = [];
-                    function dateToIndex(dt) {
-                        const t = new Date(dt);
-                        t.setHours(0, 0, 0, 0);
-                        for (let i = 0; i < cellMap.length; i++) if (cellMap[i].date.getTime() === t.getTime()) return i;
-                        return -1;
-                    }
-                    norm.forEach(ev => {
-                        const sDay = new Date(ev._start);
-                        sDay.setHours(0, 0, 0, 0);
-                        const eDay = new Date(ev._endInclusive);
-                        eDay.setHours(0, 0, 0, 0);
-                        let cursor = new Date(sDay);
-                        while (cursor <= eDay) {
-                            const weekIndex = Math.floor((cursor - startDate) / (7 * 24 * 3600 * 1000));
-                            if (weekIndex < 0) { cursor = new Date(startDate); continue; }
-                            if (weekIndex >= weekView) break;
-                            const weekStartIdx = weekIndex * 7;
-                            const weekEndIdx = Math.min(weekStartIdx + 6, cellMap.length - 1);
-                            let segStartIdx = -1;
-                            for (let i = weekStartIdx; i <= weekEndIdx; i++) {
-                                if (cellMap[i].date.getTime() >= cursor.getTime()) { segStartIdx = i; break; }
-                            }
-                            if (segStartIdx === -1) { cursor = new Date(cellMap[weekEndIdx].date); cursor.setDate(cursor.getDate() + 1); continue; }
-                            let segEndIdx = -1;
-                            for (let i = weekEndIdx; i >= weekStartIdx; i--) {
-                                if (cellMap[i].date.getTime() <= eDay.getTime()) { segEndIdx = i; break; }
-                            }
-                            if (segEndIdx === -1) { cursor = new Date(cellMap[weekEndIdx].date); cursor.setDate(cursor.getDate() + 1); continue; }
-                            segments.push({
-                                ev,
-                                startIdx: segStartIdx,
-                                endIdx: segEndIdx,
-                                weekIdx: weekIndex,
-                                segStartDate: new Date(cellMap[segStartIdx].date),
-                                segEndDate: new Date(cellMap[segEndIdx].date)
-                            });
-                            cursor = new Date(cellMap[segEndIdx].date);
-                            cursor.setDate(cursor.getDate() + 1);
-                        }
-                    });
-                    const weekLanes = Array.from({ length: weekView }, () => []);
-                    segments.forEach(seg => {
-                        const lanes = weekLanes[seg.weekIdx];
-                        let lane = 0;
-                        function overlaps(l) { const arr = lanes[l] || []; return arr.some(r => !(seg.endIdx < r.startIdx || seg.startIdx > r.endIdx)); }
-                        while (overlaps(lane)) lane++;
-                        if (!lanes[lane]) lanes[lane] = [];
-                        lanes[lane].push({ startIdx: seg.startIdx, endIdx: seg.endIdx });
-                        seg.lane = lane;
-                    });
-                    cellMap.forEach(c => { c.eventsList = []; c.totalSegments = 0; });
-                    segments.forEach(seg => {
-                        for (let i = seg.startIdx; i <= seg.endIdx; i++) {
-                            if (i >= 0 && i < cellMap.length) {
-                                cellMap[i].totalSegments++;
-                                if (!cellMap[i].eventsList.includes(seg.ev)) cellMap[i].eventsList.push(seg.ev);
-                            }
-                        }
-                    });
-                    await new Promise(r => requestAnimationFrame(r));
-                    const calendarRect = calendarEl.getBoundingClientRect();
-                    const cellRects = cellMap.map(c => c.el.getBoundingClientRect());
-                    const dateLabel = document.querySelector('.date-label');
-                    const dateLabelH = dateLabel ? dateLabel.getBoundingClientRect().height : 18;
-                    const bandH = 22;
-                    const laneGap = 6;
-                    const bandSpacing = bandH + laneGap;
-                    const weekTopBase = [];
-                    for (let w = 0; w < weekView; w++) {
-                        const idx = w * 7;
-                        weekTopBase[w] = idx < cellRects.length ? (cellRects[idx].top - calendarRect.top) : 0;
-                    }
-                    const visibleLanesPerWeek = [];
-                    for (let w = 0; w < weekView; w++) {
-                        const avail = rowH - (dateLabelH + 8);
-                        const lanes = Math.max(0, Math.floor((avail + laneGap) / bandSpacing));
-                        visibleLanesPerWeek[w] = lanes;
-                    }
-                    segments.forEach(seg => {
-                        const firstRect = cellRects[seg.startIdx];
-                        const lastRect = cellRects[seg.endIdx];
-                        if (!firstRect || !lastRect) return;
-                        const left = firstRect.left - calendarRect.left;
-                        const width = (lastRect.left + lastRect.width) - firstRect.left - 6;
-                        const el = document.createElement('div');
-                        el.className = 'multi-band ' + (seg.ev.__type || '');
-                        el.style.left = left + 'px';
-                        el.style.width = Math.max(36, width) + 'px';
-                        const top = (weekTopBase[seg.weekIdx] || 0) + dateLabelH + 6 + (seg.lane * bandSpacing);
-                        el.style.top = top + 'px';
-                        el.style.height = bandH + 'px';
-                        const startSpan = document.createElement('span');
-                        startSpan.className = 'start';
-                        const evStartTime = seg.ev._isAllDay ? '' : fmtTime(seg.ev._start);
-                        startSpan.textContent = (evStartTime ? ('<' + evStartTime + ' ') : '') + (seg.ev.summary || '');
-                        const endSpan = document.createElement('span');
-                        endSpan.className = 'end';
-                        let endTimeText = '';
-                        if (!seg.ev._isAllDay) { const segEnd = new Date(seg.segEndDate); segEnd.setHours(23, 59, 59, 999); endTimeText = '>' + fmtTime(seg.ev._end); }
-                        endSpan.textContent = endTimeText;
-                        el.appendChild(startSpan);
-                        el.appendChild(endSpan);
-                        seg._el = el;
-                        const visibleLanes = visibleLanesPerWeek[seg.weekIdx] || 0;
-                        el.style.display = seg.lane >= visibleLanes ? 'none' : 'flex';
-                        seg._isHidden = seg.lane >= visibleLanes;
-                        el.addEventListener('click', e => { e.stopPropagation(); showEventModal(seg.ev); });
-                        eventsLayer.appendChild(el);
-                    });
-                    cellMap.forEach((c, idx) => {
-                        const weekIdx = Math.floor(idx / 7);
-                        const visibleLanes = visibleLanesPerWeek[weekIdx] || 0;
-                        let visibleCount = 0, hiddenCount = 0;
-                        segments.forEach(seg => {
-                            if (seg.startIdx <= idx && seg.endIdx >= idx && seg.weekIdx === weekIdx) {
-                                if (seg.lane < visibleLanes) visibleCount++;
-                                else hiddenCount++;
-                            }
-                        });
-                        c.visibleCount = visibleCount;
-                        c.hiddenCount = hiddenCount;
-                        if (hiddenCount > 0) {
-                            const badge = document.createElement('div');
-                            badge.className = 'more-events';
-                            badge.textContent = '+' + hiddenCount + ' autres';
-                            badge.addEventListener('click', e => { e.stopPropagation(); showModalForCell(c); });
-                            c.el.appendChild(badge);
-                        }
-                    });
-                    document.getElementById('calendar-title').textContent = Array.from(months).join(' / ');
-                }
-                function showEventModal(ev) {
-                    const modal = document.getElementById('event-modal');
-                    const content = document.getElementById('modal-content');
-                    const start = ev._start, end = ev._end;
-                    const isAll = ev._isAllDay;
-                    const isMulti = !isAll && (new Date(start).toDateString() !== new Date(end).toDateString());
-                    let html = `<h3>${ev.summary || '(sans titre)'}</h3>`;
-                    if (isMulti) html += `<div class="modal-item"><p>Du ${fmtFullDate(start)} à ${fmtTime(start)}<br>Au ${fmtFullDate(end)} à ${fmtTime(end)}</p></div>`;
-                    else if (isAll) html += `<div class="modal-item"><p>Le ${fmtFullDate(start)}</p></div>`;
-                    else html += `<div class="modal-item"><p>Le ${fmtFullDate(start)} à ${fmtTime(start)}</p></div>`;
-                    if (ev.description) html += `<div class="modal-item"><p>${ev.description}</p></div>`;
-                    content.innerHTML = html;
-                    modal.style.display = 'flex';
-                }
-                function hideModal() { document.getElementById('event-modal').style.display = 'none'; }
-                function showModalForCell(cellObj) {
-                    const modal = document.getElementById('event-modal');
-                    const content = document.getElementById('modal-content');
-                    const events = cellObj.eventsList || [];
-                    const list = [];
-                    events.forEach(ev => {
-                        const start = ev._start, end = ev._end;
-                        const isAll = ev._isAllDay;
-                        const isMulti = !isAll && (new Date(start).toDateString() !== new Date(end).toDateString());
-                        if (isMulti) list.push(`<div class="modal-item"><h3>${ev.summary || '(sans titre)'}</h3><p>&lt;${fmtTime(start)} ${ev.summary} … &gt;${fmtTime(ev._end)}</p>${ev.description ? '<p>' + ev.description + '</p>' : ''}</div>`);
-                        else if (isAll) list.push(`<div class="modal-item"><h3>${ev.summary || '(sans titre)'}</h3><p>${fmtFullDate(start)}</p>${ev.description ? '<p>' + ev.description + '</p>' : ''}</div>`);
-                        else list.push(`<div class="modal-item"><h3>${ev.summary || '(sans titre)'}</h3><p>${fmtTime(start)} ${ev.summary}</p>${ev.description ? '<p>' + ev.description + '</p>' : ''}</div>`);
-                    });
-                    content.innerHTML = list.join('<hr style="border:none;border-top:1px solid #333;margin:8px 0">') || '<p>Aucun évènement</p>';
-                    modal.style.display = 'flex';
-                }
-                document.getElementById('prev-btn').addEventListener('click', () => { currentStartDate.setDate(currentStartDate.getDate() - 7); renderCalendar(); });
-                document.getElementById('next-btn').addEventListener('click', () => { currentStartDate.setDate(currentStartDate.getDate() + 7); renderCalendar(); });
-                document.getElementById('today-btn').addEventListener('click', () => { currentStartDate = new Date(); weekView = 3; renderCalendar(); });
-                document.getElementById('view-3w').addEventListener('click', () => { weekView = 3; renderCalendar(); });
-                document.getElementById('view-4w').addEventListener('click', () => { weekView = 4; renderCalendar(); });
-                window.addEventListener('resize', () => { requestAnimationFrame(() => renderCalendar()); });
-                document.getElementById('event-modal').addEventListener('click', hideModal);
-                renderCalendar().catch(err => { console.error('render error', err); document.getElementById('calendar-title').textContent = 'Erreur'; });
-            </script>
-        </div>
-    </div>
+<div id="container">
+  <!-- Partie gauche (25%) -->
+  <div class="frame-wrapper" style="width:25%;">
+    <iframe id="leftA" class="visible" data-src="https://receptionroulier.github.io/cal/p.html"></iframe>
+    <iframe id="leftB" class="hidden" data-src="https://receptionroulier.github.io/cal/p.html"></iframe>
+  </div>
+
+  <!-- Partie droite (75%) -->
+  <div class="frame-wrapper" style="width:75%;">
+    <iframe id="rightA" class="visible" data-src="https://receptionroulier.github.io/cal/calr.html"></iframe>
+    <iframe id="rightB" class="hidden" data-src="https://receptionroulier.github.io/cal/calr.html"></iframe>
+  </div>
+</div>
+
+<script>
+// Fonction Smart Polling + swap iframe
+function monitor(versionURL, iframeA, iframeB, pageURL, delay, preloadImmediate=false) {
+    const state = {
+        active: iframeA,
+        buffer: iframeB,
+        lastVersion: null,
+        isSwapping: false
+    };
+
+    if (!state.active.src) state.active.src = state.active.dataset.src;
+
+    async function checkVersion() {
+        try {
+            const response = await fetch(versionURL + "?_=" + Date.now());
+            const version = await response.text();
+
+            if (version !== state.lastVersion && !state.isSwapping) {
+                state.lastVersion = version;
+                await preloadAndSwap(version);
+            }
+
+        } catch (err) {
+            console.error("Erreur version :", err);
+        }
+    }
+
+    function preloadAndSwap(version) {
+        return new Promise(resolve => {
+            state.isSwapping = true;
+            const { active, buffer } = state;
+
+            buffer.src = buffer.dataset.src + "?v=" + version;
+
+            buffer.onload = () => {
+                active.classList.add("hidden");
+                active.classList.remove("visible");
+                buffer.classList.add("visible");
+                buffer.classList.remove("hidden");
+
+                state.active = buffer;
+                state.buffer = active;
+
+                state.isSwapping = false;
+                resolve();
+            };
+        });
+    }
+
+    async function loop() {
+        await checkVersion();
+        await new Promise(r => setTimeout(r, delay));
+        loop();
+    }
+
+    loop();
+}
+
+// Partie gauche → 1 seconde
+monitor(
+    "https://receptionroulier.github.io/cal/p.version.txt",
+    document.getElementById("leftA"),
+    document.getElementById("leftB"),
+    "https://receptionroulier.github.io/cal/p.html",
+    1000,
+    false
+);
+
+// Partie droite → 5 secondes
+monitor(
+    "https://receptionroulier.github.io/cal/calr.version.txt",
+    document.getElementById("rightA"),
+    document.getElementById("rightB"),
+    "https://receptionroulier.github.io/cal/calr.html",
+    5000,
+    true
+);
+
+// 🔹 Mise à jour interne instantanée du calendrier et de l’heure
+setInterval(() => {
+    const iframe = document.getElementById("rightA"); // iframe visible
+    if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({ type: "refreshTimeAndEvents" }, "*");
+    }
+}, 1000);
+</script>
+
 </body>
 </html>
