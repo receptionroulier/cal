@@ -11,9 +11,10 @@
   /* header */
   #calendar-header{
     display:flex;
+    flex-wrap:wrap; /* permet au contenu de passer à la ligne sur mobile */
     align-items:center;
-    justify-content:flex-start; /* tout à gauche */
-    gap:12px;
+    justify-content:flex-start;
+    gap:8px;
     padding:12px 10px;
     color:#00e5ff;
     border-bottom:1px solid #333;
@@ -34,14 +35,15 @@
     transform:translateX(-50%);
     font-weight:bold;
     font-size:1.2rem;
+    white-space:nowrap;
   }
 
   #current-time{
     position:absolute;
-    right:50px;
+    right:10px;
     top:50%;
     transform:translateY(-50%);
-    font-size:3rem;
+    font-size:2.2rem;
     font-weight:bold;
     color:#00e5ff;
     font-family:Trebuchet MS
@@ -70,7 +72,29 @@
   .modal-card h3{margin-bottom:6px}
   .modal-item{margin-bottom:10px}
   .modal-item p{color:#dbe7ea;margin-top:6px}
-  @media(max-width:720px){ .day-cell{min-height:68px} }
+
+  /* Responsive */
+  @media(max-width:720px){
+    #calendar-header{
+      gap:6px;
+    }
+    .nav-btn{font-size:22px;padding:3px 6px;}
+    .view-btn{font-size:12px;padding:3px 6px;}
+    #current-time{font-size:1.8rem; right:5px;}
+  }
+
+  @media(max-width:500px){
+    #calendar-header{
+      flex-direction:column;
+      align-items:flex-start;
+    }
+    #calendar-title{
+      position:relative;
+      left:auto;
+      transform:none;
+      margin:6px 0;
+    }
+  }
 </style>
 </head>
 <body>
