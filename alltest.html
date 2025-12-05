@@ -28,16 +28,21 @@
     width: 100%;
     height: 100%;
     border: none;
-    transition: opacity 0.25s linear;
+
+    /* Transition plus douce pour crossfade */
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.6s ease-in-out;
+  }
+
+  .visible {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .hidden {
     opacity: 0;
     pointer-events: none;
-  }
-
-  .visible {
-    opacity: 1;
   }
 </style>
 </head>
@@ -90,7 +95,7 @@ function monitor(versionURL, iframeA, iframeB, pageURL) {
         buffer.src = pageURL + "?v=" + version;
 
         buffer.onload = () => {
-            // Swap visuel
+            // Swap visuel (crossfade)
             active.classList.add("hidden");
             active.classList.remove("visible");
 
