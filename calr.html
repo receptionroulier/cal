@@ -64,7 +64,7 @@
   .event-text-container{display:inline-flex;white-space:nowrap;overflow:hidden;width:100%;position:relative;}
   .event-text{white-space:nowrap;display:inline-block;position:relative;}
   .event-text.scrolling{animation:scroll 10s linear infinite;}
-  .event-text.scrolling::after{content:attr(data-text + "     ", data-text);position:absolute;left:100%;white-space:nowrap;}
+  .event-text.scrolling::after{content:attr(data-text,"-----" data-text);position:absolute;left:100%;white-space:nowrap;}
   @keyframes scroll {0% { transform: translateX(0); } 100% { transform: translateX(-100%); }}
   .more-events{position:absolute;top:6px;right:8px;padding:2px 6px;background:rgba(0,0,0,0.45);border-radius:6px;font-size:0.72rem;cursor:pointer;z-index:60;pointer-events:auto}
   #event-modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.65);z-index:999}
