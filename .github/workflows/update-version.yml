@@ -3,8 +3,7 @@ name: Auto update version files
 on:
   push:
     paths:
-      - 'cal/p.html'
-      - 'cal/caltest.html'
+      - 'cal/*.html'
 
 jobs:
   bump-version:
@@ -13,20 +12,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Update p.version.txt
-        if: contains(github.event.head_commit.message, 'p.html')
+      - name: Update version files
         run: |
-          date +%s > cal/p.version.txt
-
-      - name: Update caltest.version.txt
-        if: contains(github.event.head_commit.message, 'caltest.html')
-        run: |
-          date +%s > cal/caltest.version.txt
+          for html in cal/*.html; do
+            version_file="${html%.html}.version.txt"
+            date +%s > "$version_file"
+          done
 
       - name: Commit and push changes
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
           git add cal/*.version.txt
-          git commit -m "Auto-update version files"
+          git commit -m "Auto-update version files" || echo "No changes to commit"
           git push
