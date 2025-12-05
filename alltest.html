@@ -51,16 +51,14 @@
 <div id="container">
   <!-- Zone gauche (25%) -->
   <div class="frame-wrapper" style="width:25%;">
-    <iframe id="leftA" class="visible"
-            src="https://receptionroulier.github.io/cal/p.html"></iframe>
-    <iframe id="leftB" class="hidden"></iframe>
+    <iframe id="leftA" class="visible" data-src="https://receptionroulier.github.io/cal/p.html"></iframe>
+    <iframe id="leftB" class="hidden" data-src="https://receptionroulier.github.io/cal/p.html"></iframe>
   </div>
 
   <!-- Zone droite (75%) -->
   <div class="frame-wrapper" style="width:75%;">
-    <iframe id="rightA" class="visible"
-            src="https://receptionroulier.github.io/cal/caltest.html"></iframe>
-    <iframe id="rightB" class="hidden"></iframe>
+    <iframe id="rightA" class="visible" data-src="https://receptionroulier.github.io/cal/caltest.html"></iframe>
+    <iframe id="rightB" class="hidden" data-src="https://receptionroulier.github.io/cal/caltest.html"></iframe>
   </div>
 </div>
 
@@ -72,6 +70,11 @@ function monitor(versionURL, iframeA, iframeB, pageURL, delay) {
         lastVersion: null,
         isSwapping: false
     };
+
+    // Lazy load initial active iframe
+    if (!state.active.src) {
+        state.active.src = state.active.dataset.src;
+    }
 
     async function checkVersion() {
         try {
@@ -93,7 +96,13 @@ function monitor(versionURL, iframeA, iframeB, pageURL, delay) {
             state.isSwapping = true;
 
             const { active, buffer } = state;
-            buffer.src = pageURL + "?v=" + version;
+
+            // Lazy load buffer iframe si vide
+            if (!buffer.src) {
+                buffer.src = buffer.dataset.src + "?v=" + version;
+            } else {
+                buffer.src = buffer.dataset.src + "?v=" + version;
+            }
 
             buffer.onload = () => {
                 // Crossfade
@@ -115,12 +124,11 @@ function monitor(versionURL, iframeA, iframeB, pageURL, delay) {
 
     async function loop() {
         await checkVersion();
-        // Pause adaptative (smart)
         await new Promise(r => setTimeout(r, delay));
-        loop(); // relance la boucle
+        loop();
     }
 
-    loop(); // démarrage
+    loop();
 }
 
 // Zone gauche → 1 seconde
