@@ -29,7 +29,7 @@
     height: 100%;
     border: none;
 
-    /* Crossfade plus doux */
+    /* Crossfade */
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.6s ease-in-out;
@@ -65,7 +65,7 @@
 </div>
 
 <script>
-function monitor(versionURL, iframeA, iframeB, pageURL, interval) {
+function monitor(versionURL, iframeA, iframeB, pageURL, delay) {
     const state = {
         active: iframeA,
         buffer: iframeB,
@@ -80,37 +80,47 @@ function monitor(versionURL, iframeA, iframeB, pageURL, interval) {
 
             if (version !== state.lastVersion && !state.isSwapping) {
                 state.lastVersion = version;
-                preloadAndSwap(version);
+                await preloadAndSwap(version);
             }
+
         } catch (err) {
             console.error("Erreur de vérification :", err);
         }
     }
 
     function preloadAndSwap(version) {
-        state.isSwapping = true;
+        return new Promise((resolve) => {
+            state.isSwapping = true;
 
-        const { active, buffer } = state;
+            const { active, buffer } = state;
+            buffer.src = pageURL + "?v=" + version;
 
-        buffer.src = pageURL + "?v=" + version;
+            buffer.onload = () => {
+                // Crossfade
+                active.classList.add("hidden");
+                active.classList.remove("visible");
 
-        buffer.onload = () => {
-            // Crossfade
-            active.classList.add("hidden");
-            active.classList.remove("visible");
+                buffer.classList.add("visible");
+                buffer.classList.remove("hidden");
 
-            buffer.classList.add("visible");
-            buffer.classList.remove("hidden");
+                // Swap logique
+                state.active = buffer;
+                state.buffer = active;
 
-            // Swap logique
-            state.active = buffer;
-            state.buffer = active;
-
-            state.isSwapping = false;
-        };
+                state.isSwapping = false;
+                resolve();
+            };
+        });
     }
 
-    setInterval(checkVersion, interval);
+    async function loop() {
+        await checkVersion();
+        // Pause adaptative (smart)
+        await new Promise(r => setTimeout(r, delay));
+        loop(); // relance la boucle
+    }
+
+    loop(); // démarrage
 }
 
 // Zone gauche → 1 seconde
