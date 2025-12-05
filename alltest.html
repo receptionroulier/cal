@@ -63,7 +63,7 @@
 </div>
 
 <script>
-function monitor(versionURL, iframeA, iframeB, pageURL, delay) {
+function monitor(versionURL, iframeA, iframeB, pageURL, delay, preloadImmediate=false) {
     const state = {
         active: iframeA,
         buffer: iframeB,
@@ -71,10 +71,8 @@ function monitor(versionURL, iframeA, iframeB, pageURL, delay) {
         isSwapping: false
     };
 
-    // Lazy load initial active iframe
-    if (!state.active.src) {
-        state.active.src = state.active.dataset.src;
-    }
+    // Lazy load de l'iframe active
+    if (!state.active.src) state.active.src = state.active.dataset.src;
 
     async function checkVersion() {
         try {
@@ -87,28 +85,22 @@ function monitor(versionURL, iframeA, iframeB, pageURL, delay) {
             }
 
         } catch (err) {
-            console.error("Erreur de vérification :", err);
+            console.error("Erreur version :", err);
         }
     }
 
     function preloadAndSwap(version) {
-        return new Promise((resolve) => {
+        return new Promise(resolve => {
             state.isSwapping = true;
-
             const { active, buffer } = state;
 
-            // Lazy load buffer iframe si vide
-            if (!buffer.src) {
-                buffer.src = buffer.dataset.src + "?v=" + version;
-            } else {
-                buffer.src = buffer.dataset.src + "?v=" + version;
-            }
+            // Lazy load du buffer si nécessaire
+            buffer.src = buffer.dataset.src + "?v=" + version;
 
             buffer.onload = () => {
                 // Crossfade
                 active.classList.add("hidden");
                 active.classList.remove("visible");
-
                 buffer.classList.add("visible");
                 buffer.classList.remove("hidden");
 
@@ -124,29 +116,35 @@ function monitor(versionURL, iframeA, iframeB, pageURL, delay) {
 
     async function loop() {
         await checkVersion();
-        await new Promise(r => setTimeout(r, delay));
+
+        // Si préchargement immédiat activé, on ne met pas de délai
+        if (!preloadImmediate) {
+            await new Promise(r => setTimeout(r, delay));
+        }
         loop();
     }
 
     loop();
 }
 
-// Zone gauche → 1 seconde
+// Partie gauche → 1 seconde, pas de préchargement immédiat
 monitor(
     "https://receptionroulier.github.io/cal/p.version.txt",
     document.getElementById("leftA"),
     document.getElementById("leftB"),
     "https://receptionroulier.github.io/cal/p.html",
-    1000
+    1000,
+    false
 );
 
-// Zone droite → 1 seconde
+// Partie droite → 5 secondes, préchargement immédiat
 monitor(
     "https://receptionroulier.github.io/cal/caltest.version.txt",
     document.getElementById("rightA"),
     document.getElementById("rightB"),
     "https://receptionroulier.github.io/cal/caltest.html",
-    1000
+    5000,
+    true
 );
 </script>
 
