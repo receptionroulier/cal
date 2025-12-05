@@ -60,41 +60,55 @@
 </div>
 
 <script>
-function monitor(urlVersion, iframeA, iframeB, pageUrl) {
-    let lastVersion = null;
+function monitor(versionURL, iframeA, iframeB, pageURL) {
+    const state = {
+        active: iframeA,
+        buffer: iframeB,
+        lastVersion: null,
+        isSwapping: false
+    };
 
-    setInterval(async () => {
+    async function checkVersion() {
         try {
-            const response = await fetch(urlVersion + "?_=" + Date.now());
+            const response = await fetch(versionURL + "?_=" + Date.now());
             const version = await response.text();
 
-            if (version !== lastVersion) {
-                lastVersion = version;
-
-                // Préchargement dans l'iframe cachée
-                iframeB.src = pageUrl + "?v=" + version;
-
-                iframeB.onload = () => {
-                    // Swap fluide
-                    iframeA.classList.add("hidden");
-                    iframeA.classList.remove("visible");
-                    iframeB.classList.add("visible");
-                    iframeB.classList.remove("hidden");
-
-                    // Échange des références
-                    const temp = iframeA;
-                    iframeA = iframeB;
-                    iframeB = temp;
-                };
+            if (version !== state.lastVersion && !state.isSwapping) {
+                state.lastVersion = version;
+                preloadAndSwap(version);
             }
-
-        } catch (e) {
-            console.error("Erreur lors de la vérification :", e);
+        } catch (err) {
+            console.error("Erreur de vérification :", err);
         }
-    }, 1000); // Vérification toutes les secondes
+    }
+
+    function preloadAndSwap(version) {
+        state.isSwapping = true;
+
+        const { active, buffer } = state;
+
+        buffer.src = pageURL + "?v=" + version;
+
+        buffer.onload = () => {
+            // Swap visuel
+            active.classList.add("hidden");
+            active.classList.remove("visible");
+
+            buffer.classList.add("visible");
+            buffer.classList.remove("hidden");
+
+            // Swap logique
+            state.active = buffer;
+            state.buffer = active;
+
+            state.isSwapping = false;
+        };
+    }
+
+    setInterval(checkVersion, 1000);
 }
 
-// Activation pour la page de gauche
+// Zone gauche
 monitor(
     "https://receptionroulier.github.io/cal/p.version.txt",
     document.getElementById("leftA"),
@@ -102,7 +116,7 @@ monitor(
     "https://receptionroulier.github.io/cal/p.html"
 );
 
-// Activation pour la page de droite
+// Zone droite
 monitor(
     "https://receptionroulier.github.io/cal/caltest.version.txt",
     document.getElementById("rightA"),
