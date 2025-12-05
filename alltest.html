@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Tableau de Bord Test</title>
+<title>Tableau de bord test</title>
 <style>
 html, body {
     margin: 0;
@@ -62,7 +62,7 @@ iframe {
 
 <script>
 // Fonction Smart Polling + swap iframe (optionnel)
-function monitor(versionURL, iframeA, iframeB, delay, preloadImmediate=false) {
+function monitor(versionURL, iframeA, iframeB, pageURL, delay, preloadImmediate=false) {
     const state = {
         active: iframeA,
         buffer: iframeB,
@@ -100,7 +100,6 @@ function monitor(versionURL, iframeA, iframeB, delay, preloadImmediate=false) {
                 buffer.classList.add("visible");
                 buffer.classList.remove("hidden");
 
-                // Swap logique
                 state.active = buffer;
                 state.buffer = active;
 
@@ -120,9 +119,6 @@ function monitor(versionURL, iframeA, iframeB, delay, preloadImmediate=false) {
     }
 
     loop();
-
-    // Retourne le state pour pouvoir cibler l'iframe active
-    return state;
 }
 
 // Partie gauche → 1 seconde
@@ -130,26 +126,28 @@ monitor(
     "https://receptionroulier.github.io/cal/p.version.txt",
     document.getElementById("leftA"),
     document.getElementById("leftB"),
+    "https://receptionroulier.github.io/cal/p.html",
     1000,
     false
 );
 
 // Partie droite → 5 secondes pour swap complet si nécessaire
-const rightState = monitor(
+monitor(
     "https://receptionroulier.github.io/cal/caltest.version.txt",
     document.getElementById("rightA"),
     document.getElementById("rightB"),
+    "https://receptionroulier.github.io/cal/caltest.html",
     5000,
     true
 );
 
 // 🔹 Mise à jour interne instantanée du calendrier et de l’heure
 setInterval(() => {
-    if (rightState.active && rightState.active.contentWindow) {
-        rightState.active.contentWindow.postMessage({ type: "refreshTimeAndEvents" }, "*");
+    const iframe = document.getElementById("rightA"); // iframe visible
+    if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({ type: "refreshTimeAndEvents" }, "*");
     }
 }, 1000);
-
 </script>
 
 </body>
