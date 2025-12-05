@@ -344,8 +344,16 @@ document.addEventListener('DOMContentLoaded', function() {
     events.forEach(ev=>{
       const start = ev._start, end = ev._end; const isAll = ev._isAllDay;
       const isMulti = !isAll && (new Date(start).toDateString() !== new Date(end).toDateString());
-      if(isMulti) list.push(`<div class="modal-item"><h3>${ev.summary||'(sans titre)'}</h3><p>Du ${fmtFullDate(start)} à ${fmtTime(start)}<br>Au ${fmtFullDate(end)} à ${fmtTime(end)}</p>${ev.description?'<p>'+ev.description+'</p> : ''}</div>`);
-    });
+      if(isMulti) {
+  list.push(
+    `<div class="modal-item">
+      <h3>${ev.summary || '(sans titre)'}</h3>
+      <p>Du ${fmtFullDate(start)} à ${fmtTime(start)}<br>
+      Au ${fmtFullDate(end)} à ${fmtTime(end)}</p>
+      ${ev.description ? ('<p>' + ev.description + '</p>') : ''}
+    </div>`
+  );
+}
     // safer build (no broken ternary)
     if(list.length === 0){
       // fallback: list every event nicely
