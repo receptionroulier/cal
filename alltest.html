@@ -29,7 +29,7 @@
     height: 100%;
     border: none;
 
-    /* Transition plus douce pour crossfade */
+    /* Crossfade plus doux */
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.6s ease-in-out;
@@ -65,7 +65,7 @@
 </div>
 
 <script>
-function monitor(versionURL, iframeA, iframeB, pageURL) {
+function monitor(versionURL, iframeA, iframeB, pageURL, interval) {
     const state = {
         active: iframeA,
         buffer: iframeB,
@@ -95,7 +95,7 @@ function monitor(versionURL, iframeA, iframeB, pageURL) {
         buffer.src = pageURL + "?v=" + version;
 
         buffer.onload = () => {
-            // Swap visuel (crossfade)
+            // Crossfade
             active.classList.add("hidden");
             active.classList.remove("visible");
 
@@ -110,23 +110,25 @@ function monitor(versionURL, iframeA, iframeB, pageURL) {
         };
     }
 
-    setInterval(checkVersion, 1000);
+    setInterval(checkVersion, interval);
 }
 
-// Zone gauche
+// Zone gauche → 1 seconde
 monitor(
     "https://receptionroulier.github.io/cal/p.version.txt",
     document.getElementById("leftA"),
     document.getElementById("leftB"),
-    "https://receptionroulier.github.io/cal/p.html"
+    "https://receptionroulier.github.io/cal/p.html",
+    1000
 );
 
-// Zone droite
+// Zone droite → 5 secondes
 monitor(
     "https://receptionroulier.github.io/cal/caltest.version.txt",
     document.getElementById("rightA"),
     document.getElementById("rightB"),
-    "https://receptionroulier.github.io/cal/caltest.html"
+    "https://receptionroulier.github.io/cal/caltest.html",
+    5000
 );
 </script>
 
