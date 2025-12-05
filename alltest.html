@@ -49,13 +49,13 @@
 <body>
 
 <div id="container">
-  <!-- Zone gauche (25%) -->
+  <!-- Partie gauche (25%) -->
   <div class="frame-wrapper" style="width:25%;">
     <iframe id="leftA" class="visible" data-src="https://receptionroulier.github.io/cal/p.html"></iframe>
     <iframe id="leftB" class="hidden" data-src="https://receptionroulier.github.io/cal/p.html"></iframe>
   </div>
 
-  <!-- Zone droite (75%) -->
+  <!-- Partie droite (75%) -->
   <div class="frame-wrapper" style="width:75%;">
     <iframe id="rightA" class="visible" data-src="https://receptionroulier.github.io/cal/caltest.html"></iframe>
     <iframe id="rightB" class="hidden" data-src="https://receptionroulier.github.io/cal/caltest.html"></iframe>
@@ -63,6 +63,7 @@
 </div>
 
 <script>
+// Fonction Smart Polling + swap iframe
 function monitor(versionURL, iframeA, iframeB, pageURL, delay, preloadImmediate=false) {
     const state = {
         active: iframeA,
@@ -94,7 +95,6 @@ function monitor(versionURL, iframeA, iframeB, pageURL, delay, preloadImmediate=
             state.isSwapping = true;
             const { active, buffer } = state;
 
-            // Lazy load du buffer si nécessaire
             buffer.src = buffer.dataset.src + "?v=" + version;
 
             buffer.onload = () => {
@@ -117,7 +117,6 @@ function monitor(versionURL, iframeA, iframeB, pageURL, delay, preloadImmediate=
     async function loop() {
         await checkVersion();
 
-        // Si préchargement immédiat activé, on ne met pas de délai
         if (!preloadImmediate) {
             await new Promise(r => setTimeout(r, delay));
         }
@@ -127,7 +126,7 @@ function monitor(versionURL, iframeA, iframeB, pageURL, delay, preloadImmediate=
     loop();
 }
 
-// Partie gauche → 1 seconde, pas de préchargement immédiat
+// Partie gauche → 1 seconde
 monitor(
     "https://receptionroulier.github.io/cal/p.version.txt",
     document.getElementById("leftA"),
@@ -146,6 +145,16 @@ monitor(
     5000,
     true
 );
+
+// 🔹 Mise à jour interne de l'heure / animations dans la partie droite
+setInterval(() => {
+    const iframe = document.getElementById("rightA"); // iframe active, swap si nécessaire
+    if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({ type: "refreshTime" }, "*");
+    }
+}, 1000);
+
+// Si tu utilises un buffer actif lors du swap, tu peux adapter le postMessage pour pointer vers state.active
 </script>
 
 </body>
