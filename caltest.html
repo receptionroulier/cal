@@ -7,13 +7,46 @@
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:#0f0f10;color:#fff;display:flex;flex-direction:column;height:100vh}
+
   /* header */
-  #calendar-header{display:flex;align-items:center;justify-content:center;gap:12px;padding:12px 10px;color:#00e5ff;border-bottom:1px solid #333;position:relative}
+  #calendar-header{
+    display:flex;
+    align-items:center;
+    justify-content:flex-start; /* tout à gauche */
+    gap:12px;
+    padding:12px 10px;
+    color:#00e5ff;
+    border-bottom:1px solid #333;
+    position:relative;
+  }
+
   .nav-btn{cursor:pointer;color:#00e5ff;font-size:26px;padding:4px 10px;border-radius:6px}
   .nav-btn:hover{background:#222}
   .view-btn{cursor:pointer;font-size:14px;padding:4px 10px;background:#222;border-radius:6px;border:1px solid #333;color:#00e5ff}
   .view-btn:hover{background:#333}
-  #current-time{position:absolute;right:50px;top:50%;transform:translateY(-50%);font-size:3rem;font-weight:bold;color:#00e5ff;font-family:Trebuchet MS}
+
+  #today-btn{font-size:16px}
+
+  /* titre centré sans affecter les boutons */
+  #calendar-title{
+    position:absolute;
+    left:50%;
+    transform:translateX(-50%);
+    font-weight:bold;
+    font-size:1.2rem;
+  }
+
+  #current-time{
+    position:absolute;
+    right:50px;
+    top:50%;
+    transform:translateY(-50%);
+    font-size:3rem;
+    font-weight:bold;
+    color:#00e5ff;
+    font-family:Trebuchet MS
+  }
+
   #calendar-wrap{flex:1;display:flex;flex-direction:column;min-height:0;position:relative}
   #calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;padding:10px;align-content:start;position:relative}
   .day-cell{background:#1c1c1c;border:1px solid #333;border-radius:10px;padding:6px;position:relative;overflow:hidden;min-height:80px}
@@ -43,17 +76,19 @@
 <body>
 <div id="calendar-header">
   <span class="nav-btn" id="prev-btn">‹</span>
+  <span class="nav-btn" id="today-btn">Aujourd’hui</span>
   <span id="calendar-title">Chargement…</span>
   <span class="nav-btn" id="next-btn">›</span>
   <span class="view-btn" id="view-3w">3 semaines</span>
   <span class="view-btn" id="view-4w">4 semaines</span>
-  <span class="nav-btn" id="today-btn" style="font-size:16px">Aujourd’hui</span>
   <div id="current-time"></div>
 </div>
+
 <div id="calendar-wrap">
   <div id="calendar" role="grid" aria-label="Calendrier"></div>
   <div id="events-layer" aria-hidden="false"></div>
 </div>
+
 <div id="event-modal" onclick="hideModal()">
   <div class="modal-card" id="modal-content" onclick="event.stopPropagation()"></div>
 </div>
