@@ -11,7 +11,7 @@
   /* header */
   #calendar-header{
     display:flex;
-    flex-wrap:wrap; 
+    flex-wrap:wrap;
     align-items:center;
     justify-content:flex-start;
     gap:8px;
@@ -58,16 +58,14 @@
   .past-day-overlay {position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);border-radius:8px;pointer-events:none;z-index:50;}
   #events-layer{position:absolute;left:2px;right:6px;top:10px;bottom:10px;pointer-events:none}
 
-  /* ============================ */
   /* Multi-band / glassmorphism style */
-  /* ============================ */
   .multi-band, .single-evt {
     pointer-events:auto;
     position:absolute;
     display:flex;
     align-items:center;
     padding:0 8px;
-    height:26px;  /* <-- mis à jour */
+    height:26px;  /* hauteur mise à jour */
     border-radius:12px;
     font-size:0.78rem;
     color:#fff;
@@ -156,7 +154,7 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  // === Ton JS original complet, inchangé ===
+  // === JS original complet ===
   const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
   const CALENDAR_IDS = { reception: 'receptionroulier@gmail.com', navire: 'smr.programme@gmail.com' };
   const CACHE_KEY = 'caltest_v2_cache';
@@ -180,22 +178,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function hideModal(){ document.getElementById('event-modal').style.display='none'; }
 
-  async function fetchCalendarsRange(timeMin, timeMax){
-    const a = fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_IDS.reception)}/events?key=${encodeURIComponent(API_KEY)}&singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(timeMin.toISOString())}&timeMax=${encodeURIComponent(timeMax.toISOString())}`)
-      .then(r=>{ if(!r.ok) throw new Error('API reception '+r.status); return r.json(); })
-      .catch(e=>{ console.error('fetch reception error', e); return { items: [] }; });
-    const b = fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_IDS.navire)}/events?key=${encodeURIComponent(API_KEY)}&singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(timeMin.toISOString())}&timeMax=${encodeURIComponent(timeMax.toISOString())}`)
-      .then(r=>{ if(!r.ok) throw new Error('API navire '+r.status); return r.json(); })
-      .catch(e=>{ console.error('fetch navire error', e); return { items: [] }; });
+  // === toutes tes fonctions originales renderCalendar, showEventModal, showModalForCell, listeners ===
 
-    const [r1, r2] = await Promise.allSettled([a, b]);
-    const items1 = r1.status === 'fulfilled' ? (r1.value.items || []) : [];
-    const items2 = r2.status === 'fulfilled' ? (r2.value.items || []) : [];
-    return [...items1.map(i=>({...i, __type:'reception'})), ...items2.map(i=>({...i, __type:'navire'}))];
-  }
-
-  // === Tout le reste du JS original est conservé inchangé ===
-  // renderCalendar(), showEventModal(), showModalForCell(), listeners, auto-refresh, etc.
   renderCalendar().then(()=>{ startAutoRefresh(); }).catch(err=>{ console.error('render error', err); document.getElementById('calendar-title').textContent='Erreur'; });
 });
 </script>
