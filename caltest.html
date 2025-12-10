@@ -1,3 +1,269 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Evalis Port-Vendres - Plan de Chargement</title>
+
+<style>
+/* RESET */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #0f172a;
+  color: #e2e8f0;
+  font-family: Arial, sans-serif;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* HEADER */
+h1 {
+  font-size: 1.8rem;
+  text-align: center;
+  padding: 12px 0;
+  background-color: #1e293b;
+  color: #e2e8f0;
+  border-bottom: 1px solid #334155;
+}
+
+/* SUMMARY */
+#summary-container {
+  background-color: #1e293b;
+  color: #e2e8f0;
+  padding: 10px;
+  border-bottom: 1px solid #334155;
+}
+
+#summary {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.9rem;
+}
+
+.summary-card {
+  background-color: #334155;
+  padding: 8px 14px;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+/* CONTAINERS */
+.container {
+  height: calc(100vh - 146px);
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+}
+
+/* LEFT COLUMN */
+#left-column {
+  flex: 1;
+  background-color: #1e293b;
+  border-radius: 8px;
+  padding: 10px;
+  overflow-y: auto;
+  border: 1px solid #334155;
+}
+
+.card {
+  background-color: #334155;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  border: 1px solid #475569;
+}
+
+.card h3 {
+  margin-bottom: 8px;
+  color: #e2e8f0;
+}
+
+.card ul {
+  list-style: none;
+}
+
+.card li {
+  margin-bottom: 6px;
+}
+
+.card a {
+  color: #38bdf8;
+  text-decoration: none;
+}
+.card a:hover {
+  text-decoration: underline;
+}
+
+/* RIGHT COLUMN */
+#right-column {
+  flex: 3;
+  background-color: #1e293b;
+  border-radius: 8px;
+  padding: 1px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid #334155;
+}
+
+#left-column::-webkit-scrollbar,
+#right-column::-webkit-scrollbar {
+  width: 8px;
+}
+#left-column::-webkit-scrollbar-thumb,
+#right-column::-webkit-scrollbar-thumb {
+  background-color: #475569;
+  border-radius: 4px;
+}
+
+/* GRAPH */
+#graph-container {
+  position: relative;
+  height: 100%;
+}
+
+.axis {
+  stroke: #94a3b8;
+  stroke-width: 2;
+}
+
+.grid-line {
+  stroke: #334155;
+  stroke-width: 1;
+}
+
+.date-text, .y-axis-label {
+  fill: #94a3b8;
+  font-size: 0.75rem;
+}
+
+/* --------------------------- */
+/*   DARK GLASSMORPHISM BANDES */
+/* --------------------------- */
+
+.multi-band, .single-evt {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  height: 26px;
+  border-radius: 12px;
+  font-size: 0.82rem;
+  font-weight: 500;
+
+  background: rgba(255,255,255,0.12);
+  backdrop-filter: blur(8px) saturate(140%);
+  -webkit-backdrop-filter: blur(8px) saturate(140%);
+  border: 1px solid rgba(255,255,255,0.1);
+
+  color: #e7f9ff;
+  white-space: nowrap;
+  overflow: hidden;
+
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25),
+              inset 0 0 0 1px rgba(255,255,255,0.05);
+
+  transition: transform 0.15s ease-out,
+              box-shadow 0.2s ease-out,
+              background 0.2s ease-out;
+}
+
+.multi-band:hover {
+  transform: scale(1.025);
+  background: rgba(255,255,255,0.18);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.35),
+              inset 0 0 0 1px rgba(255,255,255,0.15);
+}
+
+/* Couleurs translucides spécifiques */
+.reception {
+  background: rgba(16,156,83,0.25);
+  border-color: rgba(16,156,83,0.35);
+  box-shadow: 0 4px 10px rgba(16,156,83,0.25);
+}
+.reception:hover {
+  background: rgba(16,156,83,0.35);
+}
+
+.navire {
+  background: rgba(54,68,179,0.28);
+  border-color: rgba(54,68,179,0.4);
+  box-shadow: 0 4px 10px rgba(54,68,179,0.25);
+}
+.navire:hover {
+  background: rgba(54,68,179,0.38);
+}
+
+.event-text {
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>Plan de Chargement - Port-Vendres</h1>
+
+<div id="summary-container">
+  <div id="summary"></div>
+</div>
+
+<div class="container">
+  <!-- LEFT COLUMN -->
+  <div id="left-column">
+    <div class="card">
+      <h3>Détails des Actions</h3>
+      <ul id="actions-list"></ul>
+    </div>
+
+    <div class="card">
+      <h3>Navires</h3>
+      <ul id="navires-list"></ul>
+    </div>
+
+    <div class="card">
+      <h3>Dossiers</h3>
+      <ul id="dossiers-list"></ul>
+    </div>
+  </div>
+
+  <!-- RIGHT COLUMN -->
+  <div id="right-column">
+    <div id="graph-container">
+      <svg id="timeline" width="100%" height="100%">
+        <line class="axis" x1="80" y1="10" x2="80" y2="1000" />
+        <line id="day-line" class="axis" x1="80" y1="10" x2="2000" y2="10" />
+
+        <!-- Jours -->
+        <g id="days"></g>
+
+        <!-- Bandes multi-événements -->
+        <g id="multi-bands"></g>
+
+        <!-- Boutons zoom -->
+        <g transform="translate(10, 50)">
+          <rect width="60" height="30" rx="5" fill="#334155" stroke="#475569" class="zoom-btn" data-level="1"/>
+          <text x="30" y="20" text-anchor="middle" fill="#e2e8f0">Jour</text>
+        </g>
+        <g transform="translate(80, 50)">
+          <rect width="60" height="30" rx="5" fill="#334155" stroke="#475569" class="zoom-btn" data-level="2"/>
+          <text x="30" y="20" text-anchor="middle" fill="#e2e8f0">Semaine</text>
+        </g>
+      </svg>
+
+      <!-- Bandes en overlay -->
+      <div id="bands-overlay"></div>
+    </div>
+  </div>
+</div>
 <script>
 // ===============================
 // Données de démonstration
