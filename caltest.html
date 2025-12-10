@@ -113,17 +113,6 @@ h1 {
   border: 1px solid #334155;
 }
 
-#left-column::-webkit-scrollbar,
-#right-column::-webkit-scrollbar {
-  width: 8px;
-}
-#left-column::-webkit-scrollbar-thumb,
-#right-column::-webkit-scrollbar-thumb {
-  background-color: #475569;
-  border-radius: 4px;
-}
-
-/* GRAPH */
 #graph-container {
   position: relative;
   height: 100%;
@@ -139,7 +128,7 @@ h1 {
   stroke-width: 1;
 }
 
-.date-text, .y-axis-label {
+.date-text {
   fill: #94a3b8;
   font-size: 0.75rem;
 }
@@ -242,13 +231,9 @@ h1 {
         <line class="axis" x1="80" y1="10" x2="80" y2="1000" />
         <line id="day-line" class="axis" x1="80" y1="10" x2="2000" y2="10" />
 
-        <!-- Jours -->
         <g id="days"></g>
-
-        <!-- Bandes multi-événements -->
         <g id="multi-bands"></g>
 
-        <!-- Boutons zoom -->
         <g transform="translate(10, 50)">
           <rect width="60" height="30" rx="5" fill="#334155" stroke="#475569" class="zoom-btn" data-level="1"/>
           <text x="30" y="20" text-anchor="middle" fill="#e2e8f0">Jour</text>
@@ -259,11 +244,11 @@ h1 {
         </g>
       </svg>
 
-      <!-- Bandes en overlay -->
       <div id="bands-overlay"></div>
     </div>
   </div>
 </div>
+
 <script>
 // ===============================
 // Données de démonstration
@@ -292,12 +277,11 @@ const multiBandsData = [
 // ===============================
 // Paramètres du Graph
 // ===============================
-let zoomLevel = 1; // 1 = jour, 2 = semaine
-let bandH = 26;    // <--- MIS À JOUR POUR LE GLASSMORPHISM
+let zoomLevel = 1; 
+let bandH = 26;     
 let graphMarginLeft = 80;
 let dayWidth = 100;
 
-const svg = document.getElementById("timeline");
 const daysGroup = document.getElementById("days");
 const multiBandsGroup = document.getElementById("multi-bands");
 const overlay = document.getElementById("bands-overlay");
@@ -312,12 +296,11 @@ function updateTimeline() {
 
   dayWidth = zoomLevel === 1 ? 120 : 60;
 
-  // Génère les jours
   let current = new Date("2025-01-08");
   let end = new Date("2025-01-25");
 
   let x = graphMarginLeft;
-  let yAxis = 10;
+  const yAxis = 10;
 
   while (current <= end) {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
@@ -326,7 +309,10 @@ function updateTimeline() {
     const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
     text.setAttribute("y", 30);
     text.setAttribute("class", "date-text");
-    text.textContent = current.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
+    text.textContent = current.toLocaleDateString("fr-FR", {
+      day: "2-digit",
+      month: "short"
+    });
 
     const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
     line.setAttribute("x1", 0);
@@ -357,7 +343,6 @@ function renderMultiBands() {
 
     const y = 80 + i * (bandH + 10);
 
-    // SVG placeholder invisible
     const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
     rect.setAttribute("x", xStart);
     rect.setAttribute("y", y);
@@ -366,7 +351,6 @@ function renderMultiBands() {
     rect.setAttribute("fill", "transparent");
     multiBandsGroup.appendChild(rect);
 
-    // Bande overlay HTML (glassmorphism)
     const bandDiv = document.createElement("div");
     bandDiv.className = `multi-band ${evt.colorClass}`;
     bandDiv.style.left = `${xStart}px`;
@@ -398,9 +382,9 @@ document.querySelectorAll(".zoom-btn").forEach(btn => {
 });
 
 // ===============================
-// Initial Render
+// Initialisation après chargement
 // ===============================
-updateTimeline();
+document.addEventListener("DOMContentLoaded", updateTimeline);
 </script>
 
 </body>
