@@ -58,7 +58,7 @@
   .past-day-overlay {position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);border-radius:8px;pointer-events:none;z-index:50;}
   #events-layer{position:absolute;left:2px;right:6px;top:10px;bottom:10px;pointer-events:none}
 
-  /* Multi-band / glassmorphism style */
+  /* Multi-band / Dark Glassmorphism style */
   .multi-band, .single-evt {
     pointer-events:auto;
     position:absolute;
@@ -178,7 +178,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function hideModal(){ document.getElementById('event-modal').style.display='none'; }
 
-  // === toutes tes fonctions originales renderCalendar, showEventModal, showModalForCell, listeners ===
+  // === tout le reste de ton JS original, incluant renderCalendar, showEventModal, showModalForCell, listeners, auto-refresh, resize ===
 
   renderCalendar().then(()=>{ startAutoRefresh(); }).catch(err=>{ console.error('render error', err); document.getElementById('calendar-title').textContent='Erreur'; });
 });
