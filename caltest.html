@@ -59,50 +59,61 @@
   .past-day-overlay {position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);border-radius:8px;pointer-events:none;z-index:50;}
   #events-layer{position:absolute;left:2px;right:6px;top:10px;bottom:10px;pointer-events:none}
 
-  /* Dark Glassmorphism applied to bands (multi-band and single-evt) */
+  /* === Glassmorphism + Animated Gradient Bands ===
+     - semi-transparent glass base
+     - animated subtle gradient moving horizontally
+     - soft inner highlight and shadow
+  */
+  :root{
+    --grad1: rgba(255, 85, 255, 0.18);
+    --grad2: rgba(85, 85, 255, 0.14);
+    --grad3: rgba(0, 229, 255, 0.12);
+    --glass-bg: rgba(255,255,255,0.03);
+  }
+
   .multi-band, .single-evt {
     pointer-events:auto;
     position:absolute;
     display:flex;
     align-items:center;
-    padding:0 10px;
-    height:22px; /* keep same height used by JS layout */
-    border-radius:12px;
+    padding:0 8px;
+    height:22px;
+    border-radius:10px;
     font-size:0.78rem;
     color:#fff;
     white-space:nowrap;
     overflow:hidden;
-    background: linear-gradient(135deg, rgba(255,255,255,0.02), rgba(255,255,255,0.03));
+
+    /* glass base */
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
     border: 1px solid rgba(255,255,255,0.06);
-    backdrop-filter: blur(6px) saturate(150%);
-    -webkit-backdrop-filter: blur(6px) saturate(150%);
-    box-shadow: 0 6px 18px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.02);
-    transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
-  }
-  .multi-band:hover, .single-evt:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 26px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.03);
-    background: linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.05));
+    backdrop-filter: blur(6px) saturate(140%);
+    -webkit-backdrop-filter: blur(6px) saturate(140%);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.02);
+
+    /* animated gradient overlay (pseudo-element via background-image stacking) */
+    background-image:
+      linear-gradient(90deg, var(--grad1), var(--grad2), var(--grad3), var(--grad1));
+    background-size: 300% 100%;
+    animation: gradientShift 8s linear infinite, bandPulse 4s ease-in-out infinite;
+    mix-blend-mode: screen;
   }
 
-  /* keep semantic color hints but make them semi-transparent so they read on glass */
-  .reception {
-    background: linear-gradient(90deg, rgba(16,156,83,0.12), rgba(16,156,83,0.08));
-    border-color: rgba(16,156,83,0.22);
-    box-shadow: 0 6px 14px rgba(16,156,83,0.06);
-  }
-  .reception:hover {
-    background: linear-gradient(90deg, rgba(16,156,83,0.18), rgba(16,156,83,0.12));
+  @keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
   }
 
-  .navire {
-    background: linear-gradient(90deg, rgba(54,68,179,0.12), rgba(54,68,179,0.08));
-    border-color: rgba(54,68,179,0.22);
-    box-shadow: 0 6px 14px rgba(54,68,179,0.06);
+  @keyframes bandPulse {
+    0% { box-shadow: 0 6px 18px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.02); transform: translateY(0); }
+    50% { box-shadow: 0 10px 26px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.03); transform: translateY(-1px); }
+    100% { box-shadow: 0 6px 18px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.02); transform: translateY(0); }
   }
-  .navire:hover {
-    background: linear-gradient(90deg, rgba(54,68,179,0.18), rgba(54,68,179,0.12));
-  }
+
+  /* keep semantic color hints but subtle so gradient shows */
+  .reception{ --grad1: rgba(16,156,83,0.18); --grad2: rgba(16,156,83,0.12); --grad3: rgba(120,200,145,0.10); border-color: rgba(16,156,83,0.22); }
+  .navire{ --grad1: rgba(54,68,179,0.16); --grad2: rgba(88,110,220,0.12); --grad3: rgba(0,180,220,0.10); border-color: rgba(54,68,179,0.22); }
 
   .event-text-container{display:inline-flex;white-space:nowrap;overflow:hidden;width:100%;position:relative;}
   .event-text{white-space:nowrap;display:inline-block;position:relative;}
