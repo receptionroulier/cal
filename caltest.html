@@ -8,47 +8,105 @@
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:#0f0f10;color:#fff;display:flex;flex-direction:column;height:100vh}
 
-  /* header */
-  #calendar-header{
-    display:flex;
-    flex-wrap:wrap; /* permet au contenu de passer à la ligne sur mobile */
-    align-items:center;
-    justify-content:flex-start;
-    gap:8px;
-    padding:12px 10px;
-    color:#00e5ff;
-    border-bottom:1px solid #333;
-    position:relative;
-  }
+/* ------------------------------------------------------------------
+   HEADER : GLASSMORPHISM + NEON BLUE (Niveau B)
+   Intégré en remplacement visuel de ton header existant.
+-------------------------------------------------------------------*/
+#calendar-header{
+  /* layout preserved but enhanced visually */
+  display:flex;
+  flex-wrap:wrap; /* permet au contenu de passer à la ligne sur mobile */
+  align-items:center;
+  justify-content:flex-start;
+  gap:8px;
+  padding:12px 16px;
+  color:#00e5ff;
+  position:relative;
 
-  .nav-btn{cursor:pointer;color:#00e5ff;font-size:26px;padding:4px 10px;border-radius:6px}
-  .nav-btn:hover{background:#222}
-  .view-btn{cursor:pointer;font-size:14px;padding:4px 10px;background:#222;border-radius:6px;border:1px solid #333;color:#00e5ff}
-  .view-btn:hover{background:#333}
+  /* glass */
+  position: sticky;
+  top: 8px;
+  z-index: 999;
+  border-radius: 14px;
+  background: rgba(18,22,34,0.44);
+  border: 1px solid rgba(255,255,255,0.08);
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
 
-  #today-btn{font-size:16px}
+  /* neon glow */
+  box-shadow:
+    0 0 14px rgba(0,170,255,0.28),
+    0 0 30px rgba(0,170,255,0.14),
+    inset 0 1px 0 rgba(255,255,255,0.02);
+}
 
-  /* titre centré sans affecter les boutons */
-  #calendar-title{
-    position:absolute;
-    left:50%;
-    transform:translateX(-50%);
-    font-weight:bold;
-    font-size:1.2rem;
-    white-space:nowrap;
-  }
+/* title centered with same DOM structure */
+#calendar-title{
+  position:absolute;
+  left:50%;
+  transform:translateX(-50%);
+  font-weight:700;
+  font-size:1.05rem;
+  white-space:nowrap;
+  color:#dff6ff;
+  letter-spacing:0.6px;
+  text-shadow:
+    0 0 6px rgba(0,170,255,0.45),
+    0 0 12px rgba(0,170,255,0.28);
+}
 
-  #current-time{
-    position:absolute;
-    right:10px;
-    top:50%;
-    transform:translateY(-50%);
-    font-size:2.2rem;
-    font-weight:bold;
-    color:#00e5ff;
-    font-family:Trebuchet MS
-  }
+/* time box on right */
+#current-time{
+  position:absolute;
+  right:12px;
+  top:50%;
+  transform:translateY(-50%);
+  font-size:1.1rem;
+  font-weight:700;
+  color:#aaddff;
+  font-family:Trebuchet MS;
+  text-shadow: 0 0 6px rgba(0,170,255,0.35);
+  background: rgba(255,255,255,0.02);
+  padding:6px 10px;
+  border-radius:8px;
+  border: 1px solid rgba(255,255,255,0.04);
+  backdrop-filter: blur(6px);
+}
 
+/* base nav & view buttons - glassy + neon text */
+.nav-btn, .view-btn, #today-btn {
+  cursor:pointer;
+  font-weight:600;
+  transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+  border-radius:10px;
+  padding:6px 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  color: #bfeaff;
+  text-shadow: 0 0 6px rgba(0,170,255,0.35);
+  backdrop-filter: blur(6px);
+}
+
+/* arrows kept large like original */
+.nav-btn{ font-size:24px; padding:6px 10px; }
+
+/* small view buttons */
+.view-btn{ font-size:13px; }
+
+/* hover neon boost */
+.nav-btn:hover, .view-btn:hover, #today-btn:hover{
+  background: rgba(0,170,255,0.12);
+  color:#ffffff;
+  transform: translateY(-2px);
+  box-shadow:
+    0 0 12px rgba(0,170,255,0.55),
+    0 0 24px rgba(0,170,255,0.25);
+}
+
+/* keep today's button a bit more prominent */
+#today-btn { font-size:15px; font-weight:700; }
+
+/* calendar layout */
   #calendar-wrap{flex:1;display:flex;flex-direction:column;min-height:0;position:relative}
   #calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;padding:10px;align-content:start;position:relative}
   .day-cell{background:#1c1c1c;border:1px solid #333;border-radius:10px;padding:6px;position:relative;overflow:hidden;min-height:80px}
@@ -144,19 +202,26 @@
     }
     .nav-btn{font-size:22px;padding:3px 6px;}
     .view-btn{font-size:12px;padding:3px 6px;}
-    #current-time{font-size:1.8rem; right:5px;}
+    #current-time{font-size:1.05rem; right:8px;}
   }
 
   @media(max-width:500px){
     #calendar-header{
       flex-direction:column;
       align-items:flex-start;
+      padding:10px;
     }
     #calendar-title{
       position:relative;
       left:auto;
       transform:none;
       margin:6px 0;
+    }
+    #current-time{
+      position:relative;
+      right:auto;
+      transform:none;
+      margin-left:0;
     }
   }
 </style>
