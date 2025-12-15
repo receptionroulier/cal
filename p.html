@@ -276,7 +276,14 @@ async function fetchWithPool(url, attempts = 15){
         while(tried.has(candidate.url) && tries < 6){ candidate = proxyPool[Math.floor(Math.random()*proxyPool.length)]; tries++; }
         tried.add(candidate.url);
         try {
-            const res = await fetchWithTimeout(candidate.url + encodeURIComponent(url), { method: 'GET' }, FETCH_TIMEOUT);
+            const res = await fetchWithTimeout(candidate.url + encodeURIComponent(url), {
+  method: 'GET',
+  headers: {
+    "Cache-Control": "no-cache, no-store, max-age=0",
+    "Pragma": "no-cache"
+  }
+}, FETCH_TIMEOUT);
+
             if(res && res.ok){
                 const ct = (res.headers.get('content-type') || '').toLowerCase();
                 let raw;
