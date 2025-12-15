@@ -344,7 +344,11 @@ async function checkAndUpdate(forceUpdate=false){
     }
 
     try{
-        const rawContent = await fetchWithPool("https://www.havre-port.com/map/getPonts");
+        const targetUrl =
+  "https://www.havre-port.com/map/getPonts?_ts=" + Date.now();
+
+const rawContent = await fetchWithPool(targetUrl);
+
         if(!rawContent) throw new Error("Aucun proxy n'a répondu");
 
         const data = parseRawContentToData(rawContent);
