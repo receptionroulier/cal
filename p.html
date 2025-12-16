@@ -181,10 +181,14 @@ function safeISO(value){
 function normalizeData(data){
     return JSON.stringify(
         data
-        .map(p => ({ nom: p.nom, date: safeISO(p.date) }))
+        .map(p => ({
+            nom: p.nom,
+            date: parseFRDate(p.date) // 👈 timestamp fiable
+        }))
         .sort((a,b)=>a.nom.localeCompare(b.nom))
     );
 }
+
 
 /* ===================== PROXY POOL ===================== */
 function saveProxyStore(){ try{ localStorage.setItem(PROXY_STORE_KEY, JSON.stringify(proxyPool)); } catch(e){} }
@@ -392,19 +396,33 @@ const rawContent = await fetchWithPool(targetUrl);
 
 
         /* TRI APRÈS MERGE */
-        const mergedSorted = merged.sort((a,b)=>{
-            const score = p=>{
-                const s=(p.statutText||"").toLowerCase();
-                if(s.includes("fermé") && s.includes("travaux")) return 2;
-                if(s.includes("fermé")) return 1;
-                if(s.includes("fermeture")) return 3;
-                if(s.includes("manoeuvre") || s.includes("manœuvre")) return 4;
-                if(s.includes("ouvert")) return 5;
-                return 6;
-            };
-            if(score(a)!==score(b)) return score(a)-score(b);
-            return new Date(b.date||0)-new Date(a.date||0);
-        });
+     
+     function parseFRDate(str){
+    if(!str) return 0;
+    const m = str.match(/(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})/);
+    if(!m) return 0;
+    const [,d,mo,y,h,mi] = m;
+    return new Date(y, mo-1, d, h, mi).getTime();
+}
+    const mergedSorted = merged.sort((a,b)=>{
+    const score = p=>{
+        const s=(p.statutText||"").toLowerCase();
+        if(s.includes("fermé") && s.includes("travaux")) return 1;
+        if(s.includes("fermé")) return 2;
+        if(s.includes("fermeture")) return 3;
+        if(s.includes("manoeuvre") || s.includes("manœuvre")) return 4;
+        if(s.includes("ouvert")) return 5;
+        return 6;
+    };
+
+    const sa = score(a);
+    const sb = score(b);
+    if(sa !== sb) return sa - sb;
+
+    // ✅ tri par date fonctionnel
+    return parseFRDate(b.date) - parseFRDate(a.date);
+});
+
 
         /* HASH */
         const norm = normalizeData(mergedSorted);
