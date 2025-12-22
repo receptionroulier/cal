@@ -365,18 +365,22 @@ document.addEventListener('DOMContentLoaded', function() {
       const ev = seg.ev;
       const evStartTime = ev._isAllDay ? '' : fmtTime(ev._start);
       const evEndTime = (!ev._isAllDay && seg.endIdx === getLastSegmentOfEvent(ev).endIdx) ? ('>' + fmtTime(ev._end)) : '';
-      const isFirstSegment = seg.startIdx === getFirstSegmentOfEvent(ev).startIdx;
-      let fullText = '';
+      const firstVisibleStartIdx = Math.min(
+  ...segments.filter(s => s.ev === ev).map(s => s.startIdx)
+);
 
-if (isFirstSegment && evStartTime) {
-  if (evEndTime) {
-    fullText += `<${evStartTime} / ${fmtTime(ev._end)}> `;
-  } else {
-    fullText += `<${evStartTime}> `;
-  }
+const isFirstVisibleSegment = seg.startIdx === firstVisibleStartIdx;
+
+let fullText = '';
+
+if (isFirstVisibleSegment && evStartTime) {
+  fullText += evEndTime
+    ? `<${evStartTime} / ${fmtTime(ev._end)}> `
+    : `<${evStartTime}> `;
 }
 
 fullText += ev.summary || '(sans titre)';
+
 
       eventText.textContent = fullText;
       eventText.setAttribute('data-text', fullText);
