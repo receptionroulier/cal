@@ -363,19 +363,25 @@ document.addEventListener('DOMContentLoaded', function() {
       const textContainer = document.createElement('div'); textContainer.className = 'event-text-container';
       const eventText = document.createElement('div'); eventText.className = 'event-text';
       const ev = seg.ev;
-      const evStartTime = ev._isAllDay ? '' : fmtTime(ev._start);
-      const evEndTime = (!ev._isAllDay && seg.endIdx === getLastSegmentOfEvent(ev).endIdx) ? ('>' + fmtTime(ev._end)) : '';
-      const firstVisibleStartIdx = Math.min(
+      
+const evStartTime = ev._isAllDay ? '' : fmtTime(ev._start);
+const evEndTime = (!ev._isAllDay && seg.endIdx === getLastSegmentOfEvent(ev).endIdx)
+  ? fmtTime(ev._end)
+  : '';
+
+const isWeekStart = seg.startIdx % 7 === 0;
+
+const firstEventStartIdx = Math.min(
   ...segments.filter(s => s.ev === ev).map(s => s.startIdx)
 );
 
-const isFirstVisibleSegment = seg.startIdx === firstVisibleStartIdx;
+const isEventStartDay = seg.startIdx === firstEventStartIdx;
 
 let fullText = '';
 
-if (isFirstVisibleSegment && evStartTime) {
+if ((isWeekStart || isEventStartDay) && evStartTime) {
   fullText += evEndTime
-    ? `<${evStartTime} / ${fmtTime(ev._end)}> `
+    ? `<${evStartTime} / ${evEndTime}> `
     : `<${evStartTime}> `;
 }
 
