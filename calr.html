@@ -364,7 +364,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const eventText = document.createElement('div'); eventText.className = 'event-text';
       const ev = seg.ev;
       const evStartTime = ev._isAllDay ? '' : fmtTime(ev._start);
-      const evEndTime = (!ev._isAllDay && seg.endIdx === getLastSegmentOfEvent(ev).endIdx) ? ('>' + fmtTime(ev._end)) : '     ';
+      const evEndTime = (!ev._isAllDay && seg.endIdx === getLastSegmentOfEvent(ev).endIdx) ? ('>' + fmtTime(ev._end)) + '     ' : '';
       const isFirstSegment = seg.startIdx === getFirstSegmentOfEvent(ev).startIdx;
       let fullText = '';
       if(isFirstSegment && evStartTime) fullText += `<${evStartTime} `;
