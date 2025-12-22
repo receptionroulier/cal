@@ -381,8 +381,8 @@ let fullText = '';
 
 if ((isWeekStart || isEventStartDay) && evStartTime) {
   fullText += evEndTime
-    ? `<${evStartTime}/${evEndTime}> `
-    : `<${evStartTime}> `;
+    ? ` <${evStartTime}/${evEndTime}> `
+    : ` <${evStartTime}> `;
 }
 
 fullText += ev.summary || '(sans titre)';
