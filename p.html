@@ -178,11 +178,36 @@ async function sha256(str){
 // ✅ UNE SEULE FONCTION parseFRDate (correction du bug critique)
 function parseFRDate(str){
     if(!str || typeof str !== "string") return NaN;
-    const m = str.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})$/);
+
+    // Nettoyage agressif (Safari safe)
+    str = str
+        .replace(/\u00A0/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    // Accepte :
+    // DD/MM/YYYY
+    // DD/MM/YYYY HH:mm
+    // DD/MM/YYYY HH:mm:ss
+    const m = str.match(
+        /^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?$/
+    );
+
     if(!m) return NaN;
-    const [,d,mo,y,h,mi] = m.map(Number);
-    return new Date(y, mo-1, d, h, mi).getTime();
+
+    const [
+        ,
+        d,
+        mo,
+        y,
+        h = "0",
+        mi = "0",
+        s = "0"
+    ] = m.map(Number);
+
+    return new Date(y, mo - 1, d, h, mi, s).getTime();
 }
+
 
 function normalizeData(data){
     return JSON.stringify(
