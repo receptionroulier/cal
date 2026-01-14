@@ -175,39 +175,30 @@ async function sha256(str){
     return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");
 }
 
-// ✅ UNE SEULE FONCTION parseFRDate (correction du bug critique)
 function parseFRDate(str){
-    if(!str || typeof str !== "string") return NaN;
+    if (!str || typeof str !== "string") return NaN;
 
-    // Nettoyage agressif (Safari safe)
     str = str
         .replace(/\u00A0/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
 
-    // Accepte :
-    // DD/MM/YYYY
-    // DD/MM/YYYY HH:mm
-    // DD/MM/YYYY HH:mm:ss
+    // accepte 1 OU 2 chiffres pour jour / mois / heure
     const m = str.match(
-        /^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?$/
+        /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/
     );
 
-    if(!m) return NaN;
+    if (!m) return NaN;
 
-    const [
-        ,
-        d,
-        mo,
-        y,
-        h = "0",
-        mi = "0",
-        s = "0"
-    ] = m.map(Number);
+    const d  = Number(m[1]);
+    const mo = Number(m[2]);
+    const y  = Number(m[3]);
+    const h  = Number(m[4] || 0);
+    const mi = Number(m[5] || 0);
+    const s  = Number(m[6] || 0);
 
     return new Date(y, mo - 1, d, h, mi, s).getTime();
 }
-
 
 function normalizeData(data){
     return JSON.stringify(
