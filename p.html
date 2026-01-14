@@ -175,18 +175,20 @@ async function sha256(str){
     return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");
 }
 
+// ✅ UNE SEULE FONCTION parseFRDate (correction du bug critique)
 function parseFRDate(str){
     if(!str || typeof str !== "string") return NaN;
 
+    // Nettoyage agressif (Safari safe)
     str = str
         .replace(/\u00A0/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
 
-    // Supprime tout ce qui dépasse les secondes
-    // (ex: ".000", " CET", etc.)
-    str = str.replace(/(\d{2}:\d{2}:\d{2}).*$/, "$1");
-
+    // Accepte :
+    // DD/MM/YYYY
+    // DD/MM/YYYY HH:mm
+    // DD/MM/YYYY HH:mm:ss
     const m = str.match(
         /^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?$/
     );
@@ -205,6 +207,7 @@ function parseFRDate(str){
 
     return new Date(y, mo - 1, d, h, mi, s).getTime();
 }
+
 
 function normalizeData(data){
     return JSON.stringify(
@@ -344,11 +347,6 @@ function parseRawContentToData(raw){
     return null;
 }
 
-function safeTime(str){
-    const t = parseFRDate(str);
-    return Number.isFinite(t) ? t : -Infinity;
-}
-
 /* ===================== RENDER ===================== */
 function renderPonts(list){
     const container = document.getElementById("ponts-table");
@@ -433,8 +431,7 @@ async function checkAndUpdate(forceUpdate=false){
             if(sa !== sb) return sa - sb;
 
             // tri par date
-            return safeTime(b.date) - safeTime(a.date);
-
+            return parseFRDate(b.date) - parseFRDate(a.date);
         });
 
         /* HASH */
