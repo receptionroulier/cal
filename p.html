@@ -183,6 +183,10 @@ function parseFRDate(str){
         .replace(/\s+/g, ' ')
         .trim();
 
+    // Supprime tout ce qui dépasse les secondes
+    // (ex: ".000", " CET", etc.)
+    str = str.replace(/(\d{2}:\d{2}:\d{2}).*$/, "$1");
+
     const m = str.match(
         /^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?$/
     );
@@ -340,6 +344,11 @@ function parseRawContentToData(raw){
     return null;
 }
 
+function safeTime(str){
+    const t = parseFRDate(str);
+    return Number.isFinite(t) ? t : -Infinity;
+}
+
 /* ===================== RENDER ===================== */
 function renderPonts(list){
     const container = document.getElementById("ponts-table");
@@ -427,10 +436,7 @@ async function checkAndUpdate(forceUpdate=false){
             return safeTime(b.date) - safeTime(a.date);
 
         });
-function safeTime(str){
-    const t = parseFRDate(str);
-    return isNaN(t) ? 0 : t;
-}
+
         /* HASH */
         const norm = normalizeData(mergedSorted);
         const newHash = await sha256(norm);
