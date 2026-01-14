@@ -219,6 +219,10 @@ function normalizeData(data){
         .sort((a,b)=>a.nom.localeCompare(b.nom))
     );
 }
+function safeTime(str){
+    const t = parseFRDate(str);
+    return Number.isFinite(t) ? t : null;
+}
 
 
 /* ===================== PROXY POOL ===================== */
@@ -431,9 +435,26 @@ async function checkAndUpdate(forceUpdate=false){
             if(sa !== sb) return sa - sb;
 
             // tri par date
-            return parseFRDate(b.date) - parseFRDate(a.date);
+            const ta = safeTime(a.date);
+const tb = safeTime(b.date);
+
+if (ta === null && tb === null) return 0;
+if (ta === null) return 1;   // a après
+if (tb === null) return -1;  // b après
+
+return tb - ta;
+
         });
 
+    console.table(
+  mergedSorted.map(p => ({
+    pont: p.nom,
+    date: p.date,
+    parsed: parseFRDate(p.date)
+  }))
+);
+    
+        
         /* HASH */
         const norm = normalizeData(mergedSorted);
         const newHash = await sha256(norm);
