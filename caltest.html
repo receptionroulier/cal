@@ -184,8 +184,10 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
-  const CALENDAR_IDS = { reception: 'receptionroulier@gmail.com', navire: 'smr.programme@gmail.com' };
-  const CACHE_KEY = 'caltest_v2_cache';
+  const CALENDAR_IDS = { 
+  navire: 'smr.programme@gmail.com'
+};
+const CACHE_KEY = 'caltest_v2_cache';
   const CACHE_TTL = 30000;
   let weekView = 3;
   let currentStartDate = new Date();
@@ -207,18 +209,24 @@ document.addEventListener('DOMContentLoaded', function() {
   function hideModal(){ document.getElementById('event-modal').style.display='none'; }
 
   async function fetchCalendarsRange(timeMin, timeMax){
-    const a = fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_IDS.reception)}/events?key=${encodeURIComponent(API_KEY)}&singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(timeMin.toISOString())}&timeMax=${encodeURIComponent(timeMax.toISOString())}`)
-      .then(r=>{ if(!r.ok) throw new Error('API reception '+r.status); return r.json(); })
-      .catch(e=>{ console.error('fetch reception error', e); return { items: [] }; });
     const b = fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_IDS.navire)}/events?key=${encodeURIComponent(API_KEY)}&singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(timeMin.toISOString())}&timeMax=${encodeURIComponent(timeMax.toISOString())}`)
       .then(r=>{ if(!r.ok) throw new Error('API navire '+r.status); return r.json(); })
       .catch(e=>{ console.error('fetch navire error', e); return { items: [] }; });
+      
+      async function fetchCalendarsRange(timeMin, timeMax){
+  const r = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_IDS.navire)}/events` +
+    `?key=${encodeURIComponent(API_KEY)}` +
+    `&singleEvents=true&orderBy=startTime` +
+    `&timeMin=${encodeURIComponent(timeMin.toISOString())}` +
+    `&timeMax=${encodeURIComponent(timeMax.toISOString())}`
+  );
 
-    const [r1, r2] = await Promise.allSettled([a, b]);
-    const items1 = r1.status === 'fulfilled' ? (r1.value.items || []) : [];
-    const items2 = r2.status === 'fulfilled' ? (r2.value.items || []) : [];
-    return [...items1.map(i=>({...i, __type:'reception'})), ...items2.map(i=>({...i, __type:'navire'}))];
-  }
+  if(!r.ok) throw new Error('API navire ' + r.status);
+  const data = await r.json();
+  return (data.items || []).map(i => ({ ...i, __type: 'navire' }));
+}
+
 
   function updateScrollingEvents(){
     document.querySelectorAll('.event-text').forEach(el=>{
@@ -363,31 +371,13 @@ document.addEventListener('DOMContentLoaded', function() {
       const textContainer = document.createElement('div'); textContainer.className = 'event-text-container';
       const eventText = document.createElement('div'); eventText.className = 'event-text';
       const ev = seg.ev;
-      
-const evStartTime = ev._isAllDay ? '' : fmtTime(ev._start);
-const evEndTime = (!ev._isAllDay && seg.endIdx === getLastSegmentOfEvent(ev).endIdx)
-  ? fmtTime(ev._end)
-  : '';
-
-const isWeekStart = seg.startIdx % 7 === 0;
-
-const firstEventStartIdx = Math.min(
-  ...segments.filter(s => s.ev === ev).map(s => s.startIdx)
-);
-
-const isEventStartDay = seg.startIdx === firstEventStartIdx;
-
-let fullText = '';
-
-if ((isWeekStart || isEventStartDay) && evStartTime) {
-  fullText += evEndTime
-    ? ` <${evStartTime}/${evEndTime}> `
-    : ` <${evStartTime}> `;
-}
-
-fullText += ev.summary || '(sans titre)';
-
-
+      const evStartTime = ev._isAllDay ? '' : fmtTime(ev._start);
+      const evEndTime = (!ev._isAllDay && seg.endIdx === getLastSegmentOfEvent(ev).endIdx) ? (fmtTime(ev._end) + '>\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0') : '';
+      const isFirstSegment = seg.startIdx === getFirstSegmentOfEvent(ev).startIdx;
+      let fullText = '';
+      if(isFirstSegment && evStartTime) fullText += `<${evStartTime} `;
+      fullText += ev.summary || '(sans titre)';
+      if(evEndTime) fullText += ` ${evEndTime}`;
       eventText.textContent = fullText;
       eventText.setAttribute('data-text', fullText);
       textContainer.appendChild(eventText); el.appendChild(textContainer);
