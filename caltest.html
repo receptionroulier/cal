@@ -208,11 +208,7 @@ const CACHE_KEY = 'caltest_v2_cache';
 
   function hideModal(){ document.getElementById('event-modal').style.display='none'; }
 
-  async function fetchCalendarsRange(timeMin, timeMax){
-    const b = fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_IDS.navire)}/events?key=${encodeURIComponent(API_KEY)}&singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(timeMin.toISOString())}&timeMax=${encodeURIComponent(timeMax.toISOString())}`)
-      .then(r=>{ if(!r.ok) throw new Error('API navire '+r.status); return r.json(); })
-      .catch(e=>{ console.error('fetch navire error', e); return { items: [] }; });
-      
+   
       async function fetchCalendarsRange(timeMin, timeMax){
   const r = await fetch(
     `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_IDS.navire)}/events` +
