@@ -114,49 +114,12 @@ h2 {
 
 <script>
 /* ===================== CONFIG ===================== */
-const PROXY_STORE_KEY = "pontsProxyStore";
+const FETCH_TIMEOUT = 10000;
 const CACHE_KEY_DATA = "pontsData";
 const CACHE_KEY_HASH = "pontsHash";
 const CACHE_KEY_TIME = "pontsCacheTime";
-
-const CACHE_EXPIRATION = 60000;
-const REFRESH_INTERVAL = 30000;
-const PROXY_TEST_TIMEOUT = 8000;
-const FETCH_TIMEOUT = 10000;
-const PROXY_REFRESH_INTERVAL = 5 * 60 * 1000;
-const MAX_SCORE = 10;
-const MIN_SCORE = 1;
-
-/* ===================== PROXIES ===================== */
-const BASE_PROXIES = [
-    "https://api.allorigins.win/get?url=",
-    "https://thingproxy.freeboard.io/fetch/",
-    "https://cors-anywhere.herokuapp.com/",
-    "https://every-origin.vercel.app/",
-    "https://proxy.corsfix.com/?",
-    "https://yacdn.org/proxy/",
-    "https://jsonp.afeld.me/?callback=&url=",
-    "https://crossorigin.me/",
-    "https://cors-proxy.htmldriven.com/?url=",
-    "https://test.cors.workers.dev/?",
-    "https://api.codetabs.com/v1/proxy?quest=",
-    "https://cors.bridged.cc/",
-    "https://corsproxy.io/?",
-    "https://allorigins.hexlet.app/get?url=",
-    "https://api.allorigins.win/raw?url=",
-    "https://test.cors.workers.dev/",
-    "https://codetabs.com/cors-proxy/cors-proxy.html?url=",
-    "https://cors.lol/",
-    "https://cors.x2u.in/"
-];
-
-let proxyPool = BASE_PROXIES.map(u => ({
-    url: u,
-    score: 5,
-    lastCheckMs: null,
-    lastDurationMs: null,
-    lastOk: false
-}));
+const CACHE_EXPIRATION = 60000; // 1 minute
+const REFRESH_INTERVAL = 30000;  // 30 secondes
 
 /* ===================== UTILITAIRES ===================== */
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
@@ -174,243 +137,124 @@ async function sha256(str){
     const digest = await crypto.subtle.digest("SHA-256", data);
     return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");
 }
-
 function parseFRDate(str){
     if (!str || typeof str !== "string") return NaN;
-
-    str = str
-        .replace(/\u00A0/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-
-    // accepte 1 OU 2 chiffres pour jour / mois / heure
-    const m = str.match(
-        /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/
-    );
-
+    str = str.replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
+    const m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
     if (!m) return NaN;
-
-    const d  = Number(m[1]);
-    const mo = Number(m[2]);
-    const y  = Number(m[3]);
-    const h  = Number(m[4] || 0);
-    const mi = Number(m[5] || 0);
-    const s  = Number(m[6] || 0);
-
-    return new Date(y, mo - 1, d, h, mi, s).getTime();
+    const [d, mo, y, h, mi, s] = [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4]||0), Number(m[5]||0), Number(m[6]||0)];
+    return new Date(y, mo-1, d, h, mi, s).getTime();
 }
-
 function normalizeData(data){
-    return JSON.stringify(
-        data
-        .map(p => ({
-            nom: p.nom,
-            date: parseFRDate(p.date)
-        }))
-        .sort((a,b)=>a.nom.localeCompare(b.nom))
-    );
+    return JSON.stringify(data.map(p => ({nom: p.nom, date: parseFRDate(p.date)})).sort((a,b)=>a.nom.localeCompare(b.nom)));
 }
-function safeTime(str){
-    const t = parseFRDate(str);
-    return Number.isFinite(t) ? t : null;
-}
+function safeTime(str){ const t=parseFRDate(str); return Number.isFinite(t)?t:null; }
 
-async function fetchWithPool(url, attempts = 3) {
+/* ===================== FETCH ===================== */
+async function fetchWithPool(url) {
     const proxies = [
         "https://api.allorigins.win/raw?url=",
         "https://allorigins.hexlet.app/get?url="
     ];
-
-    for (let i = 0; i < proxies.length; i++) {
+    for (let proxy of proxies) {
         try {
-            const proxyUrl = proxies[i] + encodeURIComponent(url);
-            const res = await fetchWithTimeout(proxyUrl, {}, FETCH_TIMEOUT);
+            const res = await fetchWithTimeout(proxy + encodeURIComponent(url));
             if (res.ok) {
                 const text = await res.text();
                 try { return JSON.parse(text); } catch { return text; }
             }
-        } catch(e) {
-            console.warn(`Proxy ${proxies[i]} failed:`, e);
-        }
+        } catch(e) { console.warn(`Proxy failed: ${proxy}`, e); }
     }
-
-    // Dernière chance : fetch direct
-    try {
-        const res = await fetchWithTimeout(url, {}, FETCH_TIMEOUT);
-        if (res.ok) {
-            const text = await res.text();
-            try { return JSON.parse(text); } catch { return text; }
-        }
-    } catch(e) {
-        console.error("Direct fetch failed:", e);
-    }
-
-    return null; // échec total
+    try { const res = await fetchWithTimeout(url); if(res.ok){ const text = await res.text(); try { return JSON.parse(text); } catch { return text; } } } 
+    catch(e){ console.error("Direct fetch failed:", e); }
+    return null;
 }
 
 /* ===================== PARSE DATA ===================== */
 function parseRawContentToData(raw){
     if(!raw) return null;
-    if(typeof raw === "string"){ try{ const j=JSON.parse(raw); return j?.data||j; } catch(e){ return null; } }
-    if(typeof raw === "object"){
-        if(raw.data) return raw.data;
-        if(raw.contents){ try{ const inner = JSON.parse(raw.contents); return inner?.data||inner; } catch(e){ return null; } }
-        return raw;
-    }
+    if(typeof raw === "string"){ try{ const j=JSON.parse(raw); return j?.data||j; } catch{return null;} }
+    if(typeof raw === "object"){ if(raw.data) return raw.data; if(raw.contents){ try{ const inner=JSON.parse(raw.contents); return inner?.data||inner; } catch{return null;} } return raw; }
     return null;
 }
 
 /* ===================== RENDER ===================== */
 function renderPonts(list){
-    const container = document.getElementById("ponts-table");
-    if(!list || !list.length){ container.innerHTML='<div class="error-message">Aucun pont disponible.</div>'; return; }
-    container.innerHTML = list.map(p=>{
-        const statut = (p.statutText||"").toLowerCase();
-        const open = statut.includes("ouvert");
-        const move = statut.includes("manoeuvre") || statut.includes("manœuvre");
-        const fermeture = statut.includes("fermeture");
-        const ferme = statut.includes("fermé");
-        const travaux = statut.includes("travaux");
-        let cls = (ferme && travaux)?"ferme-travaux":ferme?"ferme":fermeture?"fermeture":move?"manoeuvre":open?"ouvert":"ferme";
-        let texteEtat = p.statutText || "";
-        if(travaux) texteEtat=texteEtat.replace(/(travaux)/i,'<span class="texte-travaux">$1</span>');
-        const info = p.forceText || `MàJ : ${p.date||"inconnue"}`;
+    const container=document.getElementById("ponts-table");
+    if(!list||!list.length){ container.innerHTML='<div class="error-message">Aucun pont disponible.</div>'; return; }
+    container.innerHTML=list.map(p=>{
+        const statut=(p.statutText||"").toLowerCase();
+        const open=statut.includes("ouvert"), move=statut.includes("manoeuvre")||statut.includes("manœuvre");
+        const fermeture=statut.includes("fermeture"), ferme=statut.includes("fermé"), travaux=statut.includes("travaux");
+        let cls=(ferme&&travaux)?"ferme-travaux":ferme?"ferme":fermeture?"fermeture":move?"manoeuvre":open?"ouvert":"ferme";
+        let texteEtat=p.statutText||""; if(travaux) texteEtat=texteEtat.replace(/(travaux)/i,'<span class="texte-travaux">$1</span>');
+        const info=p.forceText||`MàJ : ${p.date||"inconnue"}`;
         return `<div class="pont-card ${cls}"><div class="pont-nom"><span class="pastille"></span>${p.nom}</div><div class="pont-etat">${texteEtat}</div><div class="pont-infos">${info}</div></div>`;
     }).join("");
 }
 
 /* ===================== CHECK+UPDATE ===================== */
 async function checkAndUpdate(forceUpdate=false){
-    const now = Date.now();
-    const nowStr = new Date(now).toLocaleString();
-    const lastWriteTime = parseInt(localStorage.getItem(CACHE_KEY_TIME)||0);
-    const lastStr = lastWriteTime ? new Date(lastWriteTime).toLocaleString() : "inconnue";
+    const now=Date.now(), nowStr=new Date(now).toLocaleString();
+    const lastWriteTime=parseInt(localStorage.getItem(CACHE_KEY_TIME)||0), lastStr=lastWriteTime?new Date(lastWriteTime).toLocaleString():"inconnue";
+    const container=document.getElementById("ponts-table"), indicator=document.getElementById("update-indicator");
 
-    const container = document.getElementById("ponts-table");
-    const indicator = document.getElementById("update-indicator");
-
-    if(!forceUpdate && lastWriteTime && now - lastWriteTime < CACHE_EXPIRATION){
-        const cached = localStorage.getItem(CACHE_KEY_DATA);
-        if(cached){
-            renderPonts(JSON.parse(cached));
-            indicator.textContent = `🟢 — MàJ OK le ${nowStr} — États inchangés depuis le ${lastStr}`;
-            return;
-        }
+    if(!forceUpdate && lastWriteTime && now-lastWriteTime<CACHE_EXPIRATION){
+        const cached=localStorage.getItem(CACHE_KEY_DATA);
+        if(cached){ renderPonts(JSON.parse(cached)); indicator.textContent=`🟢 — MàJ OK le ${nowStr} — États inchangés depuis le ${lastStr}`; return; }
     }
 
     try{
-        const targetUrl = "https://www.havre-port.com/map/getPonts?_ts=" + Date.now();
-        const rawContent = await fetchWithPool(targetUrl);
+        const targetUrl="https://www.havre-port.com/map/getPonts?_ts="+Date.now();
+        const rawContent=await fetchWithPool(targetUrl);
+        if(!rawContent) throw new Error("Échec récupération des données");
 
-        if(!rawContent) throw new Error("Aucun proxy n'a répondu");
-
-        const data = parseRawContentToData(rawContent);
+        const data=parseRawContentToData(rawContent);
         if(!data) throw new Error("Impossible d'extraire les données API");
 
-        const ponts = Object.values(data);
-        const unique = Array.from(new Map(ponts.map(p => [p.nom, p])).values());
+        const ponts=Object.values(data);
+        const unique=Array.from(new Map(ponts.map(p=>[p.nom,p])).values());
 
-        /* MERGE PONT PAR PONT AVEC CACHE */
-        const cachedRaw = localStorage.getItem(CACHE_KEY_DATA);
-        const cachedData = cachedRaw ? JSON.parse(cachedRaw) : [];
-        const merged = unique.map(p=>{
-            const cachedPont = cachedData.find(c => c.nom === p.nom);
-            if(!cachedPont) return p;
-
-            const newDate = parseFRDate(p.date);
-            const oldDate = parseFRDate(cachedPont.date);
-
-            if (isNaN(newDate) && isNaN(oldDate)) return p;
-            if (isNaN(newDate)) return cachedPont;
-            if (isNaN(oldDate)) return p;
-
-            return newDate >= oldDate ? p : cachedPont;
+        const cachedRaw=localStorage.getItem(CACHE_KEY_DATA);
+        const cachedData=cachedRaw?JSON.parse(cachedRaw):[];
+        const merged=unique.map(p=>{
+            const cachedPont=cachedData.find(c=>c.nom===p.nom); if(!cachedPont) return p;
+            const newDate=parseFRDate(p.date), oldDate=parseFRDate(cachedPont.date);
+            if(isNaN(newDate)&&isNaN(oldDate)) return p;
+            if(isNaN(newDate)) return cachedPont;
+            if(isNaN(oldDate)) return p;
+            return newDate>=oldDate?p:cachedPont;
         });
 
-        /* TRI APRÈS MERGE */
-        const mergedSorted = merged.sort((a,b)=>{
-            const score = p=>{
-                const s=(p.statutText||"").toLowerCase();
-                if(s.includes("fermé") && s.includes("travaux")) return 1;
-                if(s.includes("fermé")) return 2;
-                if(s.includes("fermeture")) return 3;
-                if(s.includes("manoeuvre") || s.includes("manœuvre")) return 4;
-                if(s.includes("ouvert")) return 5;
-                return 6;
-            };
-
-            const sa = score(a);
-            const sb = score(b);
-            if(sa !== sb) return sa - sb;
-
-            // tri par date
-            const ta = safeTime(a.date);
-const tb = safeTime(b.date);
-
-if (ta === null && tb === null) return 0;
-if (ta === null) return 1;   // a après
-if (tb === null) return -1;  // b après
-
-return tb - ta;
-
+        const mergedSorted=merged.sort((a,b)=>{
+            const score=p=>{ const s=(p.statutText||"").toLowerCase(); if(s.includes("fermé")&&s.includes("travaux")) return 1; if(s.includes("fermé")) return 2; if(s.includes("fermeture")) return 3; if(s.includes("manoeuvre")||s.includes("manœuvre")) return 4; if(s.includes("ouvert")) return 5; return 6; };
+            const sa=score(a), sb=score(b); if(sa!==sb) return sa-sb;
+            const ta=safeTime(a.date), tb=safeTime(b.date);
+            if(ta===null&&tb===null) return 0; if(ta===null) return 1; if(tb===null) return -1;
+            return tb-ta;
         });
 
-    console.table(
-  mergedSorted.map(p => ({
-    pont: p.nom,
-    date: p.date,
-    parsed: parseFRDate(p.date)
-  }))
-);
-    
-        
-        /* HASH */
-        const norm = normalizeData(mergedSorted);
-        const newHash = await sha256(norm);
-        const oldHash = localStorage.getItem(CACHE_KEY_HASH);
-
-        if(newHash !== oldHash){
-            localStorage.setItem(CACHE_KEY_DATA, JSON.stringify(mergedSorted));
-            localStorage.setItem(CACHE_KEY_HASH, newHash);
-            localStorage.setItem(CACHE_KEY_TIME, Date.now());
-            indicator.textContent = `🟢 — MàJ OK le ${nowStr} — États mis à jour`;
-        } else {
-            indicator.textContent = `🟢 — MàJ OK le ${nowStr} — États inchangés depuis le ${lastStr}`;
-        }
+        const norm=normalizeData(mergedSorted);
+        const newHash=await sha256(norm), oldHash=localStorage.getItem(CACHE_KEY_HASH);
+        if(newHash!==oldHash){ localStorage.setItem(CACHE_KEY_DATA,JSON.stringify(mergedSorted)); localStorage.setItem(CACHE_KEY_HASH,newHash); localStorage.setItem(CACHE_KEY_TIME,Date.now()); indicator.textContent=`🟢 — MàJ OK le ${nowStr} — États mis à jour`; }
+        else{ indicator.textContent=`🟢 — MàJ OK le ${nowStr} — États inchangés depuis le ${lastStr}`; }
 
         renderPonts(mergedSorted);
 
-    } catch(err){
-        const cachedRaw = localStorage.getItem(CACHE_KEY_DATA);
-        const lastWrite = parseInt(localStorage.getItem(CACHE_KEY_TIME)||0);
-        const lastStr = lastWrite ? new Date(lastWrite).toLocaleString() : "inconnue";
+    }catch(err){
+        const cachedRaw=localStorage.getItem(CACHE_KEY_DATA);
+        const lastWrite=parseInt(localStorage.getItem(CACHE_KEY_TIME)||0);
+        const lastStr=lastWrite?new Date(lastWrite).toLocaleString():"inconnue";
 
-        if(cachedRaw){
-            try{
-                renderPonts(JSON.parse(cachedRaw));
-                indicator.textContent = `🔴 — MàJ échouée le ${nowStr} — États au ${lastStr}`;
-                updateProxyScores("https://www.havre-port.com/map/getPonts").catch(e=>console.warn(e));
-            } catch(e){
-                container.innerHTML='<div class="error-message">Impossible de récupérer les ponts et le cache est corrompu.</div>';
-            }
-        } else {
-            container.innerHTML='<div class="error-message">Impossible de récupérer les ponts et aucun cache disponible.</div>';
-            indicator.textContent=`🔴 — MàJ échouée le ${nowStr} : aucun cache`;
-        }
+        if(cachedRaw){ renderPonts(JSON.parse(cachedRaw)); indicator.textContent=`🔴 — MàJ échouée le ${nowStr} — États au ${lastStr}`; }
+        else{ container.innerHTML='<div class="error-message">Impossible de récupérer les ponts et aucun cache disponible.</div>'; indicator.textContent=`🔴 — MàJ échouée le ${nowStr} : aucun cache`; }
     }
 }
 
 /* ===================== INIT ===================== */
 (async function init(){
-    loadProxyStore();
     checkAndUpdate(true);
     setInterval(()=>checkAndUpdate(false), REFRESH_INTERVAL);
-
-    setInterval(()=>{
-        proxyPool.forEach(p=>{ if(typeof p.score !== 'number') p.score=5; });
-        saveProxyStore();
-        console.log("⏱️ Scores proxies recalculés", proxyPool.map(p=>({url:p.url,score:p.score})));
-    }, PROXY_REFRESH_INTERVAL);
 })();
 </script>
 
