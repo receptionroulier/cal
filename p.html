@@ -215,119 +215,37 @@ function safeTime(str){
     return Number.isFinite(t) ? t : null;
 }
 
+async function fetchWithPool(url, attempts = 3) {
+    const proxies = [
+        "https://api.allorigins.win/raw?url=",
+        "https://allorigins.hexlet.app/get?url="
+    ];
 
-/* ===================== PROXY POOL ===================== */
-function saveProxyStore(){ try{ localStorage.setItem(PROXY_STORE_KEY, JSON.stringify(proxyPool)); } catch(e){} }
-function loadProxyStore(){
-    try{
-        const raw = localStorage.getItem(PROXY_STORE_KEY);
-        if(!raw) return;
-        const arr = JSON.parse(raw);
-        if(Array.isArray(arr)){
-            const map = new Map(arr.map(p=>[p.url,p]));
-            proxyPool = BASE_PROXIES.map(u => {
-                if(map.has(u)){
-                    const s = map.get(u);
-                    return {
-                        url: u,
-                        score: typeof s.score === 'number' ? Math.max(MIN_SCORE, Math.min(MAX_SCORE, Math.round(s.score))) : 5,
-                        lastCheckMs: s.lastCheckMs || null,
-                        lastDurationMs: s.lastDurationMs || null,
-                        lastOk: !!s.lastOk
-                    };
-                } else return { url: u, score: 5, lastCheckMs: null, lastDurationMs: null, lastOk: false };
-            });
-        }
-    } catch(e){}
-}
-function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]] = [a[j],a[i]]; } return a; }
-function pickProxyWeighted(){
-    const list = proxyPool.slice();
-    const weights = list.map(p => Math.max(MIN_SCORE, p.score));
-    const total = weights.reduce((s,x)=>s+x,0);
-    let r = Math.random()*total;
-    for(let i=0;i<list.length;i++){ if(r < weights[i]) return list[i]; r -= weights[i]; }
-    return list[0];
-}
-async function testProxySimple(proxyUrl, targetUrl){
-    const testUrl = proxyUrl + encodeURIComponent(targetUrl);
-    const start = performance.now();
-    try{
-        const res = await fetchWithTimeout(testUrl, { method: 'GET' }, PROXY_TEST_TIMEOUT);
-        const duration = Math.round(performance.now()-start);
-        if(res && res.ok) return { ok:true, durationMs: duration, status: res.status };
-        return { ok:false, durationMs: duration, status: res && res.status ? res.status : null };
-    } catch(err){
-        const duration = Math.round(performance.now()-start);
-        return { ok:false, durationMs: duration, error: String(err) };
-    }
-}
-function adjustScoreForProxy(proxyObj, result){
-    if(result.ok){
-        proxyObj.score = Math.min(MAX_SCORE, proxyObj.score + (result.durationMs < 800 ? 2 : 1));
-        proxyObj.lastOk = true;
-    } else {
-        proxyObj.score = Math.max(MIN_SCORE, proxyObj.score - 2);
-        proxyObj.lastOk = false;
-    }
-    proxyObj.lastCheckMs = Date.now();
-    proxyObj.lastDurationMs = typeof result.durationMs === 'number' ? result.durationMs : null;
-}
-async function updateProxyScores(targetUrl){
-    const concurrency = 6;
-    const pool = proxyPool.slice();
-    let idx = 0;
-    const workers = Array.from({length:concurrency}, async () => {
-        while(true){
-            const i = idx++;
-            if(i >= pool.length) break;
-            const p = pool[i];
-            const res = await testProxySimple(p.url, targetUrl);
-            adjustScoreForProxy(p,res);
-            const real = proxyPool.find(x=>x.url === p.url);
-            if(real){
-                real.score = p.score;
-                real.lastCheckMs = p.lastCheckMs;
-                real.lastDurationMs = p.lastDurationMs;
-                real.lastOk = p.lastOk;
-            }
-            await sleep(100);
-        }
-    });
-    await Promise.all(workers);
-    saveProxyStore();
-}
-async function fetchWithPool(url, attempts = 15){
-    if(!proxyPool || proxyPool.length === 0) return fetchWithTimeout(url, {}, FETCH_TIMEOUT).then(r=>r.text()).catch(()=>null);
-    const tried = new Set();
-    for(let i=0;i<attempts;i++){
-        let candidate = pickProxyWeighted();
-        let tries = 0;
-        while(tried.has(candidate.url) && tries < 6){ candidate = proxyPool[Math.floor(Math.random()*proxyPool.length)]; tries++; }
-        tried.add(candidate.url);
+    for (let i = 0; i < proxies.length; i++) {
         try {
-            const res = await fetchWithTimeout(candidate.url + encodeURIComponent(url), {
-  method: 'GET',
-  headers: {
-    "Cache-Control": "no-cache, no-store, max-age=0",
-    "Pragma": "no-cache"
-  }
-}, FETCH_TIMEOUT);
-
-            if(res && res.ok){
-                const ct = (res.headers.get('content-type') || '').toLowerCase();
-                let raw;
-                if(ct.includes('json') || ct.includes('application/json')) raw = await res.json();
-                else { const text = await res.text(); try{ raw = JSON.parse(text); } catch(e){ raw = text; } }
-                adjustScoreForProxy(candidate, { ok: true, durationMs: 200 });
-                const real = proxyPool.find(p=>p.url===candidate.url);
-                if(real){ real.score = candidate.score; real.lastCheckMs = candidate.lastCheckMs; real.lastDurationMs = candidate.lastDurationMs; real.lastOk = candidate.lastOk; }
-                saveProxyStore();
-                return raw;
-            } else { adjustScoreForProxy(candidate, { ok: false, durationMs: 0 }); continue; }
-        } catch(err){ adjustScoreForProxy(candidate, { ok: false, durationMs: 0 }); continue; }
+            const proxyUrl = proxies[i] + encodeURIComponent(url);
+            const res = await fetchWithTimeout(proxyUrl, {}, FETCH_TIMEOUT);
+            if (res.ok) {
+                const text = await res.text();
+                try { return JSON.parse(text); } catch { return text; }
+            }
+        } catch(e) {
+            console.warn(`Proxy ${proxies[i]} failed:`, e);
+        }
     }
-    return null;
+
+    // Dernière chance : fetch direct
+    try {
+        const res = await fetchWithTimeout(url, {}, FETCH_TIMEOUT);
+        if (res.ok) {
+            const text = await res.text();
+            try { return JSON.parse(text); } catch { return text; }
+        }
+    } catch(e) {
+        console.error("Direct fetch failed:", e);
+    }
+
+    return null; // échec total
 }
 
 /* ===================== PARSE DATA ===================== */
