@@ -129,34 +129,36 @@ const MIN_SCORE = 1;
 
 /* ===================== PROXIES ===================== */
 const BASE_PROXIES = [
-    "https://api.allorigins.win/get?url=",
-    "https://thingproxy.freeboard.io/fetch/",
-    "https://cors-anywhere.herokuapp.com/",
-    "https://every-origin.vercel.app/",
-    "https://proxy.corsfix.com/?",
-    "https://yacdn.org/proxy/",
-    "https://jsonp.afeld.me/?callback=&url=",
-    "https://crossorigin.me/",
-    "https://cors-proxy.htmldriven.com/?url=",
-    "https://test.cors.workers.dev/?",
-    "https://api.codetabs.com/v1/proxy?quest=",
-    "https://cors.bridged.cc/",
-    "https://corsproxy.io/?",
-    "https://allorigins.hexlet.app/get?url=",
-    "https://api.allorigins.win/raw?url=",
-    "https://test.cors.workers.dev/",
-    "https://codetabs.com/cors-proxy/cors-proxy.html?url=",
-    "https://cors.lol/",
-    "https://cors.x2u.in/"
+   { url: "https://api.allorigins.win/get?url="},
+   { url: "https://thingproxy.freeboard.io/fetch/"},
+   { url: "https://cors-anywhere.herokuapp.com/"},
+   { url: "https://every-origin.vercel.app/"},
+   { url: "https://proxy.corsfix.com/?"},
+   { url: "https://yacdn.org/proxy/"},
+   { url: "https://jsonp.afeld.me/?callback=&url="},
+   { url: "https://crossorigin.me/"},
+   { url: "https://cors-proxy.htmldriven.com/?url="},
+   { url: "https://test.cors.workers.dev/?"},
+   { url: "https://api.codetabs.com/v1/proxy?quest="},
+   { url: "https://cors.bridged.cc/"},
+   { url: "https://corsproxy.io/?"},
+   { url: "https://allorigins.hexlet.app/get?url="},
+   { url: "https://api.allorigins.win/raw?url="},
+   { url: "https://test.cors.workers.dev/"},
+   { url: "https://codetabs.com/cors-proxy/cors-proxy.html?url="},
+   { url: "https://cors.lol/"},
+   { url: "https://cors.x2u.in/"}
 ];
 
-let proxyPool = BASE_PROXIES.map(u => ({
-    url: u,
+let proxyPool = BASE_PROXIES.map(p => ({
+    url: p.url,
+    type: p.type,
     score: 5,
     lastCheckMs: null,
     lastDurationMs: null,
     lastOk: false
 }));
+
 
 /* ===================== UTILITAIRES ===================== */
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
@@ -169,6 +171,20 @@ async function withTimeout(factory, ms){
 async function fetchWithTimeout(url, opts={}, timeout=FETCH_TIMEOUT){
     return withTimeout(signal => fetch(url, {...opts, signal}), timeout);
 }
+
+function buildProxyUrl(proxy, targetUrl) {
+  if (proxy.type === "param") {
+    return proxy.url + encodeURIComponent(targetUrl);
+  }
+  if (proxy.type === "path") {
+    return proxy.url + targetUrl;
+  }
+  if (proxy.type === "direct") {
+    return proxy.url + targetUrl;
+  }
+  return proxy.url + encodeURIComponent(targetUrl);
+}
+
 async function sha256(str){
     const data = new TextEncoder().encode(str);
     const digest = await crypto.subtle.digest("SHA-256", data);
@@ -306,13 +322,16 @@ async function fetchWithPool(url, attempts = 15){
         while(tried.has(candidate.url) && tries < 6){ candidate = proxyPool[Math.floor(Math.random()*proxyPool.length)]; tries++; }
         tried.add(candidate.url);
         try {
-            const res = await fetchWithTimeout(candidate.url + encodeURIComponent(url), {
-  method: 'GET',
-  headers: {
-    "Cache-Control": "no-cache, no-store, max-age=0",
-    "Pragma": "no-cache"
-  }
-}, FETCH_TIMEOUT);
+           const finalUrl = buildProxyUrl(candidate, url);
+
+const res = await fetchWithTimeout(
+    finalUrl,
+    {
+      method: "GET",
+      cache: "no-store"
+    },
+    FETCH_TIMEOUT
+);
 
             if(res && res.ok){
                 const ct = (res.headers.get('content-type') || '').toLowerCase();
