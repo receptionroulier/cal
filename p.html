@@ -153,8 +153,7 @@ function safeTime(str){ const t=parseFRDate(str); return Number.isFinite(t)?t:nu
 /* ===================== FETCH ===================== */
 async function fetchWithPool(url) {
     const proxies = [
-        "https://api.allorigins.win/raw?url=",
-        "https://allorigins.hexlet.app/get?url="
+       "https://crimson-recipe-63e0.receptionroulier.workers.dev/?url="
     ];
     for (let proxy of proxies) {
         try {
