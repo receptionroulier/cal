@@ -35,6 +35,22 @@ h2 {
     margin-bottom: 15px;
 }
 
+/* ===================== SPINNER ===================== */
+.spinner {
+    width: 35px;
+    height: 35px;
+    border: 4px solid #333;
+    border-top: 4px solid #00e5ff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 40px auto;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
 /* ===================== CARTES PONTS ===================== */
 #ponts-table {
     display: flex;
@@ -109,7 +125,9 @@ h2 {
 <div class="container">
     <h2>État des Ponts</h2>
     <div id="update-indicator">Chargement...</div>
-    <div id="ponts-table">Chargement...</div>
+    <div id="ponts-table">
+    <div class="spinner"></div>
+</div>
 </div>
 
 <script>
