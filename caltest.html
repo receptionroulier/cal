@@ -16,14 +16,14 @@
     justify-content:flex-start;
     gap:8px;
     padding:12px 10px;
-    color:##ffffff;
+    color:#00e5ff;
     border-bottom:1px solid #333;
     position:relative;
   }
 
-  .nav-btn{cursor:pointer;color:##ffffff;font-size:26px;padding:4px 10px;border-radius:6px}
+  .nav-btn{cursor:pointer;color:#00e5ff;font-size:26px;padding:4px 10px;border-radius:6px}
   .nav-btn:hover{background:#222}
-  .view-btn{cursor:pointer;font-size:14px;padding:4px 10px;background:#222;border-radius:6px;border:1px solid #333;color:#ffffff}
+  .view-btn{cursor:pointer;font-size:14px;padding:4px 10px;background:#222;border-radius:6px;border:1px solid #333;color:#00e5ff}
   .view-btn:hover{background:#333}
 
   #today-btn{font-size:16px}
@@ -45,7 +45,7 @@
     transform:translateY(-50%);
     font-size:2.2rem;
     font-weight:bold;
-    color:##ffffff;
+    color:#00e5ff;
     font-family:Trebuchet MS
   }
 
@@ -183,19 +183,11 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-
-function fetchWithTimeout(url, timeout = 8000){
-  return Promise.race([
-    fetch(url),
-    new Promise((_, reject)=>
-      setTimeout(()=>reject(new Error("timeout")), timeout)
-    )
-  ]);
-}
-
   const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
-  const CALENDAR_IDS = { reception: 'receptionroulier@gmail.com', navire: 'smr.programme@gmail.com' };
-  const CACHE_KEY = 'caltest_v2_cache';
+  const CALENDAR_IDS = { 
+  navire: 'smr.programme@gmail.com'
+};
+const CACHE_KEY = 'caltest_v2_cache';
   const CACHE_TTL = 30000;
   let weekView = 3;
   let currentStartDate = new Date();
@@ -216,19 +208,21 @@ function fetchWithTimeout(url, timeout = 8000){
 
   function hideModal(){ document.getElementById('event-modal').style.display='none'; }
 
-  async function fetchCalendarsRange(timeMin, timeMax){
-    const a = fetchWithTimeout(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_IDS.reception)}/events?key=${encodeURIComponent(API_KEY)}&singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(timeMin.toISOString())}&timeMax=${encodeURIComponent(timeMax.toISOString())}`)
-      .then(r=>{ if(!r.ok) throw new Error('API reception '+r.status); return r.json(); })
-      .catch(e=>{ console.error('fetch reception error', e); return { items: [] }; });
-    const b = fetchWithTimeout(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_IDS.navire)}/events?key=${encodeURIComponent(API_KEY)}&singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(timeMin.toISOString())}&timeMax=${encodeURIComponent(timeMax.toISOString())}`)
-      .then(r=>{ if(!r.ok) throw new Error('API navire '+r.status); return r.json(); })
-      .catch(e=>{ console.error('fetch navire error', e); return { items: [] }; });
+   
+      async function fetchCalendarsRange(timeMin, timeMax){
+  const r = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_IDS.navire)}/events` +
+    `?key=${encodeURIComponent(API_KEY)}` +
+    `&singleEvents=true&orderBy=startTime` +
+    `&timeMin=${encodeURIComponent(timeMin.toISOString())}` +
+    `&timeMax=${encodeURIComponent(timeMax.toISOString())}`
+  );
 
-    const [r1, r2] = await Promise.allSettled([a, b]);
-    const items1 = r1.status === 'fulfilled' ? (r1.value.items || []) : [];
-    const items2 = r2.status === 'fulfilled' ? (r2.value.items || []) : [];
-    return [...items1.map(i=>({...i, __type:'reception'})), ...items2.map(i=>({...i, __type:'navire'}))];
-  }
+  if(!r.ok) throw new Error('API navire ' + r.status);
+  const data = await r.json();
+  return (data.items || []).map(i => ({ ...i, __type: 'navire' }));
+}
+
 
   function updateScrollingEvents(){
     document.querySelectorAll('.event-text').forEach(el=>{
@@ -265,38 +259,17 @@ function fetchWithTimeout(url, timeout = 8000){
     }
 
     await new Promise(resolve=>{
-  let tries = 0;
-
-  const check = () => {
-    const cells = calendarEl.querySelectorAll('.day-cell');
-
-    if(cells.length > 0){
-      let ok = true;
-
-      cells.forEach(c=>{
-        const r = c.getBoundingClientRect();
-        if(r.width === 0 || r.height === 0) ok = false;
-      });
-
-      if(ok){
-        resolve();
-        return;
-      }
-    }
-
-    tries++;
-
-    if(tries > 60){ // 🔴 stop après ~1 seconde
-      console.warn("Timeout layout, on continue quand même");
-      resolve();
-      return;
-    }
-
-    requestAnimationFrame(check);
-  };
-
-  check();
-});
+      const check=()=>{
+        const cells=calendarEl.querySelectorAll('.day-cell');
+        if(cells.length>0){
+          let ok=true;
+          cells.forEach(c=>{ const r=c.getBoundingClientRect(); if(r.width===0||r.height===0) ok=false; });
+          if(ok){ resolve(); return; }
+        }
+        requestAnimationFrame(check);
+      };
+      check();
+    });
 
     const calendarRect = calendarEl.getBoundingClientRect();
     const cellRects = cellMap.map(c => c.el.getBoundingClientRect());
@@ -365,7 +338,7 @@ function fetchWithTimeout(url, timeout = 8000){
     });
 
     cellMap.forEach(c=>{ c.eventsList = []; c.totalSegments = 0; });
-    segments.forEach(seg=>{ for(let i=seg.startIdx;i<=seg.endIdx;i++){ if(i>=0 && i<cellMap.length){ let c=cellMap[i]; c.totalSegments++; if(!c.eventsList.includes(seg.ev)) c.eventsList.push(seg.ev); } } });
+    segments.forEach(seg=>{ for(let i=seg.startIdx;i<=seg.endIdx;i++){ if(i>=0 && i<cellMap.length){ c=cellMap[i]; c.totalSegments++; if(!c.eventsList.includes(seg.ev)) c.eventsList.push(seg.ev); } } });
 
     const dateLabel = document.querySelector('.date-label');
     const dateLabelH = dateLabel ? dateLabel.getBoundingClientRect().height : 18;
