@@ -184,7 +184,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
 
-function fetchWithTimeout(url, timeout = 8000){
+function fetchWithTimeout(url, timeout = 180000){
   return Promise.race([
     fetch(url),
     new Promise((_, reject)=>
