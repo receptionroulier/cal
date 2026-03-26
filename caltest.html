@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Tableau de bord - Ponts & Calendrier</title>
+<title>Tableau de bord - Ponts & Calendrier Réception</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:#0f0f10;color:#fff;display:flex;flex-direction:column;height:100vh}
@@ -16,14 +16,14 @@
     justify-content:flex-start;
     gap:8px;
     padding:12px 10px;
-    color:#00e5ff;
+    color:##ffffff;
     border-bottom:1px solid #333;
     position:relative;
   }
 
-  .nav-btn{cursor:pointer;color:#00e5ff;font-size:26px;padding:4px 10px;border-radius:6px}
+  .nav-btn{cursor:pointer;color:##ffffff;font-size:26px;padding:4px 10px;border-radius:6px}
   .nav-btn:hover{background:#222}
-  .view-btn{cursor:pointer;font-size:14px;padding:4px 10px;background:#222;border-radius:6px;border:1px solid #333;color:#00e5ff}
+  .view-btn{cursor:pointer;font-size:14px;padding:4px 10px;background:#222;border-radius:6px;border:1px solid #333;color:#ffffff}
   .view-btn:hover{background:#333}
 
   #today-btn{font-size:16px}
@@ -45,7 +45,7 @@
     transform:translateY(-50%);
     font-size:2.2rem;
     font-weight:bold;
-    color:#00e5ff;
+    color:##ffffff;
     font-family:Trebuchet MS
   }
 
@@ -184,10 +184,8 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
-  const CALENDAR_IDS = { 
-  navire: 'smr.programme@gmail.com'
-};
-const CACHE_KEY = 'caltest_v2_cache';
+  const CALENDAR_IDS = { reception: 'receptionroulier@gmail.com', navire: 'smr.programme@gmail.com' };
+  const CACHE_KEY = 'caltest_v2_cache';
   const CACHE_TTL = 30000;
   let weekView = 3;
   let currentStartDate = new Date();
@@ -208,21 +206,19 @@ const CACHE_KEY = 'caltest_v2_cache';
 
   function hideModal(){ document.getElementById('event-modal').style.display='none'; }
 
-   
-      async function fetchCalendarsRange(timeMin, timeMax){
-  const r = await fetch(
-    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_IDS.navire)}/events` +
-    `?key=${encodeURIComponent(API_KEY)}` +
-    `&singleEvents=true&orderBy=startTime` +
-    `&timeMin=${encodeURIComponent(timeMin.toISOString())}` +
-    `&timeMax=${encodeURIComponent(timeMax.toISOString())}`
-  );
+  async function fetchCalendarsRange(timeMin, timeMax){
+    const a = fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_IDS.reception)}/events?key=${encodeURIComponent(API_KEY)}&singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(timeMin.toISOString())}&timeMax=${encodeURIComponent(timeMax.toISOString())}`)
+      .then(r=>{ if(!r.ok) throw new Error('API reception '+r.status); return r.json(); })
+      .catch(e=>{ console.error('fetch reception error', e); return { items: [] }; });
+    const b = fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_IDS.navire)}/events?key=${encodeURIComponent(API_KEY)}&singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(timeMin.toISOString())}&timeMax=${encodeURIComponent(timeMax.toISOString())}`)
+      .then(r=>{ if(!r.ok) throw new Error('API navire '+r.status); return r.json(); })
+      .catch(e=>{ console.error('fetch navire error', e); return { items: [] }; });
 
-  if(!r.ok) throw new Error('API navire ' + r.status);
-  const data = await r.json();
-  return (data.items || []).map(i => ({ ...i, __type: 'navire' }));
-}
-
+    const [r1, r2] = await Promise.allSettled([a, b]);
+    const items1 = r1.status === 'fulfilled' ? (r1.value.items || []) : [];
+    const items2 = r2.status === 'fulfilled' ? (r2.value.items || []) : [];
+    return [...items1.map(i=>({...i, __type:'reception'})), ...items2.map(i=>({...i, __type:'navire'}))];
+  }
 
   function updateScrollingEvents(){
     document.querySelectorAll('.event-text').forEach(el=>{
