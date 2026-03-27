@@ -177,7 +177,7 @@
   <div id="events-layer" aria-hidden="false"></div>
 </div>
 
-<div id="event-modal" onclick="hideModal()">
+<div id="event-modal">
   <div class="modal-card" id="modal-content" onclick="event.stopPropagation()"></div>
 </div>
 
@@ -204,7 +204,13 @@ document.addEventListener('DOMContentLoaded', function() {
   function updateClock(){ const now=new Date(); document.getElementById('current-time').textContent = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`; }
   setInterval(updateClock, 1000);
 
-  function hideModal(){ document.getElementById('event-modal').style.display='none'; }
+ // Fonction pour fermer la modal
+function hideModal() {
+  document.getElementById('event-modal').style.display = 'none';
+}
+
+// Écouteur pour fermer la modal quand on clique sur le fond
+document.getElementById('event-modal').addEventListener('click', hideModal);
 
   async function fetchCalendarsRange(timeMin, timeMax){
     const a = fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_IDS.reception)}/events?key=${encodeURIComponent(API_KEY)}&singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(timeMin.toISOString())}&timeMax=${encodeURIComponent(timeMax.toISOString())}`)
@@ -283,86 +289,96 @@ document.addEventListener('DOMContentLoaded', function() {
       } else { items = await fetchCalendarsRange(timeMin, timeMax); saveCache(items, calculateHash(items)); }
     }
 
-    const norm = items.map(e=>{
-  const ev = JSON.parse(JSON.stringify(e));
-  ev.__type = ev.__type || '';
+// --- Normalisation des événements (DST-safe, boucle sécurisée) ---
+const norm = items.map(ev => {
+  const copy = JSON.parse(JSON.stringify(ev));
+  copy.__type = copy.__type || '';
 
-  ev._isAllDay = !!(ev.start && ev.start.date && !ev.start.dateTime);
+  // Détecte si l'événement est "all-day"
+  copy._isAllDay = !!(copy.start && copy.start.date && !copy.start.dateTime);
 
-  // START
-  if(ev.start){
-    if(ev.start.dateTime) ev._start = new Date(ev.start.dateTime);
-    else {
-      ev._start = new Date(ev.start.date);
-      ev._start.setHours(0,0,0,0);
-    }
+  // Début
+  if (copy.start) {
+    copy._start = copy.start.dateTime ? new Date(copy.start.dateTime) : new Date(copy.start.date);
+    if (copy._isAllDay) copy._start.setHours(0, 0, 0, 0);
   }
 
-  // END (sécurisé)
-  if(ev.end){
-    if(ev.end.dateTime) ev._end = new Date(ev.end.dateTime);
-    else {
-      ev._end = new Date(ev.end.date);
-      ev._end.setHours(0,0,0,0);
-    }
-  } else {
-    // 🔴 CAS IMPORTANT : pas de end → on copie start
-    ev._end = new Date(ev._start);
-  }
-
-  // END INCLUSIVE
-  if(ev._isAllDay && ev._end){
-    const adj = new Date(ev._end);
-    adj.setDate(adj.getDate()-1);
-    adj.setHours(23,59,59,999);
-    ev._endInclusive = adj;
-  } 
-  else if(ev._end){
-    const tmp = new Date(ev._end);
-    if(tmp.getHours()===0 && tmp.getMinutes()===0 && tmp.getSeconds()===0){
-      const adj = new Date(tmp);
-      adj.setDate(adj.getDate()-1);
-      adj.setHours(23,59,59,999);
-      ev._endInclusive = adj;
+  // Fin
+  if (copy.end) {
+    copy._end = copy.end.dateTime ? new Date(copy.end.dateTime) : new Date(copy.end.date);
+    if (copy._isAllDay) {
+      copy._endInclusive = new Date(copy._end.getTime() - 1); // inclure dernier jour
+      copy._endInclusive.setHours(23, 59, 59, 999);
     } else {
-      ev._endInclusive = new Date(ev._end);
+      copy._endInclusive = new Date(copy._end.getTime());
     }
   }
 
-  // 🔴 sécurité finale
-  if(!ev._start || !ev._endInclusive) return null;
+  if (!copy._endInclusive && copy._end) copy._endInclusive = new Date(copy._end.getTime());
 
-  return ev;
+  return copy;
+}).filter(e => e._start && e._endInclusive);
 
-}).filter(Boolean);
-      
-    const segments = [];
-    norm.forEach(ev=>{
-      const sDay = new Date(ev._start); sDay.setHours(0,0,0,0);
-      const eDay = new Date(ev._endInclusive); eDay.setHours(0,0,0,0);
-      let cursor = new Date(sDay);
-      let safety = 0;
+// --- Segmentation sécurisée ---
+const segments = [];
+norm.forEach(ev => {
+  const sDay = new Date(ev._start.getFullYear(), ev._start.getMonth(), ev._start.getDate());
+  const eDay = new Date(ev._endInclusive.getFullYear(), ev._endInclusive.getMonth(), ev._endInclusive.getDate());
+  let cursor = new Date(sDay);
+  let safetyCounter = 0; // compteur sécurité
 
-while(cursor <= eDay){
-  if(safety++ > 1000){
-    console.warn("Boucle stoppée (sécurité)", ev);
-    break;
-  }
-        const weekIndex = Math.floor((cursor - startDate) / (7*24*3600*1000));
-        if(weekIndex < 0){ cursor = new Date(startDate); continue; }
-        if(weekIndex >= weekView) break;
-        const weekStartIdx = weekIndex*7;
-        const weekEndIdx = Math.min(weekStartIdx+6, cellMap.length-1);
-        let segStartIdx = -1;
-        for(let i=weekStartIdx;i<=weekEndIdx;i++){ if(cellMap[i].date.getTime() >= cursor.getTime()){ segStartIdx = i; break; } }
-        if(segStartIdx===-1){ cursor = new Date(cellMap[weekEndIdx].date); cursor.setDate(cursor.getDate()+1); continue; }
-        let segEndIdx = -1;
-        for(let i=weekEndIdx;i>=weekStartIdx;i--){ if(cellMap[i].date.getTime() <= eDay.getTime()){ segEndIdx = i; break; } }
-        if(segEndIdx===-1){ cursor = new Date(cellMap[weekEndIdx].date); cursor.setDate(cursor.getDate()+1); continue; }
-        segments.push({ ev, startIdx: segStartIdx, endIdx: segEndIdx, weekIdx: weekIndex, segStartDate: new Date(cellMap[segStartIdx].date), segEndDate: new Date(cellMap[segEndIdx].date) });
-        cursor = new Date(cellMap[segEndIdx].date); cursor.setDate(cursor.getDate()+1);
+  while(cursor <= eDay){
+    safetyCounter++;
+    if(safetyCounter > 1000){
+      console.warn('Boucle segmentation arrêtée pour sécurité', ev.summary);
+      break;
+    }
+
+    const weekIndex = Math.floor((cursor - startDate) / (7*24*3600*1000));
+    if(weekIndex < 0){ cursor.setDate(cursor.getDate()+1); continue; }
+    if(weekIndex >= weekView) break;
+
+    const weekStartIdx = weekIndex*7;
+    const weekEndIdx = Math.min(weekStartIdx+6, cellMap.length-1);
+
+    // Recherche segment start
+    let segStartIdx = -1;
+    for(let i=weekStartIdx;i<=weekEndIdx;i++){
+      if(cellMap[i].date.getTime() >= cursor.getTime()){
+        segStartIdx = i;
+        break;
       }
+    }
+
+    // Recherche segment end
+    let segEndIdx = -1;
+    for(let i=weekEndIdx;i>=weekStartIdx;i--){
+      if(cellMap[i].date.getTime() <= eDay.getTime()){
+        segEndIdx = i;
+        break;
+      }
+    }
+
+    // Avancer cursor si segment invalide
+    if(segStartIdx === -1 || segEndIdx === -1){
+      cursor.setDate(cursor.getDate()+1);
+      continue;
+    }
+
+    segments.push({
+      ev,
+      startIdx: segStartIdx,
+      endIdx: segEndIdx,
+      weekIdx: weekIndex,
+      segStartDate: new Date(cellMap[segStartIdx].date),
+      segEndDate: new Date(cellMap[segEndIdx].date)
     });
+
+    // Avancer cursor à la fin du segment +1 jour
+    cursor = new Date(cellMap[segEndIdx].date);
+    cursor.setDate(cursor.getDate()+1);
+  }
+});
 
     const weekLanes = Array.from({ length: weekView }, ()=>[]);
     segments.forEach(seg=>{
@@ -376,7 +392,7 @@ while(cursor <= eDay){
     });
 
     cellMap.forEach(c=>{ c.eventsList = []; c.totalSegments = 0; });
-    segments.forEach(seg=>{ for(let i=seg.startIdx;i<=seg.endIdx;i++){ if(i>=0 && i<cellMap.length){ let c= cellMap[i]; c.totalSegments++; if(!c.eventsList.includes(seg.ev)) c.eventsList.push(seg.ev); } } });
+    segments.forEach(seg=>{ for(let i=seg.startIdx;i<=seg.endIdx;i++){ if(i>=0 && i<cellMap.length){ c=cellMap[i]; c.totalSegments++; if(!c.eventsList.includes(seg.ev)) c.eventsList.push(seg.ev); } } });
 
     const dateLabel = document.querySelector('.date-label');
     const dateLabelH = dateLabel ? dateLabel.getBoundingClientRect().height : 18;
@@ -386,18 +402,9 @@ while(cursor <= eDay){
     const visibleLanesPerWeek = [];
     for(let w=0; w<weekView; w++){ const avail = rowH - (dateLabelH + 8); visibleLanesPerWeek[w] = Math.max(0, Math.floor((avail + laneGap) / bandSpacing)); }
 
-    function getFirstSegmentOfEvent(ev){
-  const segs = segments.filter(s => s.ev === ev);
-  if(segs.length === 0) return null;
-  return segs.reduce((a,b)=> a.startIdx < b.startIdx ? a : b);
-}
+    function getFirstSegmentOfEvent(ev){ return segments.filter(s=>s.ev===ev).reduce((a,b)=> a.startIdx < b.startIdx ? a : b); }
+    function getLastSegmentOfEvent(ev){ return segments.filter(s=>s.ev===ev).reduce((a,b)=> a.endIdx > b.endIdx ? a : b); }
 
-function getLastSegmentOfEvent(ev){
-  const segs = segments.filter(s => s.ev === ev);
-  if(segs.length === 0) return null;
-  return segs.reduce((a,b)=> a.endIdx > b.endIdx ? a : b);
-}
-    
     cellMap.forEach(c=>{ if(c.date < today){ const overlay = document.createElement('div'); overlay.className = 'past-day-overlay'; c.el.appendChild(overlay); c.el.style.position='relative'; } });
 
     segments.forEach(seg=>{
@@ -415,11 +422,9 @@ function getLastSegmentOfEvent(ev){
       const eventText = document.createElement('div'); eventText.className = 'event-text';
       const ev = seg.ev;
       const evStartTime = ev._isAllDay ? '' : fmtTime(ev._start);
-      const lastSeg = getLastSegmentOfEvent(ev);
-const evEndTime = (!ev._isAllDay && lastSeg && seg.endIdx === lastSeg.endIdx) ? (fmtTime(ev._end) + '>\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0') : '';
-      const firstSeg = getFirstSegmentOfEvent(ev);
-const isFirstSegment = firstSeg && seg.startIdx === firstSeg.startIdx;
-    let fullText = '';
+      const evEndTime = (!ev._isAllDay && seg.endIdx === getLastSegmentOfEvent(ev).endIdx) ? (fmtTime(ev._end) + '>\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0') : '';
+      const isFirstSegment = seg.startIdx === getFirstSegmentOfEvent(ev).startIdx;
+      let fullText = '';
       if(isFirstSegment && evStartTime) fullText += `<${evStartTime} `;
       fullText += ev.summary || '(sans titre)';
       if(evEndTime) fullText += ` ${evEndTime}`;
@@ -509,7 +514,6 @@ const isFirstSegment = firstSeg && seg.startIdx === firstSeg.startIdx;
   document.getElementById('today-btn').addEventListener('click', ()=>{ currentStartDate = new Date(); weekView = 3; localStorage.removeItem(CACHE_KEY); renderCalendar().catch(()=>{}); });
   document.getElementById('view-3w').addEventListener('click', ()=>{ weekView = 3; currentStartDate = getMonday(currentStartDate); localStorage.removeItem(CACHE_KEY); renderCalendar().catch(()=>{}); });
   document.getElementById('view-4w').addEventListener('click', ()=>{ weekView = 4; currentStartDate = getMonday(currentStartDate); localStorage.removeItem(CACHE_KEY); renderCalendar().catch(()=>{}); });
-  document.getElementById('event-modal').addEventListener('click', hideModal);
   window.addEventListener('resize', ()=>{ clearTimeout(resizeTimeout); resizeTimeout = setTimeout(()=>{ renderCalendar().catch(()=>{}); }, 200); });
 
   renderCalendar().then(()=>{ startAutoRefresh(); }).catch(err=>{ console.error('render error', err); document.getElementById('calendar-title').textContent='Erreur'; });
