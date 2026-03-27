@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Tableau de bord - Ponts & Calendrier</title>
+<title>Tableau de bord - Ponts & Calendrier Navires</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:#0f0f10;color:#fff;display:flex;flex-direction:column;height:100vh}
@@ -16,12 +16,12 @@
     justify-content:flex-start;
     gap:8px;
     padding:12px 10px;
-    color:##ffffff;
+    color:#ffffff;
     border-bottom:1px solid #333;
     position:relative;
   }
 
-  .nav-btn{cursor:pointer;color:##ffffff;font-size:26px;padding:4px 10px;border-radius:6px}
+  .nav-btn{cursor:pointer;color:#ffffff;font-size:26px;padding:4px 10px;border-radius:6px}
   .nav-btn:hover{background:#222}
   .view-btn{cursor:pointer;font-size:14px;padding:4px 10px;background:#222;border-radius:6px;border:1px solid #333;color:#ffffff}
   .view-btn:hover{background:#333}
@@ -45,7 +45,7 @@
     transform:translateY(-50%);
     font-size:2.2rem;
     font-weight:bold;
-    color:##ffffff;
+    color:#ffffff;
     font-family:Trebuchet MS
   }
 
@@ -177,19 +177,17 @@
   <div id="events-layer" aria-hidden="false"></div>
 </div>
 
-<div id="event-modal" onclick="hideModal()">
+<div id="event-modal">
   <div class="modal-card" id="modal-content" onclick="event.stopPropagation()"></div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
-  const CALENDAR_IDS = { 
-  navire: 'smr.programme@gmail.com'
-};
-const CACHE_KEY = 'caltest_v2_cache';
+  const CALENDAR_IDS = { navire: 'smr.programme@gmail.com' };
+  const CACHE_KEY = 'caln_v2_cache';
   const CACHE_TTL = 30000;
-  let weekView = 4;
+  let weekView = 3;
   let currentStartDate = new Date();
   let resizeTimeout;
   let autoRefreshTimer = null;
@@ -206,23 +204,21 @@ const CACHE_KEY = 'caltest_v2_cache';
   function updateClock(){ const now=new Date(); document.getElementById('current-time').textContent = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`; }
   setInterval(updateClock, 1000);
 
-  function hideModal(){ document.getElementById('event-modal').style.display='none'; }
-
-   
-      async function fetchCalendarsRange(timeMin, timeMax){
-  const r = await fetch(
-    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_IDS.navire)}/events` +
-    `?key=${encodeURIComponent(API_KEY)}` +
-    `&singleEvents=true&orderBy=startTime` +
-    `&timeMin=${encodeURIComponent(timeMin.toISOString())}` +
-    `&timeMax=${encodeURIComponent(timeMax.toISOString())}`
-  );
-
-  if(!r.ok) throw new Error('API navire ' + r.status);
-  const data = await r.json();
-  return (data.items || []).map(i => ({ ...i, __type: 'navire' }));
+ // Fonction pour fermer la modal
+function hideModal() {
+  document.getElementById('event-modal').style.display = 'none';
 }
 
+// Écouteur pour fermer la modal quand on clique sur le fond
+document.getElementById('event-modal').addEventListener('click', hideModal);
+
+  async function fetchCalendarsRange(timeMin, timeMax){
+  const resp = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_IDS.navire)}/events?key=${encodeURIComponent(API_KEY)}&singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(timeMin.toISOString())}&timeMax=${encodeURIComponent(timeMax.toISOString())}`)
+    .then(r => r.ok ? r.json() : { items: [] })
+    .catch(e => { console.error('fetch navire error', e); return { items: [] }; });
+
+  return (resp.items || []).map(i => ({ ...i, __type: 'navire' }));
+}
 
   function updateScrollingEvents(){
     document.querySelectorAll('.event-text').forEach(el=>{
@@ -287,44 +283,96 @@ const CACHE_KEY = 'caltest_v2_cache';
       } else { items = await fetchCalendarsRange(timeMin, timeMax); saveCache(items, calculateHash(items)); }
     }
 
-    const norm = items.map(e=>{
-      const ev = JSON.parse(JSON.stringify(e));
-      ev.__type = ev.__type || '';
-      ev._isAllDay = !!(ev.start && ev.start.date && !ev.start.dateTime);
-      if(ev.start){
-        if(ev.start.dateTime) ev._start = new Date(ev.start.dateTime);
-        else { ev._start = new Date(ev.start.date); ev._start.setHours(0,0,0,0); }
-      }
-      if(ev.end){
-        if(ev.end.dateTime) ev._end = new Date(ev.end.dateTime);
-        else { ev._end = new Date(ev.end.date); ev._end.setHours(0,0,0,0); }
-      }
-      if(ev._isAllDay && ev._end){ const adj = new Date(ev._end); adj.setDate(adj.getDate()-1); adj.setHours(23,59,59,999); ev._endInclusive = adj; } 
-      else if(ev._end){ const tmp = new Date(ev._end); if(tmp.getHours()===0 && tmp.getMinutes()===0 && tmp.getSeconds()===0){ const adj = new Date(tmp); adj.setDate(adj.getDate()-1); adj.setHours(23,59,59,999); ev._endInclusive = adj; } else ev._endInclusive = new Date(ev._end); }
-      return ev;
-    }).filter(e=>e._start && e._endInclusive);
+// --- Normalisation des événements (DST-safe, boucle sécurisée) ---
+const norm = items.map(ev => {
+  const copy = JSON.parse(JSON.stringify(ev));
+  copy.__type = copy.__type || '';
 
-    const segments = [];
-    norm.forEach(ev=>{
-      const sDay = new Date(ev._start); sDay.setHours(0,0,0,0);
-      const eDay = new Date(ev._endInclusive); eDay.setHours(0,0,0,0);
-      let cursor = new Date(sDay);
-      while(cursor <= eDay){
-        const weekIndex = Math.floor((cursor - startDate) / (7*24*3600*1000));
-        if(weekIndex < 0){ cursor = new Date(startDate); continue; }
-        if(weekIndex >= weekView) break;
-        const weekStartIdx = weekIndex*7;
-        const weekEndIdx = Math.min(weekStartIdx+6, cellMap.length-1);
-        let segStartIdx = -1;
-        for(let i=weekStartIdx;i<=weekEndIdx;i++){ if(cellMap[i].date.getTime() >= cursor.getTime()){ segStartIdx = i; break; } }
-        if(segStartIdx===-1){ cursor = new Date(cellMap[weekEndIdx].date); cursor.setDate(cursor.getDate()+1); continue; }
-        let segEndIdx = -1;
-        for(let i=weekEndIdx;i>=weekStartIdx;i--){ if(cellMap[i].date.getTime() <= eDay.getTime()){ segEndIdx = i; break; } }
-        if(segEndIdx===-1){ cursor = new Date(cellMap[weekEndIdx].date); cursor.setDate(cursor.getDate()+1); continue; }
-        segments.push({ ev, startIdx: segStartIdx, endIdx: segEndIdx, weekIdx: weekIndex, segStartDate: new Date(cellMap[segStartIdx].date), segEndDate: new Date(cellMap[segEndIdx].date) });
-        cursor = new Date(cellMap[segEndIdx].date); cursor.setDate(cursor.getDate()+1);
+  // Détecte si l'événement est "all-day"
+  copy._isAllDay = !!(copy.start && copy.start.date && !copy.start.dateTime);
+
+  // Début
+  if (copy.start) {
+    copy._start = copy.start.dateTime ? new Date(copy.start.dateTime) : new Date(copy.start.date);
+    if (copy._isAllDay) copy._start.setHours(0, 0, 0, 0);
+  }
+
+  // Fin
+  if (copy.end) {
+    copy._end = copy.end.dateTime ? new Date(copy.end.dateTime) : new Date(copy.end.date);
+    if (copy._isAllDay) {
+      copy._endInclusive = new Date(copy._end.getTime() - 1); // inclure dernier jour
+      copy._endInclusive.setHours(23, 59, 59, 999);
+    } else {
+      copy._endInclusive = new Date(copy._end.getTime());
+    }
+  }
+
+  if (!copy._endInclusive && copy._end) copy._endInclusive = new Date(copy._end.getTime());
+
+  return copy;
+}).filter(e => e._start && e._endInclusive);
+
+// --- Segmentation sécurisée ---
+const segments = [];
+norm.forEach(ev => {
+  const sDay = new Date(ev._start.getFullYear(), ev._start.getMonth(), ev._start.getDate());
+  const eDay = new Date(ev._endInclusive.getFullYear(), ev._endInclusive.getMonth(), ev._endInclusive.getDate());
+  let cursor = new Date(sDay);
+  let safetyCounter = 0; // compteur sécurité
+
+  while(cursor <= eDay){
+    safetyCounter++;
+    if(safetyCounter > 1000){
+      console.warn('Boucle segmentation arrêtée pour sécurité', ev.summary);
+      break;
+    }
+
+    const weekIndex = Math.floor((cursor - startDate) / (7*24*3600*1000));
+    if(weekIndex < 0){ cursor.setDate(cursor.getDate()+1); continue; }
+    if(weekIndex >= weekView) break;
+
+    const weekStartIdx = weekIndex*7;
+    const weekEndIdx = Math.min(weekStartIdx+6, cellMap.length-1);
+
+    // Recherche segment start
+    let segStartIdx = -1;
+    for(let i=weekStartIdx;i<=weekEndIdx;i++){
+      if(cellMap[i].date.getTime() >= cursor.getTime()){
+        segStartIdx = i;
+        break;
       }
+    }
+
+    // Recherche segment end
+    let segEndIdx = -1;
+    for(let i=weekEndIdx;i>=weekStartIdx;i--){
+      if(cellMap[i].date.getTime() <= eDay.getTime()){
+        segEndIdx = i;
+        break;
+      }
+    }
+
+    // Avancer cursor si segment invalide
+    if(segStartIdx === -1 || segEndIdx === -1){
+      cursor.setDate(cursor.getDate()+1);
+      continue;
+    }
+
+    segments.push({
+      ev,
+      startIdx: segStartIdx,
+      endIdx: segEndIdx,
+      weekIdx: weekIndex,
+      segStartDate: new Date(cellMap[segStartIdx].date),
+      segEndDate: new Date(cellMap[segEndIdx].date)
     });
+
+    // Avancer cursor à la fin du segment +1 jour
+    cursor = new Date(cellMap[segEndIdx].date);
+    cursor.setDate(cursor.getDate()+1);
+  }
+});
 
     const weekLanes = Array.from({ length: weekView }, ()=>[]);
     segments.forEach(seg=>{
@@ -457,10 +505,9 @@ const CACHE_KEY = 'caltest_v2_cache';
 
   document.getElementById('prev-btn').addEventListener('click', ()=>{ currentStartDate.setDate(currentStartDate.getDate()-7); localStorage.removeItem(CACHE_KEY); renderCalendar().catch(()=>{}); });
   document.getElementById('next-btn').addEventListener('click', ()=>{ currentStartDate.setDate(currentStartDate.getDate()+7); localStorage.removeItem(CACHE_KEY); renderCalendar().catch(()=>{}); });
-  document.getElementById('today-btn').addEventListener('click', ()=>{ currentStartDate = new Date(); weekView = 4; localStorage.removeItem(CACHE_KEY); renderCalendar().catch(()=>{}); });
+  document.getElementById('today-btn').addEventListener('click', ()=>{ currentStartDate = new Date(); weekView = 3; localStorage.removeItem(CACHE_KEY); renderCalendar().catch(()=>{}); });
   document.getElementById('view-3w').addEventListener('click', ()=>{ weekView = 3; currentStartDate = getMonday(currentStartDate); localStorage.removeItem(CACHE_KEY); renderCalendar().catch(()=>{}); });
   document.getElementById('view-4w').addEventListener('click', ()=>{ weekView = 4; currentStartDate = getMonday(currentStartDate); localStorage.removeItem(CACHE_KEY); renderCalendar().catch(()=>{}); });
-  document.getElementById('event-modal').addEventListener('click', hideModal);
   window.addEventListener('resize', ()=>{ clearTimeout(resizeTimeout); resizeTimeout = setTimeout(()=>{ renderCalendar().catch(()=>{}); }, 200); });
 
   renderCalendar().then(()=>{ startAutoRefresh(); }).catch(err=>{ console.error('render error', err); document.getElementById('calendar-title').textContent='Erreur'; });
