@@ -197,7 +197,7 @@ document.addEventListener('DOMContentLoaded', function() {
   function fmtDayLabel(d){ return d.toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit'}); }
   function fmtFullDate(d){ return new Date(d).toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long'}); }
   function capitalize(s){ return s? s.charAt(0).toUpperCase()+s.slice(1): s; }
-  function calculateHash(events){ return JSON.stringify(events.map(ev=>({id:ev.id,updated:ev.updated,start:ev.start.dateTime||ev.start.date,end:ev.end.dateTime||ev.end.date,summary:ev.summary}))); }
+  function calculateHash(events){ return JSON.stringify(events.map(ev=>({id:ev.id,updated:ev.updated,start:ev.start.dateTime||ev.start.date,end:ev.end.dateTime||ev.end.date,summary:ev.summary})); }
   function loadCache(){ try{ const raw=localStorage.getItem(CACHE_KEY); if(!raw) return null; const obj=JSON.parse(raw); if(Date.now()-obj.ts > CACHE_TTL) return null; return obj; }catch(e){return null;} }
   function saveCache(items, hash){ try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ items, hash, ts: Date.now() })); } catch(e){ console.error('Erreur sauvegarde cache:', e); } }
 
