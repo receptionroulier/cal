@@ -335,22 +335,7 @@ document.addEventListener('DOMContentLoaded', function() {
   return ev;
 
 }).filter(Boolean);
-      const ev = JSON.parse(JSON.stringify(e));
-      ev.__type = ev.__type || '';
-      ev._isAllDay = !!(ev.start && ev.start.date && !ev.start.dateTime);
-      if(ev.start){
-        if(ev.start.dateTime) ev._start = new Date(ev.start.dateTime);
-        else { ev._start = new Date(ev.start.date); ev._start.setHours(0,0,0,0); }
-      }
-      if(ev.end){
-        if(ev.end.dateTime) ev._end = new Date(ev.end.dateTime);
-        else { ev._end = new Date(ev.end.date); ev._end.setHours(0,0,0,0); }
-      }
-      if(ev._isAllDay && ev._end){ const adj = new Date(ev._end); adj.setDate(adj.getDate()-1); adj.setHours(23,59,59,999); ev._endInclusive = adj; } 
-      else if(ev._end){ const tmp = new Date(ev._end); if(tmp.getHours()===0 && tmp.getMinutes()===0 && tmp.getSeconds()===0){ const adj = new Date(tmp); adj.setDate(adj.getDate()-1); adj.setHours(23,59,59,999); ev._endInclusive = adj; } else ev._endInclusive = new Date(ev._end); }
-      return ev;
-    }).filter(e=>e._start && e._endInclusive);
-
+      
     const segments = [];
     norm.forEach(ev=>{
       const sDay = new Date(ev._start); sDay.setHours(0,0,0,0);
@@ -395,9 +380,18 @@ document.addEventListener('DOMContentLoaded', function() {
     const visibleLanesPerWeek = [];
     for(let w=0; w<weekView; w++){ const avail = rowH - (dateLabelH + 8); visibleLanesPerWeek[w] = Math.max(0, Math.floor((avail + laneGap) / bandSpacing)); }
 
-    function getFirstSegmentOfEvent(ev){ return segments.filter(s=>s.ev===ev).reduce((a,b)=> a.startIdx < b.startIdx ? a : b); }
-    function getLastSegmentOfEvent(ev){ return segments.filter(s=>s.ev===ev).reduce((a,b)=> a.endIdx > b.endIdx ? a : b); }
+    function getFirstSegmentOfEvent(ev){
+  const segs = segments.filter(s => s.ev === ev);
+  if(segs.length === 0) return null;
+  return segs.reduce((a,b)=> a.startIdx < b.startIdx ? a : b);
+}
 
+function getLastSegmentOfEvent(ev){
+  const segs = segments.filter(s => s.ev === ev);
+  if(segs.length === 0) return null;
+  return segs.reduce((a,b)=> a.endIdx > b.endIdx ? a : b);
+}
+    
     cellMap.forEach(c=>{ if(c.date < today){ const overlay = document.createElement('div'); overlay.className = 'past-day-overlay'; c.el.appendChild(overlay); c.el.style.position='relative'; } });
 
     segments.forEach(seg=>{
@@ -415,9 +409,11 @@ document.addEventListener('DOMContentLoaded', function() {
       const eventText = document.createElement('div'); eventText.className = 'event-text';
       const ev = seg.ev;
       const evStartTime = ev._isAllDay ? '' : fmtTime(ev._start);
-      const evEndTime = (!ev._isAllDay && seg.endIdx === getLastSegmentOfEvent(ev).endIdx) ? (fmtTime(ev._end) + '>\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0') : '';
-      const isFirstSegment = seg.startIdx === getFirstSegmentOfEvent(ev).startIdx;
-      let fullText = '';
+      const lastSeg = getLastSegmentOfEvent(ev);
+const evEndTime = (!ev._isAllDay && lastSeg && seg.endIdx === lastSeg.endIdx) ? (fmtTime(ev._end) + '>\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0') : '';
+      const firstSeg = getFirstSegmentOfEvent(ev);
+const isFirstSegment = firstSeg && seg.startIdx === firstSeg.startIdx;
+    let fullText = '';
       if(isFirstSegment && evStartTime) fullText += `<${evStartTime} `;
       fullText += ev.summary || '(sans titre)';
       if(evEndTime) fullText += ` ${evEndTime}`;
