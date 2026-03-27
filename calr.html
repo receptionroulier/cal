@@ -284,6 +284,57 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     const norm = items.map(e=>{
+  const ev = JSON.parse(JSON.stringify(e));
+  ev.__type = ev.__type || '';
+
+  ev._isAllDay = !!(ev.start && ev.start.date && !ev.start.dateTime);
+
+  // START
+  if(ev.start){
+    if(ev.start.dateTime) ev._start = new Date(ev.start.dateTime);
+    else {
+      ev._start = new Date(ev.start.date);
+      ev._start.setHours(0,0,0,0);
+    }
+  }
+
+  // END (sécurisé)
+  if(ev.end){
+    if(ev.end.dateTime) ev._end = new Date(ev.end.dateTime);
+    else {
+      ev._end = new Date(ev.end.date);
+      ev._end.setHours(0,0,0,0);
+    }
+  } else {
+    // 🔴 CAS IMPORTANT : pas de end → on copie start
+    ev._end = new Date(ev._start);
+  }
+
+  // END INCLUSIVE
+  if(ev._isAllDay && ev._end){
+    const adj = new Date(ev._end);
+    adj.setDate(adj.getDate()-1);
+    adj.setHours(23,59,59,999);
+    ev._endInclusive = adj;
+  } 
+  else if(ev._end){
+    const tmp = new Date(ev._end);
+    if(tmp.getHours()===0 && tmp.getMinutes()===0 && tmp.getSeconds()===0){
+      const adj = new Date(tmp);
+      adj.setDate(adj.getDate()-1);
+      adj.setHours(23,59,59,999);
+      ev._endInclusive = adj;
+    } else {
+      ev._endInclusive = new Date(ev._end);
+    }
+  }
+
+  // 🔴 sécurité finale
+  if(!ev._start || !ev._endInclusive) return null;
+
+  return ev;
+
+}).filter(Boolean);
       const ev = JSON.parse(JSON.stringify(e));
       ev.__type = ev.__type || '';
       ev._isAllDay = !!(ev.start && ev.start.date && !ev.start.dateTime);
@@ -334,7 +385,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     cellMap.forEach(c=>{ c.eventsList = []; c.totalSegments = 0; });
-    segments.forEach(seg=>{ for(let i=seg.startIdx;i<=seg.endIdx;i++){ if(i>=0 && i<cellMap.length){ c=cellMap[i]; c.totalSegments++; if(!c.eventsList.includes(seg.ev)) c.eventsList.push(seg.ev); } } });
+    segments.forEach(seg=>{ for(let i=seg.startIdx;i<=seg.endIdx;i++){ if(i>=0 && i<cellMap.length){ let c= cellMap[i]; c.totalSegments++; if(!c.eventsList.includes(seg.ev)) c.eventsList.push(seg.ev); } } });
 
     const dateLabel = document.querySelector('.date-label');
     const dateLabelH = dateLabel ? dateLabel.getBoundingClientRect().height : 18;
