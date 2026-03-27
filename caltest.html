@@ -283,7 +283,7 @@ document.addEventListener('DOMContentLoaded', function() {
       } else { items = await fetchCalendarsRange(timeMin, timeMax); saveCache(items, calculateHash(items)); }
     }
 
-// --- Normalisation des événements (DST-safe) ---
+// --- Normalisation des événements (DST-safe, boucle sécurisée) ---
 const norm = items.map(ev => {
   const copy = JSON.parse(JSON.stringify(ev));
   copy.__type = copy.__type || '';
@@ -294,50 +294,85 @@ const norm = items.map(ev => {
   // Début
   if (copy.start) {
     copy._start = copy.start.dateTime ? new Date(copy.start.dateTime) : new Date(copy.start.date);
-    // Pour les all-day, s'assurer que l'heure de début est minuit local
-    if (copy._isAllDay) {
-      copy._start.setHours(0, 0, 0, 0);
-    }
+    if (copy._isAllDay) copy._start.setHours(0, 0, 0, 0);
   }
 
   // Fin
   if (copy.end) {
     copy._end = copy.end.dateTime ? new Date(copy.end.dateTime) : new Date(copy.end.date);
-    // Pour les all-day, soustraire 1ms pour inclure le dernier jour correctement
     if (copy._isAllDay) {
-      copy._endInclusive = new Date(copy._end.getTime() - 1);
+      copy._endInclusive = new Date(copy._end.getTime() - 1); // inclure dernier jour
       copy._endInclusive.setHours(23, 59, 59, 999);
     } else {
       copy._endInclusive = new Date(copy._end.getTime());
     }
   }
 
-  // Cas où _endInclusive n'a pas été défini (sécurité)
   if (!copy._endInclusive && copy._end) copy._endInclusive = new Date(copy._end.getTime());
 
   return copy;
 }).filter(e => e._start && e._endInclusive);
-    const segments = [];
-    norm.forEach(ev=>{
-     const sDay = new Date(ev._start.getFullYear(), ev._start.getMonth(), ev._start.getDate());
-     const eDay = new Date(ev._endInclusive.getFullYear(), ev._endInclusive.getMonth(), ev._endInclusive.getDate());
-      let cursor = new Date(sDay);
-      while(cursor <= eDay){
-        const weekIndex = Math.floor((cursor - startDate) / (7*24*3600*1000));
-        if(weekIndex < 0){ cursor = new Date(startDate); continue; }
-        if(weekIndex >= weekView) break;
-        const weekStartIdx = weekIndex*7;
-        const weekEndIdx = Math.min(weekStartIdx+6, cellMap.length-1);
-        let segStartIdx = -1;
-        for(let i=weekStartIdx;i<=weekEndIdx;i++){ if(cellMap[i].date.getTime() >= cursor.getTime()){ segStartIdx = i; break; } }
-        if(segStartIdx===-1){ cursor = new Date(cellMap[weekEndIdx].date); cursor.setDate(cursor.getDate()+1); continue; }
-        let segEndIdx = -1;
-        for(let i=weekEndIdx;i>=weekStartIdx;i--){ if(cellMap[i].date.getTime() <= eDay.getTime()){ segEndIdx = i; break; } }
-        if(segEndIdx===-1){ cursor = new Date(cellMap[weekEndIdx].date); cursor.setDate(cursor.getDate()+1); continue; }
-        segments.push({ ev, startIdx: segStartIdx, endIdx: segEndIdx, weekIdx: weekIndex, segStartDate: new Date(cellMap[segStartIdx].date), segEndDate: new Date(cellMap[segEndIdx].date) });
-        cursor = new Date(cellMap[segEndIdx].date); cursor.setDate(cursor.getDate()+1);
+
+// --- Segmentation sécurisée ---
+const segments = [];
+norm.forEach(ev => {
+  const sDay = new Date(ev._start.getFullYear(), ev._start.getMonth(), ev._start.getDate());
+  const eDay = new Date(ev._endInclusive.getFullYear(), ev._endInclusive.getMonth(), ev._endInclusive.getDate());
+  let cursor = new Date(sDay);
+  let safetyCounter = 0; // compteur sécurité
+
+  while(cursor <= eDay){
+    safetyCounter++;
+    if(safetyCounter > 1000){
+      console.warn('Boucle segmentation arrêtée pour sécurité', ev.summary);
+      break;
+    }
+
+    const weekIndex = Math.floor((cursor - startDate) / (7*24*3600*1000));
+    if(weekIndex < 0){ cursor.setDate(cursor.getDate()+1); continue; }
+    if(weekIndex >= weekView) break;
+
+    const weekStartIdx = weekIndex*7;
+    const weekEndIdx = Math.min(weekStartIdx+6, cellMap.length-1);
+
+    // Recherche segment start
+    let segStartIdx = -1;
+    for(let i=weekStartIdx;i<=weekEndIdx;i++){
+      if(cellMap[i].date.getTime() >= cursor.getTime()){
+        segStartIdx = i;
+        break;
       }
+    }
+
+    // Recherche segment end
+    let segEndIdx = -1;
+    for(let i=weekEndIdx;i>=weekStartIdx;i--){
+      if(cellMap[i].date.getTime() <= eDay.getTime()){
+        segEndIdx = i;
+        break;
+      }
+    }
+
+    // Avancer cursor si segment invalide
+    if(segStartIdx === -1 || segEndIdx === -1){
+      cursor.setDate(cursor.getDate()+1);
+      continue;
+    }
+
+    segments.push({
+      ev,
+      startIdx: segStartIdx,
+      endIdx: segEndIdx,
+      weekIdx: weekIndex,
+      segStartDate: new Date(cellMap[segStartIdx].date),
+      segEndDate: new Date(cellMap[segEndIdx].date)
     });
+
+    // Avancer cursor à la fin du segment +1 jour
+    cursor = new Date(cellMap[segEndIdx].date);
+    cursor.setDate(cursor.getDate()+1);
+  }
+});
 
     const weekLanes = Array.from({ length: weekView }, ()=>[]);
     segments.forEach(seg=>{
