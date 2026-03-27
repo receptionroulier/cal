@@ -177,7 +177,7 @@
   <div id="events-layer" aria-hidden="false"></div>
 </div>
 
-<div id="event-modal" onclick="hideModal()">
+<div id="event-modal">
   <div class="modal-card" id="modal-content" onclick="event.stopPropagation()"></div>
 </div>
 
@@ -204,7 +204,13 @@ document.addEventListener('DOMContentLoaded', function() {
   function updateClock(){ const now=new Date(); document.getElementById('current-time').textContent = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`; }
   setInterval(updateClock, 1000);
 
-  function hideModal(){ document.getElementById('event-modal').style.display='none'; }
+ // Fonction pour fermer la modal
+function hideModal() {
+  document.getElementById('event-modal').style.display = 'none';
+}
+
+// Écouteur pour fermer la modal quand on clique sur le fond
+document.getElementById('event-modal').addEventListener('click', hideModal);
 
   async function fetchCalendarsRange(timeMin, timeMax){
     const a = fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_IDS.reception)}/events?key=${encodeURIComponent(API_KEY)}&singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(timeMin.toISOString())}&timeMax=${encodeURIComponent(timeMax.toISOString())}`)
@@ -508,9 +514,7 @@ norm.forEach(ev => {
   document.getElementById('today-btn').addEventListener('click', ()=>{ currentStartDate = new Date(); weekView = 3; localStorage.removeItem(CACHE_KEY); renderCalendar().catch(()=>{}); });
   document.getElementById('view-3w').addEventListener('click', ()=>{ weekView = 3; currentStartDate = getMonday(currentStartDate); localStorage.removeItem(CACHE_KEY); renderCalendar().catch(()=>{}); });
   document.getElementById('view-4w').addEventListener('click', ()=>{ weekView = 4; currentStartDate = getMonday(currentStartDate); localStorage.removeItem(CACHE_KEY); renderCalendar().catch(()=>{}); });
-  document.getElementById('event-modal').addEventListener('click', hideModal);
   window.addEventListener('resize', ()=>{ clearTimeout(resizeTimeout); resizeTimeout = setTimeout(()=>{ renderCalendar().catch(()=>{}); }, 200); });
-
   renderCalendar().then(()=>{ startAutoRefresh(); }).catch(err=>{ console.error('render error', err); document.getElementById('calendar-title').textContent='Erreur'; });
 });
 </script>
