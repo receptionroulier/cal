@@ -287,28 +287,36 @@ document.addEventListener('DOMContentLoaded', function() {
 const norm = items.map(ev => {
   const copy = JSON.parse(JSON.stringify(ev));
   copy.__type = copy.__type || '';
+
+  // Détecte si l'événement est "all-day"
   copy._isAllDay = !!(copy.start && copy.start.date && !copy.start.dateTime);
 
   // Début
   if (copy.start) {
     copy._start = copy.start.dateTime ? new Date(copy.start.dateTime) : new Date(copy.start.date);
+    // Pour les all-day, s'assurer que l'heure de début est minuit local
+    if (copy._isAllDay) {
+      copy._start.setHours(0, 0, 0, 0);
+    }
   }
 
   // Fin
   if (copy.end) {
     copy._end = copy.end.dateTime ? new Date(copy.end.dateTime) : new Date(copy.end.date);
+    // Pour les all-day, soustraire 1ms pour inclure le dernier jour correctement
+    if (copy._isAllDay) {
+      copy._endInclusive = new Date(copy._end.getTime() - 1);
+      copy._endInclusive.setHours(23, 59, 59, 999);
+    } else {
+      copy._endInclusive = new Date(copy._end.getTime());
+    }
   }
 
-  // _endInclusive DST-safe
-  if (copy._isAllDay && copy._end) {
-    copy._endInclusive = new Date(copy._end.getTime() - 1);
-  } else if (copy._end) {
-    copy._endInclusive = new Date(copy._end.getTime());
-  }
+  // Cas où _endInclusive n'a pas été défini (sécurité)
+  if (!copy._endInclusive && copy._end) copy._endInclusive = new Date(copy._end.getTime());
 
   return copy;
 }).filter(e => e._start && e._endInclusive);
-
     const segments = [];
     norm.forEach(ev=>{
      const sDay = new Date(ev._start.getFullYear(), ev._start.getMonth(), ev._start.getDate());
