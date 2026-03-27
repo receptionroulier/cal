@@ -341,7 +341,13 @@ document.addEventListener('DOMContentLoaded', function() {
       const sDay = new Date(ev._start); sDay.setHours(0,0,0,0);
       const eDay = new Date(ev._endInclusive); eDay.setHours(0,0,0,0);
       let cursor = new Date(sDay);
-      while(cursor <= eDay){
+      let safety = 0;
+
+while(cursor <= eDay){
+  if(safety++ > 1000){
+    console.warn("Boucle stoppée (sécurité)", ev);
+    break;
+  }
         const weekIndex = Math.floor((cursor - startDate) / (7*24*3600*1000));
         if(weekIndex < 0){ cursor = new Date(startDate); continue; }
         if(weekIndex >= weekView) break;
