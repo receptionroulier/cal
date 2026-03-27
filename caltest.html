@@ -4,7 +4,7 @@
   <title>Test Calendrier Minimal</title>
   <style>
     body { font-family: Arial; background: #0f0f10; color: white; }
-    #events { margin: 20px; }
+    #events { margin: 20px; white-space: pre-wrap; }
   </style>
 </head>
 <body>
@@ -14,21 +14,36 @@
     const CALENDAR_ID = 'receptionroulier@gmail.com';
 
     async function fetchEvents() {
-      const timeMin = new Date(); timeMin.setHours(0, 0, 0, 0);
-      const timeMax = new Date(timeMin); timeMax.setDate(timeMax.getDate() + 21);
+      const timeMin = new Date();
+      timeMin.setHours(0, 0, 0, 0);
+      const timeMax = new Date(timeMin);
+      timeMax.setDate(timeMax.getDate() + 21);
+
       const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events?key=${API_KEY}&singleEvents=true&orderBy=startTime&timeMin=${timeMin.toISOString()}&timeMax=${timeMax.toISOString()}`;
 
       try {
+        console.log("Début de la requête API...");
         const response = await fetch(url);
-        if (!response.ok) throw new Error(`Erreur API: ${response.status}`);
+        console.log("Réponse reçue, statut :", response.status);
+
+        if (!response.ok) {
+          throw new Error(`Erreur API: ${response.status}`);
+        }
+
         const data = await response.json();
-        document.getElementById('events').innerHTML = JSON.stringify(data.items, null, 2);
+        console.log("Données reçues :", data.items);
+
+        // Limitez l'affichage pour éviter de bloquer le navigateur
+        const limitedItems = data.items ? data.items.slice(0, 20) : [];
+        document.getElementById('events').innerHTML = JSON.stringify(limitedItems, null, 2);
       } catch (error) {
+        console.error("Erreur capturée :", error);
         document.getElementById('events').innerHTML = `Erreur: ${error.message}`;
       }
     }
 
-    fetchEvents();
+    // Utilisez setTimeout pour éviter de bloquer le thread principal
+    setTimeout(fetchEvents, 100);
   </script>
 </body>
 </html>
