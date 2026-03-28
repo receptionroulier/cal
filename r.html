@@ -140,21 +140,26 @@ setInterval(()=>{
     }
 },1000);
 
-// ====== MOBILE PONTS ======
+// ====== MOBILE PONTS via PROXY ======
 const isMobile = window.innerWidth <= 768;
 const pontsMobileDiv = document.getElementById("ponts-mobile");
 
 if(isMobile){
     pontsMobileDiv.style.display = "block";
 
+    const proxy = "https://crimson-recipe-63e0.receptionroulier.workers.dev/?url=";
+    const targetUrl = "https://www.havre-port.com/map/getPonts?_ts=" + Date.now();
+
     async function loadPontsFerme(){
         try{
-            const res = await fetch("https://www.havre-port.com/map/getPonts?_ts="+Date.now());
-            const data = await res.json();
+            const res = await fetch(proxy + encodeURIComponent(targetUrl));
+            const raw = await res.text();
+            const data = JSON.parse(raw);
             const ponts = Object.values(data).filter(p=>{
                 const s=(p.statutText||"").toLowerCase();
                 return s.includes("fermé") || s.includes("ferme");
             });
+
             if(!ponts.length){ pontsMobileDiv.innerHTML="<p>Aucun pont fermé actuellement.</p>"; return; }
 
             pontsMobileDiv.innerHTML = ponts.map(p=>`
@@ -164,6 +169,7 @@ if(isMobile){
                     <small>MàJ: ${p.date||"inconnue"}</small>
                 </div>
             `).join("");
+
         }catch(e){
             pontsMobileDiv.innerHTML="<p>Impossible de charger les ponts.</p>";
             console.error(e);
