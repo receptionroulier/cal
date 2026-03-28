@@ -20,16 +20,17 @@ iframe { position:absolute; inset:0; width:100%; height:100%; border:none; opaci
 @media(max-width:768px){
     #container { flex-direction:column; }
     #left-wrapper { display:none; }
-    #ponts-mobile { display:block; padding:10px; max-height:40vh; overflow-y:auto; }
-    #right-wrapper { width:100%; height:60vh; position:relative; }
+    #ponts-mobile { display:block; padding:10px; max-height:45vh; overflow-y:auto; }
+    .pont-section { margin-bottom:15px; }
+    .section-title { display:flex; align-items:center; font-weight:bold; margin-bottom:5px; }
+    .pastille { width:12px; height:12px; border-radius:50%; display:inline-block; margin-right:8px; }
+    .rouge { background:#ff4040; }
+    .orange { background:orange; }
+    .bleu { background:#1c3cff; }
+    .pont-item { display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #333; }
+    #right-wrapper { width:100%; height:55vh; position:relative; }
     iframe { position:relative; height:100%; }
 }
-/* Ponts mobiles */
-.pont-card-mobile {
-    background:#1f1f1f; color:#fff; margin-bottom:8px; padding:10px; border-left:4px solid #ff4040; border-radius:6px;
-}
-.pont-card-mobile.manoeuvre { border-left-color:#1c3cff; }
-.pont-card-mobile.fermeture { border-left-color:orange; }
 </style>
 </head>
 <body>
@@ -110,27 +111,37 @@ if(isMobile){
         return null;
     }
 
-    async function loadPontsFerme(){
+    async function loadPontsMobile(){
         try{
             const res=await fetch(proxy+encodeURIComponent(targetUrl));
             const raw=await res.text();
             const data=parseRawContentToData(raw);
             if(!data){ pontsMobileDiv.innerHTML="<p>Impossible de récupérer les ponts.</p>"; return; }
-            const ponts=Object.values(data).filter(p=>{
-                const s=(p.statutText||"").toLowerCase();
-                return s.includes("fermé") || s.includes("manoeuvre") || s.includes("manœuvre") || s.includes("fermeture");
-            });
-            if(!ponts.length){ pontsMobileDiv.innerHTML="<p>Aucun pont fermé ou en manoeuvre/fermeture.</p>"; return; }
 
-            pontsMobileDiv.innerHTML=ponts.map(p=>{
-                const s=(p.statutText||"").toLowerCase();
-                let cls="ferme";
-                if(s.includes("manoeuvre")||s.includes("manœuvre")) cls="manoeuvre";
-                else if(s.includes("fermeture")) cls="fermeture";
-                return `<div class="pont-card-mobile ${cls}">
-                    <strong>${p.nom}</strong><br>${p.statutText||""}<br><small>MàJ: ${p.date||"inconnue"}</small>
-                </div>`;
-            }).join("");
+            const ponts=Object.values(data);
+
+            const sections=[
+                {title:"Ponts fermés", color:"rouge", filter:p=>p.statutText?.toLowerCase().includes("fermé")},
+                {title:"Fermeture imminente", color:"orange", filter:p=>p.statutText?.toLowerCase().includes("fermeture")},
+                {title:"Manœuvre en cours", color:"bleu", filter:p=>p.statutText?.toLowerCase().includes("manoeuvre")||p.statutText?.toLowerCase().includes("manœuvre")}
+            ];
+
+            pontsMobileDiv.innerHTML="";
+
+            sections.forEach(sec=>{
+                const list=ponts.filter(sec.filter);
+                if(list.length){
+                    const htmlList=list.map(p=>{
+                        return `<div class="pont-item"><span>${p.nom}</span><span>${p.date||"inconnue"}</span></div>`;
+                    }).join("");
+                    pontsMobileDiv.innerHTML+=`<div class="pont-section">
+                        <div class="section-title"><span class="pastille ${sec.color}"></span>${sec.title}</div>
+                        ${htmlList}
+                    </div>`;
+                }
+            });
+
+            if(pontsMobileDiv.innerHTML==="") pontsMobileDiv.innerHTML="<p>Aucun pont fermé, en manoeuvre ou en fermeture imminente.</p>";
 
         }catch(e){
             pontsMobileDiv.innerHTML="<p>Impossible de charger les ponts.</p>";
@@ -138,8 +149,8 @@ if(isMobile){
         }
     }
 
-    loadPontsFerme();
-    setInterval(loadPontsFerme,30000);
+    loadPontsMobile();
+    setInterval(loadPontsMobile,30000);
 }
 </script>
 
