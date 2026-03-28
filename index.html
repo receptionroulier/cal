@@ -17,28 +17,32 @@
       color: #ffffff;
     }
     h1 {
+      margin-bottom: 10px;
+    }
+    p {
       margin-bottom: 30px;
+      opacity: 0.7;
     }
     .links {
       display: flex;
       gap: 20px;
-      flex-wrap: wrap; /* pour que ça passe sur petits écrans */
+      flex-wrap: wrap;
       justify-content: center;
     }
     a {
       padding: 15px 25px;
-      background: #2a2a2a;
-      border-radius: 10px;
+      background: linear-gradient(135deg, #2a2a2a, #3a3a3a);
+      border-radius: 12px;
       text-decoration: none;
       color: #ffffff;
-      font-size: 18px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-      transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+      font-size: 16px;
+      font-weight: 500;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      transition: all 0.25s ease;
     }
     a:hover {
-      transform: scale(1.08) rotate(1deg);
-      background: #3a3a3a;
-      box-shadow: 0 6px 16px rgba(0,0,0,0.6);
+      transform: scale(1.08);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.7);
     }
     a:focus {
       outline: 2px dashed #ffffff;
@@ -53,11 +57,19 @@
   </style>
 </head>
 <body>
-  <h1>Choisissez un calendrier et ponts ou ponts seulement</h1>
+  <h1>Choisissez une vue</h1>
+  <p>Sélectionnez le calendrier souhaité</p>
+
   <div class="links">
-    <a href="https://receptionroulier.github.io/cal/r.html">Calendrier Réception</a>
-    <a href="https://receptionroulier.github.io/cal/n.html">Calendrier Navires</a>
-    <a href="https://receptionroulier.github.io/cal/p.html">État des ponts</a>
+    <a href="https://receptionroulier.github.io/cal/calr.html">📅 Calendrier Réception</a>
+    <a href="https://receptionroulier.github.io/cal/r.html">📅➕🌉 Calendrier Réception + Ponts</a>
+    <a href="https://receptionroulier.github.io/cal/caln.html">🚢 Calendrier Navires</a>
+    <a href="https://receptionroulier.github.io/cal/n.html">🚢➕🌉 Calendrier Navires + Ponts</a>
+    <a href="https://receptionroulier.github.io/cal/p.html">🌉 État des Ponts seul</a>
   </div>
+
+  <footer style="margin-top:40px; font-size:14px; opacity:0.6;">
+    © 2026 - Outils planning
+  </footer>
 </body>
 </html>
