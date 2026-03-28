@@ -18,15 +18,14 @@ iframe { position:absolute; inset:0; width:100%; height:100%; border:none; opaci
 @media(max-width:768px){
     #container { flex-direction: column; height:auto; }
     #left-wrapper { display:none; }
-    #ponts-mobile { display:block; padding:10px; max-height:40vh; overflow-y:auto; }
+    #ponts-mobile { display:block; padding:10px; max-height:60vh; overflow-y:auto; }
     .pont-section { margin-bottom:15px; }
     .section-title { display:flex; align-items:center; font-weight:bold; margin-bottom:5px; font-size:1em; }
     .pastille { width:12px; height:12px; border-radius:50%; display:inline-block; margin-right:8px; }
     .rouge { background:#ff4040; animation: pulse-red 1.2s infinite; }
     .orange { background:orange; animation: pulse-orange 1.2s infinite; }
     .bleu { background:#1c3cff; animation: pulse-blue 1.2s infinite; }
-    .pont-item { display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #333; }
-
+    .pont-item { display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #333; cursor:pointer; }
     #right-wrapper { width:100%; height:60vh; position:relative; }
     #right-wrapper iframe { position:relative; width:100%; height:100%; opacity:1; pointer-events:auto; }
     .spinner { width:35px; height:35px; border:4px solid #333; border-top:4px solid #00e5ff; border-radius:50%; animation:spin 1s linear infinite; margin:20px auto; }
@@ -139,9 +138,12 @@ if(isMobile){
                 const list=ponts.filter(sec.filter);
                 if(list.length){
                     const htmlList=list.map(p=>{
-                        // icône travaux
                         const travauxIcon = p.statutText?.toLowerCase().includes("travaux") ? ' <span title="Travaux en cours">⚠️</span>' : '';
-                        return `<div class="pont-item"><span>${p.nom}${travauxIcon}</span><span>${p.date||"inconnue"}</span></div>`;
+                        const dateFin = p.finTravaux ? ` (fin: ${p.finTravaux})` : '';
+                        return `<div class="pont-item" onclick="window.open('https://receptionroulier.github.io/cal/p.html','_blank')">
+                                    <span>${p.nom}${travauxIcon}</span>
+                                    <span>${p.date||"inconnue"}${dateFin}</span>
+                                </div>`;
                     }).join("");
                     pontsMobileDiv.innerHTML+=`<div class="pont-section">
                         <div class="section-title"><span class="pastille ${sec.color}"></span>${sec.title}</div>
@@ -149,6 +151,12 @@ if(isMobile){
                     </div>`;
                 }
             });
+
+            // Ajouter calendrier cliquable
+            pontsMobileDiv.innerHTML+=`<div class="pont-section" style="cursor:pointer;" onclick="window.open('https://receptionroulier.github.io/cal/calr.html','_blank')">
+                <div class="section-title">📅 Calendrier</div>
+                <iframe src="https://receptionroulier.github.io/cal/calr.html" style="width:100%; height:250px; border:none;"></iframe>
+            </div>`;
 
             if(pontsMobileDiv.innerHTML==="") pontsMobileDiv.innerHTML="<p>Aucun pont fermé, en manoeuvre ou en fermeture imminente.</p>";
 
