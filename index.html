@@ -2,6 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Tableau de bord - Ponts & Calendrier</title>
 <style>
 html, body {
@@ -9,8 +10,11 @@ html, body {
     padding: 0;
     height: 100%;
     font-family: Arial, sans-serif;
+    background: #101010;
+    color: #eaeaea;
 }
 
+/* ====== CONTAINER ====== */
 #container {
     display: flex;
     flex-direction: row; /* desktop par défaut */
@@ -18,7 +22,7 @@ html, body {
     width: 100%;
 }
 
-/* wrapper iframes */
+/* ====== WRAPPERS ====== */
 .frame-wrapper {
     position: relative;
     overflow: hidden;
@@ -35,149 +39,140 @@ iframe {
     transition: opacity 0.6s ease-in-out;
 }
 
-.visible {
-    opacity: 1;
-    pointer-events: auto;
-}
+.visible { opacity: 1; pointer-events: auto; }
+.hidden { opacity: 0; pointer-events: none; }
 
-.hidden {
-    opacity: 0;
-    pointer-events: none;
-}
+/* ====== LEFT / RIGHT ====== */
+#left-wrapper { width: 25%; height: 100%; }
+#right-wrapper { width: 75%; height: 100%; }
 
-/* 🔹 Styles desktop */
-#left-wrapper {
-    width: 25%;
-    height: 100%;
-}
-
-#right-wrapper {
-    width: 75%;
-    height: 100%;
-}
-
-/* 🔹 Styles mobile */
+/* ====== MOBILE ====== */
 @media (max-width: 768px) {
-    #container {
-        flex-direction: column;
-        height: 100vh;
-    }
+    #container { flex-direction: column; }
+    #left-wrapper { display: none; }
+    #ponts-mobile { display: block; padding: 10px; max-height: 40vh; overflow-y: auto; }
+    #right-wrapper { width: 100%; height: 60vh; }
+    iframe { position: relative; height: 100%; }
+}
 
-    #left-wrapper {
-        width: 100%;
-        height: auto;
-        max-height: 40vh; /* ponts fermés prennent 40% de l’écran */
-    }
-
-    #right-wrapper {
-        width: 100%;
-        height: 60vh; /* calendrier prend le reste */
-    }
-
-    iframe {
-        position: relative;
-        height: 100%;
-    }
+/* ====== PONTS MOBILE ====== */
+.pont-card-mobile {
+    background: #1f1f1f;
+    color: #fff;
+    margin-bottom: 8px;
+    padding: 10px;
+    border-left: 4px solid #ff4040;
+    border-radius: 6px;
 }
 </style>
 </head>
 <body>
 
 <div id="container">
-  <!-- 🔹 Ponts fermés -->
+  <!-- IFRAME PONTS (desktop) -->
   <div class="frame-wrapper" id="left-wrapper">
-    <iframe id="leftA" class="visible" data-src="https://receptionroulier.github.io/cal/p.html?filter=closed"></iframe>
-    <iframe id="leftB" class="hidden" data-src="https://receptionroulier.github.io/cal/p.html?filter=closed"></iframe>
+    <iframe id="leftA" class="visible" data-src="https://receptionroulier.github.io/cal/p.html"></iframe>
+    <iframe id="leftB" class="hidden" data-src="https://receptionroulier.github.io/cal/p.html"></iframe>
   </div>
 
-  <!-- 🔹 Calendrier -->
+  <!-- CALENDRIER -->
   <div class="frame-wrapper" id="right-wrapper">
     <iframe id="rightA" class="visible" data-src="https://receptionroulier.github.io/cal/calr.html"></iframe>
     <iframe id="rightB" class="hidden" data-src="https://receptionroulier.github.io/cal/calr.html"></iframe>
   </div>
 </div>
 
+<!-- PONTS MOBILE -->
+<div id="ponts-mobile" style="display:none;"></div>
+
 <script>
-// Fonction Smart Polling + swap iframe
-function monitor(versionURL, iframeA, iframeB, pageURL, delay) {
-    const state = {
-        active: iframeA,
-        buffer: iframeB,
-        lastVersion: null,
-        isSwapping: false
-    };
+// ====== SMART POLLING IFRAME ======
+function monitor(versionURL, iframeA, iframeB, delay){
+    const state = { active: iframeA, buffer: iframeB, lastVersion: null, isSwapping:false };
+    if(!state.active.src) state.active.src = state.active.dataset.src;
 
-    if (!state.active.src) state.active.src = state.active.dataset.src;
-
-    async function checkVersion() {
-        try {
-            const response = await fetch(versionURL + "?_=" + Date.now());
-            const version = await response.text();
-
-            if (version !== state.lastVersion && !state.isSwapping) {
+    async function checkVersion(){
+        try{
+            const res = await fetch(versionURL + "?_="+Date.now());
+            const version = await res.text();
+            if(version!==state.lastVersion && !state.isSwapping){
                 state.lastVersion = version;
                 await preloadAndSwap(version);
             }
-        } catch (err) {
-            console.error("Erreur version :", err);
-        }
+        }catch(e){ console.error(e); }
     }
 
-    function preloadAndSwap(version) {
-        return new Promise(resolve => {
-            state.isSwapping = true;
-            const { active, buffer } = state;
-
-            buffer.src = buffer.dataset.src + "?v=" + version;
-
-            buffer.onload = () => {
+    function preloadAndSwap(version){
+        return new Promise(resolve=>{
+            state.isSwapping=true;
+            const {active, buffer}=state;
+            buffer.src = buffer.dataset.src + "?v="+version;
+            buffer.onload = ()=>{
                 active.classList.add("hidden");
                 active.classList.remove("visible");
                 buffer.classList.add("visible");
                 buffer.classList.remove("hidden");
-
                 state.active = buffer;
                 state.buffer = active;
-                state.isSwapping = false;
+                state.isSwapping=false;
                 resolve();
             };
         });
     }
 
-    async function loop() {
+    async function loop(){
         await checkVersion();
-        await new Promise(r => setTimeout(r, delay));
+        await new Promise(r=>setTimeout(r, delay));
         loop();
     }
-
     loop();
 }
 
-// 🔹 Ponts fermés → 1s
-monitor(
-    "https://receptionroulier.github.io/cal/p.version.txt",
-    document.getElementById("leftA"),
-    document.getElementById("leftB"),
-    "https://receptionroulier.github.io/cal/p.html",
-    1000
-);
+// Desktop IFRAME
+monitor("https://receptionroulier.github.io/cal/p.version.txt", document.getElementById("leftA"), document.getElementById("leftB"), 1000);
+monitor("https://receptionroulier.github.io/cal/calr.version.txt", document.getElementById("rightA"), document.getElementById("rightB"), 5000);
 
-// 🔹 Calendrier → 5s
-monitor(
-    "https://receptionroulier.github.io/cal/calr.version.txt",
-    document.getElementById("rightA"),
-    document.getElementById("rightB"),
-    "https://receptionroulier.github.io/cal/calr.html",
-    5000
-);
-
-// 🔹 Mise à jour interne instantanée du calendrier et de l’heure
-setInterval(() => {
-    const iframe = document.getElementById("rightA");
-    if (iframe && iframe.contentWindow) {
-        iframe.contentWindow.postMessage({ type: "refreshTimeAndEvents" }, "*");
+// Calendrier update
+setInterval(()=>{
+    const iframe=document.getElementById("rightA");
+    if(iframe && iframe.contentWindow){
+        iframe.contentWindow.postMessage({type:"refreshTimeAndEvents"},"*");
     }
-}, 1000);
+},1000);
+
+// ====== MOBILE PONTS ======
+const isMobile = window.innerWidth <= 768;
+const pontsMobileDiv = document.getElementById("ponts-mobile");
+
+if(isMobile){
+    pontsMobileDiv.style.display = "block";
+
+    async function loadPontsFerme(){
+        try{
+            const res = await fetch("https://www.havre-port.com/map/getPonts?_ts="+Date.now());
+            const data = await res.json();
+            const ponts = Object.values(data).filter(p=>{
+                const s=(p.statutText||"").toLowerCase();
+                return s.includes("fermé") || s.includes("ferme");
+            });
+            if(!ponts.length){ pontsMobileDiv.innerHTML="<p>Aucun pont fermé actuellement.</p>"; return; }
+
+            pontsMobileDiv.innerHTML = ponts.map(p=>`
+                <div class="pont-card-mobile">
+                    <strong>${p.nom}</strong><br>
+                    ${p.statutText||""}<br>
+                    <small>MàJ: ${p.date||"inconnue"}</small>
+                </div>
+            `).join("");
+        }catch(e){
+            pontsMobileDiv.innerHTML="<p>Impossible de charger les ponts.</p>";
+            console.error(e);
+        }
+    }
+
+    loadPontsFerme();
+    setInterval(loadPontsFerme, 30000); // rafraîchir toutes les 30s
+}
 </script>
 
 </body>
