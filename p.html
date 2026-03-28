@@ -205,7 +205,7 @@ function renderPonts(list){
         const fermeture=statut.includes("fermeture"), ferme=statut.includes("fermé"), travaux=statut.includes("travaux");
         let cls=(ferme&&travaux)?"ferme-travaux":ferme?"ferme":fermeture?"fermeture":move?"manoeuvre":open?"ouvert":"ferme";
         let texteEtat=p.statutText||""; if(travaux) texteEtat=texteEtat.replace(/(travaux)/i,'<span class="texte-travaux">$1</span>');
-        const info=p.forceText||`MàJ : ${p.date||"inconnue"}`;
+        const info=p.forceText||`Depuis : ${p.date||"inconnue"}`;
         return `<div class="pont-card ${cls}"><div class="pont-nom"><span class="pastille"></span>${p.nom}</div><div class="pont-etat">${texteEtat}</div><div class="pont-infos">${info}</div></div>`;
     }).join("");
 }
