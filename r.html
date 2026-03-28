@@ -3,38 +3,40 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tableau de bord - Ponts & Calendrier</title>
+<title>Dashboard Ponts & Calendrier</title>
 <style>
-html, body {
-    margin:0; padding:0; height:100%; font-family:Arial; background:#101010; color:#eaeaea;
-}
-#container { display:flex; height:100vh; width:100%; }
+html, body { margin:0; padding:0; height:100%; font-family:Arial; background:#101010; color:#eaeaea; }
+#container { display:flex; flex-direction:row; height:100vh; width:100%; }
 .frame-wrapper { position:relative; overflow:hidden; }
 iframe { position:absolute; inset:0; width:100%; height:100%; border:none; opacity:0; pointer-events:none; transition:opacity 0.6s ease; }
 .visible { opacity:1; pointer-events:auto; }
 .hidden { opacity:0; pointer-events:none; }
-#left-wrapper { width:25%; height:100%; }
-#right-wrapper { width:75%; height:100%; }
+#left-wrapper { width:25%; }
+#right-wrapper { width:75%; }
 
-/* MOBILE */
+/* ==== MOBILE ==== */
 @media(max-width:768px){
     #container { flex-direction:column; }
     #left-wrapper { display:none; }
-    #ponts-mobile { display:block; padding:10px; max-height:45vh; overflow-y:auto; }
+    #ponts-mobile { display:block; padding:10px; max-height:40vh; overflow-y:auto; }
     .pont-section { margin-bottom:15px; }
-    .section-title { display:flex; align-items:center; font-weight:bold; margin-bottom:5px; }
+    .section-title { display:flex; align-items:center; font-weight:bold; margin-bottom:5px; font-size:1em; }
     .pastille { width:12px; height:12px; border-radius:50%; display:inline-block; margin-right:8px; }
     .rouge { background:#ff4040; }
     .orange { background:orange; }
     .bleu { background:#1c3cff; }
     .pont-item { display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #333; }
-    #right-wrapper { width:100%; height:55vh; position:relative; }
+    #right-wrapper { width:100%; height:60vh; position:relative; }
     iframe { position:relative; height:100%; }
 }
 </style>
 </head>
 <body>
 
+<!-- MOBILE PONTS EN HAUT -->
+<div id="ponts-mobile" style="display:none;"></div>
+
+<!-- DESKTOP + CALENDRIER -->
 <div id="container">
     <div class="frame-wrapper" id="left-wrapper">
         <iframe id="leftA" class="visible" data-src="https://receptionroulier.github.io/cal/p.html"></iframe>
@@ -46,10 +48,8 @@ iframe { position:absolute; inset:0; width:100%; height:100%; border:none; opaci
     </div>
 </div>
 
-<div id="ponts-mobile" style="display:none;"></div>
-
 <script>
-// ==== SMART POLLING IFRAME ====
+// ==== IFRAME MONITOR ====
 function monitor(versionURL, iframeA, iframeB, delay){
     const state={active:iframeA, buffer:iframeB, lastVersion:null, isSwapping:false};
     if(!state.active.src) state.active.src=state.active.dataset.src;
@@ -94,7 +94,7 @@ setInterval(()=>{
     }
 },1000);
 
-// ==== MOBILE PONTS VIA PROXY ====
+// ==== MOBILE PONTS ====
 const isMobile=window.innerWidth<=768;
 const pontsMobileDiv=document.getElementById("ponts-mobile");
 
@@ -153,6 +153,5 @@ if(isMobile){
     setInterval(loadPontsMobile,30000);
 }
 </script>
-
 </body>
 </html>
