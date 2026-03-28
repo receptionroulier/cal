@@ -14,7 +14,7 @@ iframe { position:absolute; inset:0; width:100%; height:100%; border:none; opaci
 #left-wrapper { width:25%; }
 #right-wrapper { width:75%; }
 
-/* ===================== MOBILE ===================== */
+/* MOBILE */
 @media(max-width:768px){
     #container { flex-direction: column; height:auto; }
     #left-wrapper { display:none; }
@@ -27,7 +27,6 @@ iframe { position:absolute; inset:0; width:100%; height:100%; border:none; opaci
     .bleu { background:#1c3cff; animation: pulse-blue 1.2s infinite; }
     .pont-item { display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #333; }
 
-    /* === CALENDRIER MOBILE CORRIGÉ === */
     #right-wrapper { width:100%; height:60vh; position:relative; }
     #right-wrapper iframe { position:relative; width:100%; height:100%; opacity:1; pointer-events:auto; }
     .spinner { width:35px; height:35px; border:4px solid #333; border-top:4px solid #00e5ff; border-radius:50%; animation:spin 1s linear infinite; margin:20px auto; }
@@ -119,7 +118,7 @@ if(isMobile){
     }
 
     async function loadPontsMobile(){
-        pontsMobileDiv.innerHTML='<div class="spinner"></div>'; // show spinner
+        pontsMobileDiv.innerHTML='<div class="spinner"></div>'; // spinner
         try{
             const res=await fetch(proxy+encodeURIComponent(targetUrl));
             const raw=await res.text();
@@ -140,7 +139,9 @@ if(isMobile){
                 const list=ponts.filter(sec.filter);
                 if(list.length){
                     const htmlList=list.map(p=>{
-                        return `<div class="pont-item"><span>${p.nom}</span><span>${p.date||"inconnue"}</span></div>`;
+                        // icône travaux
+                        const travauxIcon = p.statutText?.toLowerCase().includes("travaux") ? ' <span title="Travaux en cours">⚠️</span>' : '';
+                        return `<div class="pont-item"><span>${p.nom}${travauxIcon}</span><span>${p.date||"inconnue"}</span></div>`;
                     }).join("");
                     pontsMobileDiv.innerHTML+=`<div class="pont-section">
                         <div class="section-title"><span class="pastille ${sec.color}"></span>${sec.title}</div>
