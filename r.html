@@ -14,11 +14,10 @@ iframe { position:absolute; inset:0; width:100%; height:100%; border:none; opaci
 #left-wrapper { width:25%; }
 #right-wrapper { width:75%; }
 
-/* =================== MOBILE =================== */
+/* MOBILE */
 @media(max-width:768px){
     #container { flex-direction: column; height:auto; }
     #left-wrapper { display:none; }
-
     #ponts-mobile { display:block; padding:10px; max-height:40vh; overflow-y:auto; }
     .pont-section { margin-bottom:15px; }
     .section-title { display:flex; align-items:center; font-weight:bold; margin-bottom:5px; font-size:1em; }
@@ -26,9 +25,7 @@ iframe { position:absolute; inset:0; width:100%; height:100%; border:none; opaci
     .rouge { background:#ff4040; animation: pulse-red 1.2s infinite; }
     .orange { background:orange; animation: pulse-orange 1.2s infinite; }
     .bleu { background:#1c3cff; animation: pulse-blue 1.2s infinite; }
-    .pont-item { padding:4px 0; border-bottom:1px solid #333; cursor:pointer; }
-    .pont-item div:first-child { font-weight:bold; }
-    .pont-item div:last-child { font-size:0.9em; margin-left:20px; }
+    .pont-item { display:flex; flex-direction:column; padding:4px 0; border-bottom:1px solid #333; }
 
     #right-wrapper { width:100%; height:60vh; position:relative; }
     #right-wrapper iframe { position:relative; width:100%; height:100%; opacity:1; pointer-events:auto; }
@@ -142,13 +139,22 @@ if(isMobile){
                 const list=ponts.filter(sec.filter);
                 if(list.length){
                     const htmlList=list.map(p=>{
-                        const travauxIcon = p.statutText?.toLowerCase().includes("travaux") ? '⚠️' : '';
-                        const dateFin = p.finTravaux ? ` jusqu’au ${p.finTravaux}` : '';
-                        return `<div class="pont-item" onclick="window.open('https://receptionroulier.github.io/cal/p.html','_blank')">
-                                    <div>${p.nom} - ${p.date||"inconnue"}</div>
-                                    <div>${travauxIcon}${dateFin}</div>
-                                </div>`;
+                        const isTravaux = p.statutText?.toLowerCase().includes("travaux");
+                        const dateDebut = p.date || "inconnue";
+                        const dateFin = isTravaux && p.finTravaux ? p.finTravaux : "";
+
+                        return `<div class="pont-item">
+                            <div style="display:flex; justify-content:space-between; width:100%;">
+                                <span>${p.nom}</span>
+                                <span>Depuis : ${dateDebut}</span>
+                            </div>
+                            ${isTravaux ? `<div style="display:flex; justify-content:space-between; width:100%;">
+                                <span>⚠️</span>
+                                <span>Jusqu’au : ${dateFin}</span>
+                            </div>` : ""}
+                        </div>`;
                     }).join("");
+
                     pontsMobileDiv.innerHTML+=`<div class="pont-section">
                         <div class="section-title"><span class="pastille ${sec.color}"></span>${sec.title}</div>
                         ${htmlList}
