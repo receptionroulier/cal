@@ -26,8 +26,10 @@ iframe { position:absolute; inset:0; width:100%; height:100%; border:none; opaci
     .orange { background:orange; animation: pulse-orange 1.2s infinite; }
     .bleu { background:#1c3cff; animation: pulse-blue 1.2s infinite; }
     .pont-item { display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #333; }
+
+    /* === CALENDRIER MOBILE CORRIGÉ === */
     #right-wrapper { width:100%; height:60vh; position:relative; }
-    #right-wrapper iframe { position:relative; height:100%; }
+    #right-wrapper iframe { position:relative; width:100%; height:100%; opacity:1; pointer-events:auto; }
     .spinner { width:35px; height:35px; border:4px solid #333; border-top:4px solid #00e5ff; border-radius:50%; animation:spin 1s linear infinite; margin:20px auto; }
 }
 @keyframes spin { from{transform:rotate(0deg);}to{transform:rotate(360deg);} }
