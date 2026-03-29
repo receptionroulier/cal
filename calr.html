@@ -6,55 +6,147 @@
 <title>Tableau de bord - Ponts & Calendrier Réception</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:#0f0f10;color:#fff;display:flex;flex-direction:column;height:100vh}
+  body{
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+    background:linear-gradient(135deg,#0f172a,#1e293b);
+    color:#fff;
+    display:flex;flex-direction:column;height:100vh;
+    min-height:0;
+  }
 
+  /* ===================== HEADER ===================== */
   #calendar-header{
     display:flex;
-    flex-wrap:wrap;
+    flex-wrap:nowrap;
     align-items:center;
-    justify-content:flex-start;
-    gap:8px;
-    padding:12px 10px;
-    color:#ffffff;
-    border-bottom:1px solid #333;
+    gap:6px;
+    padding:8px 12px;
+    border-bottom:1px solid rgba(255,255,255,0.08);
+    background:rgba(255,255,255,0.04);
+    backdrop-filter:blur(8px);
+    min-height:52px;
+    overflow:visible;
     position:relative;
   }
 
-  .nav-btn{cursor:pointer;color:#ffffff;font-size:26px;padding:4px 10px;border-radius:6px}
-  .nav-btn:hover{background:#222}
-  .view-btn{cursor:pointer;font-size:14px;padding:4px 10px;background:#222;border-radius:6px;border:1px solid #333;color:#ffffff}
-  .view-btn:hover{background:#333}
+  /* Groupe gauche : nav + vues */
+  .header-left{
+    display:flex;
+    align-items:center;
+    gap:5px;
+    flex-shrink:0;
+  }
 
-  #today-btn{font-size:16px}
-
+  /* Titre centré — absolu pour ne pas pousser les autres éléments */
   #calendar-title{
     position:absolute;
     left:50%;
     transform:translateX(-50%);
     font-weight:bold;
-    font-size:1.2rem;
+    font-size:1.1rem;
+    white-space:nowrap;
+    pointer-events:none;
+    /* si trop serré, le titre se rétrécit */
+    max-width:calc(100% - 320px);
+    overflow:hidden;
+    text-overflow:ellipsis;
+    text-align:center;
+  }
+
+  /* Horloge à droite */
+  #current-time{
+    margin-left:auto;
+    flex-shrink:0;
+    font-size:2rem;
+    font-weight:bold;
+    font-family:"Trebuchet MS",sans-serif;
     white-space:nowrap;
   }
 
-  #current-time{
-    position:absolute;
-    right:10px;
-    top:50%;
-    transform:translateY(-50%);
-    font-size:2.2rem;
-    font-weight:bold;
-    color:#ffffff;
-    font-family:Trebuchet MS
+  .nav-btn{
+    cursor:pointer;color:#fff;
+    font-size:24px;padding:2px 8px;
+    border-radius:6px;
+    line-height:1;
+    flex-shrink:0;
+  }
+  .nav-btn:hover{background:rgba(255,255,255,0.1)}
+
+  .view-btn{
+    cursor:pointer;font-size:12px;padding:4px 8px;
+    background:rgba(255,255,255,0.08);
+    border-radius:6px;border:1px solid rgba(255,255,255,0.15);
+    color:#fff;flex-shrink:0;white-space:nowrap;
+  }
+  .view-btn:hover{background:rgba(255,255,255,0.15)}
+
+  /* Responsive : titre en position statique sous un certain seuil */
+  @media(max-width:620px){
+    #calendar-header{flex-wrap:wrap; min-height:auto;}
+    #calendar-title{
+      position:static;
+      transform:none;
+      order:10;         /* passe en 2e ligne */
+      width:100%;
+      max-width:100%;
+      text-align:center;
+      font-size:0.95rem;
+      padding:2px 0 4px;
+    }
+    #current-time{font-size:1.5rem;}
+  }
+  @media(max-width:400px){
+    #current-time{font-size:1.2rem;}
+    .nav-btn{font-size:20px;padding:2px 5px;}
+    .view-btn{font-size:11px;padding:3px 6px;}
   }
 
+  /* ===================== CALENDRIER ===================== */
   #calendar-wrap{flex:1;display:flex;flex-direction:column;min-height:0;position:relative}
-  #calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;padding:10px;align-content:start;position:relative}
-  .day-cell{background:#1c1c1c;border:1px solid #333;border-radius:10px;padding:6px;position:relative;overflow:hidden;min-height:80px}
-  .day-cell.future-day{border:1px solid rgba(0,229,255,0.3);box-shadow:0 0 4px rgba(0,229,255,0.2)}
-  .day-cell.today{border:2px solid rgba(0,229,255,0.8);box-shadow:0 0 8px rgba(0,229,255,0.6);animation:pulse 2s infinite}
-  @keyframes pulse{0%{box-shadow:0 0 8px rgba(0,229,255,0.6)}50%{box-shadow:0 0 12px rgba(0,229,255,0.8)}100%{box-shadow:0 0 8px rgba(0,229,255,0.6)}}
-  .date-label{font-size:0.72rem;color:#cbd6da;margin-bottom:6px;font-weight:400}
-  .past-day-overlay{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);border-radius:8px;pointer-events:none;z-index:50}
+  #calendar{
+    display:grid;grid-template-columns:repeat(7,1fr);
+    gap:6px;padding:10px;
+    align-content:start;position:relative;
+  }
+
+  /* CELLULES — même style que les cartes index */
+  .day-cell{
+    background:rgba(255,255,255,0.05);
+    backdrop-filter:blur(10px);
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:10px;
+    padding:6px;position:relative;overflow:hidden;min-height:80px;
+  }
+
+  /* Jours futurs : légèrement plus lumineux */
+  .day-cell.future-day{
+    background:rgba(255,255,255,0.07);
+    border:1px solid rgba(0,229,255,0.25);
+    box-shadow:0 0 4px rgba(0,229,255,0.15);
+  }
+
+  /* Aujourd'hui : accentué comme dans l'original */
+  .day-cell.today{
+    background:rgba(0,229,255,0.08);
+    border:2px solid rgba(0,229,255,0.75);
+    box-shadow:0 0 8px rgba(0,229,255,0.5);
+    animation:pulse 2s infinite;
+  }
+  @keyframes pulse{
+    0%  {box-shadow:0 0 8px  rgba(0,229,255,0.5)}
+    50% {box-shadow:0 0 14px rgba(0,229,255,0.75)}
+    100%{box-shadow:0 0 8px  rgba(0,229,255,0.5)}
+  }
+
+  .date-label{font-size:0.72rem;color:#9bb4be;margin-bottom:6px;font-weight:400}
+
+  /* Overlay jours passés : même teinte sombre */
+  .past-day-overlay{
+    position:absolute;top:0;left:0;width:100%;height:100%;
+    background:rgba(0,0,0,0.35);
+    border-radius:8px;pointer-events:none;z-index:50;
+  }
+
   #events-layer{position:absolute;left:2px;right:6px;top:10px;bottom:10px;pointer-events:none}
 
   .multi-band,.single-evt{
@@ -99,33 +191,36 @@
   .event-text.scrolling::after{content:attr(data-text);position:absolute;left:100%;white-space:nowrap}
   @keyframes scroll{0%{transform:translateX(0)}100%{transform:translateX(-100%)}}
 
-  .more-events{position:absolute;top:6px;right:8px;padding:2px 6px;background:rgba(0,0,0,0.45);border-radius:6px;font-size:0.72rem;cursor:pointer;z-index:60;pointer-events:auto}
+  .more-events{
+    position:absolute;top:6px;right:8px;
+    padding:2px 6px;
+    background:rgba(0,0,0,0.45);
+    border-radius:6px;font-size:0.72rem;cursor:pointer;z-index:60;pointer-events:auto;
+  }
+
   #event-modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.65);z-index:999}
-  .modal-card{background:#222;padding:18px;border-radius:10px;max-width:720px;width:94%}
+  .modal-card{
+    background:rgba(15,23,42,0.97);
+    backdrop-filter:blur(12px);
+    border:1px solid rgba(255,255,255,0.1);
+    padding:18px;border-radius:16px;max-width:720px;width:94%;
+    box-shadow:0 20px 40px rgba(0,0,0,0.6);
+  }
   .modal-card h3{margin-bottom:6px}
   .modal-item{margin-bottom:10px}
   .modal-item p{color:#dbe7ea;margin-top:6px}
-
-  @media(max-width:720px){
-    #calendar-header{gap:6px}
-    .nav-btn{font-size:22px;padding:3px 6px}
-    .view-btn{font-size:12px;padding:3px 6px}
-    #current-time{font-size:1.8rem;right:5px}
-  }
-  @media(max-width:500px){
-    #calendar-header{flex-direction:column;align-items:flex-start}
-    #calendar-title{position:relative;left:auto;transform:none;margin:6px 0}
-  }
 </style>
 </head>
 <body>
 <div id="calendar-header">
-  <span class="nav-btn" id="prev-btn">‹</span>
-  <span class="nav-btn" id="today-btn">Aujourd'hui</span>
+  <div class="header-left">
+    <span class="nav-btn" id="prev-btn">‹</span>
+    <span class="nav-btn" id="today-btn" style="font-size:14px;padding:4px 8px;">Auj.</span>
+    <span class="nav-btn" id="next-btn">›</span>
+    <span class="view-btn" id="view-3w">3 sem.</span>
+    <span class="view-btn" id="view-4w">4 sem.</span>
+  </div>
   <span id="calendar-title">Chargement…</span>
-  <span class="nav-btn" id="next-btn">›</span>
-  <span class="view-btn" id="view-3w">3 semaines</span>
-  <span class="view-btn" id="view-4w">4 semaines</span>
   <div id="current-time"></div>
 </div>
 
@@ -160,6 +255,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function updateClock(){ const now=new Date(); document.getElementById('current-time').textContent=`${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`; }
   setInterval(updateClock, 1000);
+  updateClock();
 
   function hideModal(){ document.getElementById('event-modal').style.display='none'; }
   document.getElementById('event-modal').addEventListener('click', hideModal);
@@ -244,7 +340,6 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
 
-    // Normalisation des événements (DST-safe)
     const norm = items.map(ev => {
       const copy = JSON.parse(JSON.stringify(ev));
       copy.__type = copy.__type || '';
@@ -266,7 +361,6 @@ document.addEventListener('DOMContentLoaded', function() {
       return copy;
     }).filter(e => e._start && e._endInclusive);
 
-    // Segmentation sécurisée
     const segments = [];
     norm.forEach(ev => {
       const sDay = new Date(ev._start.getFullYear(), ev._start.getMonth(), ev._start.getDate());
@@ -302,7 +396,6 @@ document.addEventListener('DOMContentLoaded', function() {
       seg.lane = lane;
     });
 
-    // ✅ BUG CORRIGÉ : const c au lieu de variable globale implicite
     cellMap.forEach(c=>{ c.eventsList=[]; c.totalSegments=0; });
     segments.forEach(seg=>{
       for(let i=seg.startIdx; i<=seg.endIdx; i++){
@@ -397,7 +490,7 @@ document.addEventListener('DOMContentLoaded', function() {
       else if(isAll) list.push(`<div class="modal-item"><h3>${ev.summary||'(sans titre)'}</h3><p>Le ${fmtFullDate(start)}</p>${ev.description?('<p>'+ev.description+'</p>'):''}</div>`);
       else list.push(`<div class="modal-item"><h3>${ev.summary||'(sans titre)'}</h3><p>Le ${fmtFullDate(start)} à ${fmtTime(start)}</p>${ev.description?('<p>'+ev.description+'</p>'):''}</div>`);
     });
-    content.innerHTML=list.join('<hr style="border:none;border-top:1px solid #333;margin:8px 0">')||'<p>Aucun évènement</p>';
+    content.innerHTML=list.join('<hr style="border:none;border-top:1px solid rgba(255,255,255,0.1);margin:8px 0">')||'<p>Aucun évènement</p>';
     modal.style.display='flex';
   }
 
