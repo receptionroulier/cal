@@ -235,8 +235,15 @@ function computeGlobalStatus(ponts){
 
   list.forEach(p=>{
     const s = (p.statutText||"").toLowerCase();
-    if(s.includes("fermé")) hasClosed = true;
-    if(s.includes("manoeuvre") || s.includes("manœuvre")) hasMove = true;
+
+    // 🔴 détection élargie (corrige ton problème)
+    if(s.includes("fermé") || s.includes("fermeture") || s.includes("travaux")){
+      hasClosed = true;
+    }
+
+    if(s.includes("manoeuvre") || s.includes("manœuvre")){
+      hasMove = true;
+    }
   });
 
   if(hasClosed) return "closed";
@@ -294,7 +301,10 @@ setInterval(updatePontStatus, 30000);
 function getClosedDetails(ponts){
   if(!ponts) return [];
   return Object.values(ponts)
-    .filter(p => (p.statutText||"").toLowerCase().includes("fermé"))
+    .filter(p => {
+      const s = (p.statutText||"").toLowerCase();
+      return s.includes("fermé") || s.includes("fermeture") || s.includes("travaux");
+    })
     .map(p => p.nom);
 }
 
