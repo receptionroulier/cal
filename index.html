@@ -124,8 +124,6 @@
     .pont-entry  { font-size: 11px; line-height: 1.3; margin-bottom: 4px; }
     .pont-name   { font-weight: 600; color: #e0e0e0; word-break: break-word; }
     .pont-since  { color: #777; font-size: 10px; }
-    .col-ouvert .pont-name  { color: #58ff58; }
-    .col-ouvert .pont-since { color: #3ab83a; }
 
     #ponts-update { font-size: 10px; opacity: 0.4; text-align: right; }
 
@@ -337,12 +335,13 @@ function mkEntry(p, sinceStr) {
 function renderCols(ponts) {
   const cols = document.getElementById("ponts-cols");
 
-  const fermes    = ponts.filter(p => classifyPont(p) === "ferme");
-  const travaux   = ponts.filter(p => classifyPont(p) === "travaux");
-  const fermeture = ponts.filter(p => classifyPont(p) === "fermeture");
-  const manoeuvre = ponts.filter(p => classifyPont(p) === "manoeuvre");
-  const ouverts   = ponts.filter(p => classifyPont(p) === "ouvert")
-                         .sort((a,b) => (parseFRDate(b.date)||0) - (parseFRDate(a.date)||0));
+  const byDate = list => list.sort((a,b) => (parseFRDate(b.date)||0) - (parseFRDate(a.date)||0));
+
+  const fermes    = byDate(ponts.filter(p => classifyPont(p) === "ferme"));
+  const travaux   = byDate(ponts.filter(p => classifyPont(p) === "travaux"));
+  const fermeture = byDate(ponts.filter(p => classifyPont(p) === "fermeture"));
+  const manoeuvre = byDate(ponts.filter(p => classifyPont(p) === "manoeuvre"));
+  const ouverts   = byDate(ponts.filter(p => classifyPont(p) === "ouvert"));
 
   const since  = p => p.date ? `Depuis le ${fmtShort(p.date)}` : "—";
   const build  = (list, fn) => list.length
