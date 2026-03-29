@@ -2,177 +2,150 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard Ponts & Calendrier</title>
+<title>Tableau de bord - Ponts - Navires & Calendrier Réception</title>
 <style>
-html, body { margin:0; padding:0; height:100%; font-family:Arial; background:#101010; color:#eaeaea; }
-#container { display:flex; flex-direction:row; height:100vh; width:100%; }
-.frame-wrapper { position:relative; overflow:hidden; }
-iframe { position:absolute; inset:0; width:100%; height:100%; border:none; opacity:0; pointer-events:none; transition:opacity 0.6s ease; }
-.visible { opacity:1; pointer-events:auto; }
-.hidden { opacity:0; pointer-events:none; }
-#left-wrapper { width:25%; }
-#right-wrapper { width:75%; }
-
-/* MOBILE */
-@media(max-width:768px){
-    #container { flex-direction: column; height:auto; }
-    #left-wrapper { display:none; }
-    #ponts-mobile { display:block; padding:10px; max-height:40vh; overflow-y:auto; }
-    .pont-section { margin-bottom:15px; }
-    .section-title { display:flex; align-items:center; font-weight:bold; margin-bottom:5px; font-size:1em; }
-    .pastille { width:12px; height:12px; border-radius:50%; display:inline-block; margin-right:8px; }
-    .rouge { background:#ff4040; animation: pulse-red 1.2s infinite; }
-    .orange { background:orange; animation: pulse-orange 1.2s infinite; }
-    .bleu { background:#1c3cff; animation: pulse-blue 1.2s infinite; }
-    .pont-item { display:flex; flex-direction:column; padding:4px 0; border-bottom:1px solid #333; }
-
-    #right-wrapper { width:100%; height:60vh; position:relative; }
-    #right-wrapper iframe { position:relative; width:100%; height:100%; opacity:1; pointer-events:auto; }
-    .spinner { width:35px; height:35px; border:4px solid #333; border-top:4px solid #00e5ff; border-radius:50%; animation:spin 1s linear infinite; margin:20px auto; }
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
 }
-@keyframes spin { from{transform:rotate(0deg);}to{transform:rotate(360deg);} }
-@keyframes pulse-red { 0%,100%{box-shadow:0 0 5px rgba(255,64,64,0.4);}50%{box-shadow:0 0 20px rgba(255,64,64,0.7);} }
-@keyframes pulse-orange { 0%,100%{box-shadow:0 0 5px rgba(255,165,0,0.4);}50%{box-shadow:0 0 20px rgba(255,165,0,0.7);} }
-@keyframes pulse-blue { 0%,100%{box-shadow:0 0 5px rgba(28,60,255,0.4);}50%{box-shadow:0 0 20px rgba(28,60,255,0.7);} }
+
+#container {
+    display: flex;
+    height: 100vh;
+    width: 100%;
+}
+
+.frame-wrapper {
+    position: relative;
+    height: 100%;
+    overflow: hidden;
+}
+
+iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.6s ease-in-out;
+}
+
+.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
 </style>
 </head>
 <body>
 
-<!-- MOBILE PONTS EN HAUT -->
-<div id="ponts-mobile" style="display:none;"><div class="spinner"></div></div>
-
-<!-- DESKTOP + CALENDRIER -->
 <div id="container">
-    <div class="frame-wrapper" id="left-wrapper">
-        <iframe id="leftA" class="visible" data-src="https://receptionroulier.github.io/cal/p.html"></iframe>
-        <iframe id="leftB" class="hidden" data-src="https://receptionroulier.github.io/cal/p.html"></iframe>
-    </div>
-    <div class="frame-wrapper" id="right-wrapper">
-        <iframe id="rightA" class="visible" data-src="https://receptionroulier.github.io/cal/calr.html"></iframe>
-        <iframe id="rightB" class="hidden" data-src="https://receptionroulier.github.io/cal/calr.html"></iframe>
-    </div>
+  <!-- Partie gauche (25%) -->
+  <div class="frame-wrapper" style="width:25%;">
+    <iframe id="leftA" class="visible" data-src="https://receptionroulier.github.io/cal/p.html"></iframe>
+    <iframe id="leftB" class="hidden" data-src="https://receptionroulier.github.io/cal/p.html"></iframe>
+  </div>
+
+  <!-- Partie droite (75%) -->
+  <div class="frame-wrapper" style="width:75%;">
+    <iframe id="rightA" class="visible" data-src="https://receptionroulier.github.io/cal/calr.html"></iframe>
+    <iframe id="rightB" class="hidden" data-src="https://receptionroulier.github.io/cal/calr.html"></iframe>
+  </div>
 </div>
 
 <script>
-// ==== IFRAME MONITOR ====
-function monitor(versionURL, iframeA, iframeB, delay){
-    const state={active:iframeA, buffer:iframeB, lastVersion:null, isSwapping:false};
-    if(!state.active.src) state.active.src=state.active.dataset.src;
-    async function checkVersion(){
-        try{
-            const res=await fetch(versionURL+"?_="+Date.now());
-            const version=await res.text();
-            if(version!==state.lastVersion && !state.isSwapping){
-                state.lastVersion=version;
+// Fonction Smart Polling + swap iframe
+function monitor(versionURL, iframeA, iframeB, pageURL, delay, preloadImmediate=false) {
+    const state = {
+        active: iframeA,
+        buffer: iframeB,
+        lastVersion: null,
+        isSwapping: false
+    };
+
+    if (!state.active.src) state.active.src = state.active.dataset.src;
+
+    async function checkVersion() {
+        try {
+            const response = await fetch(versionURL + "?_=" + Date.now());
+            const version = await response.text();
+
+            if (version !== state.lastVersion && !state.isSwapping) {
+                state.lastVersion = version;
                 await preloadAndSwap(version);
             }
-        }catch(e){ console.error(e); }
+
+        } catch (err) {
+            console.error("Erreur version :", err);
+        }
     }
-    function preloadAndSwap(version){
-        return new Promise(resolve=>{
-            state.isSwapping=true;
-            const {active, buffer}=state;
-            buffer.src=buffer.dataset.src+"?v="+version;
-            buffer.onload=()=>{
+
+    function preloadAndSwap(version) {
+        return new Promise(resolve => {
+            state.isSwapping = true;
+            const { active, buffer } = state;
+
+            buffer.src = buffer.dataset.src + "?v=" + version;
+
+            buffer.onload = () => {
                 active.classList.add("hidden");
                 active.classList.remove("visible");
                 buffer.classList.add("visible");
                 buffer.classList.remove("hidden");
-                state.active=buffer;
-                state.buffer=active;
-                state.isSwapping=false;
+
+                state.active = buffer;
+                state.buffer = active;
+
+                state.isSwapping = false;
                 resolve();
             };
         });
     }
-    async function loop(){ await checkVersion(); await new Promise(r=>setTimeout(r,delay)); loop();}
+
+    async function loop() {
+        await checkVersion();
+        await new Promise(r => setTimeout(r, delay));
+        loop();
+    }
+
     loop();
 }
-monitor("https://receptionroulier.github.io/cal/p.version.txt", document.getElementById("leftA"), document.getElementById("leftB"),1000);
-monitor("https://receptionroulier.github.io/cal/calr.version.txt", document.getElementById("rightA"), document.getElementById("rightB"),5000);
 
-// Calendrier update
-setInterval(()=>{
-    const iframe=document.getElementById("rightA");
-    if(iframe && iframe.contentWindow){
-        iframe.contentWindow.postMessage({type:"refreshTimeAndEvents"},"*");
+// Partie gauche → 1 seconde
+monitor(
+    "https://receptionroulier.github.io/cal/p.version.txt",
+    document.getElementById("leftA"),
+    document.getElementById("leftB"),
+    "https://receptionroulier.github.io/cal/p.html",
+    1000,
+    false
+);
+
+// Partie droite → 5 secondes
+monitor(
+    "https://receptionroulier.github.io/cal/calr.version.txt",
+    document.getElementById("rightA"),
+    document.getElementById("rightB"),
+    "https://receptionroulier.github.io/cal/calr.html",
+    5000,
+    true
+);
+
+// 🔹 Mise à jour interne instantanée du calendrier et de l’heure
+setInterval(() => {
+    const iframe = document.getElementById("rightA"); // iframe visible
+    if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({ type: "refreshTimeAndEvents" }, "*");
     }
-},1000);
-
-// ==== MOBILE PONTS ====
-const isMobile=window.innerWidth<=768;
-const pontsMobileDiv=document.getElementById("ponts-mobile");
-
-if(isMobile){
-    pontsMobileDiv.style.display="block";
-
-    const proxy="https://crimson-recipe-63e0.receptionroulier.workers.dev/?url=";
-    const targetUrl="https://www.havre-port.com/map/getPonts?_ts="+Date.now();
-
-    function parseRawContentToData(raw){
-        if(!raw) return null;
-        if(typeof raw==="string"){ try{ const j=JSON.parse(raw); return j?.data||j; } catch{return null;} }
-        if(typeof raw==="object"){ if(raw.data) return raw.data; if(raw.contents){ try{ return JSON.parse(raw.contents)?.data||null; } catch{return null;} } return raw; }
-        return null;
-    }
-
-    async function loadPontsMobile(){
-        pontsMobileDiv.innerHTML='<div class="spinner"></div>'; // spinner
-        try{
-            const res=await fetch(proxy+encodeURIComponent(targetUrl));
-            const raw=await res.text();
-            const data=parseRawContentToData(raw);
-            if(!data){ pontsMobileDiv.innerHTML="<p>Impossible de récupérer les ponts.</p>"; return; }
-
-            const ponts=Object.values(data);
-
-            const sections=[
-                {title:"Ponts fermés", color:"rouge", filter:p=>p.statutText?.toLowerCase().includes("fermé")},
-                {title:"Fermeture imminente", color:"orange", filter:p=>p.statutText?.toLowerCase().includes("fermeture")},
-                {title:"Manœuvre en cours", color:"bleu", filter:p=>p.statutText?.toLowerCase().includes("manoeuvre")||p.statutText?.toLowerCase().includes("manœuvre")}
-            ];
-
-            pontsMobileDiv.innerHTML="";
-
-            sections.forEach(sec=>{
-                const list=ponts.filter(sec.filter);
-                if(list.length){
-                    const htmlList=list.map(p=>{
-                        const isTravaux = p.statutText?.toLowerCase().includes("travaux");
-                        const dateDebut = p.date || "inconnue";
-                        const dateFin = isTravaux && p.finTravaux ? p.finTravaux : "";
-
-                        return `<div class="pont-item">
-                            <div style="display:flex; justify-content:space-between; width:100%;">
-                                <span>${p.nom}</span>
-                                <span>Depuis : ${dateDebut}</span>
-                            </div>
-                            ${isTravaux ? `<div style="display:flex; justify-content:space-between; width:100%;">
-                                <span>⚠️</span>
-                                <span>Jusqu’au : ${dateFin}</span>
-                            </div>` : ""}
-                        </div>`;
-                    }).join("");
-
-                    pontsMobileDiv.innerHTML+=`<div class="pont-section">
-                        <div class="section-title"><span class="pastille ${sec.color}"></span>${sec.title}</div>
-                        ${htmlList}
-                    </div>`;
-                }
-            });
-
-            if(pontsMobileDiv.innerHTML==="") pontsMobileDiv.innerHTML="<p>Aucun pont fermé, en manoeuvre ou en fermeture imminente.</p>";
-
-        }catch(e){
-            pontsMobileDiv.innerHTML="<p>Impossible de charger les ponts.</p>";
-            console.error(e);
-        }
-    }
-
-    loadPontsMobile();
-    setInterval(loadPontsMobile,30000);
-}
+}, 1000);
 </script>
+
 </body>
 </html>
