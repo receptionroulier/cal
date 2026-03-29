@@ -210,132 +210,85 @@
   <footer>© 2026 - Outils planning</footer>
 
   <script>
-// === Récupération réelle depuis la même source que p.html ===
-const API_URL = "https://www.havre-port.com/map/getPonts";
-const PROXY = "https://crimson-recipe-63e0.receptionroulier.workers.dev/?url=";
+// === VERSION ULTRA ROBUSTE (réutilise le cache de p.html) ===
 
-async function fetchPonts(){
+const CACHE_KEY = "pontsData"; // même clé que p.html
+
+function getCachedPonts(){
   try{
-    const res = await fetch(PROXY + encodeURIComponent(API_URL + "?_ts=" + Date.now()));
-    const text = await res.text();
-    const json = JSON.parse(text);
-    return json.data || json;
+    const raw = localStorage.getItem(CACHE_KEY);
+    if(!raw) return null;
+    return JSON.parse(raw);
   }catch(e){
-    console.error("Erreur fetch ponts", e);
+    console.error("Erreur lecture cache", e);
     return null;
   }
 }
 
-function computeGlobalStatus(ponts){
-  if(!ponts) return "unknown";
-  const list = Object.values(ponts);
+function analyzePonts(list){
+  if(!list || !list.length) return {status:"error", closed:[]};
 
-  let hasClosed = false;
-  let hasMove = false;
-
-  list.forEach(p=>{
+  const closed = list.filter(p=>{
     const s = (p.statutText||"").toLowerCase();
-
-    // 🔴 détection élargie (corrige ton problème)
-    if(s.includes("fermé") || s.includes("fermeture") || s.includes("travaux")){
-      hasClosed = true;
-    }
-
-    if(s.includes("manoeuvre") || s.includes("manœuvre")){
-      hasMove = true;
-    }
+    return s.includes("fermé") || s.includes("fermeture") || s.includes("travaux");
   });
 
-  if(hasClosed) return "closed";
-  if(hasMove) return "move";
-  return "open";
+  const move = list.some(p=>{
+    const s = (p.statutText||"").toLowerCase();
+    return s.includes("manoeuvre") || s.includes("manœuvre");
+  });
+
+  if(closed.length) return {status:"closed", closed:closed.map(p=>p.nom)};
+  if(move) return {status:"move", closed:[]};
+  return {status:"open", closed:[]};
 }
 
-function applyStatus(id, status, closedNames){
+function updateUI(id, result){
   const el = document.getElementById(id);
   if(!el) return;
 
   let label = "Ouvert";
   el.classList.remove("closed");
 
-  if(status === "closed"){
+  if(result.status === "closed"){
     el.classList.add("closed");
-    label = "Fermé";
-  } else if(status === "move"){
+    label = `Fermé (${result.closed.length})`;
+  }
+  else if(result.status === "move"){
     label = "Manoeuvre";
   }
-
-  // Ajout compteur visible (plus fiable que tooltip)
-  if(closedNames.length > 0){
-    label += ` (${closedNames.length})`;
+  else if(result.status === "error"){
+    label = "Données indisponibles";
   }
 
   el.innerHTML = `<div class="dot"></div> ${label}`;
 
-  // Tooltip en complément
-  if(closedNames.length){
+  if(result.closed.length){
     el.title = "Pont(s) fermé(s) :
-- " + closedNames.join("
+- " + result.closed.join("
 - ");
   } else {
-    el.title = "Tous les ponts sont ouverts";
+    el.title = "Tous les ponts OK";
   }
 }
 
-async function updatePontStatus(){
-  const data = await fetchPonts();
-  const status = computeGlobalStatus(data);
-  const closedNames = getClosedDetails(data);
+function refreshFromCache(){
+  const data = getCachedPonts();
 
-  ["pontStatus1","pontStatus2","pontStatus3"].forEach(id => {
-    applyStatus(id, status, closedNames);
+  if(!data){
+    console.warn("⚠️ Aucun cache trouvé (ouvre p.html au moins une fois)");
+  }
+
+  const result = analyzePonts(data || []);
+
+  ["pontStatus1","pontStatus2","pontStatus3"].forEach(id=>{
+    updateUI(id, result);
   });
 }
 
 // refresh auto
-updatePontStatus();
-setInterval(updatePontStatus, 30000);
-
-
-// === Détail des ponts fermés (tooltip simple) ===
-function getClosedDetails(ponts){
-  if(!ponts) return [];
-  return Object.values(ponts)
-    .filter(p => {
-      const s = (p.statutText||"").toLowerCase();
-      return s.includes("fermé") || s.includes("fermeture") || s.includes("travaux");
-    })
-    .map(p => p.nom);
-}
-
-function attachTooltip(id, names){
-  const el = document.getElementById(id);
-  if(!el) return;
-
-  if(!names.length){
-    el.title = "Tous les ponts sont ouverts";
-    return;
-  }
-
-  el.title = "Pont(s) fermé(s) :
-- " + names.join("
-- ");
-}
-
-async function updatePontStatus(){
-  const data = await fetchPonts();
-  const status = computeGlobalStatus(data);
-  const closedNames = getClosedDetails(data);
-
-  ["pontStatus1","pontStatus2","pontStatus3"].forEach(id => {
-    applyStatus(id, status);
-    attachTooltip(id, closedNames);
-  });
-}
-
-// refresh auto
-updatePontStatus();
-setInterval(updatePontStatus, 30000);
+refreshFromCache();
+setInterval(refreshFromCache, 30000);
 </script>
 
 </body>
