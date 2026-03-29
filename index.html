@@ -351,14 +351,14 @@ function renderCols(ponts) {
   cols.innerHTML = `
     <div class="pont-col">
       <div class="col-header">
-        <span class="pastille p-rouge"></span>Fermés
+        <span class="pastille p-rouge"></span>Fermé(s)
         <span class="col-count">(${fermes.length})</span>
       </div>
       ${build(fermes, since)}
     </div>
 
     <div class="pont-col">
-      <div class="col-header">🚧&nbsp;Travaux
+      <div class="col-header">🚧&nbsp;En travaux
         <span class="col-count">(${travaux.length})</span>
       </div>
       ${build(travaux, p => fmtFinTravaux(p))}
@@ -374,7 +374,7 @@ function renderCols(ponts) {
 
     <div class="pont-col">
       <div class="col-header">
-        <span class="pastille p-bleu"></span>En manœuvre
+        <span class="pastille p-bleu"></span>Bientôt ouvert(s)
         <span class="col-count">(${manoeuvre.length})</span>
       </div>
       ${build(manoeuvre, since)}
@@ -382,7 +382,7 @@ function renderCols(ponts) {
 
     <div class="pont-col col-ouvert">
       <div class="col-header">
-        <span class="pastille p-vert"></span>Ouvert
+        <span class="pastille p-vert"></span>Ouvert(s)
         <span class="col-count">(${ouverts.length})</span>
       </div>
       ${ouverts.length ? mkEntry(ouverts[0], since(ouverts[0])) : `<div class="pont-entry"><div class="pont-since">—</div></div>`}
