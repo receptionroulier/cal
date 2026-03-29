@@ -8,13 +8,14 @@
 /* ===================== GLOBAL ===================== */
 body {
     margin: 0;
-    font-family: Arial, sans-serif;
-    background: #101010;
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: linear-gradient(135deg, #0f172a, #1e293b);
     color: #eaeaea;
     display: flex;
     justify-content: center;
     padding: 20px;
     scroll-behavior: smooth;
+    min-height: 100vh;
 }
 .container {
     width: 95%;
@@ -45,7 +46,6 @@ h2 {
     animation: spin 1s linear infinite;
     margin: 40px auto;
 }
-
 @keyframes spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
@@ -58,14 +58,20 @@ h2 {
     gap: 10px;
 }
 .pont-card {
-    background: #1f1f1f;
-    border-radius: 8px;
-    padding: 10px 12px;
-    box-shadow: 0 0 5px rgba(0,0,0,0.4);
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    padding: 10px 14px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.4);
     border-left: 4px solid #444;
     transition: transform 0.15s ease, box-shadow 0.3s ease;
+    color: #eaeaea;
 }
-.pont-card:hover { transform: scale(1.02); }
+.pont-card:hover {
+    transform: scale(1.02);
+    background: rgba(255,255,255,0.08);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+}
 
 .pont-card.ferme,
 .pont-card.ferme-travaux { border-left-color: #ff4040; }
@@ -94,7 +100,7 @@ h2 {
 .ouvert .pastille { background: #58ff58; }
 
 .pont-nom { font-weight: bold; display: flex; align-items: center; }
-.pont-infos { font-size: 0.85em; color: #ccc; }
+.pont-infos { font-size: 0.85em; color: #aaa; }
 
 .texte-travaux {
     font-weight: bold;
