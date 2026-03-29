@@ -21,7 +21,7 @@
       margin-bottom: 10px;
       font-size: 28px;
     }
-    p {
+    p.subtitle {
       margin-bottom: 30px;
       opacity: 0.7;
     }
@@ -61,6 +61,7 @@
     .icon {
       width: 40px;
       height: 40px;
+      flex-shrink: 0;
     }
     .text {
       display: flex;
@@ -79,27 +80,175 @@
       font-size: 13px;
       opacity: 0.5;
     }
+
+    /* ===== PONTS WIDGET CARD ===== */
+    .ponts-card {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      padding: 20px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .ponts-card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .ponts-card-header .icon {
+      width: 36px;
+      height: 36px;
+      flex-shrink: 0;
+    }
+
+    .ponts-card-header .text .title {
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .ponts-card-header .text .subtitle {
+      font-size: 12px;
+      opacity: 0.6;
+    }
+
+    /* 5 colonnes ponts */
+    .ponts-columns {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+    }
+
+    @media (max-width: 700px) {
+      .ponts-columns {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .col-ouvert {
+        grid-column: 1 / -1;
+      }
+    }
+
+    .pont-col {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .col-header {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      white-space: nowrap;
+    }
+
+    .pastille {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .pastille-rouge  { background: #ff4040; }
+    .pastille-orange { background: orange; }
+    .pastille-bleu   { background: #4c6fff; }
+    .pastille-vert   { background: #58ff58; }
+
+    .col-count {
+      opacity: 0.55;
+      font-weight: 400;
+      font-size: 10px;
+    }
+
+    .pont-entry {
+      font-size: 11px;
+      line-height: 1.35;
+    }
+    .pont-entry .pont-name {
+      font-weight: 600;
+      color: #e0e0e0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .pont-entry .pont-since {
+      color: #888;
+      font-size: 10px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* travaux icon */
+    .icon-travaux {
+      font-size: 13px;
+      line-height: 1;
+    }
+
+    /* update bar */
+    #ponts-update {
+      font-size: 10px;
+      opacity: 0.45;
+      text-align: right;
+    }
+
+    /* spinner mini */
+    .mini-spinner {
+      width: 18px;
+      height: 18px;
+      border: 3px solid #333;
+      border-top: 3px solid #00e5ff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    /* col-ouvert : on affiche qu'un seul pont en plus grand */
+    .col-ouvert .pont-entry .pont-name {
+      font-size: 12px;
+      color: #58ff58;
+    }
+    .col-ouvert .pont-entry .pont-since {
+      font-size: 10px;
+      color: #3ab83a;
+    }
   </style>
 </head>
 <body>
   <h1>Choisissez une vue</h1>
-  <p>Accès aux calendriers</p>
+  <p class="subtitle">Accès aux calendriers</p>
 
-  <!-- PONTS -->
+  <!-- PONTS WIDGET -->
   <div class="section">
-    <div class="section-title">🌉 Ponts</div>
-    <div class="container">
-      <a class="card" href="https://receptionroulier.github.io/cal/p.html">
+    <div class="section-title">🌉 État des Ponts</div>
+    <div class="ponts-card">
+      <div class="ponts-card-header">
         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
           <path d="M3 12h18"/>
           <path d="M6 12v4"/>
           <path d="M18 12v4"/>
         </svg>
         <div class="text">
-          <div class="title">État des Ponts</div>
-          <div class="subtitle">Voir le détail</div>
+          <div class="title">État en temps réel</div>
+          <div class="subtitle"><a href="https://receptionroulier.github.io/cal/p.html" style="color:#7dd3fc;text-decoration:none;">Voir le détail →</a></div>
         </div>
-      </a>
+      </div>
+
+      <!-- colonnes -->
+      <div class="ponts-columns" id="ponts-cols">
+        <div class="mini-spinner" style="grid-column:1/-1;margin:10px auto;"></div>
+      </div>
+
+      <div id="ponts-update">Chargement…</div>
     </div>
   </div>
 
@@ -157,5 +306,259 @@
   </div>
 
   <footer>© 2026 - Outils planning</footer>
+
+<script>
+/* ===== CONFIG (identique à p.html) ===== */
+const FETCH_TIMEOUT  = 10000;
+const CACHE_KEY_DATA = "pontsData";
+const CACHE_KEY_TIME = "pontsCacheTime";
+const CACHE_EXPIRATION = 60000;
+const REFRESH_INTERVAL = 30000;
+
+/* ===== UTILITAIRES ===== */
+function parseFRDate(str) {
+  if (!str || typeof str !== "string") return NaN;
+  str = str.replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
+  const m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+  if (!m) return NaN;
+  return new Date(Number(m[3]), Number(m[2])-1, Number(m[1]), Number(m[4]||0), Number(m[5]||0), Number(m[6]||0)).getTime();
+}
+
+function fmtDate(str) {
+  const t = parseFRDate(str);
+  if (!isFinite(t)) return str || "—";
+  const d = new Date(t);
+  const pad = n => String(n).padStart(2,'0');
+  return `${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/**
+ * Extrait la date de fin dans les textes travaux du type :
+ * "Travaux du 01/01/2026 au 15/03/2026" ou "travaux du JJ/MM/AAAA au JJ/MM/AAAA"
+ */
+function extractTravauxFin(text) {
+  if (!text) return null;
+  // format dd/mm/yyyy
+  const m = text.match(/au\s+(\d{1,2}\/\d{1,2}\/\d{4})/i);
+  if (m) {
+    // Reformater en JJ/MM/AAAA hh:mm pour fmtDate
+    return m[1]; // on le passe directement à parseFRDate via fmtDate
+  }
+  return null;
+}
+
+/* ===== FETCH (même proxy que p.html) ===== */
+async function fetchWithTimeout(url, timeout = FETCH_TIMEOUT) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    return res;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+async function fetchPonts() {
+  const proxy = "https://crimson-recipe-63e0.receptionroulier.workers.dev/?url=";
+  const target = "https://www.havre-port.com/map/getPonts?_ts=" + Date.now();
+  let raw = null;
+  try {
+    const res = await fetchWithTimeout(proxy + encodeURIComponent(target));
+    if (res.ok) raw = await res.text();
+  } catch(e) { console.warn("Proxy failed", e); }
+
+  if (!raw) {
+    try {
+      const res = await fetchWithTimeout(target);
+      if (res.ok) raw = await res.text();
+    } catch(e) { console.error("Direct failed", e); }
+  }
+  if (!raw) return null;
+  try {
+    const json = JSON.parse(raw);
+    return json?.data ? Object.values(json.data) : Object.values(json);
+  } catch { return null; }
+}
+
+/* ===== CLASSEMENT ===== */
+function classifyPont(p) {
+  const s = (p.statutText || "").toLowerCase();
+  const travaux = s.includes("travaux");
+  const ferme   = s.includes("fermé") || s.includes("ferme");
+  const fermeture = s.includes("fermeture");
+  const manoeuvre = s.includes("manoeuvre") || s.includes("manœuvre");
+  const ouvert  = s.includes("ouvert");
+
+  if (ferme && travaux) return "travaux";
+  if (ferme)            return "ferme";
+  if (fermeture)        return "fermeture";
+  if (manoeuvre)        return "manoeuvre";
+  if (ouvert)           return "ouvert";
+  return "ferme";
+}
+
+/* ===== RENDER ===== */
+function renderCols(ponts) {
+  const cols = document.getElementById("ponts-cols");
+
+  const fermes    = ponts.filter(p => classifyPont(p) === "ferme");
+  const travaux   = ponts.filter(p => classifyPont(p) === "travaux");
+  const fermeture = ponts.filter(p => classifyPont(p) === "fermeture");
+  const manoeuvre = ponts.filter(p => classifyPont(p) === "manoeuvre");
+  const ouverts   = ponts.filter(p => classifyPont(p) === "ouvert");
+
+  // Trier ouverts par date desc → afficher le plus récent
+  ouverts.sort((a,b) => {
+    const ta = parseFRDate(a.date), tb = parseFRDate(b.date);
+    return (isFinite(tb)?tb:0) - (isFinite(ta)?ta:0);
+  });
+
+  function entryFerme(p) {
+    const since = p.date ? `Depuis le ${fmtDate(p.date)}` : "—";
+    return `<div class="pont-entry">
+      <div class="pont-name">${p.nom}</div>
+      <div class="pont-since">${since}</div>
+    </div>`;
+  }
+
+  function entryTravaux(p) {
+    const fin = extractTravauxFin(p.statutText || p.forceText || "");
+    let finStr = "—";
+    if (fin) {
+      const t = parseFRDate(fin);
+      if (isFinite(t)) {
+        const d = new Date(t);
+        const pad = n => String(n).padStart(2,'0');
+        finStr = `Jusqu'au ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
+      } else {
+        finStr = `Jusqu'au ${fin}`;
+      }
+    }
+    return `<div class="pont-entry">
+      <div class="pont-name">${p.nom}</div>
+      <div class="pont-since">${finStr}</div>
+    </div>`;
+  }
+
+  function entryOuvert(p) {
+    const since = p.date ? `Depuis le ${fmtDate(p.date)}` : "—";
+    return `<div class="pont-entry">
+      <div class="pont-name">${p.nom}</div>
+      <div class="pont-since">${since}</div>
+    </div>`;
+  }
+
+  cols.innerHTML = `
+    <!-- Fermés -->
+    <div class="pont-col">
+      <div class="col-header">
+        <span class="pastille pastille-rouge"></span>
+        Fermés
+        <span class="col-count">(${fermes.length})</span>
+      </div>
+      ${fermes.length ? fermes.map(entryFerme).join("") : '<div class="pont-entry"><div class="pont-since">—</div></div>'}
+    </div>
+
+    <!-- Travaux -->
+    <div class="pont-col">
+      <div class="col-header">
+        <span class="icon-travaux">🚧</span>
+        Travaux
+        <span class="col-count">(${travaux.length})</span>
+      </div>
+      ${travaux.length ? travaux.map(entryTravaux).join("") : '<div class="pont-entry"><div class="pont-since">—</div></div>'}
+    </div>
+
+    <!-- En fermeture -->
+    <div class="pont-col">
+      <div class="col-header">
+        <span class="pastille pastille-orange"></span>
+        En fermeture
+        <span class="col-count">(${fermeture.length})</span>
+      </div>
+      ${fermeture.length ? fermeture.map(entryFerme).join("") : '<div class="pont-entry"><div class="pont-since">—</div></div>'}
+    </div>
+
+    <!-- En manœuvre -->
+    <div class="pont-col">
+      <div class="col-header">
+        <span class="pastille pastille-bleu"></span>
+        En manœuvre
+        <span class="col-count">(${manoeuvre.length})</span>
+      </div>
+      ${manoeuvre.length ? manoeuvre.map(entryFerme).join("") : '<div class="pont-entry"><div class="pont-since">—</div></div>'}
+    </div>
+
+    <!-- Ouvert (le plus récent seulement) -->
+    <div class="pont-col col-ouvert">
+      <div class="col-header">
+        <span class="pastille pastille-vert"></span>
+        Ouvert
+        <span class="col-count">(${ouverts.length})</span>
+      </div>
+      ${ouverts.length ? entryOuvert(ouverts[0]) : '<div class="pont-entry"><div class="pont-since">—</div></div>'}
+    </div>
+  `;
+}
+
+/* ===== INIT ===== */
+async function loadPonts(forceUpdate = false) {
+  const indicator = document.getElementById("ponts-update");
+  const now = Date.now();
+  const nowStr = new Date(now).toLocaleString("fr-FR");
+
+  // Utiliser le cache si récent
+  if (!forceUpdate) {
+    const lastTime = parseInt(localStorage.getItem(CACHE_KEY_TIME) || 0);
+    if (lastTime && now - lastTime < CACHE_EXPIRATION) {
+      const cached = localStorage.getItem(CACHE_KEY_DATA);
+      if (cached) {
+        renderCols(JSON.parse(cached));
+        indicator.textContent = `🟢 MàJ ${nowStr} — cache`;
+        return;
+      }
+    }
+  }
+
+  try {
+    const ponts = await fetchPonts();
+    if (!ponts) throw new Error("Pas de données");
+
+    const unique = Array.from(new Map(ponts.map(p => [p.nom, p])).values());
+
+    // Merge avec cache pour garder la date la plus récente
+    const cachedRaw = localStorage.getItem(CACHE_KEY_DATA);
+    const cachedData = cachedRaw ? JSON.parse(cachedRaw) : [];
+    const merged = unique.map(p => {
+      const c = cachedData.find(x => x.nom === p.nom);
+      if (!c) return p;
+      const nd = parseFRDate(p.date), od = parseFRDate(c.date);
+      if (!isFinite(nd) && !isFinite(od)) return p;
+      if (!isFinite(nd)) return c;
+      if (!isFinite(od)) return p;
+      return nd >= od ? p : c;
+    });
+
+    localStorage.setItem(CACHE_KEY_DATA, JSON.stringify(merged));
+    localStorage.setItem(CACHE_KEY_TIME, String(now));
+
+    renderCols(merged);
+    indicator.textContent = `🟢 MàJ ${nowStr}`;
+  } catch(e) {
+    const cached = localStorage.getItem(CACHE_KEY_DATA);
+    if (cached) {
+      renderCols(JSON.parse(cached));
+      indicator.textContent = `🔴 Erreur ${nowStr} — cache utilisé`;
+    } else {
+      document.getElementById("ponts-cols").innerHTML = '<div style="color:#ff4040;font-size:12px;">Données indisponibles</div>';
+      indicator.textContent = `🔴 Erreur ${nowStr}`;
+    }
+  }
+}
+
+loadPonts(true);
+setInterval(() => loadPonts(false), REFRESH_INTERVAL);
+</script>
 </body>
 </html>
