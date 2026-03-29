@@ -273,6 +273,42 @@ async function updatePontStatus(){
 // refresh auto
 updatePontStatus();
 setInterval(updatePontStatus, 30000);
+
+
+// === Détail des ponts fermés (tooltip simple) ===
+function getClosedDetails(ponts){
+  if(!ponts) return [];
+  return Object.values(ponts)
+    .filter(p => (p.statutText||"").toLowerCase().includes("fermé"))
+    .map(p => p.nom);
+}
+
+function attachTooltip(id, names){
+  const el = document.getElementById(id);
+  if(!el) return;
+
+  if(!names.length){
+    el.title = "Tous les ponts sont ouverts";
+    return;
+  }
+
+  el.title = "Pont(s) fermé(s) :\n- " + names.join("\n- ");
+}
+
+async function updatePontStatus(){
+  const data = await fetchPonts();
+  const status = computeGlobalStatus(data);
+  const closedNames = getClosedDetails(data);
+
+  ["pontStatus1","pontStatus2","pontStatus3"].forEach(id => {
+    applyStatus(id, status);
+    attachTooltip(id, closedNames);
+  });
+}
+
+// refresh auto
+updatePontStatus();
+setInterval(updatePontStatus, 30000);
 </script>
 
 </body>
