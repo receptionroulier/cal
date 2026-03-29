@@ -1,244 +1,262 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Choix de Calendrier</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Choix de Calendrier</title>
 
-  <style>
-    body {
-      margin: 0;
-      font-family: "Segoe UI", Arial, sans-serif;
-      background: linear-gradient(135deg, #0f172a, #1e293b);
-      color: #ffffff;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      padding: 20px;
-    }
+<style>
+  body {
+    margin: 0;
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 100vh;
+    padding: 20px;
+  }
 
-    h1 { margin-bottom: 10px; font-size: 28px; }
-    p { margin-bottom: 30px; opacity: 0.7; }
+  h1 { margin-bottom: 10px; font-size: 28px; }
+  p { margin-bottom: 30px; opacity: 0.7; }
 
-    .section {
-      width: 100%;
-      max-width: 900px;
-      margin-bottom: 30px;
-    }
+  .section {
+    width: 100%;
+    max-width: 900px;
+    margin-bottom: 30px;
+  }
 
-    .section-title {
-      font-size: 18px;
-      margin-bottom: 15px;
-      opacity: 0.8;
-    }
+  .section-title {
+    font-size: 18px;
+    margin-bottom: 15px;
+    opacity: 0.8;
+  }
 
-    .container {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 20px;
-    }
+  .container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 20px;
+  }
 
-    .card {
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 16px;
-      padding: 20px;
-      text-decoration: none;
-      color: white;
-      backdrop-filter: blur(10px);
-      box-shadow: 0 8px 20px rgba(0,0,0,0.4);
-      transition: all 0.3s ease;
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-      cursor: pointer;
-    }
+  .card {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 20px;
+    text-decoration: none;
+    color: white;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 15px;
+    cursor: pointer;
+  }
 
-    .card:hover {
-      transform: translateY(-5px) scale(1.02);
-      box-shadow: 0 12px 30px rgba(0,0,0,0.6);
-      background: rgba(255,255,255,0.08);
-    }
+  .card:hover {
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+    background: rgba(255,255,255,0.08);
+  }
 
-    .icon { width: 40px; height: 40px; }
+  .icon { width: 40px; height: 40px; flex-shrink:0; }
 
-    .text { display: flex; flex-direction: column; }
-    .title { font-size: 15px; font-weight: 600; }
-    .subtitle { font-size: 12px; opacity: 0.6; line-height:1.3; white-space: normal; }
+  .text { display: flex; flex-direction: column; }
+  .title { font-size: 15px; font-weight: 600; }
+  .subtitle { font-size: 12px; opacity: 0.8; line-height:1.4; white-space: normal; text-align:left; }
 
-    footer {
-      margin-top: 20px;
-      font-size: 13px;
-      opacity: 0.5;
-    }
+  footer {
+    margin-top: 20px;
+    font-size: 13px;
+    opacity: 0.5;
+  }
 
-    /* Style tableau des ponts */
-    #ponts-summary table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 5px;
-      table-layout: fixed;
-      font-size: 11px;
-    }
+  /* Tableau ponts */
+  #ponts-summary table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 5px;
+    table-layout: fixed;
+    font-size: 11px;
+  }
 
-    #ponts-summary th, #ponts-summary td {
-      text-align: center;
-      padding: 2px 4px;
-      vertical-align: top;
-    }
+  #ponts-summary th, #ponts-summary td {
+    padding: 2px 4px;
+    vertical-align: top;
+    text-align: left;
+  }
 
-    #ponts-summary th {
-      font-weight: bold;
-      font-size: 12px;
-    }
-  </style>
+  #ponts-summary th {
+    font-weight: bold;
+    font-size: 12px;
+  }
+
+  .pastille {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+
+  .ferme { background:red; }
+  .travaux { content:"🛠️"; }
+  .fermeture { background:orange; }
+  .manoeuvre { background:blue; }
+  .ouvert { background:green; }
+
+</style>
 </head>
 
 <body>
 
-  <h1>Choisissez une vue</h1>
-  <p>Accès aux calendriers</p>
+<h1>Choisissez une vue</h1>
+<p>Accès aux calendriers</p>
 
-  <div class="section">
-    <div class="section-title">📊 Dashboard Ponts</div>
-    <div class="container">
+<div class="section">
+  <div class="section-title">📊 Dashboard Ponts</div>
+  <div class="container">
 
-      <!-- Carte État des ponts -->
-      <a class="card" href="https://receptionroulier.github.io/cal/p.html">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-          <path d="M3 12h18"/>
-          <path d="M6 12v4"/>
-          <path d="M18 12v4"/>
-        </svg>
-        <div class="text">
-          <div class="title">État des Ponts</div>
-          <div class="subtitle" id="ponts-summary">
-            Chargement...
-          </div>
-        </div>
-      </a>
+    <a class="card" href="https://receptionroulier.github.io/cal/p.html">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+        <path d="M3 12h18"/>
+        <path d="M6 12v4"/>
+        <path d="M18 12v4"/>
+      </svg>
+      <div class="text">
+        <div class="title">État des Ponts</div>
+        <div class="subtitle" id="ponts-summary">Chargement...</div>
+      </div>
+    </a>
 
-    </div>
   </div>
+</div>
 
-  <!-- RÉCEPTION -->
-  <div class="section">
-    <div class="section-title">📦 Réception</div>
-    <div class="container">
+<!-- RÉCEPTION -->
+<div class="section">
+  <div class="section-title">📦 Réception</div>
+  <div class="container">
+    <a class="card" href="https://receptionroulier.github.io/cal/calr.html">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+        <rect x="3" y="4" width="18" height="18" rx="2"/>
+      </svg>
+      <div class="text">
+        <div class="title">Calendrier Réception</div>
+        <div class="subtitle">Planning simple</div>
+      </div>
+    </a>
 
-      <a class="card" href="https://receptionroulier.github.io/cal/calr.html">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-          <rect x="3" y="4" width="18" height="18" rx="2"/>
-        </svg>
-        <div class="text">
-          <div class="title">Calendrier Réception</div>
-          <div class="subtitle">Planning simple</div>
-        </div>
-      </a>
-
-      <a class="card" href="https://receptionroulier.github.io/cal/r.html">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-          <rect x="3" y="4" width="18" height="18" rx="2"/>
-          <path d="M3 10h18"/>
-        </svg>
-        <div class="text">
-          <div class="title">Réception + Ponts</div>
-          <div class="subtitle">Vue combinée</div>
-        </div>
-      </a>
-
-    </div>
+    <a class="card" href="https://receptionroulier.github.io/cal/r.html">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+        <rect x="3" y="4" width="18" height="18" rx="2"/>
+        <path d="M3 10h18"/>
+      </svg>
+      <div class="text">
+        <div class="title">Réception + Ponts</div>
+        <div class="subtitle">Vue combinée</div>
+      </div>
+    </a>
   </div>
+</div>
 
-  <!-- NAVIRES -->
-  <div class="section">
-    <div class="section-title">🚢 Navires</div>
-    <div class="container">
+<!-- NAVIRES -->
+<div class="section">
+  <div class="section-title">🚢 Navires</div>
+  <div class="container">
 
-      <a class="card" href="https://receptionroulier.github.io/cal/caln.html">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-          <path d="M3 20h18"/>
-          <path d="M5 20l2-5h10l2 5"/>
-        </svg>
-        <div class="text">
-          <div class="title">Calendrier Navires</div>
-          <div class="subtitle">Planning des arrivées</div>
-        </div>
-      </a>
+    <a class="card" href="https://receptionroulier.github.io/cal/caln.html">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+        <path d="M3 20h18"/>
+        <path d="M5 20l2-5h10l2 5"/>
+      </svg>
+      <div class="text">
+        <div class="title">Calendrier Navires</div>
+        <div class="subtitle">Planning des arrivées</div>
+      </div>
+    </a>
 
-      <a class="card" href="https://receptionroulier.github.io/cal/n.html">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-          <path d="M3 20h18"/>
-          <path d="M5 20l2-5h10l2 5"/>
-        </svg>
-        <div class="text">
-          <div class="title">Navires + Ponts</div>
-          <div class="subtitle">Vue combinée</div>
-        </div>
-      </a>
+    <a class="card" href="https://receptionroulier.github.io/cal/n.html">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+        <path d="M3 20h18"/>
+        <path d="M5 20l2-5h10l2 5"/>
+      </svg>
+      <div class="text">
+        <div class="title">Navires + Ponts</div>
+        <div class="subtitle">Vue combinée</div>
+      </div>
+    </a>
 
-    </div>
   </div>
+</div>
 
-  <footer>© 2026 - Outils planning</footer>
+<footer>© 2026 - Outils planning</footer>
 
-  <!-- SCRIPT PONTS -->
-  <script>
-    async function loadPontsSummary() {
-      try {
-        const url = "https://www.havre-port.com/map/getPonts?_ts=" + Date.now();
-        const res = await fetch("https://crimson-recipe-63e0.receptionroulier.workers.dev/?url=" + encodeURIComponent(url));
-        const raw = await res.json();
-        const data = raw.data || raw;
+<script>
+async function loadPontsSummary() {
+  try {
+    const url = "https://www.havre-port.com/map/getPonts?_ts=" + Date.now();
+    const res = await fetch("https://crimson-recipe-63e0.receptionroulier.workers.dev/?url=" + encodeURIComponent(url));
+    const raw = await res.json();
+    const data = raw.data || raw;
+    const ponts = Object.values(data);
 
-        const ponts = Object.values(data);
-        const categories = ["ferme","travaux","fermeture","manoeuvre","ouvert"];
-        const stats = { ferme: [], travaux: [], fermeture: [], manoeuvre: [], ouvert: [] };
+    const categories = ["ferme","travaux","fermeture","manoeuvre","ouvert"];
+    const stats = { ferme: [], travaux: [], fermeture: [], manoeuvre: [], ouvert: [] };
 
-        function parseDate(str){
-          if(!str) return "";
-          const [d,m,y,h,min] = str.match(/\d+/g).map(Number);
-          return `${d}/${m}/${y}${h!=null ? ' '+h+':'+(min||0).toString().padStart(2,'0') : ''}`;
-        }
-
-        ponts.forEach(p => {
-          const s = (p.statutText || "").toLowerCase();
-          const d = parseDate(p.date);
-          if(s.includes("travaux")) stats.travaux.push(`${p.nom} jusqu'au ${d}`);
-          else if(s.includes("fermé")) stats.ferme.push(`${p.nom} depuis le ${d}`);
-          else if(s.includes("fermeture")) stats.fermeture.push(`${p.nom} depuis le ${d}`);
-          else if(s.includes("manoeuvre") || s.includes("manœuvre")) stats.manoeuvre.push(`${p.nom} depuis le ${d}`);
-          else if(s.includes("ouvert")) stats.ouvert.push(`${p.nom} depuis le ${d}`);
-        });
-
-        const maxRows = Math.max(...categories.map(c => stats[c].length));
-        let html = `<table><tr>
-          <th>Fermés (${stats.ferme.length})</th>
-          <th>Travaux (${stats.travaux.length})</th>
-          <th>Fermeture (${stats.fermeture.length})</th>
-          <th>En manœuvre (${stats.manoeuvre.length})</th>
-          <th>Ouverts (${stats.ouvert.length})</th>
-        </tr>`;
-
-        for(let i=0; i<maxRows; i++){
-          html += '<tr>';
-          categories.forEach(c => html += `<td>${stats[c][i] || ''}</td>`);
-          html += '</tr>';
-        }
-
-        html += '</table>';
-        document.getElementById("ponts-summary").innerHTML = html;
-
-      } catch (e) {
-        document.getElementById("ponts-summary").innerHTML = "Erreur chargement";
-        console.error(e);
-      }
+    function formatDate(str){
+      if(!str) return "";
+      // gérer travaux du jj/mm/aaaa hh:mm au jj/mm/aaaa hh:mm
+      const m = str.match(/\d{1,2}\/\d{1,2}\/\d{4}\s\d{1,2}:\d{2}/g);
+      return m ? m[m.length-1] : str;
     }
 
-    loadPontsSummary();
-    setInterval(loadPontsSummary, 60000);
-  </script>
+    ponts.forEach(p=>{
+      const s = (p.statutText||"").toLowerCase();
+      const date = formatDate(p.date);
+      if(s.includes("travaux")) stats.travaux.push(`${p.nom} jusqu'au ${date}`);
+      else if(s.includes("fermé")) stats.ferme.push(`${p.nom} depuis le ${date}`);
+      else if(s.includes("fermeture")) stats.fermeture.push(`${p.nom} depuis le ${date}`);
+      else if(s.includes("manoeuvre") || s.includes("manœuvre")) stats.manoeuvre.push(`${p.nom} depuis le ${date}`);
+      else if(s.includes("ouvert")) stats.ouvert.push(`${p.nom} depuis le ${date}`);
+    });
+
+    // pour ouvert on ne garde que le dernier
+    if(stats.ouvert.length>1) stats.ouvert = [stats.ouvert[stats.ouvert.length-1]];
+
+    const maxRows = Math.max(...categories.map(c=>stats[c].length));
+
+    let html = `<table><tr>
+      <th><span class="pastille ferme"></span> Fermés (${stats.ferme.length})</th>
+      <th>🛠 Travaux (${stats.travaux.length})</th>
+      <th><span class="pastille fermeture"></span> Fermeture (${stats.fermeture.length})</th>
+      <th><span class="pastille manoeuvre"></span> En manœuvre (${stats.manoeuvre.length})</th>
+      <th><span class="pastille ouvert"></span> Ouverts (${stats.ouvert.length})</th>
+    </tr>`;
+
+    for(let i=0;i<maxRows;i++){
+      html+='<tr>';
+      categories.forEach(c=>{
+        html+=`<td>${stats[c][i]||''}</td>`;
+      });
+      html+='</tr>';
+    }
+
+    html+='</table>';
+    document.getElementById("ponts-summary").innerHTML = html;
+
+  } catch(e){
+    console.error(e);
+    document.getElementById("ponts-summary").innerHTML = "Erreur chargement";
+  }
+}
+
+loadPontsSummary();
+setInterval(loadPontsSummary,60000);
+</script>
 
 </body>
 </html>
