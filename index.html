@@ -50,8 +50,9 @@
       box-shadow: 0 8px 20px rgba(0,0,0,0.4);
       transition: all 0.3s ease;
       display: flex;
-      align-items: center;
+      flex-direction: column;
       gap: 15px;
+      cursor: pointer;
     }
 
     .card:hover {
@@ -64,12 +65,32 @@
 
     .text { display: flex; flex-direction: column; }
     .title { font-size: 15px; font-weight: 600; }
-    .subtitle { font-size: 12px; opacity: 0.6; }
+    .subtitle { font-size: 12px; opacity: 0.6; line-height:1.3; white-space: normal; }
 
     footer {
       margin-top: 20px;
       font-size: 13px;
       opacity: 0.5;
+    }
+
+    /* Style tableau des ponts */
+    #ponts-summary table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 5px;
+      table-layout: fixed;
+      font-size: 11px;
+    }
+
+    #ponts-summary th, #ponts-summary td {
+      text-align: center;
+      padding: 2px 4px;
+      vertical-align: top;
+    }
+
+    #ponts-summary th {
+      font-weight: bold;
+      font-size: 12px;
     }
   </style>
 </head>
@@ -78,6 +99,28 @@
 
   <h1>Choisissez une vue</h1>
   <p>Accès aux calendriers</p>
+
+  <div class="section">
+    <div class="section-title">📊 Dashboard Ponts</div>
+    <div class="container">
+
+      <!-- Carte État des ponts -->
+      <a class="card" href="https://receptionroulier.github.io/cal/p.html">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+          <path d="M3 12h18"/>
+          <path d="M6 12v4"/>
+          <path d="M18 12v4"/>
+        </svg>
+        <div class="text">
+          <div class="title">État des Ponts</div>
+          <div class="subtitle" id="ponts-summary">
+            Chargement...
+          </div>
+        </div>
+      </a>
+
+    </div>
+  </div>
 
   <!-- RÉCEPTION -->
   <div class="section">
@@ -138,27 +181,64 @@
     </div>
   </div>
 
-  <!-- PONTS -->
-  <div class="section">
-    <div class="section-title">🌉 Ponts</div>
-    <div class="container">
-
-      <a class="card" href="https://receptionroulier.github.io/cal/p.html">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-          <path d="M3 12h18"/>
-          <path d="M6 12v4"/>
-          <path d="M18 12v4"/>
-        </svg>
-        <div class="text">
-          <div class="title">État des Ponts</div>
-          <div class="subtitle">Voir le détail</div>
-        </div>
-      </a>
-
-    </div>
-  </div>
-
   <footer>© 2026 - Outils planning</footer>
+
+  <!-- SCRIPT PONTS -->
+  <script>
+    async function loadPontsSummary() {
+      try {
+        const url = "https://www.havre-port.com/map/getPonts?_ts=" + Date.now();
+        const res = await fetch("https://crimson-recipe-63e0.receptionroulier.workers.dev/?url=" + encodeURIComponent(url));
+        const raw = await res.json();
+        const data = raw.data || raw;
+
+        const ponts = Object.values(data);
+        const categories = ["ferme","travaux","fermeture","manoeuvre","ouvert"];
+        const stats = { ferme: [], travaux: [], fermeture: [], manoeuvre: [], ouvert: [] };
+
+        function parseDate(str){
+          if(!str) return "";
+          const [d,m,y,h,min] = str.match(/\d+/g).map(Number);
+          return `${d}/${m}/${y}${h!=null ? ' '+h+':'+(min||0).toString().padStart(2,'0') : ''}`;
+        }
+
+        ponts.forEach(p => {
+          const s = (p.statutText || "").toLowerCase();
+          const d = parseDate(p.date);
+          if(s.includes("travaux")) stats.travaux.push(`${p.nom} jusqu'au ${d}`);
+          else if(s.includes("fermé")) stats.ferme.push(`${p.nom} depuis le ${d}`);
+          else if(s.includes("fermeture")) stats.fermeture.push(`${p.nom} depuis le ${d}`);
+          else if(s.includes("manoeuvre") || s.includes("manœuvre")) stats.manoeuvre.push(`${p.nom} depuis le ${d}`);
+          else if(s.includes("ouvert")) stats.ouvert.push(`${p.nom} depuis le ${d}`);
+        });
+
+        const maxRows = Math.max(...categories.map(c => stats[c].length));
+        let html = `<table><tr>
+          <th>Fermés (${stats.ferme.length})</th>
+          <th>Travaux (${stats.travaux.length})</th>
+          <th>Fermeture (${stats.fermeture.length})</th>
+          <th>En manœuvre (${stats.manoeuvre.length})</th>
+          <th>Ouverts (${stats.ouvert.length})</th>
+        </tr>`;
+
+        for(let i=0; i<maxRows; i++){
+          html += '<tr>';
+          categories.forEach(c => html += `<td>${stats[c][i] || ''}</td>`);
+          html += '</tr>';
+        }
+
+        html += '</table>';
+        document.getElementById("ponts-summary").innerHTML = html;
+
+      } catch (e) {
+        document.getElementById("ponts-summary").innerHTML = "Erreur chargement";
+        console.error(e);
+      }
+    }
+
+    loadPontsSummary();
+    setInterval(loadPontsSummary, 60000);
+  </script>
 
 </body>
 </html>
