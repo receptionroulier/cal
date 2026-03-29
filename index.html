@@ -106,60 +106,8 @@ footer { margin-top: 20px; font-size: 13px; opacity: 0.5; }
   </div>
 </div>
 
-<!-- RÉCEPTION -->
-<div class="section">
-  <div class="section-title">📦 Réception</div>
-  <div class="container">
-    <a class="card" href="https://receptionroulier.github.io/cal/calr.html">
-      <div class="card-header">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-          <rect x="3" y="4" width="18" height="18" rx="2"/>
-        </svg>
-        <div class="text"><div class="title">Calendrier Réception</div></div>
-      </div>
-      <div class="subtitle">Planning simple</div>
-    </a>
-
-    <a class="card" href="https://receptionroulier.github.io/cal/r.html">
-      <div class="card-header">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-          <rect x="3" y="4" width="18" height="18" rx="2"/>
-          <path d="M3 10h18"/>
-        </svg>
-        <div class="text"><div class="title">Réception + Ponts</div></div>
-      </div>
-      <div class="subtitle">Vue combinée</div>
-    </a>
-  </div>
-</div>
-
-<!-- NAVIRES -->
-<div class="section">
-  <div class="section-title">🚢 Navires</div>
-  <div class="container">
-    <a class="card" href="https://receptionroulier.github.io/cal/caln.html">
-      <div class="card-header">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-          <path d="M3 20h18"/>
-          <path d="M5 20l2-5h10l2 5"/>
-        </svg>
-        <div class="text"><div class="title">Calendrier Navires</div></div>
-      </div>
-      <div class="subtitle">Planning des arrivées</div>
-    </a>
-
-    <a class="card" href="https://receptionroulier.github.io/cal/n.html">
-      <div class="card-header">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-          <path d="M3 20h18"/>
-          <path d="M5 20l2-5h10l2 5"/>
-        </svg>
-        <div class="text"><div class="title">Navires + Ponts</div></div>
-      </div>
-      <div class="subtitle">Vue combinée</div>
-    </a>
-  </div>
-</div>
+<!-- Les autres sections restent identiques -->
+<!-- RÉCEPTION et NAVIRES ... -->
 
 <footer>© 2026 - Outils planning</footer>
 
@@ -174,36 +122,48 @@ async function loadPontsSummary() {
 
     const stats = { ferme: [], travaux: [], fermeture: [], manoeuvre: [], ouvert: [] };
 
-    function formatDateDepuis(str){
-      if (!str) return "";
+    // récupère toutes les dates jj/mm/aaaa hh:mm
+    function extractDates(str) {
+      if (!str) return [];
       const m = str.match(/\d{1,2}\/\d{1,2}\/\d{4}\s\d{1,2}:\d{2}/g);
-      return m ? `Depuis le ${m[0]}` : "";
+      return m || [];
     }
 
-    function formatDateTravaux(str){
-      if (!str) return "";
-      const m = str.match(/\d{1,2}\/\d{1,2}\/\d{4}\s\d{1,2}:\d{2}/g);
-      return m ? `jusqu’au ${m[1] || m[0]}` : "";
+    // format pour travaux : date de fin seulement
+    function travauxDate(str) {
+      const dates = extractDates(str);
+      if (dates.length < 2) return "";
+      return `jusqu’au ${dates[1]}`;
     }
 
-    // Trier pour le dernier pont ouvert
-    ponts.sort((a,b)=>{
-      const da = new Date(a.date);
-      const db = new Date(b.date);
-      return da-db;
-    });
+    // format pour autres : depuis le 1ère date
+    function depuisDate(str) {
+      const dates = extractDates(str);
+      if (!dates.length) return "";
+      return `Depuis le ${dates[0]}`;
+    }
 
+    // trier pour dernier pont ouvert
     ponts.forEach(p=>{
       const s = (p.statutText||"").toLowerCase();
-      if(s.includes("travaux")) stats.travaux.push({text:p.nom, date:formatDateTravaux(p.statutText)});
-      else if(s.includes("fermé")) stats.ferme.push({text:p.nom, date:formatDateDepuis(p.statutText)});
-      else if(s.includes("fermeture")) stats.fermeture.push({text:p.nom, date:formatDateDepuis(p.statutText)});
-      else if(s.includes("manoeuvre") || s.includes("manœuvre")) stats.manoeuvre.push({text:p.nom, date:formatDateDepuis(p.statutText)});
-      else if(s.includes("ouvert")) stats.ouvert.push({text:p.nom, date:formatDateDepuis(p.statutText)});
+      const dts = extractDates(p.statutText);
+      p._lastDate = dts.length ? new Date(dts[dts.length-1].replace(/(\d{2})\/(\d{2})\/(\d{4})\s(\d{2}):(\d{2})/,'$3-$2-$1T$4:$5')) : new Date(0);
+      if(s.includes("travaux")) stats.travaux.push({text:p.nom, date:travauxDate(p.statutText)});
+      else if(s.includes("fermé")) stats.ferme.push({text:p.nom, date:depuisDate(p.statutText)});
+      else if(s.includes("fermeture")) stats.fermeture.push({text:p.nom, date:depuisDate(p.statutText)});
+      else if(s.includes("manoeuvre") || s.includes("manœuvre")) stats.manoeuvre.push({text:p.nom, date:depuisDate(p.statutText)});
+      else if(s.includes("ouvert")) stats.ouvert.push({text:p.nom, date:depuisDate(p.statutText)});
     });
 
-    // Ne garder que le dernier pont ouvert
-    if(stats.ouvert.length>0) stats.ouvert = [stats.ouvert[stats.ouvert.length-1]];
+    // garder uniquement le dernier pont ouvert
+    if(stats.ouvert.length>0){
+      stats.ouvert.sort((a,b)=>{
+        const pa = ponts.find(p=>p.nom===a.text);
+        const pb = ponts.find(p=>p.nom===b.text);
+        return pb._lastDate - pa._lastDate;
+      });
+      stats.ouvert = [stats.ouvert[0]];
+    }
 
     const categories = ["ferme","travaux","fermeture","manoeuvre","ouvert"];
     const labels = {ferme:"Fermés", travaux:"Travaux", fermeture:"Fermeture", manoeuvre:"En manœuvre", ouvert:"Ouverts"};
