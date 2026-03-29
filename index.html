@@ -174,34 +174,32 @@ async function loadPontsSummary() {
 
     const stats = { ferme: [], travaux: [], fermeture: [], manoeuvre: [], ouvert: [] };
 
-    // Fonction pour récupérer date de début et date de fin dans travaux
-    function formatTravauxDate(str) {
+    function formatDateDepuis(str){
       if (!str) return "";
       const m = str.match(/\d{1,2}\/\d{1,2}\/\d{4}\s\d{1,2}:\d{2}/g);
-      if (!m) return "";
-      return `du ${m[0]} au ${m[1]}`; // affiche correctement la date début et fin
+      return m ? `Depuis le ${m[0]}` : "";
     }
 
-    function formatDate(str) {
+    function formatDateTravaux(str){
       if (!str) return "";
       const m = str.match(/\d{1,2}\/\d{1,2}\/\d{4}\s\d{1,2}:\d{2}/g);
-      return m ? m[m.length - 1] : str;
+      return m ? `jusqu’au ${m[1] || m[0]}` : "";
     }
 
     // Trier pour le dernier pont ouvert
     ponts.sort((a,b)=>{
-      const da = new Date(a.date.split('au').pop());
-      const db = new Date(b.date.split('au').pop());
+      const da = new Date(a.date);
+      const db = new Date(b.date);
       return da-db;
     });
 
     ponts.forEach(p=>{
       const s = (p.statutText||"").toLowerCase();
-      if(s.includes("travaux")) stats.travaux.push({text:p.nom, date:formatTravauxDate(p.statutText)});
-      else if(s.includes("fermé")) stats.ferme.push({text:p.nom, date:formatDate(p.statutText)});
-      else if(s.includes("fermeture")) stats.fermeture.push({text:p.nom, date:formatDate(p.statutText)});
-      else if(s.includes("manoeuvre") || s.includes("manœuvre")) stats.manoeuvre.push({text:p.nom, date:formatDate(p.statutText)});
-      else if(s.includes("ouvert")) stats.ouvert.push({text:p.nom, date:formatDate(p.statutText)});
+      if(s.includes("travaux")) stats.travaux.push({text:p.nom, date:formatDateTravaux(p.statutText)});
+      else if(s.includes("fermé")) stats.ferme.push({text:p.nom, date:formatDateDepuis(p.statutText)});
+      else if(s.includes("fermeture")) stats.fermeture.push({text:p.nom, date:formatDateDepuis(p.statutText)});
+      else if(s.includes("manoeuvre") || s.includes("manœuvre")) stats.manoeuvre.push({text:p.nom, date:formatDateDepuis(p.statutText)});
+      else if(s.includes("ouvert")) stats.ouvert.push({text:p.nom, date:formatDateDepuis(p.statutText)});
     });
 
     // Ne garder que le dernier pont ouvert
