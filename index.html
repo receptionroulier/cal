@@ -244,7 +244,7 @@ function computeGlobalStatus(ponts){
   return "open";
 }
 
-function applyStatus(id, status){
+function applyStatus(id, status, closedNames){
   const el = document.getElementById(id);
   if(!el) return;
 
@@ -258,16 +258,31 @@ function applyStatus(id, status){
     label = "Manoeuvre";
   }
 
+  // Ajout compteur visible (plus fiable que tooltip)
+  if(closedNames.length > 0){
+    label += ` (${closedNames.length})`;
+  }
+
   el.innerHTML = `<div class="dot"></div> ${label}`;
+
+  // Tooltip en complément
+  if(closedNames.length){
+    el.title = "Pont(s) fermé(s) :
+- " + closedNames.join("
+- ");
+  } else {
+    el.title = "Tous les ponts sont ouverts";
+  }
 }
 
 async function updatePontStatus(){
   const data = await fetchPonts();
   const status = computeGlobalStatus(data);
+  const closedNames = getClosedDetails(data);
 
-  applyStatus("pontStatus1", status);
-  applyStatus("pontStatus2", status);
-  applyStatus("pontStatus3", status);
+  ["pontStatus1","pontStatus2","pontStatus3"].forEach(id => {
+    applyStatus(id, status, closedNames);
+  });
 }
 
 // refresh auto
@@ -292,7 +307,9 @@ function attachTooltip(id, names){
     return;
   }
 
-  el.title = "Pont(s) fermé(s) :\n- " + names.join("\n- ");
+  el.title = "Pont(s) fermé(s) :
+- " + names.join("
+- ");
 }
 
 async function updatePontStatus(){
