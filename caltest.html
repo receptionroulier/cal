@@ -2,6 +2,9 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8"/>
+
+
+
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Calendrier Réception</title>
 <style>
@@ -49,7 +52,7 @@
   .day-cell.today{background:rgba(0,229,255,0.08);border:2px solid rgba(0,229,255,0.75);box-shadow:0 0 8px rgba(0,229,255,0.5);animation:pulse 2s infinite;}
   @keyframes pulse{0%{box-shadow:0 0 8px rgba(0,229,255,0.5)}50%{box-shadow:0 0 14px rgba(0,229,255,0.75)}100%{box-shadow:0 0 8px rgba(0,229,255,0.5)}}
   .date-label{font-size:0.72rem;color:#9bb4be;margin-bottom:6px;font-weight:400;}
-  .past-day-overlay{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.35);border-radius:8px;pointer-events:none;z-index:50;}
+  .past-day-overlay{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.25);backdrop-filter: blur(1px);border-radius:8px;pointer-events:none;z-index:50;}
   #events-layer{position:absolute;left:2px;right:6px;top:10px;bottom:10px;pointer-events:none;}
   .multi-band,.single-evt{
     pointer-events:auto;position:absolute;display:flex;align-items:center;
@@ -193,6 +196,10 @@ document.addEventListener('DOMContentLoaded', function() {
   let autoRefreshTimer = null;
 
   /* ===== UTILS ===== */
+  function parseLocalDate(str){
+  const [y,m,d] = str.split('-').map(Number);
+  return new Date(y, m-1, d); // LOCAL (pas UTC)
+}
   function getMonday(d){ const date=new Date(d); const day=date.getDay(); const diff=(day===0?-6:1-day); date.setDate(date.getDate()+diff); date.setHours(0,0,0,0); return date; }
   function fmtTime(d){ return d ? new Date(d).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : ''; }
   function fmtDayLabel(d){ return d.toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit'}); }
@@ -255,8 +262,12 @@ document.addEventListener('DOMContentLoaded', function() {
       const copy=JSON.parse(JSON.stringify(ev));
       copy.__type=copy.__type||'';
       copy._isAllDay=!!(copy.start&&copy.start.date&&!copy.start.dateTime);
-      if(copy.start){ copy._start=copy.start.dateTime?new Date(copy.start.dateTime):new Date(copy.start.date); if(copy._isAllDay) copy._start.setHours(0,0,0,0); }
-      if(copy.end){ copy._end=copy.end.dateTime?new Date(copy.end.dateTime):new Date(copy.end.date); if(copy._isAllDay){ copy._endInclusive=new Date(copy._end.getTime()-1); copy._endInclusive.setHours(23,59,59,999); } else { copy._endInclusive=new Date(copy._end.getTime()); } }
+      if(copy.start){ copy._start=copy.start.dateTime?new Date(copy.start.dateTime):parseLocalDate(copy.start.date); if(copy._isAllDay) copy._start.setHours(0,0,0,0); }
+      if(copy.end){ copy._end=copy.end.dateTime?new Date(copy.end.dateTime):parseLocalDate(copy.end.date); if(copy._isAllDay){ copy._endInclusive = new Date(copy._end);
+  copy._endInclusive.setDate(copy._endInclusive.getDate() - 1);
+  copy._endInclusive.setHours(23,59,59,999);
+  };
+  else { copy._endInclusive=new Date(copy._end.getTime()); } }
       if(!copy._endInclusive&&copy._end) copy._endInclusive=new Date(copy._end.getTime());
       return copy;
     }).filter(e=>e._start&&e._endInclusive);
