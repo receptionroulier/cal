@@ -29,9 +29,11 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
   .past-day-overlay {
   position:absolute;
   inset:0;
-  background: rgba(200, 210, 220, 0.08); /* léger voile gris clair */
-  backdrop-filter: grayscale(60%) brightness(0.9);
-  -webkit-backdrop-filter: grayscale(60%) brightness(0.9);
+  background: rgba(200, 210, 220, 0.06);
+
+  backdrop-filter: grayscale(70%) brightness(0.85) contrast(0.9);
+  -webkit-backdrop-filter: grayscale(70%) brightness(0.85) contrast(0.9);
+
   border-radius:8px;
   pointer-events:none;
   z-index:50;
