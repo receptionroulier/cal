@@ -40,17 +40,19 @@
   /* ===== DESKTOP ===== */
   #calendar-wrap{flex:1;display:flex;flex-direction:column;min-height:0;position:relative;}
   #calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;padding:10px;align-content:start;position:relative;}
+  /* Base = jours passés : fond sombre */
   .day-cell{
-    background:rgba(255,255,255,0.05);backdrop-filter:blur(10px);
-    border:1px solid rgba(255,255,255,0.08);border-radius:10px;
+    background:rgba(255,255,255,0.03);backdrop-filter:blur(10px);
+    border:1px solid rgba(255,255,255,0.06);border-radius:10px;
     padding:6px;position:relative;overflow:hidden;min-height:80px;
   }
+  /* Jours futurs et aujourd'hui : fond plus lumineux */
   .day-cell.future-day{background:rgba(255,255,255,0.07);border:1px solid rgba(0,229,255,0.25);box-shadow:0 0 4px rgba(0,229,255,0.15);}
   .day-cell.today{background:rgba(0,229,255,0.08);border:2px solid rgba(0,229,255,0.75);box-shadow:0 0 8px rgba(0,229,255,0.5);animation:pulse 2s infinite;}
   @keyframes pulse{0%{box-shadow:0 0 8px rgba(0,229,255,0.5)}50%{box-shadow:0 0 14px rgba(0,229,255,0.75)}100%{box-shadow:0 0 8px rgba(0,229,255,0.5)}}
   .date-label{font-size:0.72rem;color:#9bb4be;margin-bottom:6px;font-weight:400;}
-  /* Voile jours passés */
-  .past-day-overlay{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.38);border-radius:8px;pointer-events:none;z-index:50;}
+  /* Voile assombrissant sur les jours passés */
+  .past-day-overlay{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.45);border-radius:8px;pointer-events:none;z-index:50;}
   #events-layer{position:absolute;left:2px;right:6px;top:10px;bottom:10px;pointer-events:none;}
   .multi-band,.single-evt{
     pointer-events:auto;position:absolute;display:flex;align-items:center;
@@ -386,7 +388,9 @@ document.addEventListener('DOMContentLoaded', function() {
     calendarEl.innerHTML=''; eventsLayer.innerHTML='';
 
     const tdi=todayInt();
-    const startDI=addDays(-7, mondayOf(currentStartDate)); // lundi semaine passée
+    // Toujours démarrer sur le lundi de la semaine de currentStartDate, puis reculer d'une semaine
+    const thisMondayDI=mondayOf(currentStartDate);
+    const startDI=addDays(-7, thisMondayDI); // lundi semaine précédente
     const totalDays=weekView*7;
 
     const headerH=document.getElementById('calendar-header').getBoundingClientRect().height;
@@ -688,8 +692,8 @@ document.addEventListener('DOMContentLoaded', function() {
     },30000);
   }
 
-  document.getElementById('prev-btn').addEventListener('click',()=>{ currentStartDate.setDate(currentStartDate.getDate()-7); localStorage.removeItem(CACHE_KEY); render().catch(()=>{}); });
-  document.getElementById('next-btn').addEventListener('click',()=>{ currentStartDate.setDate(currentStartDate.getDate()+7); localStorage.removeItem(CACHE_KEY); render().catch(()=>{}); });
+  document.getElementById('prev-btn').addEventListener('click',()=>{ currentStartDate=fromDateInt(addDays(-7,mondayOf(currentStartDate))); localStorage.removeItem(CACHE_KEY); render().catch(()=>{}); });
+  document.getElementById('next-btn').addEventListener('click',()=>{ currentStartDate=fromDateInt(addDays(7,mondayOf(currentStartDate))); localStorage.removeItem(CACHE_KEY); render().catch(()=>{}); });
   document.getElementById('today-btn').addEventListener('click',()=>{
     if(isMobile()) scrollToToday(true);
     else { currentStartDate=new Date(); weekView=3; localStorage.removeItem(CACHE_KEY); render().catch(()=>{}); }
