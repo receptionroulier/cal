@@ -43,17 +43,31 @@
   /* ===== DESKTOP ===== */
   #calendar-wrap{flex:1;display:flex;flex-direction:column;min-height:0;position:relative;}
   #calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;padding:10px;align-content:start;position:relative;}
+  #calendar{
+  position: relative;
+  z-index: 0;
+}
   .day-cell{
     background:rgba(255,255,255,0.05);backdrop-filter:blur(10px);
     border:1px solid rgba(255,255,255,0.08);border-radius:10px;
-    padding:6px;position:relative;overflow:hidden;min-height:80px;
+    padding:6px;position:relative;overflow:visible;min-height:80px;
   }
   .day-cell.future-day{background:rgba(255,255,255,0.07);border:1px solid rgba(0,229,255,0.25);box-shadow:0 0 4px rgba(0,229,255,0.15);}
   .day-cell.today{background:rgba(0,229,255,0.08);border:2px solid rgba(0,229,255,0.75);box-shadow:0 0 8px rgba(0,229,255,0.5);animation:pulse 2s infinite;}
   @keyframes pulse{0%{box-shadow:0 0 8px rgba(0,229,255,0.5)}50%{box-shadow:0 0 14px rgba(0,229,255,0.75)}100%{box-shadow:0 0 8px rgba(0,229,255,0.5)}}
   .date-label{font-size:0.72rem;color:#9bb4be;margin-bottom:6px;font-weight:400;}
-  .past-day-overlay{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.25);backdrop-filter: blur(1px);border-radius:8px;pointer-events:none;z-index:50;}
+  .past-day-overlay{
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.25);
+  backdrop-filter: blur(1px);
+  pointer-events: none;
+  z-index: 20;
+}
   #events-layer{position:absolute;left:2px;right:6px;top:10px;bottom:10px;pointer-events:none;}
+  #events-layer{
+  z-index: 10;
+}
   .multi-band,.single-evt{
     pointer-events:auto;position:absolute;display:flex;align-items:center;
     padding:0 10px;height:22px;border-radius:12px;font-size:0.78rem;color:#fff;
@@ -267,7 +281,7 @@ document.addEventListener('DOMContentLoaded', function() {
   copy._endInclusive.setDate(copy._endInclusive.getDate() - 1);
   copy._endInclusive.setHours(23,59,59,999);
   };
-  else { copy._endInclusive=new Date(copy._end.getTime());
+  else { copy._endInclusive=new Date(copy._end.getTime()); } }
       if(!copy._endInclusive&&copy._end) copy._endInclusive=new Date(copy._end.getTime());
       return copy;
     }).filter(e=>e._start&&e._endInclusive);
