@@ -42,7 +42,7 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
   .multi-band,.single-evt{pointer-events:auto;position:absolute;display:flex;align-items:center;padding:0 10px;height:22px;border-radius:12px;font-size:0.78rem;color:#fff;white-space:nowrap;overflow:hidden;background:linear-gradient(135deg,rgba(255,255,255,0.02),rgba(255,255,255,0.03));border:1px solid rgba(255,255,255,0.06);backdrop-filter:blur(6px) saturate(150%);box-shadow:0 6px 18px rgba(0,0,0,0.45),inset 0 1px 0 rgba(255,255,255,0.02);transition:transform .15s ease,box-shadow .15s ease,background .15s ease}
   
   .past-event {
-  filter: grayscale(70%) brightness(0.85) contrast(0.9);
+  filter: grayscale(35%) brightness(0.85) contrast(0.9);
   opacity: 0.6;
 }
   
@@ -126,7 +126,7 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
 document.addEventListener('DOMContentLoaded', function() {
   const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
   const CAL = { reception:'receptionroulier@gmail.com', navire:'smr.programme@gmail.com' };
-  const CACHE_KEY = 'calr_v2_cache';
+  const CACHE_KEY = 'caltest_v2_cache';
   const CACHE_TTL = 30000;
   let weekView = 3, currentStartDate = new Date(), resizeTimeout, autoRefreshTimer;
 
