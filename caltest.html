@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8"/>
 
-'<script>
-'const maintenance = false; // false = désactivé
+<script>
+const maintenance = false; // false = désactivé
 
-''if (maintenance) {
+if (maintenance) {
   window.location.href = "https://receptionroulier.github.io/cal/bug.html";
-'}
-'</script>
+}
+</script>
 
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Calendrier Réception</title>
@@ -66,7 +66,7 @@
     pointer-events:none;
     z-index:200;
   }
-  #events-layer{position:absolute;left:2px;right:6px;top:10px;bottom:10px;pointer-events:none;}
+  #events-layer{position:absolute;left:0;right:0;top:0;bottom:0;pointer-events:none;}
   .multi-band,.single-evt{
     pointer-events:auto;position:absolute;display:flex;align-items:center;
     padding:0 10px;height:22px;border-radius:12px;font-size:0.78rem;color:#fff;
@@ -563,6 +563,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     const calendarRect=calendarEl.getBoundingClientRect();
+    const wrapRect=document.getElementById('calendar-wrap').getBoundingClientRect();
     const cellRects=cellMap.map(c=>c.el.getBoundingClientRect());
     const timeMin=new Date(startDate); timeMin.setHours(0,0,0,0);
     const timeMax=new Date(timeMin); timeMax.setDate(timeMax.getDate()+totalDays);
@@ -577,7 +578,9 @@ document.addEventListener('DOMContentLoaded', function() {
       let cursor=new Date(sDay), safety=0;
       while(cursor<=eDay){
         if(++safety>1000){ console.warn('Boucle segmentation arrêtée',ev.summary); break; }
-        const weekIndex=Math.floor((cursor-startDate)/(7*24*3600*1000));
+        // FIX DST : calcul en jours calendaires pour éviter le décalage heure d'été
+        const diffDays=Math.round((cursor-startDate)/86400000);
+        const weekIndex=Math.floor(diffDays/7);
         if(weekIndex<0){ cursor.setDate(cursor.getDate()+1); continue; }
         if(weekIndex>=weekView) break;
         const weekStartIdx=weekIndex*7, weekEndIdx=Math.min(weekStartIdx+6,cellMap.length-1);
@@ -605,7 +608,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const dateLabelH=dateLabel?dateLabel.getBoundingClientRect().height:18;
     const bandH=22, laneGap=6, bandSpacing=bandH+laneGap;
     const weekTopBase=[];
-    for(let w=0;w<weekView;w++){ const idx=w*7; weekTopBase[w]=idx<cellRects.length?(cellRects[idx].top-calendarRect.top):0; }
+    for(let w=0;w<weekView;w++){ const idx=w*7; weekTopBase[w]=idx<cellRects.length?(cellRects[idx].top-wrapRect.top):0; }
     const visibleLanesPerWeek=[];
     for(let w=0;w<weekView;w++){ const avail=rowH-(dateLabelH+8); visibleLanesPerWeek[w]=Math.max(0,Math.floor((avail+laneGap)/bandSpacing)); }
 
@@ -621,8 +624,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if(!rect) return;
         const overlay=document.createElement('div');
         overlay.className='past-day-overlay';
-        overlay.style.left=`${rect.left-calendarRect.left}px`;
-        overlay.style.top=`${rect.top-calendarRect.top}px`;
+        overlay.style.left=`${rect.left-wrapRect.left}px`;
+        overlay.style.top=`${rect.top-wrapRect.top}px`;
         overlay.style.width=`${rect.width}px`;
         overlay.style.height=`${rect.height}px`;
         eventsLayer.appendChild(overlay);
@@ -632,7 +635,7 @@ document.addEventListener('DOMContentLoaded', function() {
     segments.forEach(seg=>{
       const firstRect=cellRects[seg.startIdx], lastRect=cellRects[seg.endIdx];
       if(!firstRect||!lastRect) return;
-      const left=firstRect.left-calendarRect.left;
+      const left=firstRect.left-wrapRect.left;
       const width=(lastRect.left+lastRect.width)-firstRect.left-6;
       const el=document.createElement('div'); el.className='multi-band '+(seg.ev.__type||'');
       el.style.left=`${left}px`; el.style.width=`${Math.max(36,width)}px`;
