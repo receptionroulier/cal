@@ -77,15 +77,10 @@
   #mobile-wrap{
     display:none;
     flex:1;overflow-y:auto;padding:10px 12px 40px;
-    flex-direction:column;gap:8px;
+    flex-direction:column;gap:16px;
   }
-  /* séparateur de mois */
-  .mob-month-sep{
-    font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;
-    color:#64748b;padding:10px 4px 4px;
-    border-bottom:1px solid rgba(255,255,255,0.06);
-    margin-top:4px;
-  }
+  .mob-week{display:flex;flex-direction:column;gap:6px;}
+  .mob-week+.mob-week{border-top:1px solid rgba(255,255,255,0.07);padding-top:4px;}
   .mob-day{
     background:rgba(255,255,255,0.05);
     backdrop-filter:blur(10px);
@@ -300,7 +295,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   /* ===================================================================
-     MOBILE RENDER — liste plate, scroll vers aujourd'hui
+     MOBILE RENDER — groupes semaine sans titre, scroll vers aujourd'hui
   =================================================================== */
   async function renderMobile(itemsOverride){
     const wrap=document.getElementById('mobile-wrap');
@@ -308,10 +303,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const today=new Date(); today.setHours(0,0,0,0);
 
-    // Plage : 30j passés → 60j futurs (depuis aujourd'hui, fixe)
-    const DAYS_BEFORE=30, DAYS_AFTER=60;
-    const timeMin=new Date(today); timeMin.setDate(today.getDate()-DAYS_BEFORE);
-    const timeMax=new Date(today); timeMax.setDate(today.getDate()+DAYS_AFTER+1);
+    // Même plage que le desktop : semaine passée + semaines courantes
+    const thisMonday=getMonday(currentStartDate);
+    const pastMonday=new Date(thisMonday); pastMonday.setDate(thisMonday.getDate()-7);
+    const totalDays=weekView*7;
+    const timeMin=new Date(pastMonday); timeMin.setHours(0,0,0,0);
+    const timeMax=new Date(timeMin); timeMax.setDate(timeMax.getDate()+totalDays);
 
     const norm=await getItems(timeMin,timeMax,itemsOverride);
 
@@ -323,80 +320,77 @@ document.addEventListener('DOMContentLoaded', function() {
       }).sort((a,b)=>a._start-b._start);
     }
 
-    // Titre : mois autour d'aujourd'hui
+    // Titre
     const months=new Set();
-    for(let i=-7;i<=14;i++){
-      const d=new Date(today); d.setDate(today.getDate()+i);
+    for(let i=0;i<totalDays;i++){
+      const d=new Date(pastMonday); d.setDate(pastMonday.getDate()+i);
       months.add(capitalize(d.toLocaleString('fr-FR',{month:'long'})));
     }
-    document.getElementById('calendar-title').textContent=Array.from(months).slice(0,2).join(' / ');
+    document.getElementById('calendar-title').textContent=Array.from(months).join(' / ');
 
     wrap.innerHTML='';
-    let lastMonth=-1;
     let todayEl=null;
 
-    for(let i=-DAYS_BEFORE;i<=DAYS_AFTER;i++){
-      const day=new Date(today); day.setDate(today.getDate()+i); day.setHours(0,0,0,0);
-      const isPast=day<today, isToday=i===0, isFuture=day>today;
+    for(let w=0;w<weekView;w++){
+      const wStart=new Date(pastMonday); wStart.setDate(pastMonday.getDate()+w*7);
 
-      // Séparateur de mois
-      const mKey=day.getFullYear()*100+day.getMonth();
-      if(mKey!==lastMonth){
-        lastMonth=mKey;
-        const sep=document.createElement('div'); sep.className='mob-month-sep';
-        sep.textContent=capitalize(day.toLocaleString('fr-FR',{month:'long',year:'numeric'}));
-        wrap.appendChild(sep);
+      // Conteneur de semaine (gap visuel entre semaines)
+      const weekEl=document.createElement('div'); weekEl.className='mob-week';
+
+      for(let d=0;d<7;d++){
+        const day=new Date(wStart); day.setDate(wStart.getDate()+d); day.setHours(0,0,0,0);
+        const isPast=day<today, isToday=day.getTime()===today.getTime();
+
+        const evts=eventsOnDay(day);
+        const dayEl=document.createElement('div'); dayEl.className='mob-day';
+        if(isToday){ dayEl.classList.add('mob-today'); dayEl.id='mob-today-anchor'; todayEl=dayEl; }
+        else if(isPast) dayEl.classList.add('mob-past');
+        else dayEl.classList.add('mob-future');
+
+        // En-tête du jour
+        const headerEl=document.createElement('div'); headerEl.className='mob-day-header';
+        const dotEl=document.createElement('div'); dotEl.className='mob-day-dot';
+        const dateEl=document.createElement('div'); dateEl.className='mob-day-date';
+        dateEl.textContent=capitalize(day.toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long'}));
+        headerEl.appendChild(dotEl); headerEl.appendChild(dateEl);
+        dayEl.appendChild(headerEl);
+
+        if(evts.length===0){
+          const empty=document.createElement('div'); empty.className='mob-empty';
+          empty.textContent='Aucun événement'; dayEl.appendChild(empty);
+        } else {
+          const evtsEl=document.createElement('div'); evtsEl.className='mob-events';
+          evts.forEach(ev=>{
+            const evEl=document.createElement('div'); evEl.className='mob-evt '+(ev.__type||'');
+            const dotE=document.createElement('div'); dotE.className='mob-evt-dot';
+            const infoEl=document.createElement('div'); infoEl.className='mob-evt-info';
+            const nameEl=document.createElement('div'); nameEl.className='mob-evt-name';
+            nameEl.textContent=ev.summary||'(sans titre)';
+            const timeEl=document.createElement('div'); timeEl.className='mob-evt-time';
+            if(ev._isAllDay){
+              const s=new Date(ev._start); s.setHours(0,0,0,0);
+              const e=new Date(ev._endInclusive); e.setHours(0,0,0,0);
+              const diffDays=Math.round((e-s)/86400000)+1;
+              timeEl.textContent=diffDays>1?`Journée entière · ${diffDays}j`:'Journée entière';
+            } else {
+              timeEl.textContent=fmtTime(ev._start)+(ev._end?` → ${fmtTime(ev._end)}`:'');
+            }
+            infoEl.appendChild(nameEl); infoEl.appendChild(timeEl);
+            evEl.appendChild(dotE); evEl.appendChild(infoEl);
+            evEl.addEventListener('click',e=>{ e.stopPropagation(); showEventModal(ev); });
+            evtsEl.appendChild(evEl);
+          });
+          dayEl.appendChild(evtsEl);
+        }
+        weekEl.appendChild(dayEl);
       }
-
-      const evts=eventsOnDay(day);
-      const dayEl=document.createElement('div'); dayEl.className='mob-day';
-      if(isToday){ dayEl.classList.add('mob-today'); dayEl.id='mob-today-anchor'; todayEl=dayEl; }
-      else if(isPast) dayEl.classList.add('mob-past');
-      else dayEl.classList.add('mob-future');
-
-      // En-tête du jour
-      const headerEl=document.createElement('div'); headerEl.className='mob-day-header';
-      const dotEl=document.createElement('div'); dotEl.className='mob-day-dot';
-      const dateEl=document.createElement('div'); dateEl.className='mob-day-date';
-      dateEl.textContent=capitalize(day.toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long'}));
-      headerEl.appendChild(dotEl); headerEl.appendChild(dateEl);
-      dayEl.appendChild(headerEl);
-
-      if(evts.length===0){
-        const empty=document.createElement('div'); empty.className='mob-empty';
-        empty.textContent='Aucun événement'; dayEl.appendChild(empty);
-      } else {
-        const evtsEl=document.createElement('div'); evtsEl.className='mob-events';
-        evts.forEach(ev=>{
-          const evEl=document.createElement('div'); evEl.className='mob-evt '+(ev.__type||'');
-          const dotE=document.createElement('div'); dotE.className='mob-evt-dot';
-          const infoEl=document.createElement('div'); infoEl.className='mob-evt-info';
-          const nameEl=document.createElement('div'); nameEl.className='mob-evt-name';
-          nameEl.textContent=ev.summary||'(sans titre)';
-          const timeEl=document.createElement('div'); timeEl.className='mob-evt-time';
-          if(ev._isAllDay){
-            const s=new Date(ev._start); s.setHours(0,0,0,0);
-            const e=new Date(ev._endInclusive); e.setHours(0,0,0,0);
-            const diffDays=Math.round((e-s)/86400000)+1;
-            timeEl.textContent=diffDays>1?`Journée entière · ${diffDays}j`:'Journée entière';
-          } else {
-            timeEl.textContent=fmtTime(ev._start)+(ev._end?` → ${fmtTime(ev._end)}`:'');
-          }
-          infoEl.appendChild(nameEl); infoEl.appendChild(timeEl);
-          evEl.appendChild(dotE); evEl.appendChild(infoEl);
-          evEl.addEventListener('click',e=>{ e.stopPropagation(); showEventModal(ev); });
-          evtsEl.appendChild(evEl);
-        });
-        dayEl.appendChild(evtsEl);
-      }
-      wrap.appendChild(dayEl);
+      wrap.appendChild(weekEl);
     }
 
-    // Scroll vers aujourd'hui (légèrement au-dessus pour voir le contexte)
+    // Scroll vers aujourd'hui
     if(todayEl){
       requestAnimationFrame(()=>{
-        const offset=todayEl.offsetTop - 20;
-        wrap.scrollTop=Math.max(0,offset);
+        wrap.scrollTop=Math.max(0, todayEl.offsetTop - 20);
       });
     }
   }
