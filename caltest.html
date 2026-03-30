@@ -4,7 +4,7 @@
 <meta charset="utf-8"/>
 
 <script>
-const maintenance = false; // false = désactivé
+const maintenance = true; // false = désactivé
 
 if (maintenance) {
   window.location.href = "https://receptionroulier.github.io/cal/bug.html";
@@ -58,7 +58,14 @@ if (maintenance) {
   .day-cell.today{background:rgba(0,229,255,0.08);border:2px solid rgba(0,229,255,0.75);box-shadow:0 0 8px rgba(0,229,255,0.5);animation:pulse 2s infinite;}
   @keyframes pulse{0%{box-shadow:0 0 8px rgba(0,229,255,0.5)}50%{box-shadow:0 0 14px rgba(0,229,255,0.75)}100%{box-shadow:0 0 8px rgba(0,229,255,0.5)}}
   .date-label{font-size:0.72rem;color:#9bb4be;margin-bottom:6px;font-weight:400;}
-  .past-day-overlay{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.35);border-radius:8px;pointer-events:none;z-index:50;}
+  /* FIX overlays : dans events-layer, z-index élevé pour couvrir les bandes */
+  .past-day-overlay{
+    position:absolute;
+    background:rgba(0,0,0,0.42);
+    border-radius:8px;
+    pointer-events:none;
+    z-index:200;
+  }
   #events-layer{position:absolute;left:2px;right:6px;top:10px;bottom:10px;pointer-events:none;}
   .multi-band,.single-evt{
     pointer-events:auto;position:absolute;display:flex;align-items:center;
@@ -69,6 +76,7 @@ if (maintenance) {
     backdrop-filter:blur(6px) saturate(150%);
     box-shadow:0 6px 18px rgba(0,0,0,0.45),inset 0 1px 0 rgba(255,255,255,0.02);
     transition:transform .15s ease,box-shadow .15s ease,background .15s ease;
+    z-index:100;
   }
   .multi-band:hover,.single-evt:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(0,0,0,0.55),inset 0 1px 0 rgba(255,255,255,0.03);background:linear-gradient(135deg,rgba(255,255,255,0.03),rgba(255,255,255,0.05));}
   .reception{background:linear-gradient(90deg,rgba(0,255,120,0.25),rgba(0,200,100,0.22));border:1px solid rgba(0,255,120,0.75);box-shadow:0 0 6px rgba(0,255,140,0.55),0 0 12px rgba(0,255,140,0.45),0 0 22px rgba(0,255,140,0.32),inset 0 0 6px rgba(0,255,160,0.35);}
@@ -212,6 +220,15 @@ document.addEventListener('DOMContentLoaded', function() {
   function saveCache(items,hash){ try{ localStorage.setItem(CACHE_KEY,JSON.stringify({items,hash,ts:Date.now()})); }catch(e){ console.error('Cache save error:',e); } }
   function isMobile(){ return window.innerWidth < 720; }
 
+  /* ===== FIX : parse "YYYY-MM-DD" en heure locale pour éviter le décalage UTC ===== */
+  function parseDateLocal(str){
+    // "2026-03-30" → new Date(2026, 2, 30) en heure locale, pas en UTC
+    const [y,m,d]=str.split('-').map(Number);
+    const dt=new Date(y,m-1,d);
+    dt.setHours(0,0,0,0);
+    return dt;
+  }
+
   /* ===== CLOCK ===== */
   function updateClock(){ const now=new Date(); document.getElementById('current-time').textContent=`${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`; }
   setInterval(updateClock,1000); updateClock();
@@ -258,15 +275,35 @@ document.addEventListener('DOMContentLoaded', function() {
     return [...i1,...i2];
   }
 
-  /* ===== NORMALISE ===== */
+  /* ===== NORMALISE =====
+     FIX 1 & 3 : utilise parseDateLocal pour les all-day afin d'éviter le décalage UTC
+     qui décalait les événements d'un jour en arrière (ex: 30/03 → 29/03).
+     FIX all-day sur 2 jours : _endInclusive = _end - 1 jour (Google envoie la date
+     exclusive), sans soustraire une milliseconde qui peut basculer en veille au 23:59.
+  ================================================================= */
   function normalizeItems(items){
     return items.map(ev=>{
       const copy=JSON.parse(JSON.stringify(ev));
       copy.__type=copy.__type||'';
       copy._isAllDay=!!(copy.start&&copy.start.date&&!copy.start.dateTime);
-      if(copy.start){ copy._start=copy.start.dateTime?new Date(copy.start.dateTime):new Date(copy.start.date); if(copy._isAllDay) copy._start.setHours(0,0,0,0); }
-      if(copy.end){ copy._end=copy.end.dateTime?new Date(copy.end.dateTime):new Date(copy.end.date); if(copy._isAllDay){ copy._endInclusive=new Date(copy._end.getTime()-1); copy._endInclusive.setHours(23,59,59,999); } else { copy._endInclusive=new Date(copy._end.getTime()); } }
-      if(!copy._endInclusive&&copy._end) copy._endInclusive=new Date(copy._end.getTime());
+
+      if(copy._isAllDay){
+        // Dates all-day : "YYYY-MM-DD" → local midnight, pas UTC
+        copy._start = parseDateLocal(copy.start.date);
+        // L'API renvoie la date de fin exclusive (ex: 31 pour un événement du 30)
+        // On soustrait 1 jour pour avoir la vraie dernière date inclusive
+        const endExclusive = parseDateLocal(copy.end.date);
+        copy._end = endExclusive;
+        const endIncl = new Date(endExclusive);
+        endIncl.setDate(endIncl.getDate() - 1);
+        endIncl.setHours(23,59,59,999);
+        copy._endInclusive = endIncl;
+      } else {
+        copy._start = copy.start.dateTime ? new Date(copy.start.dateTime) : parseDateLocal(copy.start.date);
+        copy._end   = copy.end.dateTime   ? new Date(copy.end.dateTime)   : parseDateLocal(copy.end.date);
+        copy._endInclusive = new Date(copy._end.getTime());
+      }
+
       return copy;
     }).filter(e=>e._start&&e._endInclusive);
   }
@@ -291,13 +328,12 @@ document.addEventListener('DOMContentLoaded', function() {
   /* =================================================================
      MOBILE — liste plate infinie, scroll vers aujourd'hui
   ================================================================= */
-  let mobNorm = [];   // événements normalisés chargés
-  let mobFrom = null; // première date chargée
-  let mobTo   = null; // dernière date chargée
+  let mobNorm = [];
+  let mobFrom = null;
+  let mobTo   = null;
   let mobLoading = false;
   let mobObserver = null;
 
-  // Événements actifs un jour donné
   function mobEventsOnDay(day){
     return mobNorm.filter(ev=>{
       const s=new Date(ev._start); s.setHours(0,0,0,0);
@@ -306,7 +342,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }).sort((a,b)=>a._start-b._start);
   }
 
-  // Construit la carte d'un jour
   function buildDayCard(day, today){
     const isPast=day<today, isToday=day.getTime()===today.getTime();
     const evts=mobEventsOnDay(day);
@@ -318,7 +353,6 @@ document.addEventListener('DOMContentLoaded', function() {
     else if(isPast) dayEl.classList.add('mob-past');
     else dayEl.classList.add('mob-future');
 
-    // En-tête
     const header=document.createElement('div'); header.className='mob-day-header';
     const dot=document.createElement('div'); dot.className='mob-day-dot';
     const dateDiv=document.createElement('div'); dateDiv.className='mob-day-date';
@@ -326,7 +360,6 @@ document.addEventListener('DOMContentLoaded', function() {
     header.appendChild(dot); header.appendChild(dateDiv);
     dayEl.appendChild(header);
 
-    // Événements
     if(evts.length===0){
       const empty=document.createElement('div'); empty.className='mob-empty';
       empty.textContent='Aucun événement'; dayEl.appendChild(empty);
@@ -357,7 +390,6 @@ document.addEventListener('DOMContentLoaded', function() {
     return dayEl;
   }
 
-  // Insère un séparateur de mois si le mois change entre deux jours
   function maybeSepBefore(wrap, day, refEl){
     const key=day.getFullYear()*100+day.getMonth();
     if(wrap.querySelector(`.mob-month-sep[data-mkey="${key}"]`)) return;
@@ -368,19 +400,16 @@ document.addEventListener('DOMContentLoaded', function() {
     else wrap.appendChild(sep);
   }
 
-  // Scroll vers la carte du jour courant
   function scrollToToday(smooth){
     const wrap=document.getElementById('mobile-wrap');
     const anchor=document.getElementById('mob-today-anchor');
     if(!anchor||!wrap) return;
-    // Position relative au conteneur scrollable
     const wrapRect=wrap.getBoundingClientRect();
     const anchorRect=anchor.getBoundingClientRect();
     const target=wrap.scrollTop+(anchorRect.top-wrapRect.top)-10;
     wrap.scrollTo({top:Math.max(0,target), behavior:smooth?'smooth':'instant'});
   }
 
-  // Ajoute N jours AVANT la sentinelle haute (passé)
   async function prependDays(n, today){
     const wrap=document.getElementById('mobile-wrap');
     const sentTop=document.getElementById('mob-sent-top');
@@ -388,21 +417,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const newTo=new Date(mobFrom); newTo.setDate(newTo.getDate()-1);
     const newFrom=new Date(newTo); newFrom.setDate(newTo.getDate()-n+1);
 
-    // Charger les événements manquants
     const tMin=new Date(newFrom); tMin.setHours(0,0,0,0);
     const tMax=new Date(newTo); tMax.setHours(23,59,59,999);
     const fetched=await fetchCalendarsRange(tMin,tMax);
     mobNorm=[...normalizeItems(fetched),...mobNorm];
     mobFrom=new Date(newFrom);
 
-    // Mémoriser hauteur avant insertion
     const prevH=wrap.scrollHeight;
 
-    // Insérer les jours en ordre chronologique, juste après sentTop
     const days=[];
     for(let d=new Date(newFrom);d<=newTo;d.setDate(d.getDate()+1)) days.push(new Date(d));
 
-    // Trouver le premier élément après sentTop pour insérer avant lui
     let insertBefore=sentTop.nextSibling;
     let lastRenderedMonth=-1;
 
@@ -412,20 +437,16 @@ document.addEventListener('DOMContentLoaded', function() {
       if(mkey!==lastRenderedMonth){
         lastRenderedMonth=mkey;
         maybeSepBefore(wrap, day, insertBefore);
-        // Recalculer insertBefore après insertion du sep
         insertBefore=sentTop.nextSibling;
-        // Avancer jusqu'au premier dayEl qu'on vient d'insérer
       }
       const card=buildDayCard(day,today);
       wrap.insertBefore(card, insertBefore);
       insertBefore=card.nextSibling;
     });
 
-    // Compenser le décalage de scroll
     wrap.scrollTop+=wrap.scrollHeight-prevH;
   }
 
-  // Ajoute N jours APRÈS la sentinelle basse (futur)
   async function appendDays(n, today){
     const wrap=document.getElementById('mobile-wrap');
     const sentBot=document.getElementById('mob-sent-bot');
@@ -454,7 +475,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const today=new Date(); today.setHours(0,0,0,0);
 
-    // Plage initiale : 14j avant → 30j après aujourd'hui
     const initFrom=new Date(today); initFrom.setDate(today.getDate()-14);
     const initTo=new Date(today); initTo.setDate(today.getDate()+30);
 
@@ -466,17 +486,14 @@ document.addEventListener('DOMContentLoaded', function() {
     mobTo=new Date(initTo);
     mobLoading=false;
 
-    // Titre
     document.getElementById('calendar-title').textContent=
       capitalize(today.toLocaleString('fr-FR',{month:'long',year:'numeric'}));
 
     wrap.innerHTML='';
 
-    // Sentinelle haute
     const sentTop=document.createElement('div'); sentTop.className='mob-sentinel'; sentTop.id='mob-sent-top';
     wrap.appendChild(sentTop);
 
-    // Jours initiaux
     let lastMonth=-1;
     for(let d=new Date(initFrom);d<=initTo;d.setDate(d.getDate()+1)){
       const day=new Date(d); day.setHours(0,0,0,0);
@@ -485,14 +502,11 @@ document.addEventListener('DOMContentLoaded', function() {
       wrap.appendChild(buildDayCard(day,today));
     }
 
-    // Sentinelle basse
     const sentBot=document.createElement('div'); sentBot.className='mob-sentinel'; sentBot.id='mob-sent-bot';
     wrap.appendChild(sentBot);
 
-    // Scroll immédiat vers aujourd'hui (avant paint)
     requestAnimationFrame(()=>{ scrollToToday(false); });
 
-    // Observer scroll infini
     if(mobObserver) mobObserver.disconnect();
     mobObserver=new IntersectionObserver(async entries=>{
       for(const entry of entries){
@@ -508,7 +522,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   /* =================================================================
-     DESKTOP (inchangé depuis doc5)
+     DESKTOP
   ================================================================= */
   function updateScrollingEvents(){
     document.querySelectorAll('.event-text').forEach(el=>{
@@ -598,7 +612,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const getFirstSeg=ev=>segments.filter(s=>s.ev===ev).reduce((a,b)=>a.startIdx<b.startIdx?a:b);
     const getLastSeg =ev=>segments.filter(s=>s.ev===ev).reduce((a,b)=>a.endIdx>b.endIdx?a:b);
 
-    cellMap.forEach(c=>{ if(c.date<today){ const o=document.createElement('div'); o.className='past-day-overlay'; c.el.appendChild(o); c.el.style.position='relative'; } });
+    /* FIX 2 — Overlays "jours passés" dans events-layer pour couvrir les bandes.
+       On place un overlay par cellule passée, positionné exactement sur la cellule,
+       avec z-index:200 (> z-index:100 des bandes d'événements). */
+    cellMap.forEach((c,idx)=>{
+      if(c.date<today){
+        const rect=cellRects[idx];
+        if(!rect) return;
+        const overlay=document.createElement('div');
+        overlay.className='past-day-overlay';
+        overlay.style.left=`${rect.left-calendarRect.left}px`;
+        overlay.style.top=`${rect.top-calendarRect.top}px`;
+        overlay.style.width=`${rect.width}px`;
+        overlay.style.height=`${rect.height}px`;
+        eventsLayer.appendChild(overlay);
+      }
+    });
 
     segments.forEach(seg=>{
       const firstRect=cellRects[seg.startIdx], lastRect=cellRects[seg.endIdx];
