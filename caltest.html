@@ -267,7 +267,7 @@ document.addEventListener('DOMContentLoaded', function() {
   copy._endInclusive.setDate(copy._endInclusive.getDate() - 1);
   copy._endInclusive.setHours(23,59,59,999);
   };
-  else { copy._endInclusive=new Date(copy._end.getTime()); } }
+  else { copy._endInclusive=new Date(copy._end.getTime()); } 
       if(!copy._endInclusive&&copy._end) copy._endInclusive=new Date(copy._end.getTime());
       return copy;
     }).filter(e=>e._start&&e._endInclusive);
