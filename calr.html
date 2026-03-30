@@ -76,16 +76,11 @@
   /* ===== MOBILE : vue liste ===== */
   #mobile-wrap{
     display:none;
-    flex:1;overflow-y:auto;padding:0 12px 40px;
-    flex-direction:column;gap:6px;
+    flex:1;overflow-y:auto;padding:10px 12px 40px;
+    flex-direction:column;gap:16px;
   }
-  /* sentinelles scroll infini */
-  .mob-sentinel{height:1px;flex-shrink:0;}
-  /* séparateur de mois */
-  .mob-month-sep{
-    font-size:0.68rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;
-    color:#475569;padding:14px 4px 4px;flex-shrink:0;
-  }
+  .mob-week{display:flex;flex-direction:column;gap:6px;}
+  .mob-week+.mob-week{border-top:1px solid rgba(255,255,255,0.07);padding-top:4px;}
   .mob-day{
     background:rgba(255,255,255,0.05);
     backdrop-filter:blur(10px);
@@ -300,13 +295,23 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   /* ===================================================================
-     MOBILE RENDER — liste plate infinie, scroll vers aujourd'hui
+     MOBILE RENDER — groupes semaine sans titre, scroll vers aujourd'hui
   =================================================================== */
+  async function renderMobile(itemsOverride){
+    const wrap=document.getElementById('mobile-wrap');
+    wrap.innerHTML='<div style="text-align:center;padding:30px;opacity:0.5;font-size:0.9rem">Chargement…</div>';
 
-  // État de la liste mobile (plage chargée)
-  let mobState = null;
+    const today=new Date(); today.setHours(0,0,0,0);
 
-  function buildDayEl(day, norm, today){
+    // Même plage que le desktop : semaine passée + semaines courantes
+    const thisMonday=getMonday(currentStartDate);
+    const pastMonday=new Date(thisMonday); pastMonday.setDate(thisMonday.getDate()-7);
+    const totalDays=weekView*7;
+    const timeMin=new Date(pastMonday); timeMin.setHours(0,0,0,0);
+    const timeMax=new Date(timeMin); timeMax.setDate(timeMax.getDate()+totalDays);
+
+    const norm=await getItems(timeMin,timeMax,itemsOverride);
+
     function eventsOnDay(dayDate){
       return norm.filter(ev=>{
         const s=new Date(ev._start); s.setHours(0,0,0,0);
@@ -315,209 +320,79 @@ document.addEventListener('DOMContentLoaded', function() {
       }).sort((a,b)=>a._start-b._start);
     }
 
-    const isPast=day<today, isToday=day.getTime()===today.getTime();
-    const evts=eventsOnDay(day);
-
-    const dayEl=document.createElement('div'); dayEl.className='mob-day';
-    dayEl.dataset.ts=day.getTime();
-    if(isToday){ dayEl.classList.add('mob-today'); dayEl.id='mob-today-anchor'; }
-    else if(isPast) dayEl.classList.add('mob-past');
-    else dayEl.classList.add('mob-future');
-
-    const headerEl=document.createElement('div'); headerEl.className='mob-day-header';
-    const dotEl=document.createElement('div'); dotEl.className='mob-day-dot';
-    const dateEl=document.createElement('div'); dateEl.className='mob-day-date';
-    dateEl.textContent=capitalize(day.toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long'}));
-    headerEl.appendChild(dotEl); headerEl.appendChild(dateEl);
-    dayEl.appendChild(headerEl);
-
-    if(evts.length===0){
-      const empty=document.createElement('div'); empty.className='mob-empty';
-      empty.textContent='Aucun événement'; dayEl.appendChild(empty);
-    } else {
-      const evtsEl=document.createElement('div'); evtsEl.className='mob-events';
-      evts.forEach(ev=>{
-        const evEl=document.createElement('div'); evEl.className='mob-evt '+(ev.__type||'');
-        const dotE=document.createElement('div'); dotE.className='mob-evt-dot';
-        const infoEl=document.createElement('div'); infoEl.className='mob-evt-info';
-        const nameEl=document.createElement('div'); nameEl.className='mob-evt-name';
-        nameEl.textContent=ev.summary||'(sans titre)';
-        const timeEl=document.createElement('div'); timeEl.className='mob-evt-time';
-        if(ev._isAllDay){
-          const s=new Date(ev._start); s.setHours(0,0,0,0);
-          const e=new Date(ev._endInclusive); e.setHours(0,0,0,0);
-          const diffDays=Math.round((e-s)/86400000)+1;
-          timeEl.textContent=diffDays>1?`Journée entière · ${diffDays}j`:'Journée entière';
-        } else {
-          timeEl.textContent=fmtTime(ev._start)+(ev._end?` → ${fmtTime(ev._end)}`:'');
-        }
-        infoEl.appendChild(nameEl); infoEl.appendChild(timeEl);
-        evEl.appendChild(dotE); evEl.appendChild(infoEl);
-        evEl.addEventListener('click',e=>{ e.stopPropagation(); showEventModal(ev); });
-        evtsEl.appendChild(evEl);
-      });
-      dayEl.appendChild(evtsEl);
+    // Titre
+    const months=new Set();
+    for(let i=0;i<totalDays;i++){
+      const d=new Date(pastMonday); d.setDate(pastMonday.getDate()+i);
+      months.add(capitalize(d.toLocaleString('fr-FR',{month:'long'})));
     }
-    return dayEl;
-  }
-
-  function insertMonthSep(wrap, day, before){
-    const sep=document.createElement('div'); sep.className='mob-month-sep';
-    sep.textContent=capitalize(day.toLocaleString('fr-FR',{month:'long',year:'numeric'}));
-    sep.dataset.monthKey=day.getFullYear()*100+day.getMonth();
-    if(before) wrap.insertBefore(sep, before);
-    else wrap.appendChild(sep);
-  }
-
-  async function fetchRangeForMobile(from, to){
-    const timeMin=new Date(from); timeMin.setHours(0,0,0,0);
-    const timeMax=new Date(to); timeMax.setHours(23,59,59,999);
-    return getItems(timeMin, timeMax, null);
-  }
-
-  async function renderMobile(){
-    const wrap=document.getElementById('mobile-wrap');
-    wrap.innerHTML='<div style="text-align:center;padding:40px;opacity:0.5;font-size:0.9rem">Chargement…</div>';
-
-    const today=new Date(); today.setHours(0,0,0,0);
-    const CHUNK=30; // jours par chargement
-
-    // Plage initiale : 14j avant → 30j après
-    const initFrom=new Date(today); initFrom.setDate(today.getDate()-14);
-    const initTo=new Date(today); initTo.setDate(today.getDate()+30);
-
-    const norm=await fetchRangeForMobile(initFrom, initTo);
-
-    mobState={
-      from: new Date(initFrom),
-      to:   new Date(initTo),
-      norm,
-      loading: false
-    };
+    document.getElementById('calendar-title').textContent=Array.from(months).join(' / ');
 
     wrap.innerHTML='';
+    let todayEl=null;
 
-    // Sentinelle haut
-    const sentTop=document.createElement('div'); sentTop.className='mob-sentinel'; sentTop.id='mob-sent-top';
-    wrap.appendChild(sentTop);
+    for(let w=0;w<weekView;w++){
+      const wStart=new Date(pastMonday); wStart.setDate(pastMonday.getDate()+w*7);
 
-    // Construire les jours initiaux
-    let lastMonth=-1;
-    for(let d=new Date(initFrom); d<=initTo; d.setDate(d.getDate()+1)){
-      const day=new Date(d); day.setHours(0,0,0,0);
-      const mKey=day.getFullYear()*100+day.getMonth();
-      if(mKey!==lastMonth){ insertMonthSep(wrap, day, null); lastMonth=mKey; }
-      wrap.appendChild(buildDayEl(day, norm, today));
+      // Conteneur de semaine (gap visuel entre semaines)
+      const weekEl=document.createElement('div'); weekEl.className='mob-week';
+
+      for(let d=0;d<7;d++){
+        const day=new Date(wStart); day.setDate(wStart.getDate()+d); day.setHours(0,0,0,0);
+        const isPast=day<today, isToday=day.getTime()===today.getTime();
+
+        const evts=eventsOnDay(day);
+        const dayEl=document.createElement('div'); dayEl.className='mob-day';
+        if(isToday){ dayEl.classList.add('mob-today'); dayEl.id='mob-today-anchor'; todayEl=dayEl; }
+        else if(isPast) dayEl.classList.add('mob-past');
+        else dayEl.classList.add('mob-future');
+
+        // En-tête du jour
+        const headerEl=document.createElement('div'); headerEl.className='mob-day-header';
+        const dotEl=document.createElement('div'); dotEl.className='mob-day-dot';
+        const dateEl=document.createElement('div'); dateEl.className='mob-day-date';
+        dateEl.textContent=capitalize(day.toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long'}));
+        headerEl.appendChild(dotEl); headerEl.appendChild(dateEl);
+        dayEl.appendChild(headerEl);
+
+        if(evts.length===0){
+          const empty=document.createElement('div'); empty.className='mob-empty';
+          empty.textContent='Aucun événement'; dayEl.appendChild(empty);
+        } else {
+          const evtsEl=document.createElement('div'); evtsEl.className='mob-events';
+          evts.forEach(ev=>{
+            const evEl=document.createElement('div'); evEl.className='mob-evt '+(ev.__type||'');
+            const dotE=document.createElement('div'); dotE.className='mob-evt-dot';
+            const infoEl=document.createElement('div'); infoEl.className='mob-evt-info';
+            const nameEl=document.createElement('div'); nameEl.className='mob-evt-name';
+            nameEl.textContent=ev.summary||'(sans titre)';
+            const timeEl=document.createElement('div'); timeEl.className='mob-evt-time';
+            if(ev._isAllDay){
+              const s=new Date(ev._start); s.setHours(0,0,0,0);
+              const e=new Date(ev._endInclusive); e.setHours(0,0,0,0);
+              const diffDays=Math.round((e-s)/86400000)+1;
+              timeEl.textContent=diffDays>1?`Journée entière · ${diffDays}j`:'Journée entière';
+            } else {
+              timeEl.textContent=fmtTime(ev._start)+(ev._end?` → ${fmtTime(ev._end)}`:'');
+            }
+            infoEl.appendChild(nameEl); infoEl.appendChild(timeEl);
+            evEl.appendChild(dotE); evEl.appendChild(infoEl);
+            evEl.addEventListener('click',e=>{ e.stopPropagation(); showEventModal(ev); });
+            evtsEl.appendChild(evEl);
+          });
+          dayEl.appendChild(evtsEl);
+        }
+        weekEl.appendChild(dayEl);
+      }
+      wrap.appendChild(weekEl);
     }
 
-    // Sentinelle bas
-    const sentBot=document.createElement('div'); sentBot.className='mob-sentinel'; sentBot.id='mob-sent-bot';
-    wrap.appendChild(sentBot);
-
-    // Mise à jour titre
-    document.getElementById('calendar-title').textContent=
-      capitalize(today.toLocaleString('fr-FR',{month:'long',year:'numeric'}));
-
-    // Scroll précis vers la carte du jour (top de la carte dans le scroll container)
-    scrollToToday(false);
-
-    // Observer scroll infini
-    setupInfiniteScroll(wrap, today);
-  }
-
-  function scrollToToday(smooth){
-    const wrap=document.getElementById('mobile-wrap');
-    const anchor=document.getElementById('mob-today-anchor');
-    if(!anchor||!wrap) return;
-    // offsetTop relatif au wrap (pas au document)
-    const wrapTop=wrap.getBoundingClientRect().top;
-    const anchorTop=anchor.getBoundingClientRect().top;
-    const scrollTarget=wrap.scrollTop+(anchorTop-wrapTop)-10;
-    wrap.scrollTo({top:Math.max(0,scrollTarget), behavior:smooth?'smooth':'instant'});
-  }
-
-  function setupInfiniteScroll(wrap, today){
-    if(wrap._infiniteObserver) wrap._infiniteObserver.disconnect();
-
-    const CHUNK=30;
-    const observer=new IntersectionObserver(async entries=>{
-      if(mobState.loading) return;
-      for(const entry of entries){
-        if(!entry.isIntersecting) continue;
-        mobState.loading=true;
-
-        if(entry.target.id==='mob-sent-top'){
-          // Charger vers le passé
-          const newTo=new Date(mobState.from); newTo.setDate(newTo.getDate()-1);
-          const newFrom=new Date(newTo); newFrom.setDate(newTo.getDate()-CHUNK+1);
-          const extra=await fetchRangeForMobile(newFrom, newTo);
-          mobState.norm=[...extra, ...mobState.norm];
-          mobState.from=new Date(newFrom);
-
-          // Mémoriser position scroll avant insertion
-          const prevH=wrap.scrollHeight;
-
-          let lastMonth=-1;
-          const insertAfter=document.getElementById('mob-sent-top');
-          let insertRef=insertAfter.nextSibling;
-
-          // Supprimer anciens séparateurs qui seront recréés
-          const days=[];
-          for(let d=new Date(newFrom); d<=newTo; d.setDate(d.getDate()+1)){
-            days.push(new Date(d));
-          }
-          days.reverse().forEach(day=>{
-            day.setHours(0,0,0,0);
-            wrap.insertBefore(buildDayEl(day,mobState.norm,today), insertRef);
-            insertRef=wrap.children[1]; // juste après sentTop
-          });
-          // Séparateurs de mois pour les jours insérés
-          days.slice().reverse().forEach(day=>{
-            const mKey=day.getFullYear()*100+day.getMonth();
-            // vérifier si sep existe déjà
-            const existing=wrap.querySelector(`.mob-month-sep[data-month-key="${mKey}"]`);
-            if(!existing){
-              const sep=document.createElement('div'); sep.className='mob-month-sep';
-              sep.textContent=capitalize(day.toLocaleString('fr-FR',{month:'long',year:'numeric'}));
-              sep.dataset.monthKey=mKey;
-              // trouver le premier dayEl de ce mois
-              const firstOfMonth=wrap.querySelector(`.mob-day[data-ts="${day.getTime()}"]`);
-              if(firstOfMonth) wrap.insertBefore(sep, firstOfMonth);
-            }
-          });
-
-          // Maintenir position scroll
-          wrap.scrollTop+=wrap.scrollHeight-prevH;
-
-        } else if(entry.target.id==='mob-sent-bot'){
-          // Charger vers le futur
-          const newFrom=new Date(mobState.to); newFrom.setDate(newFrom.getDate()+1);
-          const newTo=new Date(newFrom); newTo.setDate(newFrom.getDate()+CHUNK-1);
-          const extra=await fetchRangeForMobile(newFrom, newTo);
-          mobState.norm=[...mobState.norm, ...extra];
-          mobState.to=new Date(newTo);
-
-          const sentBot=document.getElementById('mob-sent-bot');
-          let lastMonthBot=mobState.to.getFullYear()*100+(mobState.to.getMonth()); // approximation
-          for(let d=new Date(newFrom); d<=newTo; d.setDate(d.getDate()+1)){
-            const day=new Date(d); day.setHours(0,0,0,0);
-            const mKey=day.getFullYear()*100+day.getMonth();
-            if(mKey!==lastMonthBot){
-              lastMonthBot=mKey;
-              const existing=wrap.querySelector(`.mob-month-sep[data-month-key="${mKey}"]`);
-              if(!existing){ insertMonthSep(wrap, day, sentBot); }
-            }
-            wrap.insertBefore(buildDayEl(day,mobState.norm,today), sentBot);
-          }
-        }
-
-        mobState.loading=false;
-      }
-    },{root:wrap, threshold:0.1});
-
-    observer.observe(document.getElementById('mob-sent-top'));
-    observer.observe(document.getElementById('mob-sent-bot'));
-    wrap._infiniteObserver=observer;
+    // Scroll vers aujourd'hui
+    if(todayEl){
+      requestAnimationFrame(()=>{
+        wrap.scrollTop=Math.max(0, todayEl.offsetTop - 20);
+      });
+    }
   }
 
   /* ===================================================================
@@ -659,7 +534,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   /* ===== RENDER DISPATCH ===== */
   async function render(itemsOverride){
-    if(isMobile()) return renderMobile();
+    if(isMobile()) return renderMobile(itemsOverride);
     return renderCalendar(itemsOverride);
   }
 
@@ -686,7 +561,9 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('next-btn').addEventListener('click',()=>{ currentStartDate.setDate(currentStartDate.getDate()+7); localStorage.removeItem(CACHE_KEY); render().catch(()=>{}); });
   document.getElementById('today-btn').addEventListener('click',()=>{
     if(isMobile()){
-      scrollToToday(true);
+      const anchor=document.getElementById('mob-today-anchor');
+      const wrap=document.getElementById('mobile-wrap');
+      if(anchor&&wrap){ wrap.scrollTo({top:Math.max(0,anchor.offsetTop-20),behavior:'smooth'}); }
     } else {
       currentStartDate=new Date(); weekView=3; localStorage.removeItem(CACHE_KEY); render().catch(()=>{});
     }
