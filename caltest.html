@@ -23,9 +23,9 @@ body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;color:#fff;
 
 /* ===== DESKTOP ===== */
 #calendar-wrap{flex:1;display:flex;flex-direction:column;position:relative;}
-#calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;padding:10px;align-content:start;position:relative;}
+#calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;padding:10px;align-content:start;position:relative;height:100%;}
 .day-cell{background:rgba(255,255,255,0.05);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.08);
-          border-radius:10px;padding:6px;position:relative;min-height:80px;}
+          border-radius:10px;padding:6px;position:relative;min-height:80px;display:flex;flex-direction:column;}
 .day-cell.future-day{background:rgba(255,255,255,0.07);border:1px solid rgba(0,229,255,0.25);box-shadow:0 0 4px rgba(0,229,255,0.15);}
 .day-cell.today{background:rgba(0,229,255,0.08);border:2px solid rgba(0,229,255,0.75);box-shadow:0 0 8px rgba(0,229,255,0.5);animation:pulse 2s infinite;}
 .day-cell.past-day{opacity:0.5;}
@@ -33,12 +33,12 @@ body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;color:#fff;
 .date-label{font-size:0.72rem;color:#9bb4be;margin-bottom:6px;font-weight:400;}
 .past-day-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.25);backdrop-filter:blur(1px);pointer-events:none;z-index:20;}
 #events-layer{position:absolute;left:2px;right:6px;top:10px;bottom:10px;pointer-events:none;z-index:10;}
-.multi-band,.single-evt{pointer-events:auto;position:absolute;display:flex;align-items:center;padding:0 10px;height:22px;border-radius:12px;font-size:0.78rem;color:#fff;
+.single-evt{pointer-events:auto;position:absolute;display:flex;align-items:center;padding:0 10px;height:22px;border-radius:12px;font-size:0.78rem;color:#fff;
     white-space:nowrap;overflow:hidden;background:linear-gradient(135deg,rgba(255,255,255,0.02),rgba(255,255,255,0.03));
     border:1px solid rgba(255,255,255,0.06);backdrop-filter:blur(6px) saturate(150%);
     box-shadow:0 6px 18px rgba(0,0,0,0.45),inset 0 1px 0 rgba(255,255,255,0.02);
     transition:transform .15s ease,box-shadow .15s ease,background .15s ease;}
-.multi-band:hover,.single-evt:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(0,0,0,0.55),inset 0 1px 0 rgba(255,255,255,0.03);
+.single-evt:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(0,0,0,0.55),inset 0 1px 0 rgba(255,255,255,0.03);
     background:linear-gradient(135deg,rgba(255,255,255,0.03),rgba(255,255,255,0.05));}
 .reception{background:linear-gradient(90deg,rgba(0,255,120,0.25),rgba(0,200,100,0.22));border:1px solid rgba(0,255,120,0.75);
     box-shadow:0 0 6px rgba(0,255,140,0.55),0 0 12px rgba(0,255,140,0.45),0 0 22px rgba(0,255,140,0.32),inset 0 0 6px rgba(0,255,160,0.35);}
@@ -86,9 +86,9 @@ body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;color:#fff;
 .modal-item p{color:#dbe7ea;margin-top:6px;}
 
 /* ===== BREAKPOINTS ===== */
-@media(max-width:719px){#calendar-wrap{display:none !important;}#mobile-wrap{display:flex !important;}#current-time{display:none;}#view-3w,#view-4w,#prev-btn,#next-btn{display:none;}#calendar-title{position:static;transform:none;max-width:none;flex:1;font-size:0.95rem;text-align:center;}}
-@media(min-width:720px){#calendar-wrap{display:flex !important;}#mobile-wrap{display:none !important;}#calendar-title{position:absolute;left:50%;transform:translateX(-50%);max-width:calc(100% - 320px);}}
-@media(max-width:400px){.nav-btn{font-size:20px;padding:2px 5px;}}
+@media(max-width:719px){#calendar-wrap{display:none !important;}#mobile-wrap{display:flex !important;}#current-time{display:none;}#view-3w,#view-4w,#prev-btn,#next-btn{display:none;}#calendar-title{position:static;transform:none;max-width:none;flex:1;font-size:0.95rem;text-align:center;} }
+@media(min-width:720px){#calendar-wrap{display:flex !important;}#mobile-wrap{display:none !important;}#calendar-title{position:absolute;left:50%;transform:translateX(-50%);max-width:calc(100% - 320px);} }
+@media(max-width:400px){.nav-btn{font-size:20px;padding:2px 5px;} }
 </style>
 </head>
 <body>
@@ -116,17 +116,17 @@ body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;color:#fff;
 </div>
 
 <script>
+const API_KEY = "AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo"; 
 (() => {
-  const DAYS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
+  const DAYS = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
   const STORAGE_KEY = "calendar-events-cache";
+  const PROXY_URL = "https://crimson-recipe-63e0.receptionroulier.workers.dev/";
+  const CALENDARS = [
+    {id:"receptionroulier@gmail.com",type:"reception"},
+    {id:"smr.programme@gmail.com",type:"navire"}
+  ];
 
-  const state = {
-    currentDate: new Date(),
-    viewWeeks: 3,
-    events: [],
-    loadedMonths: new Set(),
-  };
-
+  const state = { currentDate: new Date(), viewWeeks:3, events:[], loadedMonths:new Set() };
   const headerTitle = document.getElementById("calendar-title");
   const currentTimeEl = document.getElementById("current-time");
   const calendarEl = document.getElementById("calendar");
@@ -136,137 +136,130 @@ body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;color:#fff;
   const modalContent = document.getElementById("modal-content");
 
   // ===== HORLOGE =====
-  function updateClock() {
-    const now = new Date();
-    currentTimeEl.textContent = now.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
+  function updateClock(){
+    const now=new Date();
+    currentTimeEl.textContent = now.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit",second:"2-digit"});
   }
-  setInterval(updateClock, 1000);
+  setInterval(updateClock,1000);
   updateClock();
 
   // ===== STORAGE =====
-  function saveEvents(events) { localStorage.setItem(STORAGE_KEY, JSON.stringify(events)); }
-  function loadEvents() {
+  function saveEvents(events){ localStorage.setItem(STORAGE_KEY,JSON.stringify(events)); }
+  function loadEvents(){
     const stored = localStorage.getItem(STORAGE_KEY);
-    if(stored) state.events = JSON.parse(stored);
+    if(stored) state.events=JSON.parse(stored);
   }
   loadEvents();
 
-  // ===== NAVIGATION =====
-  document.getElementById("prev-btn").onclick = () => { changeDate(-state.viewWeeks*7); }
-  document.getElementById("next-btn").onclick = () => { changeDate(state.viewWeeks*7); }
-  document.getElementById("today-btn").onclick = () => { state.currentDate = new Date(); render(); }
-  document.getElementById("view-3w").onclick = () => { state.viewWeeks=3; render(); }
-  document.getElementById("view-4w").onclick = () => { state.viewWeeks=4; render(); }
-
-  function changeDate(days){
-    state.currentDate.setDate(state.currentDate.getDate()+days);
-    render();
+  // ===== FETCH GOOGLE CALENDAR via proxy =====
+  async function fetchEvents(){
+    let allEvents=[];
+    for(const cal of CALENDARS){
+      try{
+        const res = await fetch(`${PROXY_URL}https://www.googleapis.com/calendar/v3/calendars/${cal.id}/events?key=${API_KEY}`);
+        const data = await res.json();
+        if(data.items){
+          const mapped = data.items.map(e=>({
+            title:e.summary || "",
+            type:cal.type,
+            date:new Date(e.start.dateTime||e.start.date),
+            description:e.description||""
+          }));
+          allEvents.push(...mapped);
+        }
+      }catch(err){console.error("Erreur fetch:",err);}
+    }
+    state.events = allEvents.sort((a,b)=>new Date(a.date)-new Date(b.date));
+    saveEvents(state.events);
   }
+
+  // ===== NAVIGATION =====
+  document.getElementById("prev-btn").onclick=()=>changeDate(-state.viewWeeks*7);
+  document.getElementById("next-btn").onclick=()=>changeDate(state.viewWeeks*7);
+  document.getElementById("today-btn").onclick=()=>{state.currentDate=new Date(); render();}
+  document.getElementById("view-3w").onclick=()=>{state.viewWeeks=3; render();}
+  document.getElementById("view-4w").onclick=()=>{state.viewWeeks=4; render();}
+  function changeDate(days){ state.currentDate.setDate(state.currentDate.getDate()+days); render(); }
 
   // ===== MODAL =====
-  function showModal(evt){ 
-    modalContent.innerHTML = `<h3>${evt.title}</h3>
+  function showModal(evt){
+    modalContent.innerHTML=`<h3>${evt.title}</h3>
       <div class="modal-item"><strong>Type:</strong> ${evt.type}</div>
       <div class="modal-item"><strong>Date:</strong> ${new Date(evt.date).toLocaleString()}</div>
-      ${evt.description? `<div class="modal-item"><p>${evt.description}</p></div>`:""}`
-    modal.style.display="flex"; 
+      ${evt.description?`<div class="modal-item"><p>${evt.description}</p></div>`:""}`;
+    modal.style.display="flex";
   }
-  modal.onclick = ()=>modal.style.display="none";
+  modal.onclick=()=>modal.style.display="none";
 
-  // ===== UTIL =====
   function isPast(date){ return new Date(date) < new Date().setHours(0,0,0,0); }
-  function isToday(date){
-    const d = new Date(date);
-    const now = new Date();
-    return d.toDateString() === now.toDateString();
-  }
-
-  function sortEvents(a,b){ return new Date(a.date)-new Date(b.date); }
+  function isToday(date){ const d=new Date(date); return d.toDateString()===new Date().toDateString(); }
 
   // ===== RENDER DESKTOP =====
   function renderDesktop(){
-    calendarEl.innerHTML = "";
-    eventsLayer.innerHTML = "";
+    calendarEl.innerHTML=""; eventsLayer.innerHTML="";
     const start = new Date(state.currentDate);
-    start.setDate(start.getDate() - start.getDay()); // lundi début semaine
-    const totalDays = state.viewWeeks*7;
-
+    start.setDate(start.getDate()-start.getDay()+1); // Lundi semaine
+    const totalDays=state.viewWeeks*7+7; // +1 semaine passée
     for(let i=0;i<totalDays;i++){
-      const day = new Date(start);
-      day.setDate(start.getDate()+i);
-      const dayCell = document.createElement("div");
-      dayCell.className="day-cell";
+      const day=new Date(start); day.setDate(start.getDate()+i);
+      const dayCell=document.createElement("div"); dayCell.className="day-cell";
       if(isPast(day)) dayCell.classList.add("past-day");
       else if(isToday(day)) dayCell.classList.add("today");
       else dayCell.classList.add("future-day");
-
       dayCell.innerHTML=`<div class="date-label">${DAYS[day.getDay()]} ${day.getDate()}</div>`;
       calendarEl.appendChild(dayCell);
 
       const dayEvents = state.events.filter(e=>new Date(e.date).toDateString()===day.toDateString());
       dayEvents.forEach((evt,index)=>{
-        const evtEl = document.createElement("div");
+        const evtEl=document.createElement("div");
         evtEl.className=`single-evt ${evt.type}`;
         evtEl.style.top = `${26+index*26}px`;
         evtEl.innerHTML=`<div class="event-text-container"><div class="event-text" data-text="${evt.title}">${evt.title}</div></div>`;
         if(evtEl.querySelector(".event-text").scrollWidth>dayCell.offsetWidth) evtEl.querySelector(".event-text").classList.add("scrolling");
-        evtEl.onclick = ()=>showModal(evt);
+        evtEl.onclick=()=>showModal(evt);
         eventsLayer.appendChild(evtEl);
       });
     }
-    headerTitle.textContent = `${start.toLocaleDateString([], {month:"long"})} ${start.getFullYear()}`;
+    headerTitle.textContent=`${start.toLocaleDateString([],{month:"long"})} ${start.getFullYear()}`;
   }
 
   // ===== RENDER MOBILE =====
   function renderMobile(){
-    mobileWrap.innerHTML = "";
-    const months = [...new Set(state.events.map(e=>new Date(e.date).getMonth()))];
+    mobileWrap.innerHTML="";
+    const months = [...new Set(state.events.map(e=>e.date.getMonth()))];
     months.forEach(m=>{
-      const monthSep = document.createElement("div");
-      monthSep.className="mob-month-sep";
-      const d = new Date();
-      d.setMonth(m);
-      monthSep.textContent = d.toLocaleDateString([], {month:"long",year:"numeric"});
+      const monthSep=document.createElement("div"); monthSep.className="mob-month-sep";
+      const d=new Date(); d.setMonth(m); monthSep.textContent=d.toLocaleDateString([],{month:"long",year:"numeric"});
       mobileWrap.appendChild(monthSep);
-      const monthEvents = state.events.filter(e=>new Date(e.date).getMonth()===m).sort(sortEvents);
+      const monthEvents = state.events.filter(e=>e.date.getMonth()===m);
       monthEvents.forEach(evt=>{
-        const dayDiv = document.createElement("div");
-        const dayClass = isToday(evt.date)? "mob-today": isPast(evt.date)?"mob-past":"mob-future";
+        const dayDiv=document.createElement("div");
+        const dayClass=isToday(evt.date)?"mob-today":isPast(evt.date)?"mob-past":"mob-future";
         dayDiv.className=`mob-day ${dayClass}`;
-        dayDiv.innerHTML=`<div class="mob-day-header"><span class="mob-day-dot"></span><span class="mob-day-date">${new Date(evt.date).toLocaleDateString([], {weekday:"short",day:"numeric"})}</span></div>
+        dayDiv.innerHTML=`<div class="mob-day-header"><span class="mob-day-dot"></span><span class="mob-day-date">${evt.date.toLocaleDateString([],{weekday:"short",day:"numeric"})}</span></div>
           <div class="mob-events"><div class="mob-evt ${evt.type}"><div class="mob-evt-dot"></div>
-          <div class="mob-evt-info"><div class="mob-evt-name">${evt.title}</div><div class="mob-evt-time">${new Date(evt.date).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</div></div></div></div>`;
-        dayDiv.querySelector(".mob-evt").onclick = ()=>showModal(evt);
+          <div class="mob-evt-info"><div class="mob-evt-name">${evt.title}</div><div class="mob-evt-time">${evt.date.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</div></div></div></div>`;
+        dayDiv.querySelector(".mob-evt").onclick=()=>showModal(evt);
         mobileWrap.appendChild(dayDiv);
       });
     });
   }
 
   // ===== RENDER =====
-  function render(){
+  async function render(){
+    await fetchEvents();
     renderDesktop();
     renderMobile();
   }
 
-  // ===== INITIAL DATA MOCK =====
-  if(state.events.length===0){
-    state.events = [
-      {title:"Réception VIP",type:"reception",date:new Date().setHours(14,0),description:"Accueil spécial"},
-      {title:"Arrivée Navire A",type:"navire",date:new Date().setHours(9,30),description:"Chargement de containers"},
-      {title:"Réception Presse",type:"reception",date:new Date().setDate(new Date().getDate()+2),description:"Communiqué officiel"},
-      {title:"Arrivée Navire B",type:"navire",date:new Date().setDate(new Date().getDate()+1),description:"Opération logistique"}
-    ];
-    saveEvents(state.events);
-  }
-
-  render();
-
-  // ===== SCROLL INFINITE MOBILE =====
+  // ===== SCROLL MOBILE =====
   mobileWrap.addEventListener("scroll",()=>{
-    if(mobileWrap.scrollTop + mobileWrap.clientHeight >= mobileWrap.scrollHeight-50){
-      // ici tu pourrais charger d'autres mois via API si besoin
+    if(mobileWrap.scrollTop+mobileWrap.clientHeight >= mobileWrap.scrollHeight-50){
+      // charger plus de mois si besoin
     }
   });
+
+  render();
 })();
 </script>
 </body>
