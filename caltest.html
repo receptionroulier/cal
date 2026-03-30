@@ -40,6 +40,12 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
 }
   #events-layer{position:absolute;left:2px;right:6px;top:10px;bottom:10px;pointer-events:none}
   .multi-band,.single-evt{pointer-events:auto;position:absolute;display:flex;align-items:center;padding:0 10px;height:22px;border-radius:12px;font-size:0.78rem;color:#fff;white-space:nowrap;overflow:hidden;background:linear-gradient(135deg,rgba(255,255,255,0.02),rgba(255,255,255,0.03));border:1px solid rgba(255,255,255,0.06);backdrop-filter:blur(6px) saturate(150%);box-shadow:0 6px 18px rgba(0,0,0,0.45),inset 0 1px 0 rgba(255,255,255,0.02);transition:transform .15s ease,box-shadow .15s ease,background .15s ease}
+  
+  .past-event {
+  filter: grayscale(70%) brightness(0.85) contrast(0.9);
+  opacity: 0.6;
+}
+  
   .multi-band:hover,.single-evt:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(0,0,0,0.55),inset 0 1px 0 rgba(255,255,255,0.03);background:linear-gradient(135deg,rgba(255,255,255,0.03),rgba(255,255,255,0.05))}
   .reception{background:linear-gradient(90deg,rgba(0,255,120,0.25),rgba(0,200,100,0.22));border:1px solid rgba(0,255,120,0.75);box-shadow:0 0 6px rgba(0,255,140,0.55),0 0 12px rgba(0,255,140,0.45),0 0 22px rgba(0,255,140,0.32),inset 0 0 6px rgba(0,255,160,0.35)}
   .reception:hover{background:linear-gradient(90deg,rgba(0,255,140,0.35),rgba(0,200,120,0.32));box-shadow:0 0 10px rgba(0,255,160,0.85),0 0 22px rgba(0,255,160,0.65),0 0 32px rgba(0,255,160,0.5),inset 0 0 8px rgba(0,255,180,0.45)}
@@ -419,6 +425,9 @@ document.addEventListener('DOMContentLoaded', function() {
       const tc=mk('div','event-text-container'), te=mk('div','event-text');
       te.textContent=txt; te.setAttribute('data-text',txt); tc.appendChild(te);
       const band=mk('div','multi-band '+(ev.__type||''));
+      if (seg.ev._endInclusive < today) {
+  band.classList.add('past-event');
+}
       band.style.cssText=`left:${r0.left-calRect.left}px;width:${Math.max(36,(r1.left+r1.width)-r0.left-6)}px;top:${weekTopBase[seg.weekIdx]+dlH+2+seg.lane*bs}px;height:${bandH}px;display:${seg.lane<visLanes[seg.weekIdx]?'flex':'none'}`;
       band.appendChild(tc);
       band.addEventListener('click',e=>{ e.stopPropagation(); showEventModal(ev); });
