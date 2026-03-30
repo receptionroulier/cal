@@ -271,21 +271,48 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   /* ===== NORMALISE ===== */
-  function normalizeItems(items){
-    return items.map(ev=>{
-      const copy=JSON.parse(JSON.stringify(ev));
-      copy.__type=copy.__type||'';
-      copy._isAllDay=!!(copy.start&&copy.start.date&&!copy.start.dateTime);
-      if(copy.start){ copy._start=copy.start.dateTime?new Date(copy.start.dateTime):parseLocalDate(copy.start.date); if(copy._isAllDay) copy._start.setHours(0,0,0,0); }
-      if(copy.end){ copy._end=copy.end.dateTime?new Date(copy.end.dateTime):parseLocalDate(copy.end.date); if(copy._isAllDay){ copy._endInclusive = new Date(copy._end);
-  copy._endInclusive.setDate(copy._endInclusive.getDate() - 1);
-  copy._endInclusive.setHours(23,59,59,999);
-  };
-  else { copy._endInclusive=new Date(copy._end.getTime()); } }
-      if(!copy._endInclusive&&copy._end) copy._endInclusive=new Date(copy._end.getTime());
+  function normalizeItems(items) {
+  return items
+    .map(ev => {
+      const copy = JSON.parse(JSON.stringify(ev));
+      copy.__type = copy.__type || '';
+      copy._isAllDay = !!(copy.start && copy.start.date && !copy.start.dateTime);
+
+      // Start date
+      if (copy.start) {
+        copy._start = copy.start.dateTime 
+          ? new Date(copy.start.dateTime) 
+          : parseLocalDate(copy.start.date);
+
+        if (copy._isAllDay) {
+          copy._start.setHours(0, 0, 0, 0);
+        }
+      }
+
+      // End date
+      if (copy.end) {
+        copy._end = copy.end.dateTime 
+          ? new Date(copy.end.dateTime) 
+          : parseLocalDate(copy.end.date);
+
+        if (copy._isAllDay) {
+          copy._endInclusive = new Date(copy._end);
+          copy._endInclusive.setDate(copy._endInclusive.getDate() - 1);
+          copy._endInclusive.setHours(23, 59, 59, 999);
+        } else {
+          copy._endInclusive = new Date(copy._end.getTime());
+        }
+      }
+
+      // Safety fallback
+      if (!copy._endInclusive && copy._end) {
+        copy._endInclusive = new Date(copy._end.getTime());
+      }
+
       return copy;
-    }).filter(e=>e._start&&e._endInclusive);
-  }
+    })
+    .filter(e => e._start && e._endInclusive);
+}
 
   /* ===== FETCH + CACHE ===== */
   async function getItems(timeMin, timeMax, itemsOverride){
