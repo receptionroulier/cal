@@ -76,14 +76,15 @@
   /* ===== MOBILE : vue liste ===== */
   #mobile-wrap{
     display:none;
-    flex:1;overflow-y:auto;padding:10px 12px 20px;
-    flex-direction:column;gap:20px;
+    flex:1;overflow-y:auto;padding:10px 12px 40px;
+    flex-direction:column;gap:8px;
   }
-  .mob-week{display:flex;flex-direction:column;gap:8px;}
-  .mob-week-title{
+  /* séparateur de mois */
+  .mob-month-sep{
     font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;
-    color:#64748b;padding:4px 0 2px;
+    color:#64748b;padding:10px 4px 4px;
     border-bottom:1px solid rgba(255,255,255,0.06);
+    margin-top:4px;
   }
   .mob-day{
     background:rgba(255,255,255,0.05);
@@ -152,6 +153,7 @@
     #mobile-wrap{display:flex !important;}
     #current-time{display:none;}
     #view-3w,#view-4w{display:none;}
+    #prev-btn,#next-btn{display:none;}
     #calendar-title{
       position:static;transform:none;max-width:none;
       flex:1;font-size:0.95rem;text-align:center;
@@ -176,10 +178,10 @@
 <div id="calendar-header">
   <div class="header-left">
     <span class="nav-btn" id="prev-btn">‹</span>
-    <span class="nav-btn" id="today-btn" style="font-size:14px;padding:4px 8px;">Aujourd'hui</span>
+    <span class="nav-btn" id="today-btn" style="font-size:13px;padding:4px 10px;">Aujourd'hui</span>
     <span class="nav-btn" id="next-btn">›</span>
-    <span class="view-btn" id="view-3w">3 semaines</span>
-    <span class="view-btn" id="view-4w">4 semaines</span>
+    <span class="view-btn" id="view-3w">3 sem.</span>
+    <span class="view-btn" id="view-4w">4 sem.</span>
   </div>
   <span id="calendar-title">Chargement…</span>
   <div id="current-time"></div>
@@ -298,22 +300,21 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   /* ===================================================================
-     MOBILE RENDER
+     MOBILE RENDER — liste plate, scroll vers aujourd'hui
   =================================================================== */
   async function renderMobile(itemsOverride){
     const wrap=document.getElementById('mobile-wrap');
     wrap.innerHTML='<div style="text-align:center;padding:30px;opacity:0.5;font-size:0.9rem">Chargement…</div>';
 
     const today=new Date(); today.setHours(0,0,0,0);
-    const thisMonday=getMonday(currentStartDate);
-    const pastMonday=new Date(thisMonday); pastMonday.setDate(thisMonday.getDate()-7);
-    const totalDays=weekView*7;
-    const timeMin=new Date(pastMonday); timeMin.setHours(0,0,0,0);
-    const timeMax=new Date(timeMin); timeMax.setDate(timeMax.getDate()+totalDays);
+
+    // Plage : 30j passés → 60j futurs (depuis aujourd'hui, fixe)
+    const DAYS_BEFORE=30, DAYS_AFTER=60;
+    const timeMin=new Date(today); timeMin.setDate(today.getDate()-DAYS_BEFORE);
+    const timeMax=new Date(today); timeMax.setDate(today.getDate()+DAYS_AFTER+1);
 
     const norm=await getItems(timeMin,timeMax,itemsOverride);
 
-    /* Construit un index date → événements actifs ce jour */
     function eventsOnDay(dayDate){
       return norm.filter(ev=>{
         const s=new Date(ev._start); s.setHours(0,0,0,0);
@@ -322,84 +323,82 @@ document.addEventListener('DOMContentLoaded', function() {
       }).sort((a,b)=>a._start-b._start);
     }
 
-    const WEEK_LABELS=['Semaine passée','Semaine en cours','Semaine prochaine'];
-    const weeks=[];
-    for(let w=0;w<weekView;w++){
-      const wStart=new Date(pastMonday); wStart.setDate(pastMonday.getDate()+w*7);
-      const days=[];
-      for(let d=0;d<7;d++){
-        const day=new Date(wStart); day.setDate(wStart.getDate()+d); day.setHours(0,0,0,0);
-        days.push(day);
-      }
-      weeks.push({label:WEEK_LABELS[w]||`Semaine ${w+1}`,days});
-    }
-
-    /* Mise à jour titre */
+    // Titre : mois autour d'aujourd'hui
     const months=new Set();
-    weeks.forEach(w=>w.days.forEach(d=>months.add(capitalize(d.toLocaleString('fr-FR',{month:'long'})))));
-    document.getElementById('calendar-title').textContent=Array.from(months).join(' / ');
+    for(let i=-7;i<=14;i++){
+      const d=new Date(today); d.setDate(today.getDate()+i);
+      months.add(capitalize(d.toLocaleString('fr-FR',{month:'long'})));
+    }
+    document.getElementById('calendar-title').textContent=Array.from(months).slice(0,2).join(' / ');
 
     wrap.innerHTML='';
+    let lastMonth=-1;
+    let todayEl=null;
 
-    weeks.forEach(week=>{
-      const weekEl=document.createElement('div'); weekEl.className='mob-week';
-      const titleEl=document.createElement('div'); titleEl.className='mob-week-title';
-      titleEl.textContent=week.label; weekEl.appendChild(titleEl);
+    for(let i=-DAYS_BEFORE;i<=DAYS_AFTER;i++){
+      const day=new Date(today); day.setDate(today.getDate()+i); day.setHours(0,0,0,0);
+      const isPast=day<today, isToday=i===0, isFuture=day>today;
 
-      week.days.forEach(day=>{
-        const isPast=day<today, isToday=day.getTime()===today.getTime(), isFuture=day>today;
-        const evts=eventsOnDay(day);
+      // Séparateur de mois
+      const mKey=day.getFullYear()*100+day.getMonth();
+      if(mKey!==lastMonth){
+        lastMonth=mKey;
+        const sep=document.createElement('div'); sep.className='mob-month-sep';
+        sep.textContent=capitalize(day.toLocaleString('fr-FR',{month:'long',year:'numeric'}));
+        wrap.appendChild(sep);
+      }
 
-        const dayEl=document.createElement('div'); dayEl.className='mob-day';
-        if(isToday) dayEl.classList.add('mob-today');
-        else if(isPast) dayEl.classList.add('mob-past');
-        else dayEl.classList.add('mob-future');
+      const evts=eventsOnDay(day);
+      const dayEl=document.createElement('div'); dayEl.className='mob-day';
+      if(isToday){ dayEl.classList.add('mob-today'); dayEl.id='mob-today-anchor'; todayEl=dayEl; }
+      else if(isPast) dayEl.classList.add('mob-past');
+      else dayEl.classList.add('mob-future');
 
-        /* En-tête du jour */
-        const headerEl=document.createElement('div'); headerEl.className='mob-day-header';
-        const dotEl=document.createElement('div'); dotEl.className='mob-day-dot';
-        const dateEl=document.createElement('div'); dateEl.className='mob-day-date';
-        dateEl.textContent=capitalize(day.toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long'}));
-        headerEl.appendChild(dotEl); headerEl.appendChild(dateEl);
-        dayEl.appendChild(headerEl);
+      // En-tête du jour
+      const headerEl=document.createElement('div'); headerEl.className='mob-day-header';
+      const dotEl=document.createElement('div'); dotEl.className='mob-day-dot';
+      const dateEl=document.createElement('div'); dateEl.className='mob-day-date';
+      dateEl.textContent=capitalize(day.toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long'}));
+      headerEl.appendChild(dotEl); headerEl.appendChild(dateEl);
+      dayEl.appendChild(headerEl);
 
-        if(evts.length===0){
-          const empty=document.createElement('div'); empty.className='mob-empty';
-          empty.textContent='Aucun événement'; dayEl.appendChild(empty);
-        } else {
-          const evtsEl=document.createElement('div'); evtsEl.className='mob-events';
-          evts.forEach(ev=>{
-            const evEl=document.createElement('div'); evEl.className='mob-evt '+(ev.__type||'');
-            const dotE=document.createElement('div'); dotE.className='mob-evt-dot';
-            const infoEl=document.createElement('div'); infoEl.className='mob-evt-info';
+      if(evts.length===0){
+        const empty=document.createElement('div'); empty.className='mob-empty';
+        empty.textContent='Aucun événement'; dayEl.appendChild(empty);
+      } else {
+        const evtsEl=document.createElement('div'); evtsEl.className='mob-events';
+        evts.forEach(ev=>{
+          const evEl=document.createElement('div'); evEl.className='mob-evt '+(ev.__type||'');
+          const dotE=document.createElement('div'); dotE.className='mob-evt-dot';
+          const infoEl=document.createElement('div'); infoEl.className='mob-evt-info';
+          const nameEl=document.createElement('div'); nameEl.className='mob-evt-name';
+          nameEl.textContent=ev.summary||'(sans titre)';
+          const timeEl=document.createElement('div'); timeEl.className='mob-evt-time';
+          if(ev._isAllDay){
+            const s=new Date(ev._start); s.setHours(0,0,0,0);
+            const e=new Date(ev._endInclusive); e.setHours(0,0,0,0);
+            const diffDays=Math.round((e-s)/86400000)+1;
+            timeEl.textContent=diffDays>1?`Journée entière · ${diffDays}j`:'Journée entière';
+          } else {
+            timeEl.textContent=fmtTime(ev._start)+(ev._end?` → ${fmtTime(ev._end)}`:'');
+          }
+          infoEl.appendChild(nameEl); infoEl.appendChild(timeEl);
+          evEl.appendChild(dotE); evEl.appendChild(infoEl);
+          evEl.addEventListener('click',e=>{ e.stopPropagation(); showEventModal(ev); });
+          evtsEl.appendChild(evEl);
+        });
+        dayEl.appendChild(evtsEl);
+      }
+      wrap.appendChild(dayEl);
+    }
 
-            const nameEl=document.createElement('div'); nameEl.className='mob-evt-name';
-            nameEl.textContent=ev.summary||'(sans titre)';
-
-            const timeEl=document.createElement('div'); timeEl.className='mob-evt-time';
-            if(ev._isAllDay){
-              const s=new Date(ev._start); s.setHours(0,0,0,0);
-              const e=new Date(ev._endInclusive); e.setHours(0,0,0,0);
-              if(s.getTime()===e.getTime()) timeEl.textContent='Journée entière';
-              else {
-                const diffDays=Math.round((e-s)/(86400000))+1;
-                timeEl.textContent=`Journée entière · ${diffDays}j`;
-              }
-            } else {
-              timeEl.textContent=fmtTime(ev._start)+(ev._end?` → ${fmtTime(ev._end)}`:'');
-            }
-
-            infoEl.appendChild(nameEl); infoEl.appendChild(timeEl);
-            evEl.appendChild(dotE); evEl.appendChild(infoEl);
-            evEl.addEventListener('click',e=>{ e.stopPropagation(); showEventModal(ev); });
-            evtsEl.appendChild(evEl);
-          });
-          dayEl.appendChild(evtsEl);
-        }
-        weekEl.appendChild(dayEl);
+    // Scroll vers aujourd'hui (légèrement au-dessus pour voir le contexte)
+    if(todayEl){
+      requestAnimationFrame(()=>{
+        const offset=todayEl.offsetTop - 20;
+        wrap.scrollTop=Math.max(0,offset);
       });
-      wrap.appendChild(weekEl);
-    });
+    }
   }
 
   /* ===================================================================
@@ -566,7 +565,15 @@ document.addEventListener('DOMContentLoaded', function() {
   /* ===== EVENTS ===== */
   document.getElementById('prev-btn').addEventListener('click',()=>{ currentStartDate.setDate(currentStartDate.getDate()-7); localStorage.removeItem(CACHE_KEY); render().catch(()=>{}); });
   document.getElementById('next-btn').addEventListener('click',()=>{ currentStartDate.setDate(currentStartDate.getDate()+7); localStorage.removeItem(CACHE_KEY); render().catch(()=>{}); });
-  document.getElementById('today-btn').addEventListener('click',()=>{ currentStartDate=new Date(); weekView=3; localStorage.removeItem(CACHE_KEY); render().catch(()=>{}); });
+  document.getElementById('today-btn').addEventListener('click',()=>{
+    if(isMobile()){
+      const anchor=document.getElementById('mob-today-anchor');
+      const wrap=document.getElementById('mobile-wrap');
+      if(anchor&&wrap){ wrap.scrollTo({top:Math.max(0,anchor.offsetTop-20),behavior:'smooth'}); }
+    } else {
+      currentStartDate=new Date(); weekView=3; localStorage.removeItem(CACHE_KEY); render().catch(()=>{});
+    }
+  });
   document.getElementById('view-3w').addEventListener('click',()=>{ weekView=3; currentStartDate=getMonday(currentStartDate); localStorage.removeItem(CACHE_KEY); render().catch(()=>{}); });
   document.getElementById('view-4w').addEventListener('click',()=>{ weekView=4; currentStartDate=getMonday(currentStartDate); localStorage.removeItem(CACHE_KEY); render().catch(()=>{}); });
   window.addEventListener('resize',()=>{ clearTimeout(resizeTimeout); resizeTimeout=setTimeout(()=>{ render().catch(()=>{}); },200); });
