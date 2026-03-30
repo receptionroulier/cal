@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Choix de Calendrier</title>
+  <title>RoulierLH Planning</title>
   <style>
     body {
       margin: 0;
@@ -172,7 +172,7 @@
 
   <!-- ===== RÉCEPTION ===== -->
   <div class="section">
-    <div class="section-title">📦 Réception</div>
+    <div class="section-title">🚗 Réception</div>
     <div class="container">
       <a class="card" href="https://receptionroulier.github.io/cal/calr.html">
         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
@@ -221,7 +221,7 @@
     </div>
   </div>
 
-  <footer>© 2026 - Outils planning</footer>
+  <footer>© 2026 - RoulierLH planning</footer>
 
 <script>
 /* ===== CLÉS CACHE PROPRES À L'INDEX (n'interfère pas avec p.html) ===== */
@@ -357,13 +357,14 @@ function renderCols(ponts) {
       ${build(fermes, since)}
     </div>
 
-    <div class="pont-col">
-      <div class="col-header">🚧&nbsp;En travaux
-        <span class="col-count">(${travaux.length})</span>
+    <div class="pont-col col-ouvert">
+      <div class="col-header">
+        <span class="pastille p-vert"></span>Ouvert(s)
+        <span class="col-count">(${ouverts.length})</span>
       </div>
-      ${build(travaux, p => fmtFinTravaux(p))}
+      ${ouverts.length ? mkEntry(ouverts[0], since(ouverts[0])) : `<div class="pont-entry"><div class="pont-since">—</div></div>`}
     </div>
-
+        
     <div class="pont-col">
       <div class="col-header">
         <span class="pastille p-orange"></span>En fermeture
@@ -380,13 +381,13 @@ function renderCols(ponts) {
       ${build(manoeuvre, since)}
     </div>
 
-    <div class="pont-col col-ouvert">
-      <div class="col-header">
-        <span class="pastille p-vert"></span>Ouvert(s)
-        <span class="col-count">(${ouverts.length})</span>
+    <div class="pont-col">
+      <div class="col-header">🚧&nbsp;En travaux
+        <span class="col-count">(${travaux.length})</span>
       </div>
-      ${ouverts.length ? mkEntry(ouverts[0], since(ouverts[0])) : `<div class="pont-entry"><div class="pont-since">—</div></div>`}
+      ${build(travaux, p => fmtFinTravaux(p))}
     </div>
+    
   `;
 }
 
