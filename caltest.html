@@ -369,18 +369,34 @@ function scaleCalIframe() {
    ================================================================ */
 function isMobile() { return window.innerWidth < 720; }
 
-if (!isMobile()) {
+let desktopStarted = false;
+let mobileStarted  = false;
+
+function initDesktop() {
+  if (desktopStarted) return;
+  desktopStarted = true;
   startDesktop();
-} else {
-  refreshPonts(true);
-  setInterval(() => refreshPonts(false), PONTS_INTERVAL);
-  // Attendre que le layout soit prêt avant de scaler
-  requestAnimationFrame(() => scaleCalIframe());
 }
 
-window.addEventListener('resize', () => {
-  if (isMobile()) scaleCalIframe();
-});
+function initMobile() {
+  if (mobileStarted) return;
+  mobileStarted = true;
+  refreshPonts(true);
+  setInterval(() => refreshPonts(false), PONTS_INTERVAL);
+}
+
+function onLayout() {
+  if (isMobile()) {
+    initMobile();
+    requestAnimationFrame(() => scaleCalIframe());
+  } else {
+    initDesktop();
+  }
+}
+
+onLayout();
+window.addEventListener('resize', onLayout);
+window.addEventListener('orientationchange', () => setTimeout(onLayout, 100));
 </script>
 </body>
 </html>
