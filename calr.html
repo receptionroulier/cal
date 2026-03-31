@@ -30,10 +30,8 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
   position:absolute;
   inset:0;
   background: rgba(200, 210, 220, 0.06);
-
   backdrop-filter: grayscale(35%) brightness(0.85) contrast(0.9);
   -webkit-backdrop-filter: grayscale(35%) brightness(0.85) contrast(0.9);
-
   border-radius:8px;
   pointer-events:none;
   z-index:50;
@@ -203,6 +201,34 @@ document.addEventListener('DOMContentLoaded', function() {
     return normalizeItems(items);
   }
 
+  /* ================================================================
+     MOBILE – SCROLL-BASED TITLE UPDATE
+     ================================================================ */
+  function updateTitleFromScroll() {
+    const wrap = $('mobile-wrap');
+    if (!wrap) return;
+    const wrapRect = wrap.getBoundingClientRect();
+    const days = [...wrap.querySelectorAll('.mob-day')];
+    const visibleMonths = [];
+    const seen = new Set();
+    for (const card of days) {
+      const r = card.getBoundingClientRect();
+      // card overlaps the visible area of the scroll container
+      if (r.bottom > wrapRect.top && r.top < wrapRect.bottom) {
+        const ts = parseInt(card.dataset.ts);
+        if (!isNaN(ts)) {
+          const d = new Date(ts);
+          const key = d.getFullYear() * 100 + d.getMonth();
+          if (!seen.has(key)) {
+            seen.add(key);
+            visibleMonths.push(capitalize(d.toLocaleString('fr-FR', { month: 'long', year: 'numeric' })));
+          }
+        }
+      }
+    }
+    if (visibleMonths.length) $('calendar-title').textContent = visibleMonths.join(' / ');
+  }
+
   /* MOBILE */
   let mobNorm=[],mobFrom=null,mobTo=null,mobLoading=false,mobObserver=null;
 
@@ -308,7 +334,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const from=new Date(today); from.setDate(today.getDate()-14);
     const to=new Date(today); to.setDate(today.getDate()+30);
     mobNorm=await fetchMobRange(from,to); mobFrom=new Date(from); mobTo=new Date(to); mobLoading=false;
-    $('calendar-title').textContent=capitalize(today.toLocaleString('fr-FR',{month:'long',year:'numeric'}));
     wrap.innerHTML='';
     const sentTop=mk('div','mob-sentinel'); sentTop.id='mob-sent-top'; wrap.appendChild(sentTop);
     let lastM=-1;
@@ -319,7 +344,17 @@ document.addEventListener('DOMContentLoaded', function() {
       wrap.appendChild(buildDayCard(day,today));
     }
     const sentBot=mk('div','mob-sentinel'); sentBot.id='mob-sent-bot'; wrap.appendChild(sentBot);
-    requestAnimationFrame(()=>scrollToToday(false));
+
+    // Scroll listener pour titre dynamique
+    wrap._scrollTitleHandler && wrap.removeEventListener('scroll', wrap._scrollTitleHandler);
+    wrap._scrollTitleHandler = updateTitleFromScroll;
+    wrap.addEventListener('scroll', updateTitleFromScroll, { passive: true });
+
+    requestAnimationFrame(() => {
+      scrollToToday(false);
+      setTimeout(updateTitleFromScroll, 150);
+    });
+
     if(mobObserver) mobObserver.disconnect();
     mobObserver=new IntersectionObserver(async entries=>{
       for(const entry of entries){
