@@ -9,6 +9,12 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Calendrier Réception</title>
 <style>
+.header-logo {
+  height: 42px;
+  max-width: 140px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 6px rgba(0,150,255,0.5));
+}
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;display:flex;flex-direction:column;height:100vh;min-height:0}
   #calendar-header{display:flex;flex-wrap:nowrap;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);backdrop-filter:blur(8px);min-height:52px;position:relative}
@@ -102,6 +108,7 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
 <body>
 <div id="calendar-header">
   <div class="header-left">
+    <img src="RoulierLH.png" alt="Logo" class="header-logo">
     <span class="nav-btn" id="prev-btn">‹</span>
     <span class="nav-btn" id="today-btn" style="font-size:13px;padding:4px 10px;">Aujourd'hui</span>
     <span class="nav-btn" id="next-btn">›</span>
