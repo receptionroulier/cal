@@ -19,7 +19,25 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
   body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;display:flex;flex-direction:column;height:100vh;min-height:0}
   #calendar-header{display:flex;flex-wrap:nowrap;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);backdrop-filter:blur(8px);min-height:52px;position:relative}
   .header-left{display:flex;align-items:center;gap:5px;flex-shrink:0}
-  #calendar-title{position:absolute;left:50%;transform:translateX(-50%);font-weight:bold;font-size:1.1rem;white-space:nowrap;pointer-events:none;max-width:calc(100% - 320px);overflow:hidden;text-overflow:ellipsis;text-align:center}
+  #calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#calendar-title {
+  position: static;
+  transform: none;
+  text-align: center;
+  flex: 1;
+}
+    ;font-weight:bold;font-size:1.1rem;white-space:nowrap;pointer-events:none;max-width:calc(100% - 320px);overflow:hidden;text-overflow:ellipsis;text-align:center}
   #current-time{margin-left:auto;flex-shrink:0;font-size:2rem;font-weight:bold;font-family:"Trebuchet MS",sans-serif;white-space:nowrap}
   .nav-btn{cursor:pointer;color:#fff;font-size:24px;padding:2px 8px;border-radius:6px;line-height:1;flex-shrink:0}
   .nav-btn:hover{background:rgba(255,255,255,0.1)}
@@ -108,7 +126,7 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
 <body>
 <div id="calendar-header">
   <div class="header-left">
-    <span class="header-logo" id="logo">img src="RoulierLH.png" alt="Logo" class="header-logo"</span>
+    <img id="logo" src="RoulierLH.png" alt="Logo" class="header-logo">
     <span class="nav-btn" id="prev-btn">‹</span>
     <span class="nav-btn" id="today-btn" style="font-size:13px;padding:4px 10px;">Aujourd'hui</span>
     <span class="nav-btn" id="next-btn">›</span>
