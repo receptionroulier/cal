@@ -7,7 +7,7 @@ const maintenance = false;
 if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/bug.html";
 </script>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Calendrier Navires</title>
+<title>Calendrier Réception</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;display:flex;flex-direction:column;height:100vh;min-height:0}
@@ -30,10 +30,8 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
   position:absolute;
   inset:0;
   background: rgba(200, 210, 220, 0.06);
-
   backdrop-filter: grayscale(35%) brightness(0.85) contrast(0.9);
   -webkit-backdrop-filter: grayscale(35%) brightness(0.85) contrast(0.9);
-
   border-radius:8px;
   pointer-events:none;
   z-index:50;
@@ -126,9 +124,9 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
 document.addEventListener('DOMContentLoaded', function() {
   const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
   const CAL = { reception:'receptionroulier@gmail.com', navire:'smr.programme@gmail.com' };
-  const CACHE_KEY = 'caln_v2_cache';
+  const CACHE_KEY = 'calr_v2_cache';
   const CACHE_TTL = 30000;
-  let weekView = 4, currentStartDate = new Date(), resizeTimeout, autoRefreshTimer;
+  let weekView = 3, currentStartDate = new Date(), resizeTimeout, autoRefreshTimer;
 
   /* UTILS */
   const $  = id => document.getElementById(id);
@@ -201,6 +199,34 @@ document.addEventListener('DOMContentLoaded', function() {
       if(h!==cache.hash){ items=fetched; saveCache(items,h); } else items=cache.items;
     } else { items=await fetchCalendarsRange(timeMin,timeMax); saveCache(items,calculateHash(items)); }
     return normalizeItems(items);
+  }
+
+  /* ================================================================
+     MOBILE – SCROLL-BASED TITLE UPDATE
+     ================================================================ */
+  function updateTitleFromScroll() {
+    const wrap = $('mobile-wrap');
+    if (!wrap) return;
+    const wrapRect = wrap.getBoundingClientRect();
+    const days = [...wrap.querySelectorAll('.mob-day')];
+    const visibleMonths = [];
+    const seen = new Set();
+    for (const card of days) {
+      const r = card.getBoundingClientRect();
+      // card overlaps the visible area of the scroll container
+      if (r.bottom > wrapRect.top && r.top < wrapRect.bottom) {
+        const ts = parseInt(card.dataset.ts);
+        if (!isNaN(ts)) {
+          const d = new Date(ts);
+          const key = d.getFullYear() * 100 + d.getMonth();
+          if (!seen.has(key)) {
+            seen.add(key);
+            visibleMonths.push(capitalize(d.toLocaleString('fr-FR', { month: 'long', year: 'numeric' })));
+          }
+        }
+      }
+    }
+    if (visibleMonths.length) $('calendar-title').textContent = visibleMonths.join(' / ');
   }
 
   /* MOBILE */
@@ -308,7 +334,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const from=new Date(today); from.setDate(today.getDate()-14);
     const to=new Date(today); to.setDate(today.getDate()+30);
     mobNorm=await fetchMobRange(from,to); mobFrom=new Date(from); mobTo=new Date(to); mobLoading=false;
-    $('calendar-title').textContent=capitalize(today.toLocaleString('fr-FR',{month:'long',year:'numeric'}));
     wrap.innerHTML='';
     const sentTop=mk('div','mob-sentinel'); sentTop.id='mob-sent-top'; wrap.appendChild(sentTop);
     let lastM=-1;
@@ -319,7 +344,17 @@ document.addEventListener('DOMContentLoaded', function() {
       wrap.appendChild(buildDayCard(day,today));
     }
     const sentBot=mk('div','mob-sentinel'); sentBot.id='mob-sent-bot'; wrap.appendChild(sentBot);
-    requestAnimationFrame(()=>scrollToToday(false));
+
+    // Scroll listener pour titre dynamique
+    wrap._scrollTitleHandler && wrap.removeEventListener('scroll', wrap._scrollTitleHandler);
+    wrap._scrollTitleHandler = updateTitleFromScroll;
+    wrap.addEventListener('scroll', updateTitleFromScroll, { passive: true });
+
+    requestAnimationFrame(() => {
+      scrollToToday(false);
+      setTimeout(updateTitleFromScroll, 150);
+    });
+
     if(mobObserver) mobObserver.disconnect();
     mobObserver=new IntersectionObserver(async entries=>{
       for(const entry of entries){
@@ -470,7 +505,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const go=()=>{ localStorage.removeItem(CACHE_KEY); render().catch(()=>{}); };
   $('prev-btn').addEventListener('click',()=>{ currentStartDate.setDate(currentStartDate.getDate()-7); go(); });
   $('next-btn').addEventListener('click',()=>{ currentStartDate.setDate(currentStartDate.getDate()+7); go(); });
-  $('today-btn').addEventListener('click',()=>{ if(isMobile()) scrollToToday(true); else { currentStartDate=new Date(); weekView=4; go(); } });
+  $('today-btn').addEventListener('click',()=>{ if(isMobile()) scrollToToday(true); else { currentStartDate=new Date(); weekView=3; go(); } });
   $('view-3w').addEventListener('click',()=>{ weekView=3; currentStartDate=getMonday(currentStartDate); go(); });
   $('view-4w').addEventListener('click',()=>{ weekView=4; currentStartDate=getMonday(currentStartDate); go(); });
   window.addEventListener('resize',()=>{ clearTimeout(resizeTimeout); resizeTimeout=setTimeout(()=>render().catch(()=>{}),200); });
