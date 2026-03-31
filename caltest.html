@@ -10,7 +10,7 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
 <title>Calendrier Réception</title>
 <style>
 #logo {
-  height: 36px;       /* taille ajustable */
+  height: 50px;       /* taille ajustable */
   width: auto;        /* conserve les proportions */
   margin-right: 8px;  /* espace entre logo et boutons */
   flex-shrink: 0;     /* ne se rétrécit pas sur petits écrans */
@@ -108,7 +108,9 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
 <body>
 <div id="calendar-header">
   <div class="header-left">
-    <img id="logo" src="https://receptionroulier.github.io/cal/RoulierLH.png" alt="Logo" />
+    <a href="https://receptionroulier.github.io/cal/" target="_self">
+      <img id="logo" src="https://receptionroulier.github.io/cal/RoulierLH.png" alt="Logo" />
+    </a>
     <span class="nav-btn" id="prev-btn">‹</span>
     <span class="nav-btn" id="today-btn" style="font-size:13px;padding:4px 10px;">Aujourd'hui</span>
     <span class="nav-btn" id="next-btn">›</span>
