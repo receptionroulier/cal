@@ -9,34 +9,49 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Calendrier Réception</title>
 <style>
-.header-logo {
-  height: 100px;
-  max-width: 140px;
-  object-fit: contain;
+@media(max-width:400px){
+ .header-logo { height:60px;
+    object-fit: contain;
   filter: drop-shadow(0 0 6px rgba(0,150,255,0.5));
 }
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;display:flex;flex-direction:column;height:100vh;min-height:0}
   #calendar-header{display:flex;flex-wrap:nowrap;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);backdrop-filter:blur(8px);min-height:52px;position:relative}
   .header-left{display:flex;align-items:center;gap:5px;flex-shrink:0}
+
   #calendar-header {
-  display: flex;
-  align-items: bottom;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+  backdrop-filter: blur(8px);
+  min-height: 52px;
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 #calendar-title {
-  position: static;
-  transform: none;
   text-align: center;
-  flex: 1;
+  font-weight: bold;
+  font-size: 1.1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
+
     ;font-weight:bold;font-size:1.1rem;white-space:nowrap;pointer-events:none;max-width:calc(100% - 320px);overflow:hidden;text-overflow:ellipsis;text-align:center}
   #current-time{margin-left:auto;flex-shrink:0;font-size:2rem;font-weight:bold;font-family:"Trebuchet MS",sans-serif;white-space:nowrap}
   .nav-btn{cursor:pointer;color:#fff;font-size:24px;padding:2px 8px;border-radius:6px;line-height:1;flex-shrink:0}
@@ -128,23 +143,18 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
   <div class="header-left">
     <img id="logo" src="RoulierLH.png" alt="Logo" class="header-logo">
     <span class="nav-btn" id="prev-btn">‹</span>
-    <span class="nav-btn" id="today-btn" style="font-size:13px;padding:4px 10px;">Aujourd'hui</span>
+    <span class="nav-btn" id="today-btn">Aujourd'hui</span>
     <span class="nav-btn" id="next-btn">›</span>
     <span class="view-btn" id="view-3w">3 semaines</span>
     <span class="view-btn" id="view-4w">4 semaines</span>
   </div>
-  <span id="calendar-title">Chargement…</span>
-  <div id="current-time"></div>
-</div>
-<div id="calendar-wrap">
-  <div id="calendar" role="grid" aria-label="Calendrier"></div>
-  <div id="events-layer" aria-hidden="false"></div>
-</div>
-<div id="mobile-wrap"></div>
-<div id="event-modal">
-  <div class="modal-card" id="modal-content" onclick="event.stopPropagation()"></div>
-</div>
 
+  <div id="calendar-title">Chargement…</div>
+
+  <div class="header-right">
+    <div id="current-time"></div>
+  </div>
+</div>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
