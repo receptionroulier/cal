@@ -470,7 +470,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const go=()=>{ localStorage.removeItem(CACHE_KEY); render().catch(()=>{}); };
   $('prev-btn').addEventListener('click',()=>{ currentStartDate.setDate(currentStartDate.getDate()-7); go(); });
   $('next-btn').addEventListener('click',()=>{ currentStartDate.setDate(currentStartDate.getDate()+7); go(); });
-  $('today-btn').addEventListener('click',()=>{ if(isMobile()) scrollToToday(true); else { currentStartDate=new Date(); weekView=3; go(); } });
+  $('today-btn').addEventListener('click',()=>{ if(isMobile()) scrollToToday(true); else { currentStartDate=new Date(); weekView=4; go(); } });
   $('view-3w').addEventListener('click',()=>{ weekView=3; currentStartDate=getMonday(currentStartDate); go(); });
   $('view-4w').addEventListener('click',()=>{ weekView=4; currentStartDate=getMonday(currentStartDate); go(); });
   window.addEventListener('resize',()=>{ clearTimeout(resizeTimeout); resizeTimeout=setTimeout(()=>render().catch(()=>{}),200); });
