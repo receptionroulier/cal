@@ -4,20 +4,28 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RoulierLH Planning</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <!-- iOS -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="RoulierLH" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+
   <style>
     body {
   margin: 0;
   font-family: "Segoe UI", Arial, sans-serif;
   background: linear-gradient(135deg, #0f172a, #1e293b);
   color: #ffffff;
-
   display: flex;
   flex-direction: column;
   align-items: center;
-
-  justify-content: flex-start; /* ✅ au lieu de center */
+  justify-content: flex-start;
   min-height: 100vh;
-
   padding: 20px;
 }
     h1 { margin-bottom: 10px; font-size: 28px; }
@@ -25,7 +33,8 @@
   font-size: 12px;
   opacity: 0.6;
   margin-bottom: 30px;
-}    .section {
+}
+    .section {
       width: 100%;
       max-width: 900px;
       margin-bottom: 30px;
@@ -61,7 +70,7 @@
       background: rgba(255,255,255,0.08);
     }
 
-    /* ===== PONTS CARD (même animation, flex-col) ===== */
+    /* ===== PONTS CARD ===== */
     .card-ponts {
       background: rgba(255, 255, 255, 0.05);
       border-radius: 16px;
@@ -145,17 +154,59 @@
       to   { transform: rotate(360deg); }
     }
 
+    /* ===== BANNIÈRE INSTALL PWA ===== */
+    #pwa-banner {
+      display: none;
+      width: 100%;
+      max-width: 900px;
+      margin-bottom: 20px;
+      background: rgba(0, 229, 255, 0.08);
+      border: 1px solid rgba(0, 229, 255, 0.3);
+      border-radius: 14px;
+      padding: 14px 18px;
+      gap: 14px;
+      align-items: center;
+      justify-content: space-between;
+    }
+    #pwa-banner.show { display: flex; }
+    #pwa-banner-text { font-size: 13px; color: #cbd5e1; flex: 1; }
+    #pwa-banner-text strong { color: #00e5ff; }
+    #pwa-install-btn {
+      background: #00e5ff;
+      color: #0f172a;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    #pwa-install-btn:hover { background: #00c4e0; }
+    #pwa-banner-close {
+      opacity: 0.4; cursor: pointer; font-size: 18px; flex-shrink: 0;
+      background: none; border: none; color: white; padding: 0 4px;
+    }
+
     footer { margin-top: 20px; font-size: 13px; opacity: 0.5; }
   </style>
 </head>
 <body>
   <h1 class="page-title">Accès aux calendriers</h1>
-  
+
+  <!-- Bannière install PWA (Android Chrome) -->
+  <div id="pwa-banner">
+    <div id="pwa-banner-text">
+      <strong>Installer RoulierLH</strong> sur votre écran d'accueil pour un accès rapide.
+    </div>
+    <button id="pwa-install-btn">Installer</button>
+    <button id="pwa-banner-close">✕</button>
+  </div>
+
   <!-- ===== PONTS ===== -->
   <div class="section">
-    
     <a class="card-ponts" href="https://receptionroulier.github.io/cal/p.html">
-
       <div class="card-ponts-header">
         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
           <path d="M3 12h18"/><path d="M6 12v4"/><path d="M18 12v4"/>
@@ -165,11 +216,9 @@
           <div class="subtitle">Voir le détail</div>
         </div>
       </div>
-
       <div class="ponts-columns" id="ponts-cols">
         <div class="mini-spinner" style="grid-column:1/-1"></div>
       </div>
-
       <div id="ponts-update">Chargement…</div>
     </a>
   </div>
@@ -228,13 +277,37 @@
   <footer>© 2026 - RoulierLH planning</footer>
 
 <script>
-/* ===== CLÉS CACHE PROPRES À L'INDEX (n'interfère pas avec p.html) ===== */
+/* ===== SERVICE WORKER ===== */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/cal/service-worker.js')
+    .then(r => console.log('SW registered:', r.scope))
+    .catch(e => console.warn('SW error:', e));
+}
+
+/* ===== BANNIÈRE INSTALL PWA (Android Chrome) ===== */
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('pwa-banner').classList.add('show');
+});
+document.getElementById('pwa-install-btn').addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  document.getElementById('pwa-banner').classList.remove('show');
+});
+document.getElementById('pwa-banner-close').addEventListener('click', () => {
+  document.getElementById('pwa-banner').classList.remove('show');
+});
+
+/* ===== CLÉS CACHE PONTS ===== */
 const IDX_CACHE_DATA = "idxPontsData";
 const IDX_CACHE_TIME = "idxPontsCacheTime";
-const CACHE_TTL      = 60000;   // 1 min
-const REFRESH_MS     = 30000;   // 30 s
+const CACHE_TTL      = 60000;
+const REFRESH_MS     = 30000;
 
-/* ===== PARSING DATE JJ/MM/AAAA [HH:MM[:SS]] ===== */
 function parseFRDate(str) {
   if (!str || typeof str !== "string") return NaN;
   str = str.replace(/\u00A0/g,' ').replace(/\s+/g,' ').trim();
@@ -242,43 +315,25 @@ function parseFRDate(str) {
   if (!m) return NaN;
   return new Date(+m[3], +m[2]-1, +m[1], +(m[4]||0), +(m[5]||0), +(m[6]||0)).getTime();
 }
-
 function fmtShort(str) {
   const t = parseFRDate(str);
   if (!isFinite(t)) return str || "—";
   const d = new Date(t), p = n => String(n).padStart(2,'0');
   return `${p(d.getDate())}/${p(d.getMonth()+1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
-
-/* ===== EXTRACTION DATE FIN TRAVAUX ===== */
 function extractFinTravaux(pont) {
-  // Concatène tous les champs texte disponibles
-  const raw = [
-    pont.statutText, pont.forceText, pont.info,
-    pont.description, pont.message, pont.text, pont.comment
-  ].filter(v => v && typeof v === "string").join(" ");
-
-  console.debug("[Travaux]", pont.nom, "→ texte brut:", raw);
-
-  // Motif 1 : "du JJ/MM/AAAA au JJ/MM/AAAA"
+  const raw = [pont.statutText, pont.forceText, pont.info, pont.description, pont.message, pont.text, pont.comment]
+    .filter(v => v && typeof v === "string").join(" ");
   const m1 = raw.match(/\bdu\s+\d{1,2}\/\d{1,2}\/\d{4}\s+au\s+(\d{1,2}\/\d{1,2}\/\d{4})/i);
   if (m1) return m1[1];
-
-  // Motif 2 : "jusqu'au JJ/MM/AAAA"
   const m2 = raw.match(/jusqu[''`]?\s*au\s+(\d{1,2}\/\d{1,2}\/\d{4})/i);
   if (m2) return m2[1];
-
-  // Motif 3 : "au JJ/MM/AAAA"
   const m3 = raw.match(/\bau\s+(\d{1,2}\/\d{1,2}\/\d{4})/i);
   if (m3) return m3[1];
-
-  // Motif 4 : dernière date trouvée dans le texte
   const all = [...raw.matchAll(/\b(\d{1,2}\/\d{1,2}\/\d{4})\b/g)].map(x => x[1]);
   if (all.length) return all[all.length - 1];
-
   return null;
 }
-
 function fmtFinTravaux(pont) {
   const fin = extractFinTravaux(pont);
   if (!fin) return "Date inconnue";
@@ -287,121 +342,74 @@ function fmtFinTravaux(pont) {
   const d = new Date(t), p = n => String(n).padStart(2,'0');
   return `Jusqu'au ${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()}`;
 }
-
-/* ===== CLASSIFICATION — ordre strict pour éviter les faux positifs ===== */
 function classifyPont(p) {
   const s = (p.statutText || "").toLowerCase();
-  // travaux d'abord (fermé + travaux), avant de tester fermé seul
   if ((s.includes("fermé") || s.includes("ferme")) && s.includes("travaux")) return "travaux";
-  // fermeture avant fermé (fermeture contient "ferme" en sous-chaîne)
   if (s.includes("fermeture")) return "fermeture";
   if (s.includes("fermé") || s.includes("ferme")) return "ferme";
   if (s.includes("manoeuvre") || s.includes("manœuvre")) return "manoeuvre";
   if (s.includes("ouvert")) return "ouvert";
   return "ferme";
 }
-
-/* ===== FETCH via même proxy que p.html ===== */
 async function fetchPonts() {
   const proxy  = "https://crimson-recipe-63e0.receptionroulier.workers.dev/?url=";
   const target = "https://www.havre-port.com/map/getPonts?_ts=" + Date.now();
-
   const tryFetch = async url => {
     const ctrl = new AbortController();
     const tid  = setTimeout(() => ctrl.abort(), 10000);
-    try {
-      const res = await fetch(url, { signal: ctrl.signal });
-      if (res.ok) return await res.text();
-    } catch(e) { console.warn("fetch err", url, e); }
+    try { const res = await fetch(url, { signal: ctrl.signal }); if (res.ok) return await res.text(); }
+    catch(e) { console.warn("fetch err", url, e); }
     finally { clearTimeout(tid); }
     return null;
   };
-
   const raw = (await tryFetch(proxy + encodeURIComponent(target))) || (await tryFetch(target));
   if (!raw) return null;
-
   try {
     const json = JSON.parse(raw);
     const arr  = json?.data ? Object.values(json.data) : Object.values(json);
-    // Dédoublonnage par nom
     return Array.from(new Map(arr.map(p => [p.nom, p])).values());
-  } catch(e) { console.error("JSON parse err", e); return null; }
+  } catch(e) { return null; }
 }
-
-/* ===== RENDER ===== */
 function mkEntry(p, sinceStr) {
-  return `<div class="pont-entry">
-    <div class="pont-name">${p.nom}</div>
-    <div class="pont-since">${sinceStr}</div>
-  </div>`;
+  return `<div class="pont-entry"><div class="pont-name">${p.nom}</div><div class="pont-since">${sinceStr}</div></div>`;
 }
-
 function renderCols(ponts) {
   const cols = document.getElementById("ponts-cols");
-
   const byDate = list => list.sort((a,b) => (parseFRDate(b.date)||0) - (parseFRDate(a.date)||0));
-
   const fermes    = byDate(ponts.filter(p => classifyPont(p) === "ferme"));
   const travaux   = byDate(ponts.filter(p => classifyPont(p) === "travaux"));
   const fermeture = byDate(ponts.filter(p => classifyPont(p) === "fermeture"));
   const manoeuvre = byDate(ponts.filter(p => classifyPont(p) === "manoeuvre"));
   const ouverts   = byDate(ponts.filter(p => classifyPont(p) === "ouvert"));
-
   const since  = p => p.date ? `Depuis le ${fmtShort(p.date)}` : "—";
   const build  = (list, fn) => list.length
     ? list.map(p => mkEntry(p, fn(p))).join("")
     : `<div class="pont-entry"><div class="pont-since">—</div></div>`;
-
   cols.innerHTML = `
     <div class="pont-col">
-      <div class="col-header">
-        <span class="pastille p-rouge"></span>Fermé(s)
-        <span class="col-count">(${fermes.length})</span>
-      </div>
+      <div class="col-header"><span class="pastille p-rouge"></span>Fermé(s)<span class="col-count">(${fermes.length})</span></div>
       ${build(fermes, since)}
     </div>
-
     <div class="pont-col col-ouvert">
-      <div class="col-header">
-        <span class="pastille p-vert"></span>Ouvert(s)
-        <span class="col-count">(${ouverts.length})</span>
-      </div>
+      <div class="col-header"><span class="pastille p-vert"></span>Ouvert(s)<span class="col-count">(${ouverts.length})</span></div>
       ${ouverts.length ? mkEntry(ouverts[0], since(ouverts[0])) : `<div class="pont-entry"><div class="pont-since">—</div></div>`}
     </div>
-        
     <div class="pont-col">
-      <div class="col-header">
-        <span class="pastille p-orange"></span>En fermeture
-        <span class="col-count">(${fermeture.length})</span>
-      </div>
+      <div class="col-header"><span class="pastille p-orange"></span>En fermeture<span class="col-count">(${fermeture.length})</span></div>
       ${build(fermeture, since)}
     </div>
-
     <div class="pont-col">
-      <div class="col-header">
-        <span class="pastille p-bleu"></span>Bientôt ouvert(s)
-        <span class="col-count">(${manoeuvre.length})</span>
-      </div>
+      <div class="col-header"><span class="pastille p-bleu"></span>Bientôt ouvert(s)<span class="col-count">(${manoeuvre.length})</span></div>
       ${build(manoeuvre, since)}
     </div>
-
     <div class="pont-col">
-      <div class="col-header">🚧&nbsp;En travaux
-        <span class="col-count">(${travaux.length})</span>
-      </div>
+      <div class="col-header">🚧&nbsp;En travaux<span class="col-count">(${travaux.length})</span></div>
       ${build(travaux, p => fmtFinTravaux(p))}
-    </div>
-    
-  `;
+    </div>`;
 }
-
-/* ===== INIT ===== */
 async function loadPonts(forceUpdate = false) {
   const indicator = document.getElementById("ponts-update");
-  const now = Date.now();
-  const nowStr = new Date(now).toLocaleString("fr-FR");
-
-  // Utiliser le cache si récent et pas forcé
+  const now = Date.now(), nowStr = new Date(now).toLocaleString("fr-FR");
   if (!forceUpdate) {
     const lastTime = parseInt(localStorage.getItem(IDX_CACHE_TIME) || 0);
     if (lastTime && now - lastTime < CACHE_TTL) {
@@ -409,25 +417,17 @@ async function loadPonts(forceUpdate = false) {
       if (cached) { renderCols(JSON.parse(cached)); indicator.textContent = `🟢 ${nowStr}`; return; }
     }
   }
-
   try {
     const ponts = await fetchPonts();
     if (!ponts || !ponts.length) throw new Error("Vide");
-    // Sauvegarde dans cache propre à l'index
     localStorage.setItem(IDX_CACHE_DATA, JSON.stringify(ponts));
     localStorage.setItem(IDX_CACHE_TIME, String(now));
     renderCols(ponts);
     indicator.textContent = `🟢 ${nowStr}`;
   } catch(e) {
     const cached = localStorage.getItem(IDX_CACHE_DATA);
-    if (cached) {
-      renderCols(JSON.parse(cached));
-      indicator.textContent = `🔴 Erreur — cache utilisé`;
-    } else {
-      document.getElementById("ponts-cols").innerHTML =
-        `<div style="color:#ff4040;font-size:12px;grid-column:1/-1">Données indisponibles</div>`;
-      indicator.textContent = `🔴 ${nowStr}`;
-    }
+    if (cached) { renderCols(JSON.parse(cached)); indicator.textContent = `🔴 Erreur — cache utilisé`; }
+    else { document.getElementById("ponts-cols").innerHTML = `<div style="color:#ff4040;font-size:12px;grid-column:1/-1">Données indisponibles</div>`; indicator.textContent = `🔴 ${nowStr}`; }
   }
 }
 
