@@ -14,7 +14,7 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
   #calendar-header{display:flex;flex-wrap:nowrap;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);backdrop-filter:blur(8px);min-height:52px;position:relative}
   .header-left{display:flex;align-items:center;flex-shrink:0}
   #today-group{position:absolute;left:25%;transform:translateX(-50%);display:flex;align-items:center;gap:2px;pointer-events:auto}
-  #week-group{position:absolute;left:75%;transform:translateX(-50%);display:flex;align-items:center;gap:6px;pointer-events:auto}
+  #week-group{display:flex;align-items:center;gap:6px;pointer-events:auto}
   #nav-today-group{display:none}
   .back-btn{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;color:#94a3b8;text-decoration:none;flex-shrink:0;transition:background .15s,color .15s;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
   .back-btn:hover{background:rgba(255,255,255,0.1);color:#fff}
@@ -122,11 +122,11 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
     <span class="nav-btn" id="next-btn">›</span>
   </div>
   <span id="calendar-title">Chargement…</span>
-  <div id="week-group">
-    <span class="view-btn" id="view-3w">3 semaines</span>
-    <span class="view-btn" id="view-4w">4 semaines</span>
-  </div>
   <div id="header-right">
+    <div id="week-group">
+      <span class="view-btn" id="view-3w">3 semaines</span>
+      <span class="view-btn" id="view-4w">4 semaines</span>
+    </div>
     <div id="current-time"></div>
   </div>
 </div>
