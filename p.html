@@ -23,10 +23,37 @@ body {
     padding: 12px;
     box-sizing: border-box;
 }
+
+/* ===================== HEADER ===================== */
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    margin-bottom: 5px;
+}
+.back-btn {
+    position: absolute;
+    left: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    color: #94a3b8;
+    text-decoration: none;
+    transition: background .15s, color .15s;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+}
+.back-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+
 h2 {
     text-align: center;
     color: #ffffff;
-    margin: 0 0 5px;
+    margin: 0;
 }
 #update-indicator {
     text-align: center;
@@ -129,11 +156,18 @@ h2 {
 <body>
 
 <div class="container">
-    <h2>État des Ponts</h2>
+    <div class="page-header">
+        <a class="back-btn" href="https://receptionroulier.github.io/cal/index.html" title="Accueil">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
+            </svg>
+        </a>
+        <h2>État des Ponts</h2>
+    </div>
     <div id="update-indicator">Chargement...</div>
     <div id="ponts-table">
-    <div class="spinner"></div>
-</div>
+        <div class="spinner"></div>
+    </div>
 </div>
 
 <script>
@@ -142,8 +176,8 @@ const FETCH_TIMEOUT = 10000;
 const CACHE_KEY_DATA = "pontsData";
 const CACHE_KEY_HASH = "pontsHash";
 const CACHE_KEY_TIME = "pontsCacheTime";
-const CACHE_EXPIRATION = 60000; // 1 minute
-const REFRESH_INTERVAL = 30000;  // 30 secondes
+const CACHE_EXPIRATION = 60000;
+const REFRESH_INTERVAL = 30000;
 
 /* ===================== UTILITAIRES ===================== */
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
@@ -188,7 +222,7 @@ async function fetchWithPool(url) {
             }
         } catch(e) { console.warn(`Proxy failed: ${proxy}`, e); }
     }
-    try { const res = await fetchWithTimeout(url); if(res.ok){ const text = await res.text(); try { return JSON.parse(text); } catch { return text; } } } 
+    try { const res = await fetchWithTimeout(url); if(res.ok){ const text = await res.text(); try { return JSON.parse(text); } catch { return text; } } }
     catch(e){ console.error("Direct fetch failed:", e); }
     return null;
 }
