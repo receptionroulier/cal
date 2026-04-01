@@ -288,6 +288,9 @@ if ('serviceWorker' in navigator) {
 let deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
+  // Afficher uniquement sur mobile/tablette
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth < 768;
+  if (!isMobile) return;
   deferredPrompt = e;
   document.getElementById('pwa-banner').classList.add('show');
 });
