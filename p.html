@@ -33,7 +33,8 @@ body {
     margin-bottom: 5px;
 }
 .back-btn {
-    position: absolute;
+    position: fixed;
+    top: 0;           /* 👈 AJOUT IMPORTANT */
     left: 0;
     display: flex;
     align-items: center;
@@ -44,9 +45,6 @@ body {
     color: #94a3b8;
     text-decoration: none;
     transition: background .15s, color .15s;
-    -webkit-tap-highlight-color: transparent;
-    user-select: none;
-    -webkit-user-select: none;
 }
 .back-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
 
@@ -157,7 +155,7 @@ h2 {
 
 <div class="container">
     <div class="page-header">
-        <a class="back-btn" href="https://receptionroulier.github.io/cal/index.html" title="Accueil">
+        <a class="back-btn" href="https://receptionroulier.github.io/cal/index.html" target="_top" title="Accueil">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="15 18 9 12 15 6"/>
             </svg>
