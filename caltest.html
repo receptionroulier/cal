@@ -10,18 +10,39 @@
 html, body { height:100%; font-family: system-ui, sans-serif; }
 
 /* ===== DESKTOP ===== */
-#desktop-view { display:flex; height:100vh; }
-.frame-wrapper { position:relative; height:100%; }
-iframe { position:absolute; inset:0; width:100%; height:100%; border:none; }
+#desktop-view {
+  display:flex;
+  height:100vh;
+}
+
+.frame-wrapper {
+  position:relative;
+  height:100%;
+}
+
+iframe {
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  border:none;
+}
 
 /* ===== MOBILE ===== */
-#mobile-view { display:none; flex-direction:column; height:100vh; overflow:hidden; }
+#mobile-view {
+  display:none;
+  flex-direction:column;
+  height:100vh;
+  overflow:hidden;
+}
 
+/* PONTS */
 #mob-ponts {
   background:#0f172a;
   color:#eaeaea;
   padding:10px;
   border-bottom:1px solid rgba(255,255,255,0.08);
+  flex-shrink:0; /* ✅ FIX IMPORTANT */
 }
 
 #mob-header {
@@ -47,7 +68,16 @@ iframe { position:absolute; inset:0; width:100%; height:100%; border:none; }
 .pont.ouvert { background:#14532d; }
 .pont.ferme { background:#7f1d1d; }
 
-#mobile-cal { flex:1; }
+/* CALENDRIER */
+#mobile-cal {
+  flex:1;
+  min-height:0; /* ✅ FIX IMPORTANT */
+}
+
+#mobile-cal iframe {
+  width:100%;
+  height:100%;
+}
 
 /* SWITCH */
 @media (max-width:719px){
@@ -76,11 +106,11 @@ iframe { position:absolute; inset:0; width:100%; height:100%; border:none; }
 <!-- ===== MOBILE ===== -->
 <div id="mobile-view">
 
-  <!-- PONTS MOBILE (code réel intégré) -->
+  <!-- PONTS MOBILE -->
   <div id="mob-ponts">
     <div id="mob-header">
       <span>État des ponts</span>
-      <span id="refresh">⟳</span>
+      <span id="refresh" style="cursor:pointer;">⟳</span>
     </div>
     <div id="ponts-cols">
       <div style="opacity:0.5;text-align:center">Chargement…</div>
@@ -131,11 +161,31 @@ async function refresh(){
   renderPonts(data);
 }
 
+// bouton refresh
 document.getElementById("refresh").onclick = refresh;
 
-// INIT
+// INIT PROPRE
 function isMobile(){ return window.innerWidth < 720; }
-if(isMobile()) refresh();
+
+function initMobile(){
+  refresh();
+}
+
+// lancement fiable
+window.addEventListener('DOMContentLoaded', () => {
+  if (isMobile()) initMobile();
+});
+
+// gestion resize
+let wasMobile = isMobile();
+
+window.addEventListener('resize', () => {
+  const nowMobile = isMobile();
+  if (nowMobile && !wasMobile) {
+    initMobile();
+  }
+  wasMobile = nowMobile;
+});
 
 // refresh auto
 setInterval(()=>{
