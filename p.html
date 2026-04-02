@@ -24,17 +24,11 @@ body {
     box-sizing: border-box;
 }
 
-/* ===================== HEADER ===================== */
-.page-header {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    margin-bottom: 5px;
-}
+/* ===================== FLÈCHE RETOUR (coin haut-gauche) ===================== */
 .back-btn {
-    position: absolute;
-    left: 0;
+    position: fixed;
+    top: 12px;
+    left: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -47,13 +41,16 @@ body {
     -webkit-tap-highlight-color: transparent;
     user-select: none;
     -webkit-user-select: none;
+    z-index: 100;
 }
 .back-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
 
+/* ===================== HEADER ===================== */
 h2 {
     text-align: center;
     color: #ffffff;
-    margin: 0;
+    margin: 0 0 5px 0;
+    padding-top: 4px;
 }
 #update-indicator {
     text-align: center;
@@ -99,71 +96,38 @@ h2 {
     background: rgba(255,255,255,0.08);
     box-shadow: 0 12px 30px rgba(0,0,0,0.6);
 }
-
 .pont-card.ferme,
 .pont-card.ferme-travaux { border-left-color: #ff4040; }
+.pont-card.fermeture { border-left-color: orange; animation: pulse-orange 1.2s infinite; }
+.pont-card.manoeuvre { border-left-color: #1c3cff; animation: pulse-blue 1.2s infinite; }
+.pont-card.ouvert    { border-left-color: #58ff58; }
 
-.pont-card.fermeture {
-    border-left-color: orange;
-    animation: pulse-orange 1.2s infinite;
-}
-.pont-card.manoeuvre {
-    border-left-color: #1c3cff;
-    animation: pulse-blue 1.2s infinite;
-}
-.pont-card.ouvert { border-left-color: #58ff58; }
-
-.pastille {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    margin-right: 6px;
-    display: inline-block;
-}
-.ferme .pastille,
-.ferme-travaux .pastille { background: #ff4040; }
+.pastille { width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; display: inline-block; }
+.ferme .pastille, .ferme-travaux .pastille { background: #ff4040; }
 .fermeture .pastille { background: orange; }
 .manoeuvre .pastille { background: #1c3cff; }
-.ouvert .pastille { background: #58ff58; }
+.ouvert .pastille    { background: #58ff58; }
 
-.pont-nom { font-weight: bold; display: flex; align-items: center; }
+.pont-nom   { font-weight: bold; display: flex; align-items: center; }
 .pont-infos { font-size: 0.85em; color: #aaa; }
+.texte-travaux { font-weight: bold; color: #fff; background-color: orange; padding: 0 4px; border-radius: 2px; }
 
-.texte-travaux {
-    font-weight: bold;
-    color: #fff;
-    background-color: orange;
-    padding: 0 4px;
-    border-radius: 2px;
-}
-
-@keyframes pulse-blue {
-    0%,100% { box-shadow: 0 0 5px rgba(28,60,255,0.4); transform: scale(1); }
-    50% { box-shadow: 0 0 20px rgba(28,60,255,0.7); transform: scale(1.02); }
-}
-@keyframes pulse-orange {
-    0%,100% { box-shadow: 0 0 5px rgba(255,165,0,0.4); transform: scale(1); }
-    50% { box-shadow: 0 0 20px rgba(255,165,0,0.7); transform: scale(1.02); }
-}
-
-.error-message {
-    text-align: center;
-    color: #ff4040;
-    font-weight: bold;
-}
+@keyframes pulse-blue   { 0%,100%{box-shadow:0 0 5px rgba(28,60,255,0.4);transform:scale(1)}50%{box-shadow:0 0 20px rgba(28,60,255,0.7);transform:scale(1.02)} }
+@keyframes pulse-orange { 0%,100%{box-shadow:0 0 5px rgba(255,165,0,0.4);transform:scale(1)}50%{box-shadow:0 0 20px rgba(255,165,0,0.7);transform:scale(1.02)} }
+.error-message { text-align: center; color: #ff4040; font-weight: bold; }
 </style>
 </head>
 <body>
 
+<!-- Flèche retour : coin haut-gauche, indépendante du titre -->
+<a class="back-btn" href="index.html" target="_top" title="Accueil">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="15 18 9 12 15 6"/>
+  </svg>
+</a>
+
 <div class="container">
-    <div class="page-header">
-        <a class="back-btn" href="https://receptionroulier.github.io/cal/index.html" target="_top" title="Accueil">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="15 18 9 12 15 6"/>
-            </svg>
-        </a>
-        <h2>État des Ponts</h2>
-    </div>
+    <h2>État des Ponts</h2>
     <div id="update-indicator">Chargement...</div>
     <div id="ponts-table">
         <div class="spinner"></div>
@@ -171,78 +135,36 @@ h2 {
 </div>
 
 <script>
-/* ===================== CONFIG ===================== */
-const FETCH_TIMEOUT = 10000;
-const CACHE_KEY_DATA = "pontsData";
-const CACHE_KEY_HASH = "pontsHash";
-const CACHE_KEY_TIME = "pontsCacheTime";
+const FETCH_TIMEOUT   = 10000;
+const CACHE_KEY_DATA  = "pontsData";
+const CACHE_KEY_HASH  = "pontsHash";
+const CACHE_KEY_TIME  = "pontsCacheTime";
 const CACHE_EXPIRATION = 60000;
 const REFRESH_INTERVAL = 30000;
 
-/* ===================== UTILITAIRES ===================== */
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
-async function withTimeout(factory, ms){
-    const controller = new AbortController();
-    const id = setTimeout(()=>controller.abort(), ms);
-    try { return await factory(controller.signal); }
-    finally { clearTimeout(id); }
-}
-async function fetchWithTimeout(url, opts={}, timeout=FETCH_TIMEOUT){
-    return withTimeout(signal => fetch(url, {...opts, signal}), timeout);
-}
-async function sha256(str){
-    const data = new TextEncoder().encode(str);
-    const digest = await crypto.subtle.digest("SHA-256", data);
-    return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");
-}
-function parseFRDate(str){
-    if (!str || typeof str !== "string") return NaN;
-    str = str.replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
-    const m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
-    if (!m) return NaN;
-    const [d, mo, y, h, mi, s] = [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4]||0), Number(m[5]||0), Number(m[6]||0)];
-    return new Date(y, mo-1, d, h, mi, s).getTime();
-}
-function normalizeData(data){
-    return JSON.stringify(data.map(p => ({nom: p.nom, date: parseFRDate(p.date)})).sort((a,b)=>a.nom.localeCompare(b.nom)));
-}
+async function withTimeout(factory,ms){ const controller=new AbortController(); const id=setTimeout(()=>controller.abort(),ms); try{return await factory(controller.signal);}finally{clearTimeout(id);} }
+async function fetchWithTimeout(url,opts={},timeout=FETCH_TIMEOUT){ return withTimeout(signal=>fetch(url,{...opts,signal}),timeout); }
+async function sha256(str){ const data=new TextEncoder().encode(str); const digest=await crypto.subtle.digest("SHA-256",data); return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join(""); }
+function parseFRDate(str){ if(!str||typeof str!=="string") return NaN; str=str.replace(/\u00A0/g,' ').replace(/\s+/g,' ').trim(); const m=str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/); if(!m) return NaN; return new Date(+m[3],+m[2]-1,+m[1],+(m[4]||0),+(m[5]||0),+(m[6]||0)).getTime(); }
+function normalizeData(data){ return JSON.stringify(data.map(p=>({nom:p.nom,date:parseFRDate(p.date)})).sort((a,b)=>a.nom.localeCompare(b.nom))); }
 function safeTime(str){ const t=parseFRDate(str); return Number.isFinite(t)?t:null; }
 
-/* ===================== FETCH ===================== */
 async function fetchWithPool(url) {
-    const proxies = [
-       "https://crimson-recipe-63e0.receptionroulier.workers.dev/?url="
-    ];
-    for (let proxy of proxies) {
-        try {
-            const res = await fetchWithTimeout(proxy + encodeURIComponent(url));
-            if (res.ok) {
-                const text = await res.text();
-                try { return JSON.parse(text); } catch { return text; }
-            }
-        } catch(e) { console.warn(`Proxy failed: ${proxy}`, e); }
-    }
-    try { const res = await fetchWithTimeout(url); if(res.ok){ const text = await res.text(); try { return JSON.parse(text); } catch { return text; } } }
-    catch(e){ console.error("Direct fetch failed:", e); }
+    const proxies=["https://crimson-recipe-63e0.receptionroulier.workers.dev/?url="];
+    for(let proxy of proxies){ try{ const res=await fetchWithTimeout(proxy+encodeURIComponent(url)); if(res.ok){ const text=await res.text(); try{return JSON.parse(text);}catch{return text;} } }catch(e){} }
+    try{ const res=await fetchWithTimeout(url); if(res.ok){ const text=await res.text(); try{return JSON.parse(text);}catch{return text;} } }catch(e){}
     return null;
 }
+function parseRawContentToData(raw){ if(!raw) return null; if(typeof raw==="string"){ try{const j=JSON.parse(raw);return j?.data||j;}catch{return null;} } if(typeof raw==="object"){ if(raw.data) return raw.data; if(raw.contents){ try{const inner=JSON.parse(raw.contents);return inner?.data||inner;}catch{return null;} } return raw; } return null; }
 
-/* ===================== PARSE DATA ===================== */
-function parseRawContentToData(raw){
-    if(!raw) return null;
-    if(typeof raw === "string"){ try{ const j=JSON.parse(raw); return j?.data||j; } catch{return null;} }
-    if(typeof raw === "object"){ if(raw.data) return raw.data; if(raw.contents){ try{ const inner=JSON.parse(raw.contents); return inner?.data||inner; } catch{return null;} } return raw; }
-    return null;
-}
-
-/* ===================== RENDER ===================== */
 function renderPonts(list){
     const container=document.getElementById("ponts-table");
     if(!list||!list.length){ container.innerHTML='<div class="error-message">Aucun pont disponible.</div>'; return; }
     container.innerHTML=list.map(p=>{
         const statut=(p.statutText||"").toLowerCase();
-        const open=statut.includes("ouvert"), move=statut.includes("manoeuvre")||statut.includes("manœuvre");
-        const fermeture=statut.includes("fermeture"), ferme=statut.includes("fermé"), travaux=statut.includes("travaux");
+        const open=statut.includes("ouvert"),move=statut.includes("manoeuvre")||statut.includes("manœuvre");
+        const fermeture=statut.includes("fermeture"),ferme=statut.includes("fermé"),travaux=statut.includes("travaux");
         let cls=(ferme&&travaux)?"ferme-travaux":ferme?"ferme":fermeture?"fermeture":move?"manoeuvre":open?"ouvert":"ferme";
         let texteEtat=p.statutText||""; if(travaux) texteEtat=texteEtat.replace(/(travaux)/i,'<span class="texte-travaux">$1</span>');
         const info=p.forceText||`Depuis le ${p.date||"inconnue"}`;
@@ -250,70 +172,34 @@ function renderPonts(list){
     }).join("");
 }
 
-/* ===================== CHECK+UPDATE ===================== */
 async function checkAndUpdate(forceUpdate=false){
-    const now=Date.now(), nowStr=new Date(now).toLocaleString();
-    const lastWriteTime=parseInt(localStorage.getItem(CACHE_KEY_TIME)||0), lastStr=lastWriteTime?new Date(lastWriteTime).toLocaleString():"inconnue";
-    const container=document.getElementById("ponts-table"), indicator=document.getElementById("update-indicator");
-
-    if(!forceUpdate && lastWriteTime && now-lastWriteTime<CACHE_EXPIRATION){
-        const cached=localStorage.getItem(CACHE_KEY_DATA);
-        if(cached){ renderPonts(JSON.parse(cached)); indicator.textContent=`🟢 — MàJ OK le ${nowStr} — États inchangés depuis le ${lastStr}`; return; }
-    }
-
+    const now=Date.now(),nowStr=new Date(now).toLocaleString();
+    const lastWriteTime=parseInt(localStorage.getItem(CACHE_KEY_TIME)||0),lastStr=lastWriteTime?new Date(lastWriteTime).toLocaleString():"inconnue";
+    const container=document.getElementById("ponts-table"),indicator=document.getElementById("update-indicator");
+    if(!forceUpdate&&lastWriteTime&&now-lastWriteTime<CACHE_EXPIRATION){ const cached=localStorage.getItem(CACHE_KEY_DATA); if(cached){ renderPonts(JSON.parse(cached)); indicator.textContent=`🟢 — MàJ OK le ${nowStr} — États inchangés depuis le ${lastStr}`; return; } }
     try{
         const targetUrl="https://www.havre-port.com/map/getPonts?_ts="+Date.now();
         const rawContent=await fetchWithPool(targetUrl);
-        if(!rawContent) throw new Error("Échec récupération des données");
-
+        if(!rawContent) throw new Error("Échec récupération");
         const data=parseRawContentToData(rawContent);
-        if(!data) throw new Error("Impossible d'extraire les données API");
-
+        if(!data) throw new Error("Données invalides");
         const ponts=Object.values(data);
         const unique=Array.from(new Map(ponts.map(p=>[p.nom,p])).values());
-
-        const cachedRaw=localStorage.getItem(CACHE_KEY_DATA);
-        const cachedData=cachedRaw?JSON.parse(cachedRaw):[];
-        const merged=unique.map(p=>{
-            const cachedPont=cachedData.find(c=>c.nom===p.nom); if(!cachedPont) return p;
-            const newDate=parseFRDate(p.date), oldDate=parseFRDate(cachedPont.date);
-            if(isNaN(newDate)&&isNaN(oldDate)) return p;
-            if(isNaN(newDate)) return cachedPont;
-            if(isNaN(oldDate)) return p;
-            return newDate>=oldDate?p:cachedPont;
-        });
-
-        const mergedSorted=merged.sort((a,b)=>{
-            const score=p=>{ const s=(p.statutText||"").toLowerCase(); if(s.includes("fermé")&&s.includes("travaux")) return 1; if(s.includes("fermé")) return 2; if(s.includes("fermeture")) return 3; if(s.includes("manoeuvre")||s.includes("manœuvre")) return 4; if(s.includes("ouvert")) return 5; return 6; };
-            const sa=score(a), sb=score(b); if(sa!==sb) return sa-sb;
-            const ta=safeTime(a.date), tb=safeTime(b.date);
-            if(ta===null&&tb===null) return 0; if(ta===null) return 1; if(tb===null) return -1;
-            return tb-ta;
-        });
-
-        const norm=normalizeData(mergedSorted);
-        const newHash=await sha256(norm), oldHash=localStorage.getItem(CACHE_KEY_HASH);
+        const cachedRaw=localStorage.getItem(CACHE_KEY_DATA),cachedData=cachedRaw?JSON.parse(cachedRaw):[];
+        const merged=unique.map(p=>{ const cachedPont=cachedData.find(c=>c.nom===p.nom); if(!cachedPont) return p; const newDate=parseFRDate(p.date),oldDate=parseFRDate(cachedPont.date); if(isNaN(newDate)&&isNaN(oldDate)) return p; if(isNaN(newDate)) return cachedPont; if(isNaN(oldDate)) return p; return newDate>=oldDate?p:cachedPont; });
+        const mergedSorted=merged.sort((a,b)=>{ const score=p=>{ const s=(p.statutText||"").toLowerCase(); if(s.includes("fermé")&&s.includes("travaux")) return 1; if(s.includes("fermé")) return 2; if(s.includes("fermeture")) return 3; if(s.includes("manoeuvre")||s.includes("manœuvre")) return 4; if(s.includes("ouvert")) return 5; return 6; }; const sa=score(a),sb=score(b); if(sa!==sb) return sa-sb; const ta=safeTime(a.date),tb=safeTime(b.date); if(ta===null&&tb===null) return 0; if(ta===null) return 1; if(tb===null) return -1; return tb-ta; });
+        const norm=normalizeData(mergedSorted),newHash=await sha256(norm),oldHash=localStorage.getItem(CACHE_KEY_HASH);
         if(newHash!==oldHash){ localStorage.setItem(CACHE_KEY_DATA,JSON.stringify(mergedSorted)); localStorage.setItem(CACHE_KEY_HASH,newHash); localStorage.setItem(CACHE_KEY_TIME,Date.now()); indicator.textContent=`🟢 — MàJ OK le ${nowStr} — États mis à jour`; }
         else{ indicator.textContent=`🟢 — MàJ OK le ${nowStr} — États inchangés depuis le ${lastStr}`; }
-
         renderPonts(mergedSorted);
-
     }catch(err){
-        const cachedRaw=localStorage.getItem(CACHE_KEY_DATA);
-        const lastWrite=parseInt(localStorage.getItem(CACHE_KEY_TIME)||0);
-        const lastStr=lastWrite?new Date(lastWrite).toLocaleString():"inconnue";
-
+        const cachedRaw=localStorage.getItem(CACHE_KEY_DATA),lastWrite=parseInt(localStorage.getItem(CACHE_KEY_TIME)||0),lastStr=lastWrite?new Date(lastWrite).toLocaleString():"inconnue";
         if(cachedRaw){ renderPonts(JSON.parse(cachedRaw)); indicator.textContent=`🔴 — MàJ échouée le ${nowStr} — États au ${lastStr}`; }
         else{ container.innerHTML='<div class="error-message">Impossible de récupérer les ponts et aucun cache disponible.</div>'; indicator.textContent=`🔴 — MàJ échouée le ${nowStr} : aucun cache`; }
     }
 }
 
-/* ===================== INIT ===================== */
-(async function init(){
-    checkAndUpdate(true);
-    setInterval(()=>checkAndUpdate(false), REFRESH_INTERVAL);
-})();
+(async function init(){ checkAndUpdate(true); setInterval(()=>checkAndUpdate(false),REFRESH_INTERVAL); })();
 </script>
-
 </body>
 </html>
