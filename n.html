@@ -135,6 +135,25 @@ iframe {
   background: rgba(255,255,255,0.04);
   flex-shrink: 0;
 }
+
+/* Flèche retour dans le header calendrier mobile */
+#mob-back-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: #94a3b8;
+  background: none;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background .15s, color .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+#mob-back-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+
 #mob-cal-title {
   flex: 1;
   font-weight: bold;
@@ -298,8 +317,14 @@ iframe {
   <!-- CALENDRIER -->
   <div id="mob-cal">
     <div id="mob-cal-header">
-      <button class="mob-cal-today-btn" id="mob-today-btn">Aujourd'hui</button>
+      <!-- Flèche retour vers index.html (navigation navigateur, pas iframe) -->
+      <button id="mob-back-btn" title="Accueil">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+      </button>
       <span id="mob-cal-title">Chargement…</span>
+      <button class="mob-cal-today-btn" id="mob-today-btn">Aujourd'hui</button>
     </div>
     <div id="mob-cal-scroll">
       <div style="text-align:center;padding:30px;opacity:0.5;font-size:0.9rem">Chargement…</div>
@@ -314,6 +339,8 @@ iframe {
 </div>
 
 <script>
+const INDEX_URL = 'https://receptionroulier.github.io/cal/index.html';
+
 /* ================================================================
    DESKTOP – Smart Polling + iframe swap
    ================================================================ */
@@ -354,7 +381,6 @@ function monitor(versionURL, iframeA, iframeB, delay) {
   loop();
 }
 
-// postMessage vers l'iframe active (pas toujours rightA)
 const rightState = { active: null };
 
 function startDesktop() {
@@ -362,7 +388,6 @@ function startDesktop() {
   const rA = document.getElementById("rightA"), rB = document.getElementById("rightB");
   rightState.active = rA;
 
-  // Patch monitor pour tracker l'iframe active droite
   function monitorRight(versionURL, iframeA, iframeB, delay) {
     const state = { active: iframeA, buffer: iframeB, lastVersion: null, isSwapping: false };
     if (!state.active.src) state.active.src = state.active.dataset.src;
@@ -399,7 +424,6 @@ function startDesktop() {
   monitor("https://receptionroulier.github.io/cal/p.version.txt", lA, lB, 1000);
   monitorRight("https://receptionroulier.github.io/cal/caln.version.txt", rA, rB, 5000);
 
-  // postMessage vers l'iframe droite active
   setInterval(() => {
     const iframe = rightState.active;
     if (iframe && iframe.contentWindow) {
@@ -409,7 +433,7 @@ function startDesktop() {
 }
 
 /* ================================================================
-   MOBILE – PONTS (style index.html : 5 colonnes)
+   MOBILE – PONTS
    ================================================================ */
 const PONTS_API       = "https://www.havre-port.com/map/getPonts";
 const PROXY           = "https://crimson-recipe-63e0.receptionroulier.workers.dev/?url=";
@@ -535,12 +559,10 @@ async function refreshPonts(force=false) {
 }
 
 /* ================================================================
-   MOBILE – CALENDRIER (repris de caln.html)
+   MOBILE – CALENDRIER
    ================================================================ */
 const API_KEY  = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
 const CAL_IDS  = { reception:'receptionroulier@gmail.com', navire:'smr.programme@gmail.com' };
-const CAL_CACHE_KEY = 'mob_caln_v1_cache';
-const CAL_TTL  = 30000;
 
 let mobNorm=[], mobFrom=null, mobTo=null, mobLoading=false, mobObserver=null;
 
@@ -549,10 +571,6 @@ function fmtFullDate(d){ return new Date(d).toLocaleDateString('fr-FR',{weekday:
 function capitalize(s){ return s ? s[0].toUpperCase()+s.slice(1) : s; }
 function parseDateLocal(s){ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d,0,0,0,0); }
 function mk(tag,cls){ const e=document.createElement(tag); if(cls) e.className=cls; return e; }
-
-function loadCalCache(){ try{ const o=JSON.parse(localStorage.getItem(CAL_CACHE_KEY)); return o&&Date.now()-o.ts<=CAL_TTL?o:null; }catch{ return null; } }
-function saveCalCache(items,hash){ try{ localStorage.setItem(CAL_CACHE_KEY,JSON.stringify({items,hash,ts:Date.now()})); }catch{} }
-function calcHash(evs){ return JSON.stringify(evs.map(e=>({id:e.id,updated:e.updated,start:e.start?.dateTime||e.start?.date,end:e.end?.dateTime||e.end?.date,summary:e.summary}))); }
 
 async function fetchCalRange(from, to) {
   const p = `?key=${encodeURIComponent(API_KEY)}&singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(from.toISOString())}&timeMax=${encodeURIComponent(to.toISOString())}`;
@@ -589,6 +607,34 @@ function eventsOnDay(day) {
     const e=new Date(ev._endInclusive); e.setHours(0,0,0,0);
     return day>=s && day<=e;
   }).sort((a,b)=>a._start-b._start);
+}
+
+/* ----------------------------------------------------------------
+   TITRE DYNAMIQUE AU SCROLL — branché sur #mob-cal-scroll (dans r)
+   ---------------------------------------------------------------- */
+function updateTitleFromScroll() {
+  const wrap = document.getElementById("mob-cal-scroll");
+  const titleEl = document.getElementById("mob-cal-title");
+  if (!wrap || !titleEl) return;
+  const wrapRect = wrap.getBoundingClientRect();
+  const days = [...wrap.querySelectorAll('.mob-day')];
+  const visibleMonths = [];
+  const seen = new Set();
+  for (const card of days) {
+    const r = card.getBoundingClientRect();
+    if (r.bottom > wrapRect.top && r.top < wrapRect.bottom) {
+      const ts = parseInt(card.dataset.ts);
+      if (!isNaN(ts)) {
+        const d = new Date(ts);
+        const key = d.getFullYear() * 100 + d.getMonth();
+        if (!seen.has(key)) {
+          seen.add(key);
+          visibleMonths.push(capitalize(d.toLocaleString('fr-FR', { month: 'long', year: 'numeric' })));
+        }
+      }
+    }
+  }
+  if (visibleMonths.length) titleEl.textContent = visibleMonths.join(' / ');
 }
 
 /* Modal */
@@ -709,7 +755,15 @@ async function renderMobileCal() {
     wrap.appendChild(buildDayCard(day,today));
   }
   const sentBot = mk('div','mob-sentinel'); sentBot.id='mob-sent-bot'; wrap.appendChild(sentBot);
-  requestAnimationFrame(()=>scrollToToday(false));
+
+  /* Scroll listener pour titre dynamique — branché sur le bon conteneur */
+  wrap.removeEventListener('scroll', updateTitleFromScroll);
+  wrap.addEventListener('scroll', updateTitleFromScroll, { passive: true });
+
+  requestAnimationFrame(() => {
+    scrollToToday(false);
+    setTimeout(updateTitleFromScroll, 150);
+  });
 
   if(mobObserver) mobObserver.disconnect();
   mobObserver = new IntersectionObserver(async entries => {
@@ -729,30 +783,34 @@ async function renderMobileCal() {
    ================================================================ */
 function isMobile(){ return window.innerWidth < 720; }
 
+/* Flèche retour → navigation navigateur principal */
+document.getElementById("mob-back-btn").addEventListener('click', function() {
+  try {
+    window.top.location.href = INDEX_URL;
+  } catch(e) {
+    window.location.href = INDEX_URL;
+  }
+});
+
 document.getElementById("mob-today-btn").addEventListener('click', ()=>scrollToToday(true));
 
-// Start desktop monitors only when on desktop (avoid useless fetches on mobile)
 if (!isMobile()) {
   startDesktop();
 } else {
-  // Mobile: load bridges + calendar
   refreshPonts(true);
   setInterval(()=>refreshPonts(false), PONTS_INTERVAL);
   renderMobileCal();
 }
 
-// Handle resize crossing the breakpoint
 let wasOrIsMobile = isMobile();
 window.addEventListener('resize', () => {
   const nowMobile = isMobile();
   if (nowMobile !== wasOrIsMobile) {
     wasOrIsMobile = nowMobile;
     if (nowMobile) {
-      // switched to mobile
       refreshPonts(true);
       renderMobileCal();
     } else {
-      // switched to desktop
       startDesktop();
     }
   }
