@@ -3,212 +3,200 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tableau de bord</title>
-
+<title>Tableau de bord - Ponts & Réception</title>
 <style>
-*, *::before, *::after { box-sizing: border-box; margin:0; padding:0; }
-html, body { height:100%; font-family: system-ui, sans-serif; }
+/* ===================== RESET ===================== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
 
-/* ===== DESKTOP ===== */
+/* ===================== DESKTOP ===================== */
 #desktop-view {
-  display:flex;
-  height:100vh;
+  display: flex;
+  height: 100vh;
+  width: 100%;
 }
-
 .frame-wrapper {
-  position:relative;
-  height:100%;
+  position: relative;
+  height: 100%;
+  overflow: hidden;
 }
-
-/* iframe uniquement pour desktop */
-#desktop-view iframe {
-  position:absolute;
-  inset:0;
-  width:100%;
-  height:100%;
-  border:none;
+iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s ease-in-out;
 }
+.visible { opacity: 1; pointer-events: auto; }
+.hidden  { opacity: 0; pointer-events: none; }
 
-/* iframe mobile NORMAL */
-#mobile-cal iframe {
-  position:relative;
-  width:100%;
-  height:100%;
-  border:none;
-}
-
-/* ===== MOBILE ===== */
+/* ===================== MOBILE ===================== */
 #mobile-view {
-  display:none;
-  flex-direction:column;
-  height:100vh;
-  overflow:hidden;
+  display: none;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: #0f172a;
+  color: #eaeaea;
 }
 
-/* PONTS */
+/* --- PONTS --- */
 #mob-ponts {
-  background:#0f172a;
-  color:#eaeaea;
-  padding:10px;
-  border-bottom:1px solid rgba(255,255,255,0.08);
-  flex-shrink:0;
+  flex-shrink: 0;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
 }
-
-#mob-header {
-  display:flex;
-  justify-content:space-between;
-  font-size:0.85rem;
-  margin-bottom:6px;
+#mob-ponts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
 }
+#mob-ponts-title { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; color: #94a3b8; display:flex; gap:6px; }
+#mob-ponts-indicator { font-size: 0.62rem; color: #64748b; }
+.ponts-columns { display: grid; grid-template-columns: repeat(5, 1fr); gap:6px; }
+@media(max-width:480px){ .ponts-columns { grid-template-columns: repeat(2, 1fr); } }
+.pont-col { display:flex; flex-direction:column; gap:2px; }
+.col-header { display:flex; align-items:center; gap:4px; font-size:9px; font-weight:700; color:#cbd5e1; margin-bottom:4px; flex-wrap:wrap; }
+.col-count { opacity:0.5; font-weight:400; }
+.pastille { width:7px;height:7px;border-radius:50%; display:inline-block; }
+.p-rouge{background:#ff4040;} .p-orange{background:orange;} .p-bleu{background:#4c6fff;} .p-vert{background:#58ff58;}
+.pont-entry{font-size:10px;line-height:1.3;margin-bottom:3px;}
+.pont-name{font-weight:600;color:#e0e0e0;word-break:break-word;}
+.pont-since{color:#64748b;font-size:9px;}
+.mob-spinner{width:20px;height:20px;border:3px solid #333;border-top-color:#00e5ff;border-radius:50%;animation:spin 1s linear infinite;margin:6px auto;}
+@keyframes spin{to{transform:rotate(360deg);}}
 
-#ponts-cols {
-  display:grid;
-  grid-template-columns: 1fr 1fr;
-  gap:6px;
+/* --- IFRAME CALR --- */
+#mob-cal-iframe { flex:1; width:100%; border:none; background:#1e293b; }
+
+/* ===================== RESPONSIVE SWITCH ===================== */
+@media(max-width:719px){
+  #desktop-view{display:none!important;}
+  #mobile-view{display:flex!important;}
 }
-
-.pont {
-  padding:6px;
-  border-radius:6px;
-  font-size:0.8rem;
-  text-align:center;
-}
-
-.pont.ouvert { background:#14532d; }
-.pont.ferme { background:#7f1d1d; }
-
-/* CALENDRIER */
-#mobile-cal {
-  flex:1;
-  min-height:0;
-}
-
-#mobile-cal iframe {
-  width:100%;
-  height:100%;
-}
-
-/* SWITCH */
-@media (max-width:719px){
-  #desktop-view{display:none;}
-  #mobile-view{display:flex;}
-}
-@media (min-width:720px){
-  #desktop-view{display:flex;}
-  #mobile-view{display:none;}
+@media(min-width:720px){
+  #desktop-view{display:flex!important;}
+  #mobile-view{display:none!important;}
 }
 </style>
 </head>
-
 <body>
 
-<!-- ===== DESKTOP ===== -->
+<!-- =================== DESKTOP VIEW =================== -->
 <div id="desktop-view">
   <div class="frame-wrapper" style="width:25%;">
-    <iframe src="https://receptionroulier.github.io/cal/p.html"></iframe>
+    <iframe id="leftA"  class="visible" data-src="https://receptionroulier.github.io/cal/p.html"></iframe>
+    <iframe id="leftB"  class="hidden"  data-src="https://receptionroulier.github.io/cal/p.html"></iframe>
   </div>
   <div class="frame-wrapper" style="width:75%;">
-    <iframe src="https://receptionroulier.github.io/cal/calr.html"></iframe>
+    <iframe id="rightA" class="visible" data-src="https://receptionroulier.github.io/cal/calr.html"></iframe>
+    <iframe id="rightB" class="hidden"  data-src="https://receptionroulier.github.io/cal/calr.html"></iframe>
   </div>
 </div>
 
-<!-- ===== MOBILE ===== -->
+<!-- =================== MOBILE VIEW =================== -->
 <div id="mobile-view">
 
-  <!-- PONTS MOBILE -->
+  <!-- PONTS -->
   <div id="mob-ponts">
-    <div id="mob-header">
-      <span>État des ponts</span>
-      <span id="refresh" style="cursor:pointer;">⟳</span>
+    <div id="mob-ponts-header">
+      <span id="mob-ponts-title">État des ponts</span>
+      <span id="mob-ponts-indicator">Chargement…</span>
     </div>
-    <div id="ponts-cols">
-      <div style="opacity:0.5;text-align:center">Chargement…</div>
+    <div class="ponts-columns" id="ponts-cols">
+      <div class="mob-spinner" style="grid-column:1/-1"></div>
     </div>
   </div>
 
-  <!-- CALENDRIER -->
-  <div id="mobile-cal">
-    <iframe src="https://receptionroulier.github.io/cal/calr.html"></iframe>
-  </div>
+  <!-- IFRAME CALR -->
+  <iframe id="mob-cal-iframe" src="https://receptionroulier.github.io/cal/calr.html"></iframe>
 
 </div>
 
 <script>
-const API = "https://www.havre-port.com/map/getPonts";
+/* ==================== MOBILE PONTS ==================== */
+const PONTS_API = "https://www.havre-port.com/map/getPonts";
 const PROXY = "https://crimson-recipe-63e0.receptionroulier.workers.dev/?url=";
+const PONTS_CACHE_KEY = "mob_pontsData_v1";
+const PONTS_TIME_KEY = "mob_pontsTime_v1";
+const PONTS_EXPIRY = 60000;
+const PONTS_INTERVAL = 30000;
+
+function parseFRDate(str){
+  if(!str) return NaN;
+  str=str.replace(/\u00A0/g,' ').replace(/\s+/g,' ').trim();
+  const m=str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(!m) return NaN;
+  return new Date(+m[3],+m[2]-1,+m[1]).getTime();
+}
+function fmtShort(str){ const t=parseFRDate(str); if(!isFinite(t)) return str||"—"; const d=new Date(t); return `${d.getDate()}/${d.getMonth()+1}`; }
+function classifyPont(p){ const s=(p.statutText||"").toLowerCase(); if(s.includes("fermé")&&s.includes("travaux")) return "travaux"; if(s.includes("fermeture")) return "fermeture"; if(s.includes("fermé")) return "ferme"; if(s.includes("manoeuvre")||s.includes("manœuvre")) return "manoeuvre"; return "ouvert"; }
 
 async function fetchPonts(){
   try{
-    const r = await fetch(PROXY + encodeURIComponent(API + "?_ts=" + Date.now()));
-    const j = await r.json();
-    return Object.values(j.data || j);
-  }catch(e){
-    console.warn(e);
-    return [];
+    const r=await fetch(PROXY+encodeURIComponent(PONTS_API+"?_ts="+Date.now()));
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const json=await r.json();
+    const arr=json?.data?Object.values(json.data):Object.values(json);
+    return Array.from(new Map(arr.map(p=>[p.nom,p])).values());
+  }catch(e){ console.warn("fetchPonts:",e); return null; }
+}
+function mkEntry(p){ return `<div class="pont-entry"><div class="pont-name">${p.nom}</div><div class="pont-since">—</div></div>`; }
+function renderPontsCols(ponts){
+  const cols=document.getElementById("ponts-cols");
+  const byDate=list=>list.sort((a,b)=>parseFRDate(b.date||0)-parseFRDate(a.date||0));
+  const fermes=byDate(ponts.filter(p=>classifyPont(p)==="ferme"));
+  const travaux=byDate(ponts.filter(p=>classifyPont(p)==="travaux"));
+  const fermeture=byDate(ponts.filter(p=>classifyPont(p)==="fermeture"));
+  const manoeuvre=byDate(ponts.filter(p=>classifyPont(p)=>classifyPont(p)==="manoeuvre"));
+  const ouverts=byDate(ponts.filter(p=>classifyPont(p)==="ouvert"));
+  const build=(list)=>list.length?list.map(mkEntry).join(""):`<div class="pont-entry"><div class="pont-since">—</div></div>`;
+  cols.innerHTML=`
+    <div class="pont-col"><div class="col-header"><span class="pastille p-rouge"></span>Fermé(s)<span class="col-count">(${fermes.length})</span></div>${build(fermes)}</div>
+    <div class="pont-col"><div class="col-header"><span class="pastille p-vert"></span>Ouvert(s)<span class="col-count">(${ouverts.length})</span></div>${ouverts.length?mkEntry(ouverts[0]):`<div class="pont-entry"><div class="pont-since">—</div></div>`}</div>
+    <div class="pont-col"><div class="col-header"><span class="pastille p-orange"></span>Fermeture<span class="col-count">(${fermeture.length})</span></div>${build(fermeture)}</div>
+    <div class="pont-col"><div class="col-header"><span class="pastille p-bleu"></span>Manœuvre<span class="col-count">(${manoeuvre.length})</span></div>${build(manoeuvre)}</div>
+    <div class="pont-col"><div class="col-header">🚧&nbsp;Travaux<span class="col-count">(${travaux.length})</span></div>${build(travaux)}</div>`;
+}
+async function refreshPonts(force=false){
+  const now=Date.now();
+  const indicator=document.getElementById("mob-ponts-indicator");
+  const lastTime=parseInt(localStorage.getItem(PONTS_TIME_KEY)||0);
+  const nowStr=new Date(now).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  if(!force&&lastTime&&now-lastTime<PONTS_EXPIRY){
+    const cached=localStorage.getItem(PONTS_CACHE_KEY);
+    if(cached){ renderPontsCols(JSON.parse(cached)); indicator.textContent=`🟢 ${nowStr}`; return; }
   }
+  const fresh=await fetchPonts();
+  if(fresh){ localStorage.setItem(PONTS_CACHE_KEY,JSON.stringify(fresh)); localStorage.setItem(PONTS_TIME_KEY,String(now)); renderPontsCols(fresh); indicator.textContent=`🟢 ${nowStr}`; }
+  else{ const cached=localStorage.getItem(PONTS_CACHE_KEY); if(cached){ renderPontsCols(JSON.parse(cached)); indicator.textContent=`🔴 ${nowStr}`; } }
 }
 
-function renderPonts(data){
-  const container = document.getElementById("ponts-cols");
-  if(!container) return;
+/* ==================== INIT ==================== */
+function isMobile(){ return window.innerWidth<720; }
 
-  container.innerHTML = "";
+if(isMobile()){ refreshPonts(true); setInterval(()=>refreshPonts(false), PONTS_INTERVAL); }
 
-  if(!data.length){
-    container.innerHTML = "<div style='opacity:0.5;text-align:center'>Aucune donnée</div>";
-    return;
+/* ==================== DESKTOP ==================== */
+function startDesktop(){
+  const lA=document.getElementById("leftA"), lB=document.getElementById("leftB");
+  const rA=document.getElementById("rightA"), rB=document.getElementById("rightB");
+  const state={active:lA, buffer:lB, lastVersion:null, isSwapping:false};
+  if(!state.active.src) state.active.src=state.active.dataset.src;
+  async function checkVersion(){
+    try{ const r=await fetch(state.active.dataset.src+"?_="+Date.now()); const v=await r.text(); if(v!==state.lastVersion&&!state.isSwapping){ state.lastVersion=v; await preloadAndSwap(v); } }catch(e){}
   }
-
-  data.forEach(p => {
-    const div = document.createElement("div");
-    div.className = "pont " + (p.etat === "OUVERT" ? "ouvert" : "ferme");
-    div.textContent = p.nom;
-    container.appendChild(div);
-  });
+  function preloadAndSwap(v){ return new Promise(r=>{ state.isSwapping=true; state.buffer.src=state.buffer.dataset.src+"?v="+v; state.buffer.onload=()=>{ state.active.classList.add("hidden"); state.active.classList.remove("visible"); state.buffer.classList.add("visible"); state.buffer.classList.remove("hidden"); [state.active,state.buffer]=[state.buffer,state.active]; state.isSwapping=false; r(); } }) }
+  async function loop(){ await checkVersion(); await new Promise(r=>setTimeout(r,1000)); loop(); } loop();
 }
 
-async function refresh(){
-  const data = await fetchPonts();
-  renderPonts(data);
-}
-
-// INIT
-function isMobile(){ return window.innerWidth < 720; }
-
-function initMobile(){
-  refresh();
-}
-
-// DOM READY
-window.addEventListener('DOMContentLoaded', () => {
-
-  // bouton refresh sécurisé
-  const refreshBtn = document.getElementById("refresh");
-  if (refreshBtn) {
-    refreshBtn.onclick = refresh;
-  }
-
-  if (isMobile()) {
-    initMobile();
-  }
-});
-
-// gestion resize
-let wasMobile = isMobile();
-
-window.addEventListener('resize', () => {
-  const nowMobile = isMobile();
-  if (nowMobile && !wasMobile) {
-    initMobile();
-  }
-  wasMobile = nowMobile;
-});
-
-// refresh auto
-setInterval(()=>{
-  if(isMobile()) refresh();
-}, 30000);
+if(!isMobile()) startDesktop();
+window.addEventListener('resize',()=>{ if(isMobile()){ refreshPonts(true); } else { startDesktop(); } });
 </script>
-
 </body>
 </html>
