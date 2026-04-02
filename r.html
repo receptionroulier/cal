@@ -270,13 +270,6 @@ function startDesktop() {
 
   monitor("https://receptionroulier.github.io/cal/p.version.txt", lA, lB, 1000);
   monitorRight("https://receptionroulier.github.io/cal/calr.version.txt", rA, rB, 5000);
-
-  setInterval(() => {
-    const iframe = rightState.active;
-    if (iframe && iframe.contentWindow) {
-      iframe.contentWindow.postMessage({ type: "refreshTimeAndEvents" }, "*");
-    }
-  }, 1000);
 }
 
 /* ================================================================
