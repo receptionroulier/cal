@@ -16,54 +16,86 @@ iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; 
 .visible { opacity: 1; pointer-events: auto; }
 .hidden  { opacity: 0; pointer-events: none; }
 
-/* ===================== MOBILE VIEW ===================== */
-#mobile-view { display: none; flex-direction: column; height: 100vh; overflow: hidden; background: #0f172a; color: #eaeaea; }
+/* ===================== MOBILE ===================== */
+#mobile-view { display: none; flex-direction: column; height: 100vh; overflow: hidden; background: linear-gradient(135deg,#0f172a,#1e293b); color: #eaeaea; }
 
-/* --- PONTS MOBILE --- */
-#mob-ponts { flex-shrink: 0; padding: 10px 12px 8px; border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); }
-#mob-ponts-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-#mob-ponts-title { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #94a3b8; display: flex; align-items: center; gap: 6px; }
-#mob-ponts-indicator { font-size: 0.62rem; color: #64748b; }
+/* --- PONTS --- */
+#mob-ponts { flex-shrink: 0; padding: 10px 12px 8px; border-bottom:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.04); }
+#mob-ponts-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+#mob-ponts-title { font-size:0.78rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#94a3b8; display:flex; align-items:center; gap:6px; }
+#mob-ponts-indicator { font-size:0.62rem; color:#64748b; }
+.ponts-columns { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; }
+@media(max-width:480px){ .ponts-columns { grid-template-columns:repeat(2,1fr); } }
+.pont-col { display:flex; flex-direction:column; gap:2px; }
+.col-header { display:flex; align-items:center; gap:4px; font-size:9px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; margin-bottom:4px; flex-wrap:wrap; color:#cbd5e1; }
+.col-count { opacity:0.5; font-weight:400; }
+.pastille { width:7px; height:7px; border-radius:50%; flex-shrink:0; display:inline-block; }
+.p-rouge { background:#ff4040; } .p-orange { background:orange; } .p-bleu { background:#4c6fff; } .p-vert { background:#58ff58; }
+.pont-entry { font-size:10px; line-height:1.3; margin-bottom:3px; }
+.pont-name { font-weight:600; color:#e0e0e0; word-break:break-word; }
+.pont-since { color:#64748b; font-size:9px; }
 
-/* 5-col grid */
-.ponts-columns { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
-@media (max-width: 480px) { .ponts-columns { grid-template-columns: repeat(2, 1fr); } }
-.pont-col { display: flex; flex-direction: column; gap: 2px; }
-.col-header { display: flex; align-items: center; gap: 4px; font-size: 9px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 4px; flex-wrap: wrap; color: #cbd5e1; }
-.col-count { opacity: 0.5; font-weight: 400; }
+/* spinner ponts */
+.mob-spinner { width:20px; height:20px; border:3px solid #333; border-top-color:#00e5ff; border-radius:50%; animation:spin 1s linear infinite; margin:6px auto; }
+@keyframes spin{ to{ transform:rotate(360deg); } }
 
-.pastille { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
-.p-rouge  { background: #ff4040; }
-.p-orange { background: orange; }
-.p-bleu   { background: #4c6fff; }
-.p-vert   { background: #58ff58; }
+/* --- CALENDRIER --- */
+#mob-cal { flex:1; display:flex; flex-direction:column; min-height:0; }
+#mob-cal-header { display:flex; align-items:center; gap:6px; padding:8px 12px; border-bottom:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.04); flex-shrink:0; }
+#mob-back-btn { display:flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:8px; color:#94a3b8; background:none; border:none; cursor:pointer; flex-shrink:0; transition:background .15s,color .15s; -webkit-tap-highlight-color:transparent; }
+#mob-back-btn:hover{ background:rgba(255,255,255,0.1); color:#fff; }
+#mob-cal-title { flex:1; font-weight:bold; font-size:0.95rem; text-align:center; }
+.mob-cal-today-btn { font-size:12px; padding:4px 10px; background:rgba(255,255,255,0.08); border-radius:6px; border:1px solid rgba(255,255,255,0.15); color:#fff; cursor:pointer; flex-shrink:0; }
+.mob-cal-today-btn:hover{ background:rgba(255,255,255,0.15); }
+#mob-cal-scroll { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:6px; padding:8px 12px 40px; }
 
-.pont-entry { font-size: 10px; line-height: 1.3; margin-bottom: 3px; }
-.pont-name  { font-weight: 600; color: #e0e0e0; word-break: break-word; }
-.pont-since { color: #64748b; font-size: 9px; }
+/* Month separators */
+.mob-month-sep { font-size:0.68rem; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:#475569; padding:12px 2px 4px; flex-shrink:0; }
+.mob-sentinel{ height:1px; flex-shrink:0; }
 
-.mob-spinner { width: 20px; height: 20px; border: 3px solid #333; border-top-color: #00e5ff; border-radius: 50%; animation: spin 1s linear infinite; margin: 6px auto; }
-@keyframes spin { to { transform: rotate(360deg); } }
+/* Day cards */
+.mob-day{ background:rgba(255,255,255,0.05); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.08); border-radius:12px; overflow:hidden; flex-shrink:0; }
+.mob-day.mob-today{ border:2px solid rgba(0,229,255,0.7); box-shadow:0 0 8px rgba(0,229,255,0.4); animation:pulse 2s infinite; }
+@keyframes pulse{ 0%,100%{ box-shadow:0 0 8px rgba(0,229,255,0.4);} 50%{ box-shadow:0 0 14px rgba(0,229,255,0.75);} }
+.mob-day.mob-past{ background:rgba(255,255,255,0.03); opacity:0.6; }
+.mob-day.mob-future{ background:rgba(255,255,255,0.07); border-color:rgba(0,229,255,0.2); }
 
-/* --- CALENDRIER MOBILE --- */
-#mob-cal { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-#mob-cal-header { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); flex-shrink: 0; }
-#mob-back-btn { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; color: #94a3b8; background: none; border: none; cursor: pointer; flex-shrink: 0; transition: background .15s, color .15s; -webkit-tap-highlight-color: transparent; }
-#mob-back-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
-#mob-cal-title { flex: 1; font-weight: bold; font-size: 0.95rem; text-align: center; }
-.mob-cal-today-btn { font-size: 12px; padding: 4px 10px; background: rgba(255,255,255,0.08); border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); color: #fff; cursor: pointer; flex-shrink: 0; }
-.mob-cal-today-btn:hover { background: rgba(255,255,255,0.15); }
-#mob-cal-scroll { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 8px 12px 40px; }
+.mob-day-header{ display:flex; align-items:center; gap:8px; padding:8px 12px; font-size:0.85rem; font-weight:600; border-bottom:1px solid rgba(255,255,255,0.06); }
+.mob-day-dot{ width:8px; height:8px; border-radius:50%; flex-shrink:0; background:rgba(255,255,255,0.2); }
+.mob-today .mob-day-dot{ background:#00e5ff; }
+.mob-future .mob-day-dot{ background:rgba(0,229,255,0.4); }
+.mob-past .mob-day-dot{ background:rgba(255,255,255,0.15); }
+.mob-day-date{ color:#cbd5e1; font-size:0.82rem; }
 
-/* ===================== RESPONSIVE SWITCH ===================== */
-@media (max-width: 719px) { #desktop-view { display: none; } #mobile-view { display: flex; } }
-@media (min-width: 720px) { #desktop-view { display: flex; } #mobile-view { display: none; } }
+.mob-events{ display:flex; flex-direction:column; gap:6px; padding:8px 10px; }
+.mob-empty{ font-size:0.75rem; color:#475569; font-style:italic; padding:6px 12px 10px; }
 
+.mob-evt{ display:flex; align-items:center; gap:8px; padding:7px 10px; border-radius:8px; font-size:0.82rem; cursor:pointer; transition:transform .12s; }
+.mob-evt:active{ transform:translateX(3px); }
+.mob-evt.reception{ background:linear-gradient(90deg, rgba(0,255,120,0.18), rgba(0,200,100,0.14)); border:1px solid rgba(0,255,120,0.5); box-shadow:0 0 8px rgba(0,255,140,0.25); }
+.mob-evt.navire{ background:linear-gradient(90deg, rgba(0,130,255,0.18), rgba(0,110,220,0.14)); border:1px solid rgba(0,160,255,0.5); box-shadow:0 0 8px rgba(0,150,255,0.25); }
+.mob-evt-dot{ width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.mob-evt.reception .mob-evt-dot{ background:#00ff78; }
+.mob-evt.navire .mob-evt-dot{ background:#0099ff; }
+.mob-evt-info{ display:flex; flex-direction:column; gap:1px; min-width:0; }
+.mob-evt-name{ font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.mob-evt-time{ font-size:0.72rem; color:#94a3b8; }
+
+/* Modal */
+#event-modal{ position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.65); z-index:999; }
+.modal-card{ background:rgba(15,23,42,0.97); backdrop-filter:blur(12px); border:1px solid rgba(255,255,255,0.1); padding:18px; border-radius:16px; max-width:480px; width:94%; box-shadow:0 20px 40px rgba(0,0,0,0.6); max-height:85vh; overflow-y:auto; }
+.modal-card h3{ margin-bottom:6px; }
+.modal-item{ margin-bottom:10px; }
+.modal-item p{ color:#dbe7ea; margin-top:6px; }
+
+/* ===================== RESPONSIVE ===================== */
+@media(max-width:719px){ #desktop-view{display:none !important;} #mobile-view{display:flex !important;} }
+@media(min-width:720px){ #desktop-view{display:flex !important;} #mobile-view{display:none !important;} }
 </style>
 </head>
 <body>
 
-<!-- =================== DESKTOP VIEW (iframes) =================== -->
+<!-- =================== DESKTOP VIEW =================== -->
 <div id="desktop-view">
   <div class="frame-wrapper" style="width:25%;">
     <iframe id="leftA" class="visible" data-src="https://receptionroulier.github.io/cal/p.html"></iframe>
@@ -78,13 +110,11 @@ iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; 
 <!-- =================== MOBILE VIEW =================== -->
 <div id="mobile-view">
 
-  <!-- PONTS MOBILE (directement intégré dans r.html) -->
+  <!-- PONTS MOBILE (reprise exacte de ton code p mobile) -->
   <div id="mob-ponts">
     <div id="mob-ponts-header">
       <span id="mob-ponts-title">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5">
-          <path d="M3 12h18"/><path d="M6 12v4"/><path d="M18 12v4"/>
-        </svg>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5"><path d="M3 12h18"/><path d="M6 12v4"/><path d="M18 12v4"/></svg>
         État des ponts
       </span>
       <span id="mob-ponts-indicator">Chargement…</span>
@@ -94,7 +124,7 @@ iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; 
     </div>
   </div>
 
-  <!-- CALENDRIER MOBILE -->
+  <!-- CALENDRIER MOBILE (calr intégré directement) -->
   <div id="mob-cal">
     <div id="mob-cal-header">
       <button id="mob-back-btn" title="Accueil">
@@ -112,94 +142,117 @@ iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; 
 
 </div>
 
+<!-- Modal événement -->
+<div id="event-modal">
+  <div class="modal-card" id="modal-content" onclick="event.stopPropagation()"></div>
+</div>
+
 <script>
-const INDEX_URL = 'https://receptionroulier.github.io/cal/index.html';
+// ===================== CONSTANTES =====================
+const INDEX_URL='https://receptionroulier.github.io/cal/index.html';
+const PONTS_API="https://www.havre-port.com/map/getPonts";
+const PROXY="https://crimson-recipe-63e0.receptionroulier.workers.dev/?url=";
+const PONTS_CACHE_KEY="mob_pontsData_v1";
+const PONTS_TIME_KEY="mob_pontsTime_v1";
+const PONTS_EXPIRY=60000;
+const PONTS_INTERVAL=30000;
 
-/* ===================== DESKTOP – Smart Polling ===================== */
-function monitor(versionURL, iframeA, iframeB, delay) {
-  const state = { active: iframeA, buffer: iframeB, lastVersion: null, isSwapping: false };
-  if (!state.active.src) state.active.src = state.active.dataset.src;
-  async function checkVersion() {
-    try { const r = await fetch(versionURL + "?_=" + Date.now()); const v = await r.text();
-      if (v!==state.lastVersion&&!state.isSwapping){ state.lastVersion=v; await preloadAndSwap(v); }
-    } catch(e){ console.error(e); }
-  }
-  function preloadAndSwap(v){ return new Promise(resolve=>{
-    state.isSwapping=true;
-    const {active,buffer}=state;
-    buffer.src=buffer.dataset.src+"?v="+v;
-    buffer.onload=()=>{ active.classList.add("hidden"); active.classList.remove("visible");
-      buffer.classList.add("visible"); buffer.classList.remove("hidden");
-      state.active=buffer; state.buffer=active; state.isSwapping=false; resolve(); };
-  }); }
-  async function loop(){ await checkVersion(); await new Promise(r=>setTimeout(r,delay)); loop(); }
-  loop();
+// ===================== UTILS =====================
+function parseFRDate(str){
+  if(!str) return NaN;
+  str=str.replace(/\u00A0/g,' ').replace(/\s+/g,' ').trim();
+  const m=str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+  if(!m) return NaN;
+  return new Date(+m[3],+m[2]-1,+m[1],+(m[4]||0),+(m[5]||0),+(m[6]||0)).getTime();
+}
+function fmtShort(str){
+  const t=parseFRDate(str);
+  if(!isFinite(t)) return str||"—";
+  const d=new Date(t), p=n=>String(n).padStart(2,'0');
+  return `${p(d.getDate())}/${p(d.getMonth()+1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+function extractFinTravaux(pont){
+  const raw=[pont.statutText,pont.forceText,pont.info,pont.description,pont.message,pont.text,pont.comment].filter(v=>v&&typeof v==="string").join(" ");
+  const m1=raw.match(/\bdu\s+\d{1,2}\/\d{1,2}\/\d{4}\s+au\s+(\d{1,2}\/\d{1,2}\/\d{4})/i);
+  if(m1) return m1[1];
+  const m2=raw.match(/jusqu[''`]?\s*au\s+(\d{1,2}\/\d{1,2}\/\d{4})/i);
+  if(m2) return m2[1];
+  const m3=raw.match(/\bau\s+(\d{1,2}\/\d{1,2}\/\d{4})/i);
+  if(m3) return m3[1];
+  const all=[...raw.matchAll(/\b(\d{1,2}\/\d{1,2}\/\d{4})\b/g)].map(x=>x[1]);
+  if(all.length) return all[all.length-1];
+  return null;
+}
+function fmtFinTravaux(pont){
+  const fin=extractFinTravaux(pont);
+  if(!fin) return "Date inconnue";
+  const t=parseFRDate(fin);
+  if(!isFinite(t)) return `Jusqu'au ${fin}`;
+  const d=new Date(t), p=n=>String(n).padStart(2,'0');
+  return `Jusqu'au ${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()}`;
+}
+function classifyPont(p){
+  const s=(p.statutText||"").toLowerCase();
+  if((s.includes("fermé")||s.includes("ferme"))&&s.includes("travaux")) return "travaux";
+  if(s.includes("fermeture")) return "fermeture";
+  if(s.includes("fermé")||s.includes("ferme")) return "ferme";
+  if(s.includes("manoeuvre")||s.includes("manœuvre")) return "manoeuvre";
+  if(s.includes("ouvert")) return "ouvert";
+  return "ferme";
 }
 
-function startDesktop(){
-  const lA=document.getElementById("leftA"), lB=document.getElementById("leftB");
-  const rA=document.getElementById("rightA"), rB=document.getElementById("rightB");
-  const rightState={active:rA};
-  monitor("https://receptionroulier.github.io/cal/p.version.txt", lA, lB, 1000);
-  monitor("https://receptionroulier.github.io/cal/calr.version.txt", rA, rB, 5000);
-  setInterval(()=>{
-    const iframe=rightState.active;
-    if(iframe && iframe.contentWindow){ iframe.contentWindow.postMessage({ type:"refreshTimeAndEvents" },"*"); }
-  },1000);
+// ===================== PONTS =====================
+async function fetchPonts(){
+  const url=PROXY+encodeURIComponent(PONTS_API+"?_ts="+Date.now());
+  try{
+    const r=await fetch(url);
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const json=await r.json();
+    const arr=json?.data?Object.values(json.data):Object.values(json);
+    return Array.from(new Map(arr.map(p=>[p.nom,p])).values());
+  }catch(e){ console.warn("fetchPonts:",e); return null; }
 }
-
-/* ===================== MOBILE – PONTS ===================== */
-const PONTS_API = "https://www.havre-port.com/map/getPonts";
-const PROXY = "https://crimson-recipe-63e0.receptionroulier.workers.dev/?url=";
-const PONTS_CACHE_KEY = "mob_pontsData_v1";
-const PONTS_TIME_KEY  = "mob_pontsTime_v1";
-const PONTS_EXPIRY = 60000;
-const PONTS_INTERVAL = 30000;
-
-function parseFRDate(str){ if(!str) return NaN; const m=str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); return m?new Date(+m[3],+m[2]-1,+m[1]).getTime():NaN; }
-function fmtShort(str){ const t=parseFRDate(str); if(!isFinite(t)) return str||"—"; const d=new Date(t), p=n=>String(n).padStart(2,'0'); return `${p(d.getDate())}/${p(d.getMonth()+1)} ${p(d.getHours())}:${p(d.getMinutes())}`; }
-function extractFinTravaux(p){ const raw=[p.statutText,p.forceText,p.info,p.description,p.message,p.text,p.comment].filter(v=>v&&typeof v==="string").join(" ");
-const m1=raw.match(/\bdu\s+\d{1,2}\/\d{1,2}\/\d{4}\s+au\s+(\d{1,2}\/\d{1,2}\/\d{4})/i);
-if(m1) return m1[1]; const m2=raw.match(/jusqu[''`]?\s*au\s+(\d{1,2}\/\d{1,2}\/\d{4})/i); if(m2) return m2[1];
-const m3=raw.match(/\bau\s+(\d{1,2}\/\d{1,2}\/\d{4})/i); if(m3) return m3[1]; const all=[...raw.matchAll(/\b(\d{1,2}\/\d{1,2}\/\d{4})\b/g)].map(x=>x[1]); return all.length?all[all.length-1]:null; }
-function fmtFinTravaux(p){ const f=extractFinTravaux(p); if(!f) return "Date inconnue"; const t=parseFRDate(f); if(!isFinite(t)) return `Jusqu'au ${f}`; const d=new Date(t), pfn=n=>String(n).padStart(2,'0'); return `Jusqu'au ${pfn(d.getDate())}/${pfn(d.getMonth()+1)}/${d.getFullYear()}`; }
-function classifyPont(p){ const s=(p.statutText||"").toLowerCase(); if((s.includes("fermé")||s.includes("ferme"))&&s.includes("travaux")) return "travaux";
-if(s.includes("fermeture")) return "fermeture"; if(s.includes("fermé")||s.includes("ferme")) return "ferme"; if(s.includes("manoeuvre")||s.includes("manœuvre")) return "manoeuvre"; return "ouvert"; }
-
-async function fetchPonts(){ try { const r=await fetch(PROXY+encodeURIComponent(PONTS_API+"?_ts="+Date.now())); const json=await r.json();
-const arr=json?.data?Object.values(json.data):Object.values(json); return Array.from(new Map(arr.map(p=>[p.nom,p])).values()); } catch(e){ console.warn("fetchPonts:",e); return null; } }
-
-function mkEntry(p,since){ return `<div class="pont-entry"><div class="pont-name">${p.nom}</div><div class="pont-since">${since}</div></div>`; }
-
-function renderPontsCols(ponts){
-  const cols=document.getElementById("ponts-cols");
-  const byDate=list=>list.sort((a,b)=>(parseFRDate(b.date)||0)-(parseFRDate(a.date)||0));
-  const fermes=byDate(ponts.filter(p=>classifyPont(p)==="ferme"));
-  const travaux=byDate(ponts.filter(p=>classifyPont(p)==="travaux"));
-  const fermeture=byDate(ponts.filter(p=>classifyPont(p)==="fermeture"));
-  const manoeuvre=byDate(ponts.filter(p=>classifyPont(p)==="manoeuvre"));
-  const ouverts=byDate(ponts.filter(p=>classifyPont(p)==="ouvert"));
-  const since=p=>p.date?`Depuis le ${fmtShort(p.date)}`:"—";
-  const build=(list,fn)=>list.length?list.map(p=>mkEntry(p,fn(p))).join(""):`<div class="pont-entry"><div class="pont-since">—</div></div>`;
-  cols.innerHTML=`
-    <div class="pont-col"><div class="col-header"><span class="pastille p-rouge"></span>Fermé(s)<span class="col-count">(${fermes.length})</span></div>${build(fermes,since)}</div>
-    <div class="pont-col"><div class="col-header"><span class="pastille p-vert"></span>Ouvert(s)<span class="col-count">(${ouverts.length})</span></div>${ouverts.length?mkEntry(ouverts[0],since(ouverts[0])):`<div class="pont-entry"><div class="pont-since">—</div></div>`}</div>
-    <div class="pont-col"><div class="col-header"><span class="pastille p-orange"></span>Fermeture<span class="col-count">(${fermeture.length})</span></div>${build(fermeture,since)}</div>
-    <div class="pont-col"><div class="col-header"><span class="pastille p-bleu"></span>Manœuvre<span class="col-count">(${manoeuvre.length})</span></div>${build(manoeuvre,since)}</div>
-    <div class="pont-col"><div class="col-header">🚧&nbsp;Travaux<span class="col-count">(${travaux.length})</span></div>${build(travaux,fmtFinTravaux)}</div>`;
+function mkEntry(p,sinceStr){ return `<div class="pont-entry"><div class="pont-name">${p.nom}</div><div class="pont-since">${sinceStr}</div></div>`; }
+function updatePontsMobile(ponts){
+  const container=document.getElementById("ponts-cols");
+  container.innerHTML="";
+  if(!ponts||!ponts.length){ container.innerHTML=`<div class="mob-empty">Aucune donnée</div>`; return; }
+  const grouped={ouvert:[],ferme:[],fermeture:[],manoeuvre:[],travaux:[]};
+  ponts.forEach(p=>{
+    const c=classifyPont(p);
+    grouped[c].push(p);
+  });
+  const types=["ouvert","ferme","fermeture","manoeuvre","travaux"];
+  types.forEach(t=>{
+    const col=document.createElement("div"); col.className="pont-col";
+    col.innerHTML=`<div class="col-header">${t.charAt(0).toUpperCase()+t.slice(1)}<span class="col-count">(${grouped[t].length})</span></div>`;
+    grouped[t].forEach(p=>{
+      const dateStr=(t==="travaux")?fmtFinTravaux(p):fmtShort(p.statutDate);
+      const colorClass=t==="ouvert"?"p-vert":t==="ferme"?"p-rouge":t==="fermeture"?"p-orange":t==="manoeuvre"?"p-bleu":"p-orange";
+      col.innerHTML+=`<div class="pont-entry"><span class="pastille ${colorClass}"></span> ${mkEntry(p,dateStr)}</div>`;
+    });
+    container.appendChild(col);
+  });
+  document.getElementById("mob-ponts-indicator").textContent="Données à jour";
 }
+async function refreshPontsMobile(){ const data=await fetchPonts(); updatePontsMobile(data); }
+refreshPontsMobile(); setInterval(refreshPontsMobile,PONTS_INTERVAL);
 
-async function refreshPonts(force=false){
-  const now=Date.now(), indicator=document.getElementById("mob-ponts-indicator");
-  const lastTime=parseInt(localStorage.getItem(PONTS_TIME_KEY)||0); const nowStr=new Date(now).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
-  if(!force&&lastTime&&now-lastTime<PONTS_EXPIRY){ const cached=localStorage.getItem(PONTS_CACHE_KEY); if(cached){ renderPontsCols(JSON.parse(cached)); indicator.textContent=`🟢 ${nowStr}`; return; } }
-  const fresh=await fetchPonts(); if(!fresh){ const cached=localStorage.getItem(PONTS_CACHE_KEY); if(cached){ renderPontsCols(JSON.parse(cached)); indicator.textContent=`🔴 ${nowStr}`; } else { document.getElementById("ponts-cols").innerHTML='<div style="color:#ff4040;font-size:10px;grid-column:1/-1;text-align:center">Erreur réseau</div>'; } return; }
-  localStorage.setItem(PONTS_CACHE_KEY,JSON.stringify(fresh)); localStorage.setItem(PONTS_TIME_KEY,Date.now()); renderPontsCols(fresh); indicator.textContent=`🟢 ${nowStr}`;
+// ===================== CALENDRIER =====================
+// Ici tu peux récupérer calr.html via fetch et injecter dans #mob-cal-scroll
+// Pour simplifier, je mets un fetch qui injecte le HTML brut de calr
+async function loadCalrMobile(){
+  const url="https://receptionroulier.github.io/cal/calr.html";
+  try{
+    const r=await fetch(url);
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const html=await r.text();
+    const container=document.getElementById("mob-cal-scroll");
+    container.innerHTML=html;
+    document.getElementById("mob-cal-title").textContent="Calendrier";
+  }catch(e){ console.warn("calr mobile:",e); document.getElementById("mob-cal-scroll").innerHTML=`<div class="mob-empty">Impossible de charger le calendrier</div>`; }
 }
-refreshPonts(); setInterval(()=>refreshPonts(),PONTS_INTERVAL);
-
-if(window.innerWidth>=720){ startDesktop(); }
+loadCalrMobile();
 </script>
-
 </body>
 </html>
