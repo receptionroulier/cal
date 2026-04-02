@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>R - Ponts et Calendrier</title>
 <style>
-  body { font-family: sans-serif; margin:0; padding:0; background:#f9fafb; color:#1e293b; }
+  body { margin:0; padding:0; font-family:sans-serif; background:#f9fafb; color:#1e293b; }
   #desktop-view, #mobile-view { display:none; }
-  iframe { border: none; width:100%; height:100%; }
-  
+  iframe { border:none; width:100%; height:100%; }
+
   /* MOBILE */
   #mobile-view { display:block; padding:10px; }
   #mob-ponts-header { display:flex; align-items:center; margin-bottom:10px; }
@@ -26,7 +26,7 @@
 </head>
 <body>
 
-<!-- DESKTOP -->
+<!-- DESKTOP : inchangé -->
 <div id="desktop-view">
   <div style="width:48%; float:left;">
     <iframe src="https://receptionroulier.github.io/cal/p.html"></iframe>
@@ -36,7 +36,7 @@
   </div>
 </div>
 
-<!-- MOBILE -->
+<!-- MOBILE : p mobile + calr iframe -->
 <div id="mobile-view">
   <div id="mob-ponts-header">
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5">
@@ -53,11 +53,8 @@
 </div>
 
 <script>
-function isMobile() {
-  return window.innerWidth <= 768;
-}
-
-// Affichage selon mobile/desktop
+// Détection device
+function isMobile() { return window.innerWidth <= 768; }
 if(isMobile()){
   document.getElementById('desktop-view').style.display='none';
   document.getElementById('mobile-view').style.display='block';
@@ -66,58 +63,58 @@ if(isMobile()){
   document.getElementById('mobile-view').style.display='none';
 }
 
-// --- SIMULATION PONT MOBILE ---
-// Remplacer par ton code réel qui récupère l'état des ponts
-const pontsData = [
-  {nom:"Pont A", status:"ouvert", date:new Date()},
-  {nom:"Pont B", status:"ferme", date:new Date()},
-  {nom:"Pont C", status:"travaux", date:new Date()},
-  {nom:"Pont D", status:"manoeuvre", date:new Date()},
-  {nom:"Pont E", status:"ouvert", date:new Date()}
-];
+/* -------------------------
+   PONT MOBILE : flux réel p mobile
+----------------------------*/
+(function(){
+  const urlP = "https://receptionroulier.github.io/cal/p.json"; // ton JSON réel
 
-function renderPontsCols(ponts) {
-  const cols = document.getElementById("ponts-cols");
-  cols.innerHTML="";
-  ponts.forEach(p=>{
-    const col = document.createElement("div");
-    col.className="pont-col";
-    const pastille = document.createElement("div");
-    pastille.className="pont-pastille status-"+p.status;
-    col.appendChild(pastille);
-    const nom = document.createElement("div");
-    nom.textContent = p.nom;
-    nom.style.fontSize="11px";
-    col.appendChild(nom);
-    const date = document.createElement("div");
-    date.className="pont-date";
-    const h = p.date.getHours().toString().padStart(2,'0');
-    const m = p.date.getMinutes().toString().padStart(2,'0');
-    const j = p.date.getDate().toString().padStart(2,'0');
-    const mo = (p.date.getMonth()+1).toString().padStart(2,'0');
-    const a = p.date.getFullYear();
-    date.textContent = `${j}/${mo} ${h}:${m}`;
-    col.appendChild(date);
-    cols.appendChild(col);
-  });
+  fetch(urlP)
+    .then(r => r.json())
+    .then(data => {
+      const ponts = data.ponts;
+      const lastUpdate = data.lastUpdate;
 
-  // Dernière mise à jour
-  const lastUpdate = new Date();
-  document.getElementById("mob-ponts-lastupdate").textContent =
-    `Dernière mise à jour : ${lastUpdate.getHours().toString().padStart(2,'0')}:${lastUpdate.getMinutes().toString().padStart(2,'0')}`;
+      const cols = document.getElementById("ponts-cols");
+      cols.innerHTML="";
 
-  // Indiquer le dernier pont ouvert
-  const lastOuvert = ponts.filter(p=>p.status==="ouvert").pop();
-  if(lastOuvert){
-    document.getElementById("mob-ponts-indicator").textContent = `Dernier pont ouvert : ${lastOuvert.nom}`;
-  }
-}
+      ponts.forEach(p=>{
+        const col = document.createElement("div");
+        col.className="pont-col";
 
-// Appel rendu
-if(isMobile()){
-  renderPontsCols(pontsData);
-  // Calr est déjà chargé dans iframe via src
-}
+        const pastille = document.createElement("div");
+        pastille.className="pont-pastille status-"+p.status;
+        col.appendChild(pastille);
+
+        const nom = document.createElement("div");
+        nom.textContent = p.nom;
+        nom.style.fontSize="11px";
+        col.appendChild(nom);
+
+        const date = document.createElement("div");
+        date.className="pont-date";
+        date.textContent = p.date; // date déjà formatée dans ton JSON
+        col.appendChild(date);
+
+        cols.appendChild(col);
+      });
+
+      // Dernier pont ouvert
+      const lastOuvert = ponts.filter(p=>p.status==="ouvert").pop();
+      if(lastOuvert){
+        document.getElementById("mob-ponts-indicator").textContent = `Dernier pont ouvert : ${lastOuvert.nom}`;
+      } else {
+        document.getElementById("mob-ponts-indicator").textContent = `Aucun pont ouvert`;
+      }
+
+      // Dernière mise à jour
+      document.getElementById("mob-ponts-lastupdate").textContent = `Dernière mise à jour : ${lastUpdate}`;
+    })
+    .catch(err=>{
+      document.getElementById("mob-ponts-indicator").textContent = "Erreur de chargement";
+      console.error(err);
+    });
+})();
 </script>
 
 </body>
