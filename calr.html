@@ -3,152 +3,84 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tableau de bord - Ponts & Réception</title>
+<title>Calendrier Réception</title>
 <style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; }
+*, *::before, *::after { box-sizing: border-box; margin:0; padding:0; }
+html, body { height: 100%; font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
 
 /* ── DESKTOP ── */
-#desktop-view { display: flex; height: 100vh; width: 100%; }
-.frame-wrapper { position: relative; height: 100%; overflow: hidden; }
-iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; opacity: 0; pointer-events: none; transition: opacity 0.6s ease-in-out; }
-.visible { opacity: 1; pointer-events: auto; }
-.hidden  { opacity: 0; pointer-events: none; }
+#desktop-view {
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  gap: 15px;
+}
+.calendar-day {
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 10px;
+}
+.calendar-day h3 {
+  margin-bottom: 6px;
+}
+.event {
+  margin: 4px 0;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #eef;
+}
+.event.reception { background: #c8ffd6; }
+.event.navire    { background: #c8e0ff; }
 
 /* ── MOBILE ── */
 #mobile-view {
   display: none;
   flex-direction: column;
   height: 100vh;
-  overflow: hidden;
   background: linear-gradient(135deg, #0f172a, #1e293b);
   color: #eaeaea;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
 }
-
-/* PONTS */
-#mob-ponts { flex-shrink: 0; padding: 10px 12px 8px; border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); }
-#mob-ponts-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-#mob-ponts-title { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #94a3b8; display: flex; align-items: center; gap: 6px; }
-#mob-ponts-indicator { font-size: 0.62rem; color: #64748b; }
-.ponts-columns { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
-@media (max-width: 480px) { .ponts-columns { grid-template-columns: repeat(2, 1fr); } }
-.pont-col { display: flex; flex-direction: column; gap: 2px; }
-.col-header { display: flex; align-items: center; gap: 4px; font-size: 9px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 4px; flex-wrap: wrap; color: #cbd5e1; }
-.col-count { opacity: 0.5; font-weight: 400; }
-.pastille { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
-.p-rouge  { background: #ff4040; }
-.p-orange { background: orange; }
-.p-bleu   { background: #4c6fff; }
-.p-vert   { background: #58ff58; }
-.pont-entry { font-size: 10px; line-height: 1.3; margin-bottom: 3px; }
-.pont-name  { font-weight: 600; color: #e0e0e0; word-break: break-word; }
-.pont-since { color: #64748b; font-size: 9px; }
-.mob-spinner { width: 20px; height: 20px; border: 3px solid #333; border-top-color: #00e5ff; border-radius: 50%; animation: spin 1s linear infinite; margin: 6px auto; }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* CALENDRIER */
 #mob-cal { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 #mob-cal-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
-  background: rgba(255,255,255,0.04);
-  flex-shrink: 0;
+  display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.08);
 }
-/* Flèche retour */
-#mob-back-btn {
-  display: flex; align-items: center; justify-content: center;
-  width: 32px; height: 32px; border-radius: 8px;
-  color: #94a3b8; background: none; border: none; cursor: pointer;
-  flex-shrink: 0; transition: background .15s, color .15s;
-  -webkit-tap-highlight-color: transparent;
+#mob-back-btn, .mob-cal-today-btn {
+  cursor: pointer; padding: 4px 10px; border-radius: 6px; border:none; background: rgba(255,255,255,0.08); color:#fff;
 }
-#mob-back-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
-#mob-cal-title { flex: 1; font-weight: bold; font-size: 0.95rem; text-align: center; }
-.mob-cal-today-btn {
-  font-size: 12px; padding: 4px 10px;
-  background: rgba(255,255,255,0.08); border-radius: 6px;
-  border: 1px solid rgba(255,255,255,0.15); color: #fff;
-  cursor: pointer; flex-shrink: 0;
+#mob-cal-scroll { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:6px; padding:8px 12px 40px; }
+.mob-day { background: rgba(255,255,255,0.05); border-radius:12px; padding:8px; }
+.mob-day.mob-today { border:2px solid #00e5ff; }
+.mob-day-date { font-weight:600; margin-bottom:4px; }
+
+/* MODAL */
+#event-modal { position: fixed; inset:0; display:none; align-items:center; justify-content:center; background: rgba(0,0,0,0.65); z-index:999; }
+.modal-card { background: rgba(15,23,42,0.97); padding:18px; border-radius:16px; max-width:480px; width:94%; max-height:85vh; overflow-y:auto; }
+.modal-card h3 { margin-bottom:6px; }
+
+/* ── MEDIA QUERIES ── */
+@media (max-width:719px){
+  #desktop-view { display:none !important; }
+  #mobile-view { display:flex !important; }
 }
-.mob-cal-today-btn:hover { background: rgba(255,255,255,0.15); }
-
-#mob-cal-scroll { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 8px 12px 40px; }
-
-.mob-month-sep { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: #475569; padding: 12px 2px 4px; flex-shrink: 0; }
-.mob-sentinel { height: 1px; flex-shrink: 0; }
-.mob-day { background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; overflow: hidden; flex-shrink: 0; }
-.mob-day.mob-today { border: 2px solid rgba(0,229,255,0.7); box-shadow: 0 0 8px rgba(0,229,255,0.4); animation: pulse 2s infinite; }
-@keyframes pulse { 0%,100% { box-shadow: 0 0 8px rgba(0,229,255,0.4); } 50% { box-shadow: 0 0 14px rgba(0,229,255,0.75); } }
-.mob-day.mob-past   { background: rgba(255,255,255,0.03); opacity: 0.6; }
-.mob-day.mob-future { background: rgba(255,255,255,0.07); border-color: rgba(0,229,255,0.2); }
-.mob-day-header { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 0.85rem; font-weight: 600; border-bottom: 1px solid rgba(255,255,255,0.06); }
-.mob-day-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: rgba(255,255,255,0.2); }
-.mob-today .mob-day-dot  { background: #00e5ff; }
-.mob-future .mob-day-dot { background: rgba(0,229,255,0.4); }
-.mob-past .mob-day-dot   { background: rgba(255,255,255,0.15); }
-.mob-day-date { color: #cbd5e1; font-size: 0.82rem; }
-.mob-events { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; }
-.mob-empty  { font-size: 0.75rem; color: #475569; font-style: italic; padding: 6px 12px 10px; }
-.mob-evt { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; font-size: 0.82rem; cursor: pointer; transition: transform .12s; }
-.mob-evt:active { transform: translateX(3px); }
-.mob-evt.reception { background: linear-gradient(90deg, rgba(0,255,120,0.18), rgba(0,200,100,0.14)); border: 1px solid rgba(0,255,120,0.5); box-shadow: 0 0 8px rgba(0,255,140,0.25); }
-.mob-evt.navire    { background: linear-gradient(90deg, rgba(0,130,255,0.18), rgba(0,110,220,0.14)); border: 1px solid rgba(0,160,255,0.5); box-shadow: 0 0 8px rgba(0,150,255,0.25); }
-.mob-evt-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-.mob-evt.reception .mob-evt-dot { background: #00ff78; }
-.mob-evt.navire    .mob-evt-dot { background: #0099ff; }
-.mob-evt-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.mob-evt-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mob-evt-time { font-size: 0.72rem; color: #94a3b8; }
-
-#event-modal { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.65); z-index: 999; }
-.modal-card { background: rgba(15,23,42,0.97); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); padding: 18px; border-radius: 16px; max-width: 480px; width: 94%; box-shadow: 0 20px 40px rgba(0,0,0,0.6); max-height: 85vh; overflow-y: auto; }
-.modal-card h3 { margin-bottom: 6px; }
-.modal-item    { margin-bottom: 10px; }
-.modal-item p  { color: #dbe7ea; margin-top: 6px; }
-
-@media (max-width: 719px) { #desktop-view { display: none !important; } #mobile-view { display: flex !important; } }
-@media (min-width: 720px) { #desktop-view { display: flex !important; } #mobile-view  { display: none !important; } }
+@media (min-width:720px){
+  #desktop-view { display:flex !important; }
+  #mobile-view { display:none !important; }
+}
 </style>
 </head>
 <body>
 
 <!-- DESKTOP -->
 <div id="desktop-view">
-  <div class="frame-wrapper" style="width:25%;">
-    <iframe id="leftA"  class="visible" data-src="p.html"></iframe>
-    <iframe id="leftB"  class="hidden"  data-src="p.html"></iframe>
-  </div>
-  <div class="frame-wrapper" style="width:75%;">
-    <iframe id="rightA" class="visible" data-src="calr.html"></iframe>
-    <iframe id="rightB" class="hidden"  data-src="calr.html"></iframe>
-  </div>
+  <h2>Calendrier Réception - Desktop</h2>
+  <div id="desktop-calendar"></div>
 </div>
 
 <!-- MOBILE -->
 <div id="mobile-view">
-  <div id="mob-ponts">
-    <div id="mob-ponts-header">
-      <span id="mob-ponts-title">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5"><path d="M3 12h18"/><path d="M6 12v4"/><path d="M18 12v4"/></svg>
-        État des ponts
-      </span>
-      <span id="mob-ponts-indicator">Chargement…</span>
-    </div>
-    <div class="ponts-columns" id="ponts-cols">
-      <div class="mob-spinner" style="grid-column:1/-1"></div>
-    </div>
-  </div>
-
   <div id="mob-cal">
     <div id="mob-cal-header">
-      <!-- Flèche retour → index.html dans le navigateur principal -->
-      <button id="mob-back-btn" title="Accueil">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-      </button>
+      <button id="mob-back-btn">← Accueil</button>
       <span id="mob-cal-title">Chargement…</span>
       <button class="mob-cal-today-btn" id="mob-today-btn">Aujourd'hui</button>
     </div>
@@ -158,208 +90,105 @@ iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; 
   </div>
 </div>
 
+<!-- MODAL MOBILE -->
 <div id="event-modal">
   <div class="modal-card" id="modal-content" onclick="event.stopPropagation()"></div>
 </div>
 
 <script>
-/* ── DESKTOP – polling + swap iframes ── */
-function monitor(versionURL, iframeA, iframeB, delay) {
-  const state = { active: iframeA, buffer: iframeB, lastVersion: null, isSwapping: false };
-  if (!state.active.src) state.active.src = state.active.dataset.src;
-  async function checkVersion() {
-    try { const r = await fetch(versionURL + "?_=" + Date.now()); const v = await r.text(); if (v !== state.lastVersion && !state.isSwapping) { state.lastVersion = v; await preloadAndSwap(v); } } catch(e) {}
-  }
-  function preloadAndSwap(v) {
-    return new Promise(resolve => {
-      state.isSwapping = true;
-      const { active, buffer } = state;
-      buffer.src = buffer.dataset.src + "?v=" + v;
-      buffer.onload = () => { active.classList.add("hidden"); active.classList.remove("visible"); buffer.classList.add("visible"); buffer.classList.remove("hidden"); state.active = buffer; state.buffer = active; state.isSwapping = false; resolve(); };
+/* ── DUMMY DATA ── */
+const eventsData = [
+  {summary:"Réception A", type:"reception", start:"2026-04-02T10:00", end:"2026-04-02T12:00"},
+  {summary:"Navire B", type:"navire", start:"2026-04-03T15:00", end:"2026-04-03T18:00"},
+  {summary:"Réception C", type:"reception", start:"2026-04-05", end:"2026-04-05"} // journée entière
+];
+
+/* ── DESKTOP ── */
+function renderDesktopCal() {
+  const wrap = document.getElementById("desktop-calendar");
+  wrap.innerHTML = "";
+  const today = new Date();
+  for(let i=0;i<7;i++){
+    const day = new Date();
+    day.setDate(today.getDate()+i);
+    const dayDiv = document.createElement("div");
+    dayDiv.className="calendar-day";
+    dayDiv.innerHTML = `<h3>${day.toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long'})}</h3>`;
+    const dayEvents = eventsData.filter(ev=>{
+      const evStart = new Date(ev.start);
+      const evEnd = ev.end?new Date(ev.end):new Date(ev.start);
+      return day>=evStart && day<=evEnd;
     });
-  }
-  async function loop() { await checkVersion(); await new Promise(r => setTimeout(r, delay)); loop(); }
-  loop();
-}
-
-const rightState = { active: null };
-
-function startDesktop() {
-  const lA = document.getElementById("leftA"),  lB = document.getElementById("leftB");
-  const rA = document.getElementById("rightA"), rB = document.getElementById("rightB");
-  rightState.active = rA;
-
-  function monitorRight(versionURL, iframeA, iframeB, delay) {
-    const state = { active: iframeA, buffer: iframeB, lastVersion: null, isSwapping: false };
-    if (!state.active.src) state.active.src = state.active.dataset.src;
-    rightState.active = state.active;
-    async function checkVersion() {
-      try { const r = await fetch(versionURL + "?_=" + Date.now()); const v = await r.text(); if (v !== state.lastVersion && !state.isSwapping) { state.lastVersion = v; await preloadAndSwap(v); } } catch(e) {}
-    }
-    function preloadAndSwap(v) {
-      return new Promise(resolve => {
-        state.isSwapping = true;
-        const { active, buffer } = state;
-        buffer.src = buffer.dataset.src + "?v=" + v;
-        buffer.onload = () => { active.classList.add("hidden"); active.classList.remove("visible"); buffer.classList.add("visible"); buffer.classList.remove("hidden"); state.active = buffer; state.buffer = active; rightState.active = state.active; state.isSwapping = false; resolve(); };
+    if(dayEvents.length){
+      dayEvents.forEach(ev=>{
+        const eDiv = document.createElement("div");
+        eDiv.className="event "+ev.type;
+        eDiv.textContent=ev.summary + (ev.start.includes("T") ? " "+new Date(ev.start).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : "");
+        dayDiv.appendChild(eDiv);
       });
+    } else {
+      const eDiv = document.createElement("div"); eDiv.textContent="Aucun événement"; dayDiv.appendChild(eDiv);
     }
-    async function loop() { await checkVersion(); await new Promise(r=>setTimeout(r,delay)); loop(); }
-    loop();
+    wrap.appendChild(dayDiv);
   }
-
-  monitor("https://receptionroulier.github.io/cal/p.version.txt", lA, lB, 1000);
-  monitorRight("https://receptionroulier.github.io/cal/calr.version.txt", rA, rB, 5000);
-
-  setInterval(() => {
-    const iframe = rightState.active;
-    if (iframe && iframe.contentWindow) iframe.contentWindow.postMessage({ type: "refreshTimeAndEvents" }, "*");
-  }, 1000);
 }
 
-/* ── MOBILE – PONTS ── */
-const PONTS_API = "https://www.havre-port.com/map/getPonts";
-const PROXY     = "https://crimson-recipe-63e0.receptionroulier.workers.dev/?url=";
-const PONTS_CACHE_KEY = "mob_pontsData_v1";
-const PONTS_TIME_KEY  = "mob_pontsTime_v1";
-const PONTS_EXPIRY    = 60000;
-const PONTS_INTERVAL  = 30000;
-
-function parseFRDate(str) {
-  if (!str) return NaN;
-  str = str.replace(/\u00A0/g,' ').replace(/\s+/g,' ').trim();
-  const m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
-  if (!m) return NaN;
-  return new Date(+m[3],+m[2]-1,+m[1],+(m[4]||0),+(m[5]||0),+(m[6]||0)).getTime();
-}
-function fmtShort(str) { const t=parseFRDate(str); if(!isFinite(t)) return str||"—"; const d=new Date(t),p=n=>String(n).padStart(2,'0'); return `${p(d.getDate())}/${p(d.getMonth()+1)} ${p(d.getHours())}:${p(d.getMinutes())}`; }
-function extractFinTravaux(pont) {
-  const raw=[pont.statutText,pont.forceText,pont.info,pont.description,pont.message,pont.text,pont.comment].filter(v=>v&&typeof v==="string").join(" ");
-  const m1=raw.match(/\bdu\s+\d{1,2}\/\d{1,2}\/\d{4}\s+au\s+(\d{1,2}\/\d{1,2}\/\d{4})/i); if(m1) return m1[1];
-  const m2=raw.match(/jusqu[''`]?\s*au\s+(\d{1,2}\/\d{1,2}\/\d{4})/i); if(m2) return m2[1];
-  const m3=raw.match(/\bau\s+(\d{1,2}\/\d{1,2}\/\d{4})/i); if(m3) return m3[1];
-  const all=[...raw.matchAll(/\b(\d{1,2}\/\d{1,2}\/\d{4})\b/g)].map(x=>x[1]); if(all.length) return all[all.length-1];
-  return null;
-}
-function fmtFinTravaux(pont) { const fin=extractFinTravaux(pont); if(!fin) return "Date inconnue"; const t=parseFRDate(fin); if(!isFinite(t)) return `Jusqu'au ${fin}`; const d=new Date(t),p=n=>String(n).padStart(2,'0'); return `Jusqu'au ${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()}`; }
-function classifyPont(p) { const s=(p.statutText||"").toLowerCase(); if((s.includes("fermé")||s.includes("ferme"))&&s.includes("travaux")) return "travaux"; if(s.includes("fermeture")) return "fermeture"; if(s.includes("fermé")||s.includes("ferme")) return "ferme"; if(s.includes("manoeuvre")||s.includes("manœuvre")) return "manoeuvre"; if(s.includes("ouvert")) return "ouvert"; return "ferme"; }
-async function fetchPonts() { const url=PROXY+encodeURIComponent(PONTS_API+"?_ts="+Date.now()); try { const r=await fetch(url); if(!r.ok) throw new Error(); const json=JSON.parse(await r.text()); const arr=json?.data?Object.values(json.data):Object.values(json); return Array.from(new Map(arr.map(p=>[p.nom,p])).values()); } catch(e) { return null; } }
-function mkEntry(p,sinceStr) { return `<div class="pont-entry"><div class="pont-name">${p.nom}</div><div class="pont-since">${sinceStr}</div></div>`; }
-function renderPontsCols(ponts) {
-  const cols=document.getElementById("ponts-cols");
-  const byDate=list=>list.sort((a,b)=>(parseFRDate(b.date)||0)-(parseFRDate(a.date)||0));
-  const fermes=byDate(ponts.filter(p=>classifyPont(p)==="ferme")), travaux=byDate(ponts.filter(p=>classifyPont(p)==="travaux")), fermeture=byDate(ponts.filter(p=>classifyPont(p)==="fermeture")), manoeuvre=byDate(ponts.filter(p=>classifyPont(p)==="manoeuvre")), ouverts=byDate(ponts.filter(p=>classifyPont(p)==="ouvert"));
-  const since=p=>p.date?`Depuis le ${fmtShort(p.date)}`:"—";
-  const build=(list,fn)=>list.length?list.map(p=>mkEntry(p,fn(p))).join(""):`<div class="pont-entry"><div class="pont-since">—</div></div>`;
-  cols.innerHTML=`<div class="pont-col"><div class="col-header"><span class="pastille p-rouge"></span>Fermé(s)<span class="col-count">(${fermes.length})</span></div>${build(fermes,since)}</div><div class="pont-col"><div class="col-header"><span class="pastille p-vert"></span>Ouvert(s)<span class="col-count">(${ouverts.length})</span></div>${ouverts.length?mkEntry(ouverts[0],since(ouverts[0])):`<div class="pont-entry"><div class="pont-since">—</div></div>`}</div><div class="pont-col"><div class="col-header"><span class="pastille p-orange"></span>Fermeture<span class="col-count">(${fermeture.length})</span></div>${build(fermeture,since)}</div><div class="pont-col"><div class="col-header"><span class="pastille p-bleu"></span>Manœuvre<span class="col-count">(${manoeuvre.length})</span></div>${build(manoeuvre,since)}</div><div class="pont-col"><div class="col-header">🚧&nbsp;Travaux<span class="col-count">(${travaux.length})</span></div>${build(travaux,p=>fmtFinTravaux(p))}</div>`;
-}
-async function refreshPonts(force=false) {
-  const now=Date.now(), indicator=document.getElementById("mob-ponts-indicator");
-  const lastTime=parseInt(localStorage.getItem(PONTS_TIME_KEY)||0);
-  const nowStr=new Date(now).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
-  if(!force&&lastTime&&now-lastTime<PONTS_EXPIRY){ const cached=localStorage.getItem(PONTS_CACHE_KEY); if(cached){ renderPontsCols(JSON.parse(cached)); indicator.textContent=`🟢 ${nowStr}`; return; } }
-  const fresh=await fetchPonts();
-  if(!fresh){ const cached=localStorage.getItem(PONTS_CACHE_KEY); if(cached){ renderPontsCols(JSON.parse(cached)); indicator.textContent=`🔴 ${nowStr}`; } else { document.getElementById("ponts-cols").innerHTML='<div style="color:#ff4040;font-size:10px;grid-column:1/-1;text-align:center">Erreur réseau</div>'; } return; }
-  localStorage.setItem(PONTS_CACHE_KEY,JSON.stringify(fresh)); localStorage.setItem(PONTS_TIME_KEY,String(now));
-  renderPontsCols(fresh); indicator.textContent=`🟢 ${nowStr}`;
+/* ── MOBILE ── */
+function renderMobileCal() {
+  const wrap = document.getElementById("mob-cal-scroll");
+  wrap.innerHTML = "";
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  for(let i=0;i<14;i++){
+    const day = new Date();
+    day.setDate(today.getDate()+i);
+    const card = document.createElement("div");
+    card.className="mob-day";
+    card.dataset.ts=day.getTime();
+    card.innerHTML = `<div class="mob-day-date">${day.toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long'})}</div>`;
+    const dayEvents = eventsData.filter(ev=>{
+      const evStart = new Date(ev.start);
+      const evEnd = ev.end?new Date(ev.end):new Date(ev.start);
+      return day>=evStart && day<=evEnd;
+    });
+    if(dayEvents.length){
+      dayEvents.forEach(ev=>{
+        const evDiv = document.createElement("div");
+        evDiv.className="mob-evt "+ev.type;
+        evDiv.textContent=ev.summary;
+        evDiv.addEventListener('click',()=>showEventModal(ev));
+        card.appendChild(evDiv);
+      });
+    } else {
+      const eDiv = document.createElement("div"); eDiv.textContent="Aucun événement"; card.appendChild(eDiv);
+    }
+    wrap.appendChild(card);
+  }
+  document.getElementById("mob-cal-title").textContent = today.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
 }
 
-/* ── MOBILE – CALENDRIER ── */
-const API_KEY = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
-const CAL_IDS = { reception:'receptionroulier@gmail.com', navire:'smr.programme@gmail.com' };
-let mobNorm=[],mobFrom=null,mobTo=null,mobLoading=false,mobObserver=null;
-
-function fmtTime(d){ return d?new Date(d).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''; }
-function fmtFullDate(d){ return new Date(d).toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long'}); }
-function capitalize(s){ return s?s[0].toUpperCase()+s.slice(1):s; }
-function parseDateLocal(s){ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d,0,0,0,0); }
-function mk(tag,cls){ const e=document.createElement(tag); if(cls) e.className=cls; return e; }
-
-async function fetchCalRange(from,to) {
-  const p=`?key=${encodeURIComponent(API_KEY)}&singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(from.toISOString())}&timeMax=${encodeURIComponent(to.toISOString())}`;
-  const get=(id,type)=>fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(id)}/events${p}`).then(r=>r.ok?r.json():{items:[]}).then(d=>(d.items||[]).map(i=>({...i,__type:type}))).catch(()=>[]);
-  const [a,b]=await Promise.all([get(CAL_IDS.reception,'reception'),get(CAL_IDS.navire,'navire')]);
-  return [...a,...b];
+function showEventModal(ev){
+  const modal = document.getElementById("event-modal");
+  const content = document.getElementById("modal-content");
+  content.innerHTML = `<h3>${ev.summary}</h3>
+  <p>Du ${new Date(ev.start).toLocaleString('fr-FR')}</p>` + (ev.end?`<p>Au ${new Date(ev.end).toLocaleString('fr-FR')}</p>`:'');
+  modal.style.display="flex";
 }
-function normalizeCalItems(items) {
-  return items.map(ev=>{ const allDay=!!(ev.start?.date&&!ev.start?.dateTime); let _start,_end,_endInclusive; if(allDay){ _start=parseDateLocal(ev.start.date); _end=parseDateLocal(ev.end.date); _endInclusive=new Date(_end); _endInclusive.setDate(_endInclusive.getDate()-1); _endInclusive.setHours(23,59,59,999); } else { _start=new Date(ev.start.dateTime); _end=new Date(ev.end.dateTime); _endInclusive=new Date(_end); } return {...ev,_isAllDay:allDay,_start,_end,_endInclusive}; }).filter(e=>e._start&&e._endInclusive);
+document.getElementById("event-modal").addEventListener('click',()=>{document.getElementById("event-modal").style.display='none';});
+
+/* BOUTONS MOBILE */
+document.getElementById("mob-back-btn").addEventListener('click',()=>window.location.href="index.html");
+document.getElementById("mob-today-btn").addEventListener('click',()=>{ document.getElementById("mob-cal-scroll").scrollTop=0; });
+
+/* INIT */
+function isMobile(){ return window.innerWidth<720; }
+function init(){
+  renderDesktopCal();
+  if(isMobile()) renderMobileCal();
 }
-async function fetchMobRange(from,to) { const tMin=new Date(from); tMin.setHours(0,0,0,0); const tMax=new Date(to); tMax.setHours(23,59,59,999); return normalizeCalItems(await fetchCalRange(tMin,tMax)); }
-function eventsOnDay(day) { return mobNorm.filter(ev=>{ const s=new Date(ev._start); s.setHours(0,0,0,0); const e=new Date(ev._endInclusive); e.setHours(0,0,0,0); return day>=s&&day<=e; }).sort((a,b)=>a._start-b._start); }
-
-/* Titre dynamique – branché sur #mob-cal-scroll */
-function updateTitleFromScroll() {
-  const wrap=document.getElementById("mob-cal-scroll"), titleEl=document.getElementById("mob-cal-title");
-  if(!wrap||!titleEl) return;
-  const wrapRect=wrap.getBoundingClientRect(), days=[...wrap.querySelectorAll('.mob-day')];
-  const visibleMonths=[],seen=new Set();
-  for(const card of days){ const r=card.getBoundingClientRect(); if(r.bottom>wrapRect.top&&r.top<wrapRect.bottom){ const ts=parseInt(card.dataset.ts); if(!isNaN(ts)){ const d=new Date(ts),key=d.getFullYear()*100+d.getMonth(); if(!seen.has(key)){ seen.add(key); visibleMonths.push(capitalize(d.toLocaleString('fr-FR',{month:'long',year:'numeric'}))); } } } }
-  if(visibleMonths.length) titleEl.textContent=visibleMonths.join(' / ');
-}
-
-function evtDateHtml(ev){ const {_start:s,_end:e,_isAllDay:all}=ev; const multi=!all&&new Date(s).toDateString()!==new Date(e).toDateString(); if(multi) return `<p>Du ${fmtFullDate(s)} à ${fmtTime(s)}<br>Au ${fmtFullDate(e)} à ${fmtTime(e)}</p>`; return all?`<p>Le ${fmtFullDate(s)}</p>`:`<p>Le ${fmtFullDate(s)} à ${fmtTime(s)}</p>`; }
-function evtHtml(ev){ return `<div class="modal-item"><h3>${ev.summary||'(sans titre)'}</h3>${evtDateHtml(ev)}${ev.description?'<p>'+ev.description+'</p>':''}</div>`; }
-document.getElementById("event-modal").addEventListener('click',()=>document.getElementById("event-modal").style.display='none');
-function showEventModal(ev){ document.getElementById("modal-content").innerHTML=evtHtml(ev); document.getElementById("event-modal").style.display='flex'; }
-
-function buildDayCard(day,today) {
-  const isPast=day<today,isToday=day.getTime()===today.getTime(),evts=eventsOnDay(day);
-  const card=mk('div','mob-day'); card.dataset.ts=day.getTime();
-  if(isToday){ card.classList.add('mob-today'); card.id='mob-today-anchor'; } else card.classList.add(isPast?'mob-past':'mob-future');
-  const hdr=mk('div','mob-day-header'),dateDiv=mk('div','mob-day-date');
-  dateDiv.textContent=capitalize(day.toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long'}));
-  hdr.append(mk('div','mob-day-dot'),dateDiv); card.appendChild(hdr);
-  if(!evts.length){ const e=mk('div','mob-empty'); e.textContent='Aucun événement'; card.appendChild(e); }
-  else { const wrap=mk('div','mob-events'); evts.forEach(ev=>{ const row=mk('div','mob-evt '+(ev.__type||'')),info=mk('div','mob-evt-info'),name=mk('div','mob-evt-name'),time=mk('div','mob-evt-time'); name.textContent=ev.summary||'(sans titre)'; if(ev._isAllDay){ const s=new Date(ev._start); s.setHours(0,0,0,0); const e=new Date(ev._endInclusive); e.setHours(0,0,0,0); const diff=Math.round((e-s)/86400000)+1; time.textContent=diff>1?`Journée entière · ${diff}j`:'Journée entière'; } else { time.textContent=fmtTime(ev._start)+(ev._end?` → ${fmtTime(ev._end)}`:''); } info.append(name,time); row.append(mk('div','mob-evt-dot'),info); row.addEventListener('click',e=>{ e.stopPropagation(); showEventModal(ev); }); wrap.appendChild(row); }); card.appendChild(wrap); }
-  return card;
-}
-function maybeSepBefore(wrap,day,ref){ const key=day.getFullYear()*100+day.getMonth(); if(wrap.querySelector(`.mob-month-sep[data-mkey="${key}"]`)) return; const sep=mk('div','mob-month-sep'); sep.dataset.mkey=key; sep.textContent=capitalize(day.toLocaleString('fr-FR',{month:'long',year:'numeric'})); ref?wrap.insertBefore(sep,ref):wrap.appendChild(sep); }
-function scrollToToday(smooth){ const wrap=document.getElementById("mob-cal-scroll"),anchor=document.getElementById("mob-today-anchor"); if(!wrap||!anchor) return; wrap.scrollTo({top:Math.max(0,wrap.scrollTop+anchor.getBoundingClientRect().top-wrap.getBoundingClientRect().top-10),behavior:smooth?'smooth':'instant'}); }
-async function prependDays(n,today){ const wrap=document.getElementById("mob-cal-scroll"),sentTop=document.getElementById("mob-sent-top"); const newTo=new Date(mobFrom); newTo.setDate(newTo.getDate()-1); const newFrom=new Date(newTo); newFrom.setDate(newTo.getDate()-n+1); mobNorm=[...await fetchMobRange(newFrom,newTo),...mobNorm]; mobFrom=new Date(newFrom); const prevH=wrap.scrollHeight,days=[]; for(let d=new Date(newFrom);d<=newTo;d.setDate(d.getDate()+1)) days.push(new Date(d)); let ins=sentTop.nextSibling,lastM=-1; days.forEach(day=>{ day.setHours(0,0,0,0); const k=day.getFullYear()*100+day.getMonth(); if(k!==lastM){ lastM=k; maybeSepBefore(wrap,day,ins); ins=sentTop.nextSibling; } const card=buildDayCard(day,today); wrap.insertBefore(card,ins); ins=card.nextSibling; }); wrap.scrollTop+=wrap.scrollHeight-prevH; }
-async function appendDays(n,today){ const wrap=document.getElementById("mob-cal-scroll"),sentBot=document.getElementById("mob-sent-bot"); const newFrom=new Date(mobTo); newFrom.setDate(newFrom.getDate()+1); const newTo=new Date(newFrom); newTo.setDate(newFrom.getDate()+n-1); mobNorm=[...mobNorm,...await fetchMobRange(newFrom,newTo)]; mobTo=new Date(newTo); let lastM=-1; for(let d=new Date(newFrom);d<=newTo;d.setDate(d.getDate()+1)){ const day=new Date(d); day.setHours(0,0,0,0); const k=day.getFullYear()*100+day.getMonth(); if(k!==lastM){ lastM=k; maybeSepBefore(wrap,day,sentBot); } wrap.insertBefore(buildDayCard(day,today),sentBot); } }
-
-async function renderMobileCal() {
-  const wrap=document.getElementById("mob-cal-scroll"),today=new Date(); today.setHours(0,0,0,0);
-  const from=new Date(today); from.setDate(today.getDate()-14); const to=new Date(today); to.setDate(today.getDate()+30);
-  mobNorm=await fetchMobRange(from,to); mobFrom=new Date(from); mobTo=new Date(to);
-  document.getElementById("mob-cal-title").textContent=capitalize(today.toLocaleString('fr-FR',{month:'long',year:'numeric'}));
-  wrap.innerHTML='';
-  const sentTop=mk('div','mob-sentinel'); sentTop.id='mob-sent-top'; wrap.appendChild(sentTop);
-  let lastM=-1;
-  for(let d=new Date(from);d<=to;d.setDate(d.getDate()+1)){ const day=new Date(d); day.setHours(0,0,0,0); const k=day.getFullYear()*100+day.getMonth(); if(k!==lastM){ lastM=k; maybeSepBefore(wrap,day,null); } wrap.appendChild(buildDayCard(day,today)); }
-  const sentBot=mk('div','mob-sentinel'); sentBot.id='mob-sent-bot'; wrap.appendChild(sentBot);
-
-  wrap.removeEventListener('scroll',updateTitleFromScroll);
-  wrap.addEventListener('scroll',updateTitleFromScroll,{passive:true});
-  requestAnimationFrame(()=>{ scrollToToday(false); setTimeout(updateTitleFromScroll,150); });
-
-  if(mobObserver) mobObserver.disconnect();
-  mobObserver=new IntersectionObserver(async entries=>{ for(const entry of entries){ if(!entry.isIntersecting||mobLoading) continue; mobLoading=true; if(entry.target.id==='mob-sent-top') await prependDays(14,today); if(entry.target.id==='mob-sent-bot') await appendDays(30,today); mobLoading=false; } },{root:wrap,rootMargin:'100px',threshold:0});
-  mobObserver.observe(sentTop); mobObserver.observe(sentBot);
-}
-
-/* ── INIT ── */
-function isMobile(){ return window.innerWidth < 720; }
-
-/* Flèche retour → index.html dans le navigateur principal */
-document.getElementById("mob-back-btn").addEventListener('click', function() {
-  try { window.top.location.href = 'index.html'; } catch(e) { window.location.href = 'index.html'; }
-});
-document.getElementById("mob-today-btn").addEventListener('click', ()=>scrollToToday(true));
-
-if (!isMobile()) {
-  startDesktop();
-} else {
-  refreshPonts(true);
-  setInterval(()=>refreshPonts(false), PONTS_INTERVAL);
-  renderMobileCal();
-}
-
-let wasOrIsMobile = isMobile();
-window.addEventListener('resize', () => {
-  const nowMobile = isMobile();
-  if (nowMobile !== wasOrIsMobile) { wasOrIsMobile = nowMobile; if(nowMobile){ refreshPonts(true); renderMobileCal(); } else { startDesktop(); } }
-});
+init();
+window.addEventListener('resize',()=>{ if(isMobile()) renderMobileCal(); });
 </script>
+
 </body>
 </html>
