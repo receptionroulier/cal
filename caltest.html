@@ -358,7 +358,7 @@ function renderPontsCols(ponts) {
     </div>
     <div class="pont-col">
       <div class="col-header"><span class="pastille p-vert"></span>Ouvert(s)<span class="col-count">(${ouverts.length})</span></div>
-      ${build(ouverts, since)}
+      ${ouverts.length ? mkEntry(ouverts[0], since(ouverts[0])) : `<div class="pont-entry"><div class="pont-since">—</div></div>`}
       <div class="col-header" style="margin-top:6px"><span class="pastille p-bleu"></span>Bientôt Ouvert<span class="col-count">(${manoeuvre.length})</span></div>
       ${build(manoeuvre, since)}
     </div>
