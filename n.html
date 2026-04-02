@@ -72,7 +72,7 @@ iframe {
   color: #64748b;
 }
 
-/* 5-column grid like index.html */
+/* 5-column grid */
 .ponts-columns {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -119,158 +119,22 @@ iframe {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* --- CALENDAR SECTION --- */
+/* --- CALENDAR SECTION (iframe) --- */
 #mob-cal {
   flex: 1;
-  display: flex;
-  flex-direction: column;
   min-height: 0;
+  position: relative;
 }
-#mob-cal-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
-  background: rgba(255,255,255,0.04);
-  flex-shrink: 0;
-}
-
-/* Flèche retour dans le header calendrier mobile */
-#mob-back-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  color: #94a3b8;
-  background: none;
+#mob-cal iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   border: none;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background .15s, color .15s;
-  -webkit-tap-highlight-color: transparent;
+  opacity: 1;
+  pointer-events: auto;
+  transition: none;
 }
-#mob-back-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
-
-#mob-cal-title {
-  flex: 1;
-  font-weight: bold;
-  font-size: 0.95rem;
-  text-align: center;
-}
-.mob-cal-today-btn {
-  font-size: 12px;
-  padding: 4px 10px;
-  background: rgba(255,255,255,0.08);
-  border-radius: 6px;
-  border: 1px solid rgba(255,255,255,0.15);
-  color: #fff;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-.mob-cal-today-btn:hover { background: rgba(255,255,255,0.15); }
-
-#mob-cal-scroll {
-  flex: 1;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px 12px 40px;
-}
-
-/* Month separators */
-.mob-month-sep {
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: #475569;
-  padding: 12px 2px 4px;
-  flex-shrink: 0;
-}
-.mob-sentinel { height: 1px; flex-shrink: 0; }
-
-/* Day cards */
-.mob-day {
-  background: rgba(255,255,255,0.05);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-.mob-day.mob-today {
-  border: 2px solid rgba(0,229,255,0.7);
-  box-shadow: 0 0 8px rgba(0,229,255,0.4);
-  animation: pulse 2s infinite;
-}
-@keyframes pulse {
-  0%,100% { box-shadow: 0 0 8px rgba(0,229,255,0.4); }
-  50%      { box-shadow: 0 0 14px rgba(0,229,255,0.75); }
-}
-.mob-day.mob-past   { background: rgba(255,255,255,0.03); opacity: 0.6; }
-.mob-day.mob-future { background: rgba(255,255,255,0.07); border-color: rgba(0,229,255,0.2); }
-
-.mob-day-header {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px;
-  font-size: 0.85rem; font-weight: 600;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-}
-.mob-day-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: rgba(255,255,255,0.2); }
-.mob-today .mob-day-dot  { background: #00e5ff; }
-.mob-future .mob-day-dot { background: rgba(0,229,255,0.4); }
-.mob-past .mob-day-dot   { background: rgba(255,255,255,0.15); }
-.mob-day-date { color: #cbd5e1; font-size: 0.82rem; }
-
-.mob-events { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; }
-.mob-empty  { font-size: 0.75rem; color: #475569; font-style: italic; padding: 6px 12px 10px; }
-
-.mob-evt {
-  display: flex; align-items: center; gap: 8px;
-  padding: 7px 10px; border-radius: 8px;
-  font-size: 0.82rem; cursor: pointer;
-  transition: transform .12s;
-}
-.mob-evt:active { transform: translateX(3px); }
-.mob-evt.reception {
-  background: linear-gradient(90deg, rgba(0,255,120,0.18), rgba(0,200,100,0.14));
-  border: 1px solid rgba(0,255,120,0.5);
-  box-shadow: 0 0 8px rgba(0,255,140,0.25);
-}
-.mob-evt.navire {
-  background: linear-gradient(90deg, rgba(0,130,255,0.18), rgba(0,110,220,0.14));
-  border: 1px solid rgba(0,160,255,0.5);
-  box-shadow: 0 0 8px rgba(0,150,255,0.25);
-}
-.mob-evt-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-.mob-evt.reception .mob-evt-dot { background: #00ff78; }
-.mob-evt.navire    .mob-evt-dot { background: #0099ff; }
-.mob-evt-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.mob-evt-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mob-evt-time { font-size: 0.72rem; color: #94a3b8; }
-
-/* Modal */
-#event-modal {
-  position: fixed; inset: 0;
-  display: none; align-items: center; justify-content: center;
-  background: rgba(0,0,0,0.65); z-index: 999;
-}
-.modal-card {
-  background: rgba(15,23,42,0.97);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255,255,255,0.1);
-  padding: 18px; border-radius: 16px;
-  max-width: 480px; width: 94%;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.6);
-  max-height: 85vh; overflow-y: auto;
-}
-.modal-card h3 { margin-bottom: 6px; }
-.modal-item    { margin-bottom: 10px; }
-.modal-item p  { color: #dbe7ea; margin-top: 6px; }
 
 /* ===================== RESPONSIVE SWITCH ===================== */
 @media (max-width: 719px) {
@@ -297,7 +161,7 @@ iframe {
   </div>
 </div>
 
-<!-- =================== MOBILE VIEW (native) =================== -->
+<!-- =================== MOBILE VIEW =================== -->
 <div id="mobile-view">
 
   <!-- PONTS -->
@@ -314,28 +178,11 @@ iframe {
     </div>
   </div>
 
-  <!-- CALENDRIER -->
+  <!-- CALENDRIER (iframe vers caln.html) -->
   <div id="mob-cal">
-    <div id="mob-cal-header">
-      <!-- Flèche retour vers index.html (navigation navigateur, pas iframe) -->
-      <button id="mob-back-btn" title="Accueil">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="15 18 9 12 15 6"/>
-        </svg>
-      </button>
-      <span id="mob-cal-title">Chargement…</span>
-      <button class="mob-cal-today-btn" id="mob-today-btn">Aujourd'hui</button>
-    </div>
-    <div id="mob-cal-scroll">
-      <div style="text-align:center;padding:30px;opacity:0.5;font-size:0.9rem">Chargement…</div>
-    </div>
+    <iframe src="https://receptionroulier.github.io/cal/caln.html"></iframe>
   </div>
 
-</div>
-
-<!-- Modal événement -->
-<div id="event-modal">
-  <div class="modal-card" id="modal-content" onclick="event.stopPropagation()"></div>
 </div>
 
 <script>
@@ -423,13 +270,6 @@ function startDesktop() {
 
   monitor("https://receptionroulier.github.io/cal/p.version.txt", lA, lB, 1000);
   monitorRight("https://receptionroulier.github.io/cal/caln.version.txt", rA, rB, 5000);
-
-  setInterval(() => {
-    const iframe = rightState.active;
-    if (iframe && iframe.contentWindow) {
-      iframe.contentWindow.postMessage({ type: "refreshTimeAndEvents" }, "*");
-    }
-  }, 1000);
 }
 
 /* ================================================================
@@ -559,247 +399,15 @@ async function refreshPonts(force=false) {
 }
 
 /* ================================================================
-   MOBILE – CALENDRIER
-   ================================================================ */
-const API_KEY  = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
-const CAL_IDS  = { reception:'receptionroulier@gmail.com', navire:'smr.programme@gmail.com' };
-
-let mobNorm=[], mobFrom=null, mobTo=null, mobLoading=false, mobObserver=null;
-
-function fmtTime(d){ return d ? new Date(d).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : ''; }
-function fmtFullDate(d){ return new Date(d).toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long'}); }
-function capitalize(s){ return s ? s[0].toUpperCase()+s.slice(1) : s; }
-function parseDateLocal(s){ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d,0,0,0,0); }
-function mk(tag,cls){ const e=document.createElement(tag); if(cls) e.className=cls; return e; }
-
-async function fetchCalRange(from, to) {
-  const p = `?key=${encodeURIComponent(API_KEY)}&singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(from.toISOString())}&timeMax=${encodeURIComponent(to.toISOString())}`;
-  const get = (id,type) => fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(id)}/events${p}`)
-    .then(r=>r.ok?r.json():{items:[]}).then(d=>(d.items||[]).map(i=>({...i,__type:type}))).catch(()=>[]);
-  const [a,b] = await Promise.all([get(CAL_IDS.reception,'reception'), get(CAL_IDS.navire,'navire')]);
-  return [...a,...b];
-}
-
-function normalizeCalItems(items) {
-  return items.map(ev => {
-    const allDay = !!(ev.start?.date && !ev.start?.dateTime);
-    let _start, _end, _endInclusive;
-    if (allDay) {
-      _start = parseDateLocal(ev.start.date);
-      _end   = parseDateLocal(ev.end.date);
-      _endInclusive = new Date(_end); _endInclusive.setDate(_endInclusive.getDate()-1); _endInclusive.setHours(23,59,59,999);
-    } else {
-      _start = new Date(ev.start.dateTime); _end = new Date(ev.end.dateTime); _endInclusive = new Date(_end);
-    }
-    return {...ev, _isAllDay:allDay, _start, _end, _endInclusive};
-  }).filter(e=>e._start&&e._endInclusive);
-}
-
-async function fetchMobRange(from, to) {
-  const tMin=new Date(from); tMin.setHours(0,0,0,0);
-  const tMax=new Date(to);   tMax.setHours(23,59,59,999);
-  return normalizeCalItems(await fetchCalRange(tMin,tMax));
-}
-
-function eventsOnDay(day) {
-  return mobNorm.filter(ev => {
-    const s=new Date(ev._start); s.setHours(0,0,0,0);
-    const e=new Date(ev._endInclusive); e.setHours(0,0,0,0);
-    return day>=s && day<=e;
-  }).sort((a,b)=>a._start-b._start);
-}
-
-/* ----------------------------------------------------------------
-   TITRE DYNAMIQUE AU SCROLL — branché sur #mob-cal-scroll (dans r)
-   ---------------------------------------------------------------- */
-function updateTitleFromScroll() {
-  const wrap = document.getElementById("mob-cal-scroll");
-  const titleEl = document.getElementById("mob-cal-title");
-  if (!wrap || !titleEl) return;
-  const wrapRect = wrap.getBoundingClientRect();
-  const days = [...wrap.querySelectorAll('.mob-day')];
-  const visibleMonths = [];
-  const seen = new Set();
-  for (const card of days) {
-    const r = card.getBoundingClientRect();
-    if (r.bottom > wrapRect.top && r.top < wrapRect.bottom) {
-      const ts = parseInt(card.dataset.ts);
-      if (!isNaN(ts)) {
-        const d = new Date(ts);
-        const key = d.getFullYear() * 100 + d.getMonth();
-        if (!seen.has(key)) {
-          seen.add(key);
-          visibleMonths.push(capitalize(d.toLocaleString('fr-FR', { month: 'long', year: 'numeric' })));
-        }
-      }
-    }
-  }
-  if (visibleMonths.length) titleEl.textContent = visibleMonths.join(' / ');
-}
-
-/* Modal */
-function evtDateHtml(ev){
-  const {_start:s,_end:e,_isAllDay:all}=ev;
-  const multi=!all&&new Date(s).toDateString()!==new Date(e).toDateString();
-  if(multi) return `<p>Du ${fmtFullDate(s)} à ${fmtTime(s)}<br>Au ${fmtFullDate(e)} à ${fmtTime(e)}</p>`;
-  return all ? `<p>Le ${fmtFullDate(s)}</p>` : `<p>Le ${fmtFullDate(s)} à ${fmtTime(s)}</p>`;
-}
-function evtHtml(ev){ return `<div class="modal-item"><h3>${ev.summary||'(sans titre)'}</h3>${evtDateHtml(ev)}${ev.description?'<p>'+ev.description+'</p>':''}</div>`; }
-
-document.getElementById("event-modal").addEventListener('click',()=>document.getElementById("event-modal").style.display='none');
-function showEventModal(ev){ document.getElementById("modal-content").innerHTML=evtHtml(ev); document.getElementById("event-modal").style.display='flex'; }
-
-function buildDayCard(day, today) {
-  const isPast=day<today, isToday=day.getTime()===today.getTime();
-  const evts = eventsOnDay(day);
-  const card = mk('div','mob-day');
-  card.dataset.ts = day.getTime();
-  if (isToday) { card.classList.add('mob-today'); card.id='mob-today-anchor'; }
-  else card.classList.add(isPast?'mob-past':'mob-future');
-
-  const hdr = mk('div','mob-day-header');
-  const dateDiv = mk('div','mob-day-date');
-  dateDiv.textContent = capitalize(day.toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long'}));
-  hdr.append(mk('div','mob-day-dot'), dateDiv);
-  card.appendChild(hdr);
-
-  if (!evts.length) {
-    const e=mk('div','mob-empty'); e.textContent='Aucun événement'; card.appendChild(e);
-  } else {
-    const wrap = mk('div','mob-events');
-    evts.forEach(ev => {
-      const row = mk('div','mob-evt '+(ev.__type||''));
-      const info = mk('div','mob-evt-info');
-      const name = mk('div','mob-evt-name'); name.textContent = ev.summary||'(sans titre)';
-      const time = mk('div','mob-evt-time');
-      if (ev._isAllDay) {
-        const s=new Date(ev._start); s.setHours(0,0,0,0);
-        const e=new Date(ev._endInclusive); e.setHours(0,0,0,0);
-        const diff=Math.round((e-s)/86400000)+1;
-        time.textContent = diff>1 ? `Journée entière · ${diff}j` : 'Journée entière';
-      } else { time.textContent = fmtTime(ev._start)+(ev._end?` → ${fmtTime(ev._end)}`:''); }
-      info.append(name,time); row.append(mk('div','mob-evt-dot'),info);
-      row.addEventListener('click',e=>{ e.stopPropagation(); showEventModal(ev); });
-      wrap.appendChild(row);
-    });
-    card.appendChild(wrap);
-  }
-  return card;
-}
-
-function maybeSepBefore(wrap, day, ref) {
-  const key = day.getFullYear()*100+day.getMonth();
-  if (wrap.querySelector(`.mob-month-sep[data-mkey="${key}"]`)) return;
-  const sep = mk('div','mob-month-sep');
-  sep.dataset.mkey = key;
-  sep.textContent = capitalize(day.toLocaleString('fr-FR',{month:'long',year:'numeric'}));
-  ref ? wrap.insertBefore(sep,ref) : wrap.appendChild(sep);
-}
-
-function scrollToToday(smooth) {
-  const wrap = document.getElementById("mob-cal-scroll");
-  const anchor = document.getElementById("mob-today-anchor");
-  if (!wrap||!anchor) return;
-  wrap.scrollTo({ top: Math.max(0, wrap.scrollTop + anchor.getBoundingClientRect().top - wrap.getBoundingClientRect().top - 10), behavior: smooth?'smooth':'instant' });
-}
-
-async function prependDays(n, today) {
-  const wrap = document.getElementById("mob-cal-scroll");
-  const sentTop = document.getElementById("mob-sent-top");
-  const newTo = new Date(mobFrom); newTo.setDate(newTo.getDate()-1);
-  const newFrom = new Date(newTo); newFrom.setDate(newTo.getDate()-n+1);
-  mobNorm = [...await fetchMobRange(newFrom,newTo), ...mobNorm]; mobFrom = new Date(newFrom);
-  const prevH = wrap.scrollHeight;
-  const days=[]; for(let d=new Date(newFrom);d<=newTo;d.setDate(d.getDate()+1)) days.push(new Date(d));
-  let ins=sentTop.nextSibling, lastM=-1;
-  days.forEach(day => {
-    day.setHours(0,0,0,0);
-    const k=day.getFullYear()*100+day.getMonth();
-    if(k!==lastM){ lastM=k; maybeSepBefore(wrap,day,ins); ins=sentTop.nextSibling; }
-    const card=buildDayCard(day,today); wrap.insertBefore(card,ins); ins=card.nextSibling;
-  });
-  wrap.scrollTop += wrap.scrollHeight - prevH;
-}
-
-async function appendDays(n, today) {
-  const wrap = document.getElementById("mob-cal-scroll");
-  const sentBot = document.getElementById("mob-sent-bot");
-  const newFrom = new Date(mobTo); newFrom.setDate(newFrom.getDate()+1);
-  const newTo   = new Date(newFrom); newTo.setDate(newFrom.getDate()+n-1);
-  mobNorm = [...mobNorm, ...await fetchMobRange(newFrom,newTo)]; mobTo = new Date(newTo);
-  let lastM=-1;
-  for(let d=new Date(newFrom);d<=newTo;d.setDate(d.getDate()+1)){
-    const day=new Date(d); day.setHours(0,0,0,0);
-    const k=day.getFullYear()*100+day.getMonth();
-    if(k!==lastM){ lastM=k; maybeSepBefore(wrap,day,sentBot); }
-    wrap.insertBefore(buildDayCard(day,today),sentBot);
-  }
-}
-
-async function renderMobileCal() {
-  const wrap = document.getElementById("mob-cal-scroll");
-  const today = new Date(); today.setHours(0,0,0,0);
-  const from = new Date(today); from.setDate(today.getDate()-14);
-  const to   = new Date(today); to.setDate(today.getDate()+30);
-
-  mobNorm = await fetchMobRange(from,to); mobFrom=new Date(from); mobTo=new Date(to);
-  document.getElementById("mob-cal-title").textContent = capitalize(today.toLocaleString('fr-FR',{month:'long',year:'numeric'}));
-
-  wrap.innerHTML = '';
-  const sentTop = mk('div','mob-sentinel'); sentTop.id='mob-sent-top'; wrap.appendChild(sentTop);
-  let lastM=-1;
-  for(let d=new Date(from);d<=to;d.setDate(d.getDate()+1)){
-    const day=new Date(d); day.setHours(0,0,0,0);
-    const k=day.getFullYear()*100+day.getMonth();
-    if(k!==lastM){ lastM=k; maybeSepBefore(wrap,day,null); }
-    wrap.appendChild(buildDayCard(day,today));
-  }
-  const sentBot = mk('div','mob-sentinel'); sentBot.id='mob-sent-bot'; wrap.appendChild(sentBot);
-
-  /* Scroll listener pour titre dynamique — branché sur le bon conteneur */
-  wrap.removeEventListener('scroll', updateTitleFromScroll);
-  wrap.addEventListener('scroll', updateTitleFromScroll, { passive: true });
-
-  requestAnimationFrame(() => {
-    scrollToToday(false);
-    setTimeout(updateTitleFromScroll, 150);
-  });
-
-  if(mobObserver) mobObserver.disconnect();
-  mobObserver = new IntersectionObserver(async entries => {
-    for(const entry of entries){
-      if(!entry.isIntersecting||mobLoading) continue;
-      mobLoading=true;
-      if(entry.target.id==='mob-sent-top') await prependDays(14,today);
-      if(entry.target.id==='mob-sent-bot') await appendDays(30,today);
-      mobLoading=false;
-    }
-  },{root:wrap,rootMargin:'100px',threshold:0});
-  mobObserver.observe(sentTop); mobObserver.observe(sentBot);
-}
-
-/* ================================================================
    INIT
    ================================================================ */
 function isMobile(){ return window.innerWidth < 720; }
-
-/* Flèche retour → navigation navigateur principal */
-document.getElementById("mob-back-btn").addEventListener('click', function() {
-  try {
-    window.top.location.href = INDEX_URL;
-  } catch(e) {
-    window.location.href = INDEX_URL;
-  }
-});
-
-document.getElementById("mob-today-btn").addEventListener('click', ()=>scrollToToday(true));
 
 if (!isMobile()) {
   startDesktop();
 } else {
   refreshPonts(true);
   setInterval(()=>refreshPonts(false), PONTS_INTERVAL);
-  renderMobileCal();
 }
 
 let wasOrIsMobile = isMobile();
@@ -807,11 +415,10 @@ window.addEventListener('resize', () => {
   const nowMobile = isMobile();
   if (nowMobile !== wasOrIsMobile) {
     wasOrIsMobile = nowMobile;
-    if (nowMobile) {
-      refreshPonts(true);
-      renderMobileCal();
-    } else {
+    if (!nowMobile) {
       startDesktop();
+    } else {
+      refreshPonts(true);
     }
   }
 });
