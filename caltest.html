@@ -42,7 +42,7 @@ iframe {
   color:#eaeaea;
   padding:10px;
   border-bottom:1px solid rgba(255,255,255,0.08);
-  flex-shrink:0; /* ✅ FIX IMPORTANT */
+  flex-shrink:0;
 }
 
 #mob-header {
@@ -71,7 +71,7 @@ iframe {
 /* CALENDRIER */
 #mobile-cal {
   flex:1;
-  min-height:0; /* ✅ FIX IMPORTANT */
+  min-height:0;
 }
 
 #mobile-cal iframe {
@@ -141,6 +141,8 @@ async function fetchPonts(){
 
 function renderPonts(data){
   const container = document.getElementById("ponts-cols");
+  if(!container) return;
+
   container.innerHTML = "";
 
   if(!data.length){
@@ -161,19 +163,25 @@ async function refresh(){
   renderPonts(data);
 }
 
-// bouton refresh
-document.getElementById("refresh").onclick = refresh;
-
-// INIT PROPRE
+// INIT
 function isMobile(){ return window.innerWidth < 720; }
 
 function initMobile(){
   refresh();
 }
 
-// lancement fiable
+// DOM READY
 window.addEventListener('DOMContentLoaded', () => {
-  if (isMobile()) initMobile();
+
+  // bouton refresh sécurisé
+  const refreshBtn = document.getElementById("refresh");
+  if (refreshBtn) {
+    refreshBtn.onclick = refresh;
+  }
+
+  if (isMobile()) {
+    initMobile();
+  }
 });
 
 // gestion resize
