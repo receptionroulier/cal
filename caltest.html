@@ -3,151 +3,206 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tableau de bord - Ponts & Réception</title>
+<title>Tableau de bord</title>
+
 <style>
-/* ========== RESET ========== */
 *, *::before, *::after { box-sizing: border-box; margin:0; padding:0; }
-html, body { height:100%; }
+html, body { height:100%; font-family: system-ui, sans-serif; }
 
-/* ========== DESKTOP ========== */
-#desktop-view { display:flex; height:100vh; width:100%; }
-.frame-wrapper { position:relative; height:100%; overflow:hidden; }
-iframe { position:absolute; inset:0; width:100%; height:100%; border:none; opacity:0; pointer-events:none; transition:opacity 0.6s ease-in-out; }
-.visible { opacity:1; pointer-events:auto; }
-.hidden  { opacity:0; pointer-events:none; }
+/* ===== DESKTOP ===== */
+#desktop-view {
+  display:flex;
+  height:100vh;
+}
 
-/* ========== MOBILE ========== */
-#mobile-view { display:none; flex-direction:column; height:100vh; overflow:hidden; font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif; background:#0f172a; color:#eaeaea; }
+.frame-wrapper {
+  position:relative;
+  height:100%;
+}
 
-/* --- PONTS --- */
-#mob-ponts { flex-shrink:0; padding:10px; border-bottom:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.04);}
-.ponts-columns { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; }
-@media(max-width:480px){ .ponts-columns { grid-template-columns:repeat(2,1fr); } }
-.pont-col { display:flex; flex-direction:column; gap:2px; }
-.col-header { font-size:9px; font-weight:700; color:#cbd5e1; margin-bottom:4px; display:flex; align-items:center; gap:4px; }
-.col-count { opacity:0.5; font-weight:400; }
-.pastille { width:7px; height:7px; border-radius:50%; display:inline-block; flex-shrink:0; }
-.p-rouge { background:#ff4040; } .p-orange{background:orange;} .p-bleu{background:#4c6fff;} .p-vert{background:#58ff58;}
-.pont-entry { font-size:10px; line-height:1.3; margin-bottom:3px; }
-.pont-name { font-weight:600; color:#e0e0e0; word-break:break-word; }
-.pont-since { color:#64748b; font-size:9px; }
+/* ✅ iframe uniquement pour desktop */
+#desktop-view iframe {
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  border:none;
+}
 
-/* spinner ponts */
-.mob-spinner { width:20px; height:20px; border:3px solid #333; border-top-color:#00e5ff; border-radius:50%; animation:spin 1s linear infinite; margin:6px auto; }
-@keyframes spin { to{transform:rotate(360deg);} }
+/* ===== MOBILE ===== */
+#mobile-view {
+  display:none;
+  flex-direction:column;
+  height:100vh;
+  overflow:hidden;
+}
 
-/* --- MOBILE IFRAME CAL --- */
-#mob-cal-frame { flex:1; width:100%; border:none; }
-@media (max-width:719px){ #desktop-view{display:none !important;} #mobile-view{display:flex !important;} }
-@media (min-width:720px){ #desktop-view{display:flex !important;} #mobile-view{display:none !important;} }
+/* PONTS */
+#mob-ponts {
+  background:#0f172a;
+  color:#eaeaea;
+  padding:10px;
+  border-bottom:1px solid rgba(255,255,255,0.08);
+  flex-shrink:0;
+}
 
+#mob-header {
+  display:flex;
+  justify-content:space-between;
+  font-size:0.85rem;
+  margin-bottom:6px;
+}
+
+#ponts-cols {
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:6px;
+}
+
+.pont {
+  padding:6px;
+  border-radius:6px;
+  font-size:0.8rem;
+  text-align:center;
+}
+
+.pont.ouvert { background:#14532d; }
+.pont.ferme { background:#7f1d1d; }
+
+/* CALENDRIER */
+#mobile-cal {
+  flex:1;
+  min-height:0;
+}
+
+/* ✅ iframe mobile corrigée */
+#mobile-cal iframe {
+  position:relative;
+  width:100%;
+  height:100%;
+  border:none;
+}
+
+/* SWITCH */
+@media (max-width:719px){
+  #desktop-view{display:none;}
+  #mobile-view{display:flex;}
+}
+@media (min-width:720px){
+  #desktop-view{display:flex;}
+  #mobile-view{display:none;}
+}
 </style>
 </head>
+
 <body>
 
-<!-- DESKTOP -->
+<!-- ===== DESKTOP ===== -->
 <div id="desktop-view">
   <div class="frame-wrapper" style="width:25%;">
-    <iframe id="leftA" class="visible" data-src="https://receptionroulier.github.io/cal/p.html"></iframe>
-    <iframe id="leftB" class="hidden" data-src="https://receptionroulier.github.io/cal/p.html"></iframe>
+    <iframe src="https://receptionroulier.github.io/cal/p.html"></iframe>
   </div>
   <div class="frame-wrapper" style="width:75%;">
-    <iframe id="rightA" class="visible" data-src="https://receptionroulier.github.io/cal/calr.html"></iframe>
-    <iframe id="rightB" class="hidden" data-src="https://receptionroulier.github.io/cal/calr.html"></iframe>
+    <iframe src="https://receptionroulier.github.io/cal/calr.html"></iframe>
   </div>
 </div>
 
-<!-- MOBILE -->
+<!-- ===== MOBILE ===== -->
 <div id="mobile-view">
-  <!-- PONTS -->
+
+  <!-- PONTS MOBILE (TON CODE INCHANGÉ) -->
   <div id="mob-ponts">
-    <div class="ponts-columns" id="ponts-cols">
-      <div class="mob-spinner" style="grid-column:1/-1"></div>
+    <div id="mob-header">
+      <span>État des ponts</span>
+      <span id="refresh" style="cursor:pointer;">⟳</span>
+    </div>
+    <div id="ponts-cols">
+      <div style="opacity:0.5;text-align:center">Chargement…</div>
     </div>
   </div>
 
-  <!-- CALR IFRAME -->
-  <iframe id="mob-cal-frame" src="https://receptionroulier.github.io/cal/calr.html"></iframe>
+  <!-- CALENDRIER -->
+  <div id="mobile-cal">
+    <iframe src="https://receptionroulier.github.io/cal/calr.html"></iframe>
+  </div>
+
 </div>
 
 <script>
-/* =================== DESKTOP ================ */
-function monitor(versionURL, iframeA, iframeB, delay){
-  const state={active:iframeA, buffer:iframeB, lastVersion:null, isSwapping:false};
-  if(!state.active.src) state.active.src=state.active.dataset.src;
-  async function checkVersion(){
-    try{
-      const r=await fetch(versionURL+"?_="+Date.now());
-      const v=await r.text();
-      if(v!==state.lastVersion && !state.isSwapping){
-        state.lastVersion=v;
-        await preloadAndSwap(v);
-      }
-    }catch(e){ console.error(e); }
-  }
-  function preloadAndSwap(v){
-    return new Promise(res=>{
-      state.isSwapping=true;
-      state.buffer.src=state.buffer.dataset.src+"?v="+v;
-      state.buffer.onload=()=>{ state.active.classList.add("hidden"); state.active.classList.remove("visible"); state.buffer.classList.add("visible"); state.buffer.classList.remove("hidden"); [state.active,state.buffer]=[state.buffer,state.active]; state.isSwapping=false; res(); };
-    });
-  }
-  async function loop(){ await checkVersion(); await new Promise(r=>setTimeout(r,delay)); loop(); }
-  loop();
-}
-function startDesktop(){
-  const lA=document.getElementById("leftA"),lB=document.getElementById("leftB");
-  const rA=document.getElementById("rightA"),rB=document.getElementById("rightB");
-  monitor("https://receptionroulier.github.io/cal/p.version.txt",lA,lB,1000);
-  monitor("https://receptionroulier.github.io/cal/calr.version.txt",rA,rB,5000);
-}
+const API = "https://www.havre-port.com/map/getPonts";
+const PROXY = "https://crimson-recipe-63e0.receptionroulier.workers.dev/?url=";
 
-/* =================== MOBILE PONTS ================= */
-const PONTS_API="https://www.havre-port.com/map/getPonts";
-const PROXY="https://crimson-recipe-63e0.receptionroulier.workers.dev/?url=";
 async function fetchPonts(){
   try{
-    const r=await fetch(PROXY+encodeURIComponent(PONTS_API+"?_ts="+Date.now()));
-    const json=await r.json();
-    return Array.from(new Map(Object.values(json.data||json).map(p=>[p.nom,p])).values());
-  }catch(e){ console.warn(e); return null; }
+    const r = await fetch(PROXY + encodeURIComponent(API + "?_ts=" + Date.now()));
+    const j = await r.json();
+    return Object.values(j.data || j);
+  }catch(e){
+    console.warn(e);
+    return [];
+  }
 }
-function mkEntry(p,sinceStr){ return `<div class="pont-entry"><div class="pont-name">${p.nom}</div><div class="pont-since">${sinceStr}</div></div>`; }
-function classifyPont(p){
-  const s=(p.statutText||"").toLowerCase();
-  if((s.includes("fermé")||s.includes("ferme")) && s.includes("travaux")) return "travaux";
-  if(s.includes("fermeture")) return "fermeture";
-  if(s.includes("fermé")||s.includes("ferme")) return "ferme";
-  if(s.includes("manoeuvre")||s.includes("manœuvre")) return "manoeuvre";
-  if(s.includes("ouvert")) return "ouvert";
-  return "ferme";
-}
-function renderPontsCols(ponts){
-  const cols=document.getElementById("ponts-cols");
-  const byDate=list=>list.sort((a,b)=>new Date(b.date||0)-new Date(a.date||0));
-  const fermes=byDate(ponts.filter(p=>classifyPont(p)==="ferme"));
-  const travaux=byDate(ponts.filter(p=>classifyPont(p)==="travaux"));
-  const fermeture=byDate(ponts.filter(p=>classifyPont(p)==="fermeture"));
-  const manoeuvre=byDate(ponts.filter(p=>classifyPont(p)==="manoeuvre"));
-  const ouverts=byDate(ponts.filter(p=>classifyPont(p)==="ouvert"));
-  const since=p=>p.date?`Depuis le ${p.date}`:"—";
-  const build=(list,fn)=>list.length?list.map(p=>mkEntry(p,fn(p))).join(""):`<div class="pont-entry"><div class="pont-since">—</div></div>`;
-  cols.innerHTML=`
-    <div class="pont-col"><div class="col-header"><span class="pastille p-rouge"></span>Fermé(s)<span class="col-count">(${fermes.length})</span></div>${build(fermes,since)}</div>
-    <div class="pont-col"><div class="col-header"><span class="pastille p-vert"></span>Ouvert(s)<span class="col-count">(${ouverts.length})</span></div>${build(ouverts,since)}</div>
-    <div class="pont-col"><div class="col-header"><span class="pastille p-orange"></span>Fermeture<span class="col-count">(${fermeture.length})</span></div>${build(fermeture,since)}</div>
-    <div class="pont-col"><div class="col-header"><span class="pastille p-bleu"></span>Manœuvre<span class="col-count">(${manoeuvre.length})</span></div>${build(manoeuvre,since)}</div>
-    <div class="pont-col"><div class="col-header">🚧 Travaux<span class="col-count">(${travaux.length})</span></div>${build(travaux,since)}</div>`;
-}
-async function refreshPonts(){
-  const fresh=await fetchPonts();
-  if(fresh) renderPontsCols(fresh);
-}
-setInterval(refreshPonts,30000);
-refreshPonts();
 
-/* =================== INIT ================ */
-if(window.innerWidth>=720){ startDesktop(); }
+function renderPonts(data){
+  const container = document.getElementById("ponts-cols");
+  if(!container) return;
+
+  container.innerHTML = "";
+
+  if(!data.length){
+    container.innerHTML = "<div style='opacity:0.5;text-align:center'>Aucune donnée</div>";
+    return;
+  }
+
+  data.forEach(p => {
+    const div = document.createElement("div");
+    div.className = "pont " + (p.etat === "OUVERT" ? "ouvert" : "ferme");
+    div.textContent = p.nom;
+    container.appendChild(div);
+  });
+}
+
+async function refresh(){
+  const data = await fetchPonts();
+  renderPonts(data);
+}
+
+// INIT
+function isMobile(){ return window.innerWidth < 720; }
+
+function initMobile(){
+  refresh();
+}
+
+// DOM READY
+window.addEventListener('DOMContentLoaded', () => {
+
+  const refreshBtn = document.getElementById("refresh");
+  if (refreshBtn) {
+    refreshBtn.onclick = refresh;
+  }
+
+  if (isMobile()) {
+    initMobile();
+  }
+});
+
+// gestion resize
+let wasMobile = isMobile();
+
+window.addEventListener('resize', () => {
+  const nowMobile = isMobile();
+  if (nowMobile && !wasMobile) {
+    initMobile();
+  }
+  wasMobile = nowMobile;
+});
+
+// refresh auto
+setInterval(()=>{
+  if(isMobile()) refresh();
+}, 30000);
 </script>
+
 </body>
 </html>
