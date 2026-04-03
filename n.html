@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tableau de bord - Ponts & Navires</title>
+<title>Tableau de bord - Ponts & Navire</title>
 <style>
 /* ===================== RESET ===================== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -72,14 +72,11 @@ iframe {
   color: #64748b;
 }
 
-/* 5-column grid */
+/* 3-column grid */
 .ponts-columns {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 6px;
-}
-@media (max-width: 480px) {
-  .ponts-columns { grid-template-columns: repeat(2, 1fr); }
 }
 .pont-col { display: flex; flex-direction: column; gap: 2px; }
 .col-header {
@@ -269,7 +266,7 @@ function startDesktop() {
   }
 
   monitor("https://receptionroulier.github.io/cal/p.version.txt", lA, lB, 1000);
-  monitorRight("https://receptionroulier.github.io/cal/caln.version.txt", rA, rB, 5000);
+  monitorRight("https://receptionroulier.github.io/cal/calr.version.txt", rA, rB, 5000);
 }
 
 /* ================================================================
@@ -360,20 +357,16 @@ function renderPontsCols(ponts) {
       ${build(fermes, since)}
     </div>
     <div class="pont-col">
-      <div class="col-header"><span class="pastille p-vert"></span>Ouvert(s)<span class="col-count">(${ouverts.length})</span></div>
-      ${ouverts.length ? mkEntry(ouverts[0], since(ouverts[0])) : `<div class="pont-entry"><div class="pont-since">—</div></div>`}
-    </div>
-    <div class="pont-col">
-      <div class="col-header"><span class="pastille p-orange"></span>Fermeture<span class="col-count">(${fermeture.length})</span></div>
+      <div class="col-header">🚧&nbsp;En Travaux<span class="col-count">(${travaux.length})</span></div>
+      ${build(travaux, p => fmtFinTravaux(p))}
+      <div class="col-header" style="margin-top:6px"><span class="pastille p-orange"></span>En Fermeture<span class="col-count">(${fermeture.length})</span></div>
       ${build(fermeture, since)}
     </div>
     <div class="pont-col">
-      <div class="col-header"><span class="pastille p-bleu"></span>Manœuvre<span class="col-count">(${manoeuvre.length})</span></div>
+      <div class="col-header"><span class="pastille p-vert"></span>Ouvert(s)<span class="col-count">(${ouverts.length})</span></div>
+      ${ouverts.length ? mkEntry(ouverts[0], since(ouverts[0])) : `<div class="pont-entry"><div class="pont-since">—</div></div>`}
+      <div class="col-header" style="margin-top:6px"><span class="pastille p-bleu"></span>Bientôt Ouvert<span class="col-count">(${manoeuvre.length})</span></div>
       ${build(manoeuvre, since)}
-    </div>
-    <div class="pont-col">
-      <div class="col-header">🚧&nbsp;Travaux<span class="col-count">(${travaux.length})</span></div>
-      ${build(travaux, p => fmtFinTravaux(p))}
     </div>`;
 }
 
