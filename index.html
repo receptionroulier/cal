@@ -100,15 +100,11 @@
     .title { font-size: 15px; font-weight: 600; }
     .subtitle { font-size: 12px; opacity: 0.6; }
 
-    /* ===== 5 COLONNES ===== */
+    /* ===== 3 COLONNES ===== */
     .ponts-columns {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(3, 1fr);
       gap: 8px;
-    }
-    @media (max-width: 700px) {
-      .ponts-columns { grid-template-columns: repeat(2, 1fr); }
-      .col-ouvert { grid-column: auto; }
     }
     .pont-col { display: flex; flex-direction: column; gap: 2px; }
     .col-header {
@@ -288,7 +284,6 @@ if ('serviceWorker' in navigator) {
 let deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
-  // Afficher uniquement sur mobile/tablette
   const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth < 768;
   if (!isMobile) return;
   deferredPrompt = e;
@@ -393,21 +388,17 @@ function renderCols(ponts) {
       <div class="col-header"><span class="pastille p-rouge"></span>Fermé(s)<span class="col-count">(${fermes.length})</span></div>
       ${build(fermes, since)}
     </div>
-    <div class="pont-col col-ouvert">
-      <div class="col-header"><span class="pastille p-vert"></span>Ouvert(s)<span class="col-count">(${ouverts.length})</span></div>
-      ${ouverts.length ? mkEntry(ouverts[0], since(ouverts[0])) : `<div class="pont-entry"><div class="pont-since">—</div></div>`}
-    </div>
     <div class="pont-col">
-      <div class="col-header"><span class="pastille p-orange"></span>En fermeture<span class="col-count">(${fermeture.length})</span></div>
+      <div class="col-header">🚧&nbsp;En Travaux<span class="col-count">(${travaux.length})</span></div>
+      ${build(travaux, p => fmtFinTravaux(p))}
+      <div class="col-header" style="margin-top:6px"><span class="pastille p-orange"></span>En Fermeture<span class="col-count">(${fermeture.length})</span></div>
       ${build(fermeture, since)}
     </div>
     <div class="pont-col">
-      <div class="col-header"><span class="pastille p-bleu"></span>Bientôt ouvert(s)<span class="col-count">(${manoeuvre.length})</span></div>
+      <div class="col-header"><span class="pastille p-vert"></span>Ouvert(s)<span class="col-count">(${ouverts.length})</span></div>
+      ${ouverts.length ? mkEntry(ouverts[0], since(ouverts[0])) : `<div class="pont-entry"><div class="pont-since">—</div></div>`}
+      <div class="col-header" style="margin-top:6px"><span class="pastille p-bleu"></span>Bientôt Ouvert<span class="col-count">(${manoeuvre.length})</span></div>
       ${build(manoeuvre, since)}
-    </div>
-    <div class="pont-col">
-      <div class="col-header">🚧&nbsp;En travaux<span class="col-count">(${travaux.length})</span></div>
-      ${build(travaux, p => fmtFinTravaux(p))}
     </div>`;
 }
 async function loadPonts(forceUpdate = false) {
