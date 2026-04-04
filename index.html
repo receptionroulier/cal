@@ -198,6 +198,68 @@
     }
 
     footer { margin-top: 20px; font-size: 13px; opacity: 0.5; }
+
+    /* ===== PIN MODAL ===== */
+    #pin-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+    }
+    #pin-modal.show { display: flex; }
+    #pin-card {
+      background: rgba(15,23,42,0.97);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 16px;
+      padding: 24px;
+      width: 280px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+    }
+    #pin-card h3 { font-size: 16px; text-align: center; }
+    #pin-input {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      padding: 10px;
+      color: #fff;
+      font-size: 20px;
+      text-align: center;
+      letter-spacing: 6px;
+      outline: none;
+      width: 100%;
+    }
+    #pin-input:focus { border-color: rgba(0,229,255,0.5); }
+    #pin-error { font-size: 12px; color: #ff4040; text-align: center; min-height: 16px; }
+    #pin-submit {
+      background: #00e5ff;
+      color: #0f172a;
+      border: none;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      width: 100%;
+    }
+    #pin-submit:hover { background: #00c4e0; }
+    #pin-cancel {
+      background: none;
+      border: none;
+      color: #64748b;
+      font-size: 13px;
+      cursor: pointer;
+      text-align: center;
+      width: 100%;
+    }
+    #pin-cancel:hover { color: #fff; }
+    #reception-cards { display: none; }
+    #reception-cards.unlocked { display: grid; }
   </style>
 </head>
 <body>
@@ -257,9 +319,9 @@
   </div>
 
   <!-- ===== RÉCEPTION ===== -->
-  <div class="section">
-    <div class="section-title">🚗 Réception</div>
-    <div class="container">
+  <div class="section" id="reception-section">
+    <div class="section-title" id="reception-toggle" style="cursor:pointer;user-select:none;">🔒 Réception <span style="font-size:12px;opacity:0.5">(cliquer pour déverrouiller)</span></div>
+    <div class="container" id="reception-cards">
       <a class="card" href="https://receptionroulier.github.io/cal/calr.html">
         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
           <rect x="3" y="4" width="18" height="18" rx="2"/>
@@ -282,6 +344,17 @@
     </div>
   </div>
 
+
+  <!-- ===== PIN MODAL ===== -->
+  <div id="pin-modal">
+    <div id="pin-card">
+      <h3>🔒 Accès Réception</h3>
+      <input id="pin-input" type="password" inputmode="numeric" maxlength="6" placeholder="••••••" />
+      <div id="pin-error"></div>
+      <button id="pin-submit">Valider</button>
+      <button id="pin-cancel">Annuler</button>
+    </div>
+  </div>
   <footer>© 2026 - RoulierLH planning</footer>
 
 <script>
@@ -436,6 +509,49 @@ async function loadPonts(forceUpdate = false) {
     else { document.getElementById("ponts-cols").innerHTML = `<div style="color:#ff4040;font-size:12px;grid-column:1/-1">Données indisponibles</div>`; indicator.textContent = `🔴 ${nowStr}`; }
   }
 }
+
+/* ===== PIN RÉCEPTION ===== */
+const PIN_CODE = '250432';
+let unlocked = false;
+
+const toggle    = document.getElementById('reception-toggle');
+const modal     = document.getElementById('pin-modal');
+const pinInput  = document.getElementById('pin-input');
+const pinError  = document.getElementById('pin-error');
+const cards     = document.getElementById('reception-cards');
+
+toggle.addEventListener('click', () => {
+  if (unlocked) {
+    cards.classList.toggle('unlocked');
+    return;
+  }
+  pinInput.value = '';
+  pinError.textContent = '';
+  modal.classList.add('show');
+  setTimeout(() => pinInput.focus(), 100);
+});
+
+function tryUnlock() {
+  if (pinInput.value === PIN_CODE) {
+    unlocked = true;
+    modal.classList.remove('show');
+    cards.classList.add('unlocked');
+    toggle.innerHTML = '🚗 Réception';
+    toggle.style.cursor = 'default';
+    toggle.style.pointerEvents = 'none';
+  } else {
+    pinError.textContent = 'Code incorrect, réessayez.';
+    pinInput.value = '';
+    pinInput.focus();
+  }
+}
+
+document.getElementById('pin-submit').addEventListener('click', tryUnlock);
+pinInput.addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
+document.getElementById('pin-cancel').addEventListener('click', () => {
+  modal.classList.remove('show');
+});
+modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('show'); });
 
 loadPonts(true);
 setInterval(() => loadPonts(false), REFRESH_MS);
