@@ -409,7 +409,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (ev.__type === 'navire') {
           const hD = String(ev._hDebut ?? new Date(ev._start).getHours()).padStart(2,'0');
           const hF = String(ev._hFinDisplay ?? ev._hFin ?? new Date(ev._end).getHours()).padStart(2,'0');
-          time.textContent = `<${hD}:00 → ${hF}:00>`;
+          time.textContent = `<${hD}:00 → ${hF}:00>${ev._place ? ' — ' + ev._place.replace(/quai\s*/i,'').trim() : ''}`;
         } else if (ev._isAllDay) {
           const s=new Date(ev._start); s.setHours(0,0,0,0);
           const e=new Date(ev._endInclusive); e.setHours(0,0,0,0);
@@ -596,7 +596,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const hF  = String(ev._hFinDisplay ?? ev._hFin ?? new Date(ev._end).getHours()).padStart(2,'0');
         const nom = ev.summary?.split('—')[0].trim() || '';
         const lieu = (ev._place||'').replace(/quai\s*/i,'').trim();
-        txt = `<${hD}:00 ${nom}${lieu?' — '+lieu:''} ${hF}:00>\u00A0\u00A0\u00A0\u00A0\u00A0`;
+        txt = `<${hD}:00 ${nom} ${hF}:00>${lieu?' — '+lieu:''}\u00A0\u00A0\u00A0\u00A0\u00A0`;
       } else {
         if(isFirst&&!ev._isAllDay) txt+=`<${fmtTime(ev._start)} `;
         txt+=ev.summary||'(sans titre)';
