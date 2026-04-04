@@ -137,6 +137,8 @@ document.addEventListener('DOMContentLoaded', function() {
   const CACHE_KEY = 'caltest_v1_cache';
   const CACHE_TTL = 30000;
   const INDEX_URL = 'index.html';
+  // Filtrer les types affichés : ['reception', 'navire'] = les deux | ['reception'] = calr | ['navire'] = caln
+  const SHOW_TYPES = ['reception', 'navire'];
   let weekView = 3, currentStartDate = new Date(), resizeTimeout, autoRefreshTimer;
 
   const $  = id => document.getElementById(id);
@@ -308,12 +310,14 @@ document.addEventListener('DOMContentLoaded', function() {
       saveCache(items, calculateHash(items));
     }
     // Re-parse dates (localStorage loses Date objects)
-    return items.map(ev => ({
-      ...ev,
-      _start: new Date(ev._start),
-      _end: new Date(ev._end),
-      _endInclusive: new Date(ev._endInclusive),
-    }));
+    return items
+      .map(ev => ({
+        ...ev,
+        _start: new Date(ev._start),
+        _end: new Date(ev._end),
+        _endInclusive: new Date(ev._endInclusive),
+      }))
+      .filter(ev => SHOW_TYPES.includes(ev.__type));
   }
 
   /* ── CLOCK ── */
