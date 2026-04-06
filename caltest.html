@@ -383,31 +383,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (ev.__type === 'navire') {
       const nom = ev.summary?.split('—')[0].trim() || '';
+      const lieu = (ev._place || '').trim();
+      const quai = lieu ? ` — ${lieu}` : '';
       const evStartDay = new Date(ev._start); evStartDay.setHours(0,0,0,0);
       const evEndDay   = new Date(ev._endInclusive); evEndDay.setHours(0,0,0,0);
       const isMultiDay = evStartDay.getTime() !== evEndDay.getTime();
 
       if (!isMultiDay) {
-        // Journée simple
         const hD = String(ev._hDebut ?? ev._start.getHours()).padStart(2,'0');
         const hF = String(ev._hFinDisplay ?? ev._hFin ?? ev._end.getHours()).padStart(2,'0');
-        return { name: nom, time: `${hD}:00 → ${hF}:00` };
+        return { name: nom, time: `${hD}:00 → ${hF}:00${quai}` };
       }
 
-      // Multi-jours : on affiche les heures du segment correspondant au jour affiché
       const dayTime = day.getTime();
       if (dayTime === evStartDay.getTime()) {
-        // Premier jour : heure de début → fin de ce segment (hFin du 1er poste)
         const hD = String(ev._hDebut ?? ev._start.getHours()).padStart(2,'0');
-        // Pour le 1er jour d'un multi-jours, on montre juste le départ
-        return { name: nom, time: `${hD}:00 →` };
+        return { name: nom, time: `${hD}:00 →${quai}` };
       } else if (dayTime === evEndDay.getTime()) {
-        // Dernier jour : début de ce segment → hFin
         const hF = String(ev._hFinDisplay ?? ev._hFin ?? ev._end.getHours()).padStart(2,'0');
-        return { name: nom, time: `→ ${hF}:00` };
+        return { name: nom, time: `→ ${hF}:00${quai}` };
       } else {
-        // Jour intermédiaire
-        return { name: nom, time: '···' };
+        return { name: nom, time: `···${quai}` };
       }
     }
 
