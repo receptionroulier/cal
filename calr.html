@@ -7,7 +7,7 @@ const maintenance = false;
 if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/bug.html";
 </script>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Calendrier Réception</title>
+<title>Calendrier Navires</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   html{height:100%;overflow:hidden}
@@ -61,29 +61,20 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
   .mob-future .mob-day-dot{background:rgba(0,229,255,0.4)}
   .mob-past .mob-day-dot{background:rgba(255,255,255,0.15)}
   .mob-day-date{color:#cbd5e1;font-size:0.75rem}
+  .mob-more-tag{margin-left:auto;font-size:0.7rem;font-weight:700;color:#94a3b8;background:rgba(255,255,255,0.1);border-radius:4px;padding:1px 5px;line-height:1.4}
   .mob-events{display:flex;flex-direction:column;gap:4px;padding:5px 6px;overflow-y:auto;flex:1}
   .mob-empty{font-size:0.68rem;color:#475569;font-style:italic;padding:4px 6px}
-  .mob-evt{display:flex;align-items:flex-start;gap:5px;padding:4px 6px;border-radius:6px;font-size:0.72rem;cursor:pointer;transition:transform .12s;flex-shrink:0}
+  /* ── Nouvelle carte événement mobile 2 lignes ── */
+  .mob-evt{display:flex;flex-direction:column;gap:2px;padding:5px 7px;border-radius:7px;cursor:pointer;transition:transform .12s;flex-shrink:0;overflow:hidden}
   .mob-evt:active{transform:translateX(2px)}
   .mob-evt.reception{background:linear-gradient(90deg,rgba(0,255,120,0.18),rgba(0,200,100,0.14));border:1px solid rgba(0,255,120,0.5);box-shadow:0 0 6px rgba(0,255,140,0.2)}
   .mob-evt.navire{background:linear-gradient(90deg,rgba(0,130,255,0.18),rgba(0,110,220,0.14));border:1px solid rgba(0,160,255,0.5);box-shadow:0 0 6px rgba(0,150,255,0.2)}
-  .mob-evt-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:3px}
-  .mob-evt.reception .mob-evt-dot{background:#00ff78}
-  .mob-evt.navire .mob-evt-dot{background:#0099ff}
-  .mob-evt-info{display:flex;flex-direction:column;gap:1px;min-width:0}
-  .mob-evt-name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:0.72rem}
-  .mob-evt-time{font-size:0.65rem;color:#94a3b8}
+  .mob-evt-name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:0.73rem;color:#f0f8ff}
+  .mob-evt-time{font-size:0.65rem;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   /* Swipe animation */
   .week-grid{transition:transform 0.3s ease,opacity 0.3s ease}
   .week-grid.swipe-left{transform:translateX(-100%);opacity:0}
   .week-grid.swipe-right{transform:translateX(100%);opacity:0}
-  /* Bandeau événement animé */
-  .mob-evt{overflow:hidden}
-  .mob-evt-ticker{display:flex;align-items:center;gap:5px;width:100%;overflow:hidden;position:relative}
-  .mob-evt-text{white-space:nowrap;display:inline-block;font-size:0.72rem;font-weight:500}
-  .mob-evt-text.scrolling{animation:mobscroll 10s linear infinite}
-  .mob-evt-text.scrolling::after{content:attr(data-text);position:absolute;left:100%;padding-left:24px;white-space:nowrap}
-  @keyframes mobscroll{0%{transform:translateX(0)}100%{transform:translateX(-100%)}}
   /* Header jour cliquable */
   .mob-day-header{cursor:pointer}
   .mob-day-header:hover{background:rgba(255,255,255,0.05)}
@@ -174,7 +165,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const CACHE_KEY = 'calr_v1_cache';
   const CACHE_TTL = 30000;
   const INDEX_URL = 'index.html';
-  // Filtrer les types affichés : ['reception', 'navire'] = les deux | ['reception'] = calr | ['navire'] = caln
   const SHOW_TYPES = ['reception', 'navire'];
   let weekView = 3, currentStartDate = new Date(), resizeTimeout, autoRefreshTimer;
 
@@ -198,7 +188,6 @@ document.addEventListener('DOMContentLoaded', function() {
   function parsePoste(poste) {
     if (!poste || poste.length < 3) return { hDebut: 0, hFin: 23 };
     const s = poste.padStart(4, '0');
-    // Format XXYY : XX = heure début, YY = heure fin
     const hDebut = parseInt(s.slice(0, 2), 10);
     const hFin   = parseInt(s.slice(2, 4), 10);
     return { hDebut: isNaN(hDebut) ? 0 : hDebut, hFin: isNaN(hFin) ? 23 : hFin };
@@ -213,7 +202,6 @@ document.addEventListener('DOMContentLoaded', function() {
       if (!r.ok) return [];
       const data = await r.json();
 
-      // 1. Collecter tous les segments bruts triés par date+hDebut
       const raw = [];
       for (const day of data) {
         if (!day.projectAssignments || !day.projectAssignments.length) continue;
@@ -233,10 +221,8 @@ document.addEventListener('DOMContentLoaded', function() {
           });
         }
       }
-      // Tri chronologique
       raw.sort((a, b) => a._start - b._start);
 
-      // 2. Fusion par chaînage : même navire + même quai + hFin1 == hDebut2 (même jour ou jour suivant)
       const fused = [];
       const used  = new Array(raw.length).fill(false);
 
@@ -245,16 +231,13 @@ document.addEventListener('DOMContentLoaded', function() {
         let cur = { ...raw[i] };
         used[i] = true;
 
-        // Chercher si un segment suivant peut être chainé
         let changed = true;
         while (changed) {
           changed = false;
           for (let j = 0; j < raw.length; j++) {
             if (used[j]) continue;
             const next = raw[j];
-            // Même navire et même quai ?
             if (next._name !== cur._name || next._place !== cur._place) continue;
-            // La fin du courant == le début du suivant (tolérance 0 minute)
             if (cur._end.getTime() === next._start.getTime()) {
               cur._end    = new Date(next._end);
               cur._hFin   = next._hFin;
@@ -266,14 +249,12 @@ document.addEventListener('DOMContentLoaded', function() {
         fused.push(cur);
       }
 
-      // 3. Construire les items normalisés
       return fused.map(ev => {
         const lieu    = ev._place.replace(/quai\s*/i, '').trim();
         const summary = `${ev._name}${lieu ? ' — ' + lieu : ''}`;
-        // Pour les events multi-jours, _endInclusive = dernier jour à 23:59
         const _endInclusive = new Date(ev._end);
         if (ev._end.getHours() === 0 && ev._end.getMinutes() === 0) {
-          _endInclusive.setSeconds(-1); // minuit = fin de la veille
+          _endInclusive.setSeconds(-1);
         }
         return {
           id: ev.id,
@@ -346,7 +327,6 @@ document.addEventListener('DOMContentLoaded', function() {
       items = await fetchAll(timeMin, timeMax);
       saveCache(items, calculateHash(items));
     }
-    // Re-parse dates (localStorage loses Date objects)
     return items
       .map(ev => ({
         ...ev,
@@ -395,60 +375,74 @@ document.addEventListener('DOMContentLoaded', function() {
     $('event-modal').style.display='flex';
   }
 
-  /* ── TITRE NAVIRE affiché sur bande ── */
-  function navireLabel(ev, isFirst, isLast) {
-    const hD = String(ev._hDebut ?? new Date(ev._start).getHours()).padStart(2,'0');
-    const hF = String(ev._hFin  ?? new Date(ev._end).getHours()).padStart(2,'0');
-    const lieu = (ev._place || '').replace(/quai\s*/i,'').trim();
-    return `${hD}:00 ${ev.summary?.split('—')[0].trim() || ''} ${lieu ? '— '+lieu : ''} ${hF}h00`;
-  }
+  /* ── MOBILE : retourne { name, time } pour affichage 2 lignes ── */
+  function evtTwoLines(ev, day) {
+    // All-day : nom seulement, pas d'heure
+    if (ev._isAllDay) {
+      return { name: ev.summary || '(sans titre)', time: null };
+    }
 
-  /* ── NOUVELLE VUE MOBILE SEMAINE 2 COLONNES ── */
-  let mobNorm=[], mobWeekStart=null, swipeStartX=0, swipeStartY=0, isSwiping=false;
+    if (ev.__type === 'navire') {
+      const nom = ev.summary?.split('—')[0].trim() || '';
+      const lieu = (ev._place || '').replace(/quai\s*/i, '').trim();
+      const quai = lieu ? ` — ${lieu}` : '';
+      const evStartDay = new Date(ev._start); evStartDay.setHours(0,0,0,0);
+      const evEndDay   = new Date(ev._endInclusive); evEndDay.setHours(0,0,0,0);
+      const isMultiDay = evStartDay.getTime() !== evEndDay.getTime();
 
-  function getMobWeekMonday(d){
-    const r=new Date(d), day=r.getDay();
-    r.setDate(r.getDate()+(day===0?-6:1-day));
-    r.setHours(0,0,0,0); return r;
-  }
+      if (!isMultiDay) {
+        const hD = String(ev._hDebut ?? ev._start.getHours()).padStart(2,'0');
+        const hF = String(ev._hFinDisplay ?? ev._hFin ?? ev._end.getHours()).padStart(2,'0');
+        return { name: nom, time: `${hD}:00 → ${hF}:00${quai}` };
+      }
 
-  function mobEventsOnDay(day){
-    return mobNorm.filter(ev=>{
-      const s=new Date(ev._start); s.setHours(0,0,0,0);
-      const e=new Date(ev._endInclusive); e.setHours(0,0,0,0);
-      return day>=s && day<=e;
-    }).sort((a,b)=>new Date(a._start)-new Date(b._start));
-  }
+      const dayTime = day.getTime();
+      if (dayTime === evStartDay.getTime()) {
+        const hD = String(ev._hDebut ?? ev._start.getHours()).padStart(2,'0');
+        return { name: nom, time: `${hD}:00 →${quai}` };
+      } else if (dayTime === evEndDay.getTime()) {
+        const hF = String(ev._hFinDisplay ?? ev._hFin ?? ev._end.getHours()).padStart(2,'0');
+        return { name: nom, time: `→ ${hF}:00${quai}` };
+      } else {
+        return { name: nom, time: `···${quai}` };
+      }
+    }
 
-  /* Formate le texte d'un événement sur une ligne */
-  function evtOneLiner(ev){
-    if(ev.__type==='navire'){
-      const hD=String(ev._hDebut??new Date(ev._start).getHours()).padStart(2,'0');
-      const hF=String(ev._hFinDisplay??ev._hFin??new Date(ev._end).getHours()).padStart(2,'0');
-      const lieu=(ev._place||'').replace(/quai\s*/i,'').trim();
-      const nom=ev.summary?.split('—')[0].trim()||'';
-      return `<${hD}:00 ${nom} ${hF}:00>${lieu?' '+lieu:''}`;
-    } else if(ev._isAllDay){
-      return ev.summary||'(sans titre)';
+    // Réception (non all-day)
+    const nom = ev.summary || '(sans titre)';
+    const evStartDay = new Date(ev._start); evStartDay.setHours(0,0,0,0);
+    const evEndDay   = new Date(ev._endInclusive); evEndDay.setHours(0,0,0,0);
+    const isMultiDay = evStartDay.getTime() !== evEndDay.getTime();
+
+    if (!isMultiDay) {
+      return { name: nom, time: `${fmtTime(ev._start)} → ${fmtTime(ev._end)}` };
+    }
+
+    const dayTime = day.getTime();
+    if (dayTime === evStartDay.getTime()) {
+      return { name: nom, time: `${fmtTime(ev._start)} →` };
+    } else if (dayTime === evEndDay.getTime()) {
+      return { name: nom, time: `→ ${fmtTime(ev._end)}` };
     } else {
-      return `${fmtTime(ev._start)} ${ev.summary||'(sans titre)'} ${fmtTime(ev._end)}`;
+      return { name: nom, time: '···' };
     }
   }
 
-  function buildEvtBand(ev){
-    const row=mk('div','mob-evt '+(ev.__type||''));
-    const ticker=mk('div','mob-evt-ticker');
-    const txt=mk('span','mob-evt-text');
-    const label=evtOneLiner(ev);
-    txt.textContent=label;
-    txt.setAttribute('data-text',label);
-    ticker.appendChild(txt);
-    row.appendChild(ticker);
-    row.addEventListener('click',e=>{ e.stopPropagation(); showEventModal(ev); });
-    // Activer scroll si overflow (après rendu)
-    requestAnimationFrame(()=>{
-      if(txt.scrollWidth > ticker.clientWidth) txt.classList.add('scrolling');
-    });
+  function buildEvtBand(ev, day) {
+    const row = mk('div', 'mob-evt ' + (ev.__type || ''));
+    const { name, time } = evtTwoLines(ev, day);
+
+    const nameEl = mk('div', 'mob-evt-name');
+    nameEl.textContent = name;
+    row.appendChild(nameEl);
+
+    if (time !== null) {
+      const timeEl = mk('div', 'mob-evt-time');
+      timeEl.textContent = time;
+      row.appendChild(timeEl);
+    }
+
+    row.addEventListener('click', e => { e.stopPropagation(); showEventModal(ev); });
     return row;
   }
 
@@ -467,7 +461,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if(ev.__type==='navire'){
           const hD=String(ev._hDebut??new Date(ev._start).getHours()).padStart(2,'0');
           const hF=String(ev._hFinDisplay??ev._hFin??new Date(ev._end).getHours()).padStart(2,'0');
-          time.textContent=`<${hD}:00 → ${hF}:00>`;
+          time.textContent=`${hD}:00 → ${hF}:00`;
         } else if(ev._isAllDay){
           time.textContent='Journée entière';
         } else {
@@ -482,6 +476,23 @@ document.addEventListener('DOMContentLoaded', function() {
     $('day-modal').classList.add('show');
   }
 
+  /* ── MOBILE SEMAINE 2 COLONNES ── */
+  let mobNorm=[], mobWeekStart=null, swipeStartX=0, swipeStartY=0, isSwiping=false;
+
+  function getMobWeekMonday(d){
+    const r=new Date(d), day=r.getDay();
+    r.setDate(r.getDate()+(day===0?-6:1-day));
+    r.setHours(0,0,0,0); return r;
+  }
+
+  function mobEventsOnDay(day){
+    return mobNorm.filter(ev=>{
+      const s=new Date(ev._start); s.setHours(0,0,0,0);
+      const e=new Date(ev._endInclusive); e.setHours(0,0,0,0);
+      return day>=s && day<=e;
+    }).sort((a,b)=>new Date(a._start)-new Date(b._start));
+  }
+
   function buildMobDayCell(day, today){
     const isPast=day<today, isToday=day.getTime()===today.getTime();
     const evts=mobEventsOnDay(day);
@@ -493,7 +504,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const dot=mk('div','mob-day-dot');
     const dateDiv=mk('div','mob-day-date');
     dateDiv.textContent=capitalize(day.toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit',month:'short'}));
-    hdr.append(dot,dateDiv);
+    const moreTag=mk('span','mob-more-tag'); moreTag.textContent='+'; moreTag.style.display='none';
+    hdr.append(dot,dateDiv,moreTag);
     hdr.addEventListener('click',e=>{ e.stopPropagation(); showDayModal(day,evts); });
     cell.appendChild(hdr);
 
@@ -501,8 +513,13 @@ document.addEventListener('DOMContentLoaded', function() {
       const e=mk('div','mob-empty'); e.textContent='—'; cell.appendChild(e);
     } else {
       const evWrap=mk('div','mob-events');
-      evts.forEach(ev=>evWrap.appendChild(buildEvtBand(ev)));
+      evts.forEach(ev => evWrap.appendChild(buildEvtBand(ev, day)));
       cell.appendChild(evWrap);
+      requestAnimationFrame(()=>{
+        requestAnimationFrame(()=>{
+          if(evWrap.scrollHeight > evWrap.clientHeight + 2) moreTag.style.display='';
+        });
+      });
     }
     return cell;
   }
@@ -510,7 +527,6 @@ document.addEventListener('DOMContentLoaded', function() {
   function updateMobTitle(){
     const monday=new Date(mobWeekStart);
     const sunday=new Date(monday); sunday.setDate(monday.getDate()+6);
-    // Numéro de semaine ISO
     const tmp=new Date(monday); tmp.setHours(0,0,0,0);
     tmp.setDate(tmp.getDate()+3-(tmp.getDay()+6)%7);
     const jan4=new Date(tmp.getFullYear(),0,4);
@@ -531,19 +547,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const today=new Date(); today.setHours(0,0,0,0);
     const monday=new Date(mobWeekStart);
 
-    // Fetch si nécessaire
     const weekEnd=new Date(monday); weekEnd.setDate(monday.getDate()+7);
     mobNorm=await fetchMobRange(monday,weekEnd);
     updateMobTitle();
 
-    // Construire les 8 jours : lun à lun suivant
     const days=[];
     for(let i=0;i<8;i++){
       const d=new Date(monday); d.setDate(monday.getDate()+i); d.setHours(0,0,0,0);
       days.push(d);
     }
 
-    // Grille 2 colonnes : col gauche = jours 0-3 (lun-jeu), col droite = jours 4-7 (ven-sam-dim-lun)
     const grid=mk('div','week-grid');
     if(animate==='left'){ grid.style.transform='translateX(100%)'; grid.style.opacity='0'; }
     if(animate==='right'){ grid.style.transform='translateX(-100%)'; grid.style.opacity='0'; }
@@ -553,12 +566,10 @@ document.addEventListener('DOMContentLoaded', function() {
     days.slice(4,8).forEach(d=>colR.appendChild(buildMobDayCell(d,today)));
     grid.append(colL,colR);
 
-    // Enlever l'ancienne grille
     const old=wrap.querySelector('.week-grid');
     if(old) old.remove();
     wrap.appendChild(grid);
 
-    // Animation entrée
     if(animate){
       requestAnimationFrame(()=>{
         requestAnimationFrame(()=>{
@@ -571,7 +582,6 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function scrollToToday(){
-    // Dans la nouvelle vue, on navigue à la semaine d'aujourd'hui
     const today=new Date(); today.setHours(0,0,0,0);
     mobWeekStart=getMobWeekMonday(today);
     renderWeekGrid(null);
@@ -585,7 +595,6 @@ document.addEventListener('DOMContentLoaded', function() {
     wrap.innerHTML='';
     await renderWeekGrid(null);
 
-    // Swipe bas pour fermer la modale jour
     const dmCard=$('day-modal-card');
     let dmStartY=0, dmDy=0;
     dmCard.addEventListener('touchstart', e=>{
@@ -605,7 +614,6 @@ document.addEventListener('DOMContentLoaded', function() {
       dmDy=0;
     },{passive:true});
 
-    // Pull-to-refresh sur le header uniquement
     const hdr=$('calendar-header');
     let ptrStartY=0, ptrActive=false;
     hdr.addEventListener('touchstart',e=>{
@@ -618,7 +626,6 @@ document.addEventListener('DOMContentLoaded', function() {
     },{passive:true});
     hdr.addEventListener('touchend',()=>{ ptrActive=false; },{passive:true});
 
-    // Swipe gauche/droite
     wrap.addEventListener('touchstart',e=>{
       swipeStartX=e.touches[0].clientX;
       swipeStartY=e.touches[0].clientY;
@@ -634,11 +641,9 @@ document.addEventListener('DOMContentLoaded', function() {
       const dx=e.changedTouches[0].clientX-swipeStartX;
       if(Math.abs(dx)<40) return;
       if(dx<0){
-        // Swipe gauche → semaine suivante
         mobWeekStart=new Date(mobWeekStart); mobWeekStart.setDate(mobWeekStart.getDate()+7);
         renderWeekGrid('left');
       } else {
-        // Swipe droite → semaine précédente
         mobWeekStart=new Date(mobWeekStart); mobWeekStart.setDate(mobWeekStart.getDate()-7);
         renderWeekGrid('right');
       }
