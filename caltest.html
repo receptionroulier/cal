@@ -10,8 +10,8 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
 <title>Calendrier Navires</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
-  html{height:100%}
-  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;display:flex;flex-direction:column;height:100%;min-height:0}
+  html{height:100%;overflow:hidden}
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;display:flex;flex-direction:column;height:100%;overflow:hidden;min-height:0}
   #calendar-header{display:flex;flex-wrap:nowrap;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);backdrop-filter:blur(8px);min-height:52px;position:relative}
   .header-left{display:flex;align-items:center;flex-shrink:0}
   #today-group{position:absolute;left:25%;transform:translateX(-50%);display:flex;align-items:center;gap:2px;pointer-events:auto}
@@ -47,7 +47,7 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
   .event-text.scrolling::after{content:attr(data-text);position:absolute;left:100%;white-space:nowrap}
   @keyframes scroll{0%{transform:translateX(0)}100%{transform:translateX(-100%)}}
   .more-events{position:absolute;top:6px;right:8px;padding:2px 6px;background:rgba(0,0,0,0.45);border-radius:6px;font-size:0.72rem;cursor:pointer;z-index:60;pointer-events:auto}
-  #mobile-wrap{display:none;flex:1;flex-direction:column}
+  #mobile-wrap{display:none;flex:1;flex-direction:column;overflow:hidden}
   /* ── NOUVELLE VUE MOBILE SEMAINE 2 COLONNES ── */
   .week-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:6px;flex:1;min-height:0;overflow:hidden}
   .week-col{display:flex;flex-direction:column;gap:5px;min-height:0;overflow:hidden}
@@ -604,6 +604,19 @@ document.addEventListener('DOMContentLoaded', function() {
       if(dmDy > 80) closeDayModal();
       dmDy=0;
     },{passive:true});
+
+    // Pull-to-refresh sur le header uniquement
+    const hdr=$('calendar-header');
+    let ptrStartY=0, ptrActive=false;
+    hdr.addEventListener('touchstart',e=>{
+      ptrStartY=e.touches[0].clientY; ptrActive=true;
+    },{passive:true});
+    hdr.addEventListener('touchmove',e=>{
+      if(!ptrActive) return;
+      const dy=e.touches[0].clientY-ptrStartY;
+      if(dy>60){ ptrActive=false; location.reload(); }
+    },{passive:true});
+    hdr.addEventListener('touchend',()=>{ ptrActive=false; },{passive:true});
 
     // Swipe gauche/droite
     wrap.addEventListener('touchstart',e=>{
