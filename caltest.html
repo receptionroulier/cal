@@ -384,10 +384,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (ev.__type === 'navire') {
       const nom = ev.summary?.split('—')[0].trim() || '';
-      const PLACE_MAP = { 'RORO à Bougainville': 'BGV' };
-      const lieuRaw = (ev._place || '').replace(/quai\s*/i, '').trim();
-      const lieu = PLACE_MAP[lieuRaw] ?? lieuRaw;
-      const quai = lieu ? ` — ${lieu}` : '';
+      const PLACE_MAP = { 'Quai RORO à Bougainville': 'BGV', 'RORO à Bougainville': 'BGV' };
+      const placeRaw = (ev._place || '').trim();
+      const placeMapped = PLACE_MAP[placeRaw] ?? placeRaw.replace(/quai\s*/i, '').trim();
+      const quai = placeMapped ? ` — ${placeMapped}` : '';
       const evStartDay = new Date(ev._start); evStartDay.setHours(0,0,0,0);
       const evEndDay   = new Date(ev._endInclusive); evEndDay.setHours(0,0,0,0);
       const isMultiDay = evStartDay.getTime() !== evEndDay.getTime();
