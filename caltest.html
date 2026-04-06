@@ -176,6 +176,8 @@ document.addEventListener('DOMContentLoaded', function() {
   function fmtFullDate(d){ return new Date(d).toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long'}); }
   function capitalize(s){ return s ? s[0].toUpperCase()+s.slice(1) : s; }
   function parseDateLocal(s){ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d,0,0,0,0); }
+  const PLACE_MAP = { 'Quai RORO à Bougainville': 'BGV', 'RORO à Bougainville': 'BGV' };
+  function fmtPlace(place){ const raw=(place||'').trim(); return (PLACE_MAP[raw] ?? raw.replace(/quai\s*/i,'').trim()); }
   function isMobile(){ return window.innerWidth < 720; }
   function fmtDateISO(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 
@@ -250,7 +252,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
 
       return fused.map(ev => {
-        const lieu    = ev._place.replace(/quai\s*/i, '').trim();
+        const lieu    = fmtPlace(ev._place);
         const summary = `${ev._name}${lieu ? ' — ' + lieu : ''}`;
         const _endInclusive = new Date(ev._end);
         if (ev._end.getHours() === 0 && ev._end.getMinutes() === 0) {
@@ -384,9 +386,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (ev.__type === 'navire') {
       const nom = ev.summary?.split('—')[0].trim() || '';
-      const PLACE_MAP = { 'Quai RORO à Bougainville': 'BGV', 'RORO à Bougainville': 'BGV' };
-      const placeRaw = (ev._place || '').trim();
-      const placeMapped = PLACE_MAP[placeRaw] ?? placeRaw.replace(/quai\s*/i, '').trim();
+      const quai = fmtPlace(ev._place) ? ` — ${fmtPlace(ev._place)}` : '';
       const quai = placeMapped ? ` — ${placeMapped}` : '';
       const evStartDay = new Date(ev._start); evStartDay.setHours(0,0,0,0);
       const evEndDay   = new Date(ev._endInclusive); evEndDay.setHours(0,0,0,0);
@@ -738,7 +738,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const hD  = String(ev._hDebut ?? new Date(ev._start).getHours()).padStart(2,'0');
         const hF  = String(ev._hFinDisplay ?? ev._hFin ?? new Date(ev._end).getHours()).padStart(2,'0');
         const nom = ev.summary?.split('—')[0].trim() || '';
-        const lieu = (ev._place||'').replace(/quai\s*/i,'').trim();
+        const lieu = fmtPlace(ev._place);
         txt = `<${hD}:00 ${nom} ${hF}:00>${lieu?' — '+lieu:''}\u00A0\u00A0\u00A0\u00A0\u00A0`;
       } else {
         if(isFirst&&!ev._isAllDay) txt+=`<${fmtTime(ev._start)} `;
