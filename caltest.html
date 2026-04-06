@@ -372,7 +372,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!ev._isAllDay) {
       const timeEl = mk('div', 'mob-evt-time');
       const lieu = normLieu(ev._place || '');
-      const quai = lieu ? ' · ' + lieu : '';
+      const quai = lieu ? ' ── ' + lieu : '';
       const evSD = new Date(ev._start); evSD.setHours(0,0,0,0);
       const evED = new Date(ev._endInclusive); evED.setHours(0,0,0,0);
       const multi = evSD.getTime() !== evED.getTime();
