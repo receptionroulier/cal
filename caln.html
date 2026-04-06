@@ -10,7 +10,8 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
 <title>Calendrier Navire</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;display:flex;flex-direction:column;height:100vh;min-height:0}
+  html{height:100%;overflow:hidden}
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;display:flex;flex-direction:column;height:100%;overflow:hidden;min-height:0}
   #calendar-header{display:flex;flex-wrap:nowrap;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);backdrop-filter:blur(8px);min-height:52px;position:relative}
   .header-left{display:flex;align-items:center;flex-shrink:0}
   #today-group{position:absolute;left:25%;transform:translateX(-50%);display:flex;align-items:center;gap:2px;pointer-events:auto}
@@ -46,31 +47,59 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
   .event-text.scrolling::after{content:attr(data-text);position:absolute;left:100%;white-space:nowrap}
   @keyframes scroll{0%{transform:translateX(0)}100%{transform:translateX(-100%)}}
   .more-events{position:absolute;top:6px;right:8px;padding:2px 6px;background:rgba(0,0,0,0.45);border-radius:6px;font-size:0.72rem;cursor:pointer;z-index:60;pointer-events:auto}
-  #mobile-wrap{display:none;flex:1;overflow-y:auto;flex-direction:column;gap:6px;padding:8px 12px 40px}
-  .mob-month-sep{font-size:0.68rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:#475569;padding:12px 2px 4px;flex-shrink:0}
-  .mob-sentinel{height:1px;flex-shrink:0}
-  .mob-day{background:rgba(255,255,255,0.05);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.08);border-radius:12px;overflow:hidden;flex-shrink:0}
+  #mobile-wrap{display:none;flex:1;flex-direction:column;overflow:hidden}
+  /* ── NOUVELLE VUE MOBILE SEMAINE 2 COLONNES ── */
+  .week-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:6px;flex:1;min-height:0;overflow:hidden}
+  .week-col{display:flex;flex-direction:column;gap:5px;min-height:0;overflow:hidden}
+  .mob-day{background:rgba(255,255,255,0.05);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden;flex:1;display:flex;flex-direction:column;min-height:0}
   .mob-day.mob-today{border:2px solid rgba(0,229,255,0.7);box-shadow:0 0 8px rgba(0,229,255,0.4);animation:pulse 2s infinite}
-  .mob-day.mob-past{background:rgba(255,255,255,0.03);opacity:0.6}
+  .mob-day.mob-past{background:rgba(255,255,255,0.03);opacity:0.65}
   .mob-day.mob-future{background:rgba(255,255,255,0.07);border-color:rgba(0,229,255,0.2)}
-  .mob-day-header{display:flex;align-items:center;gap:8px;padding:8px 12px;font-size:0.85rem;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.06)}
-  .mob-day-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:rgba(255,255,255,0.2)}
+  .mob-day-header{display:flex;align-items:center;gap:6px;padding:5px 8px;font-size:0.78rem;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.06);flex-shrink:0}
+  .mob-day-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:rgba(255,255,255,0.2)}
   .mob-today .mob-day-dot{background:#00e5ff}
   .mob-future .mob-day-dot{background:rgba(0,229,255,0.4)}
   .mob-past .mob-day-dot{background:rgba(255,255,255,0.15)}
-  .mob-day-date{color:#cbd5e1;font-size:0.82rem}
-  .mob-events{display:flex;flex-direction:column;gap:6px;padding:8px 10px}
-  .mob-empty{font-size:0.75rem;color:#475569;font-style:italic;padding:6px 12px 10px}
-  .mob-evt{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;font-size:0.82rem;cursor:pointer;transition:transform .12s}
-  .mob-evt:active{transform:translateX(3px)}
-  .mob-evt.reception{background:linear-gradient(90deg,rgba(0,255,120,0.18),rgba(0,200,100,0.14));border:1px solid rgba(0,255,120,0.5);box-shadow:0 0 8px rgba(0,255,140,0.25)}
-  .mob-evt.navire{background:linear-gradient(90deg,rgba(0,130,255,0.18),rgba(0,110,220,0.14));border:1px solid rgba(0,160,255,0.5);box-shadow:0 0 8px rgba(0,150,255,0.25)}
-  .mob-evt-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+  .mob-day-date{color:#cbd5e1;font-size:0.75rem}
+  .mob-events{display:flex;flex-direction:column;gap:4px;padding:5px 6px;overflow-y:auto;flex:1}
+  .mob-empty{font-size:0.68rem;color:#475569;font-style:italic;padding:4px 6px}
+  .mob-evt{display:flex;align-items:flex-start;gap:5px;padding:4px 6px;border-radius:6px;font-size:0.72rem;cursor:pointer;transition:transform .12s;flex-shrink:0}
+  .mob-evt:active{transform:translateX(2px)}
+  .mob-evt.reception{background:linear-gradient(90deg,rgba(0,255,120,0.18),rgba(0,200,100,0.14));border:1px solid rgba(0,255,120,0.5);box-shadow:0 0 6px rgba(0,255,140,0.2)}
+  .mob-evt.navire{background:linear-gradient(90deg,rgba(0,130,255,0.18),rgba(0,110,220,0.14));border:1px solid rgba(0,160,255,0.5);box-shadow:0 0 6px rgba(0,150,255,0.2)}
+  .mob-evt-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:3px}
   .mob-evt.reception .mob-evt-dot{background:#00ff78}
   .mob-evt.navire .mob-evt-dot{background:#0099ff}
   .mob-evt-info{display:flex;flex-direction:column;gap:1px;min-width:0}
-  .mob-evt-name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .mob-evt-time{font-size:0.72rem;color:#94a3b8}
+  .mob-evt-name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:0.72rem}
+  .mob-evt-time{font-size:0.65rem;color:#94a3b8}
+  /* Swipe animation */
+  .week-grid{transition:transform 0.3s ease,opacity 0.3s ease}
+  .week-grid.swipe-left{transform:translateX(-100%);opacity:0}
+  .week-grid.swipe-right{transform:translateX(100%);opacity:0}
+  /* Bandeau événement animé */
+  .mob-evt{overflow:hidden}
+  .mob-evt-ticker{display:flex;align-items:center;gap:5px;width:100%;overflow:hidden;position:relative}
+  .mob-evt-text{white-space:nowrap;display:inline-block;font-size:0.72rem;font-weight:500}
+  .mob-evt-text.scrolling{animation:mobscroll 10s linear infinite}
+  .mob-evt-text.scrolling::after{content:attr(data-text);position:absolute;left:100%;padding-left:24px;white-space:nowrap}
+  @keyframes mobscroll{0%{transform:translateX(0)}100%{transform:translateX(-100%)}}
+  /* Header jour cliquable */
+  .mob-day-header{cursor:pointer}
+  .mob-day-header:hover{background:rgba(255,255,255,0.05)}
+  /* Modale jour agrandi */
+  #day-modal{position:fixed;inset:0;display:none;z-index:998}
+  #day-modal.show{display:block}
+  #day-modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.7);cursor:pointer}
+  #day-modal-card{position:fixed;bottom:0;left:0;right:0;background:#0f172a;border:1px solid rgba(255,255,255,0.12);border-radius:20px 20px 0 0;max-height:80vh;overflow-y:auto;padding:16px;z-index:1}
+  #day-modal-title{font-size:1rem;font-weight:700;margin-bottom:12px;color:#fff}
+  .day-modal-evt{display:flex;flex-direction:column;gap:3px;padding:10px 12px;border-radius:10px;margin-bottom:8px;cursor:pointer}
+  .day-modal-evt.reception{background:linear-gradient(90deg,rgba(0,255,120,0.18),rgba(0,200,100,0.14));border:1px solid rgba(0,255,120,0.5)}
+  .day-modal-evt.navire{background:linear-gradient(90deg,rgba(0,130,255,0.18),rgba(0,110,220,0.14));border:1px solid rgba(0,160,255,0.5)}
+  .day-modal-evt-name{font-weight:700;font-size:0.88rem}
+  .day-modal-evt-time{font-size:0.75rem;color:#94a3b8}
+  .day-modal-evt-place{font-size:0.75rem;color:#64748b}
+  #day-modal-close{width:40px;height:4px;background:rgba(255,255,255,0.2);border-radius:2px;margin:0 auto 14px;cursor:pointer}
   #event-modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.65);z-index:999}
   .modal-card{background:rgba(15,23,42,0.97);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.1);padding:18px;border-radius:16px;max-width:720px;width:94%;box-shadow:0 20px 40px rgba(0,0,0,0.6);max-height:85vh;overflow-y:auto}
   .modal-card h3{margin-bottom:6px}
@@ -125,6 +154,14 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
   <div id="events-layer" aria-hidden="false"></div>
 </div>
 <div id="mobile-wrap"></div>
+<div id="day-modal">
+  <div id="day-modal-backdrop"></div>
+  <div id="day-modal-card">
+    <div id="day-modal-close"></div>
+    <div id="day-modal-title"></div>
+    <div id="day-modal-events"></div>
+  </div>
+</div>
 <div id="event-modal">
   <div class="modal-card" id="modal-content" onclick="event.stopPropagation()"></div>
 </div>
@@ -134,11 +171,11 @@ document.addEventListener('DOMContentLoaded', function() {
   const API_KEY  = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
   const CAL_RECEPTION = 'receptionroulier@gmail.com';
   const NAVIRES_API   = 'https://calendar.docker.inno-web.fr/api/projectAssignments';
-  const CACHE_KEY = 'caltest_v1_cache';
+  const CACHE_KEY = 'caln_v1_cache';
   const CACHE_TTL = 30000;
   const INDEX_URL = 'index.html';
   // Filtrer les types affichés : ['reception', 'navire'] = les deux | ['reception'] = calr | ['navire'] = caln
-  const SHOW_TYPES = ['navire'];
+  const SHOW_TYPES = ['reception', 'navire'];
   let weekView = 3, currentStartDate = new Date(), resizeTimeout, autoRefreshTimer;
 
   const $  = id => document.getElementById(id);
@@ -348,6 +385,11 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   $('event-modal').addEventListener('click', () => $('event-modal').style.display='none');
   function showEventModal(ev){ $('modal-content').innerHTML=evtHtml(ev); $('event-modal').style.display='flex'; }
+
+  /* ── MODALE JOUR : fermeture ── */
+  const closeDayModal = () => $('day-modal').classList.remove('show');
+  $('day-modal-backdrop').addEventListener('click', closeDayModal);
+  $('day-modal-close').addEventListener('click', closeDayModal);
   function showModalForCell(c){
     $('modal-content').innerHTML=c.eventsList.map(evtHtml).join('<hr style="border:none;border-top:1px solid rgba(255,255,255,0.1);margin:8px 0">')||'<p>Aucun évènement</p>';
     $('event-modal').style.display='flex';
@@ -361,158 +403,247 @@ document.addEventListener('DOMContentLoaded', function() {
     return `${hD}:00 ${ev.summary?.split('—')[0].trim() || ''} ${lieu ? '— '+lieu : ''} ${hF}h00`;
   }
 
-  /* ── MOBILE ── */
-  let mobNorm=[], mobFrom=null, mobTo=null, mobLoading=false, mobObserver=null;
+  /* ── NOUVELLE VUE MOBILE SEMAINE 2 COLONNES ── */
+  let mobNorm=[], mobWeekStart=null, swipeStartX=0, swipeStartY=0, isSwiping=false;
 
-  function updateTitleFromScroll() {
-    const wrap = $('mobile-wrap'); if (!wrap) return;
-    const wrapRect = wrap.getBoundingClientRect();
-    const days = [...wrap.querySelectorAll('.mob-day')];
-    const visibleMonths = [], seen = new Set();
-    for (const card of days) {
-      const r = card.getBoundingClientRect();
-      if (r.bottom > wrapRect.top && r.top < wrapRect.bottom) {
-        const ts = parseInt(card.dataset.ts);
-        if (!isNaN(ts)) {
-          const d = new Date(ts), key = d.getFullYear()*100+d.getMonth();
-          if (!seen.has(key)) { seen.add(key); visibleMonths.push(capitalize(d.toLocaleString('fr-FR',{month:'long',year:'numeric'}))); }
-        }
-      }
-    }
-    if (visibleMonths.length) $('calendar-title').textContent = visibleMonths.join(' / ');
+  function getMobWeekMonday(d){
+    const r=new Date(d), day=r.getDay();
+    r.setDate(r.getDate()+(day===0?-6:1-day));
+    r.setHours(0,0,0,0); return r;
   }
 
-  function mobEventsOnDay(day) {
-    return mobNorm.filter(ev => {
+  function mobEventsOnDay(day){
+    return mobNorm.filter(ev=>{
       const s=new Date(ev._start); s.setHours(0,0,0,0);
       const e=new Date(ev._endInclusive); e.setHours(0,0,0,0);
       return day>=s && day<=e;
-    }).sort((a,b) => new Date(a._start)-new Date(b._start));
+    }).sort((a,b)=>new Date(a._start)-new Date(b._start));
   }
 
-  function buildDayCard(day, today) {
+  /* Formate le texte d'un événement sur une ligne */
+  function evtOneLiner(ev){
+    if(ev.__type==='navire'){
+      const hD=String(ev._hDebut??new Date(ev._start).getHours()).padStart(2,'0');
+      const hF=String(ev._hFinDisplay??ev._hFin??new Date(ev._end).getHours()).padStart(2,'0');
+      const lieu=(ev._place||'').replace(/quai\s*/i,'').trim();
+      const nom=ev.summary?.split('—')[0].trim()||'';
+      return `<${hD}:00 ${nom} ${hF}:00>${lieu?' '+lieu:''}`;
+    } else if(ev._isAllDay){
+      return ev.summary||'(sans titre)';
+    } else {
+      return `${fmtTime(ev._start)} ${ev.summary||'(sans titre)'} ${fmtTime(ev._end)}`;
+    }
+  }
+
+  function buildEvtBand(ev){
+    const row=mk('div','mob-evt '+(ev.__type||''));
+    const ticker=mk('div','mob-evt-ticker');
+    const txt=mk('span','mob-evt-text');
+    const label=evtOneLiner(ev);
+    txt.textContent=label;
+    txt.setAttribute('data-text',label);
+    ticker.appendChild(txt);
+    row.appendChild(ticker);
+    row.addEventListener('click',e=>{ e.stopPropagation(); showEventModal(ev); });
+    // Activer scroll si overflow (après rendu)
+    requestAnimationFrame(()=>{
+      if(txt.scrollWidth > ticker.clientWidth) txt.classList.add('scrolling');
+    });
+    return row;
+  }
+
+  function showDayModal(day, evts){
+    const title=$('day-modal-title');
+    const evtsEl=$('day-modal-events');
+    title.textContent=capitalize(day.toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long'}));
+    evtsEl.innerHTML='';
+    if(!evts.length){
+      evtsEl.innerHTML='<div style="color:#475569;font-style:italic;font-size:0.85rem">Aucun événement</div>';
+    } else {
+      evts.forEach(ev=>{
+        const d=mk('div','day-modal-evt '+(ev.__type||''));
+        const name=mk('div','day-modal-evt-name'); name.textContent=ev.summary?.split('—')[0].trim()||'(sans titre)';
+        const time=mk('div','day-modal-evt-time');
+        if(ev.__type==='navire'){
+          const hD=String(ev._hDebut??new Date(ev._start).getHours()).padStart(2,'0');
+          const hF=String(ev._hFinDisplay??ev._hFin??new Date(ev._end).getHours()).padStart(2,'0');
+          time.textContent=`<${hD}:00 → ${hF}:00>`;
+        } else if(ev._isAllDay){
+          time.textContent='Journée entière';
+        } else {
+          time.textContent=`${fmtTime(ev._start)} → ${fmtTime(ev._end)}`;
+        }
+        d.append(name,time);
+        if(ev._place){ const pl=mk('div','day-modal-evt-place'); pl.textContent='📍 '+ev._place; d.appendChild(pl); }
+        d.addEventListener('click',e=>{ e.stopPropagation(); showEventModal(ev); });
+        evtsEl.appendChild(d);
+      });
+    }
+    $('day-modal').classList.add('show');
+  }
+
+  function buildMobDayCell(day, today){
     const isPast=day<today, isToday=day.getTime()===today.getTime();
     const evts=mobEventsOnDay(day);
-    const card=mk('div','mob-day');
-    card.dataset.ts=day.getTime();
-    if(isToday){ card.classList.add('mob-today'); card.id='mob-today-anchor'; }
-    else card.classList.add(isPast?'mob-past':'mob-future');
+    const cell=mk('div','mob-day');
+    if(isToday) cell.classList.add('mob-today');
+    else cell.classList.add(isPast?'mob-past':'mob-future');
+
     const hdr=mk('div','mob-day-header');
+    const dot=mk('div','mob-day-dot');
     const dateDiv=mk('div','mob-day-date');
-    dateDiv.textContent=capitalize(day.toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long'}));
-    hdr.append(mk('div','mob-day-dot'),dateDiv); card.appendChild(hdr);
-    if (!evts.length) {
-      const e=mk('div','mob-empty'); e.textContent='Aucun événement'; card.appendChild(e);
+    dateDiv.textContent=capitalize(day.toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit',month:'short'}));
+    hdr.append(dot,dateDiv);
+    hdr.addEventListener('click',e=>{ e.stopPropagation(); showDayModal(day,evts); });
+    cell.appendChild(hdr);
+
+    if(!evts.length){
+      const e=mk('div','mob-empty'); e.textContent='—'; cell.appendChild(e);
     } else {
-      const wrap=mk('div','mob-events');
-      evts.forEach(ev => {
-        const row=mk('div','mob-evt '+(ev.__type||''));
-        const info=mk('div','mob-evt-info');
-        const name=mk('div','mob-evt-name'); name.textContent=ev.summary||'(sans titre)';
-        const time=mk('div','mob-evt-time');
-        if (ev.__type === 'navire') {
-          const hD = String(ev._hDebut ?? new Date(ev._start).getHours()).padStart(2,'0');
-          const hF = String(ev._hFinDisplay ?? ev._hFin ?? new Date(ev._end).getHours()).padStart(2,'0');
-          time.textContent = `<${hD}:00 → ${hF}:00>${ev._place ? ' — ' + ev._place.replace(/quai\s*/i,'').trim() : ''}`;
-        } else if (ev._isAllDay) {
-          const s=new Date(ev._start); s.setHours(0,0,0,0);
-          const e=new Date(ev._endInclusive); e.setHours(0,0,0,0);
-          const diff=Math.round((e-s)/86400000)+1;
-          time.textContent=diff>1?`Journée entière · ${diff}j`:'Journée entière';
-        } else { time.textContent=fmtTime(ev._start)+(ev._end?` → ${fmtTime(ev._end)}`:''); }
-        info.append(name,time); row.append(mk('div','mob-evt-dot'),info);
-        row.addEventListener('click',e=>{ e.stopPropagation(); showEventModal(ev); });
-        wrap.appendChild(row);
-      });
-      card.appendChild(wrap);
+      const evWrap=mk('div','mob-events');
+      evts.forEach(ev=>evWrap.appendChild(buildEvtBand(ev)));
+      cell.appendChild(evWrap);
     }
-    return card;
+    return cell;
   }
 
-  function maybySepBefore(wrap, day, ref){
-    const key=day.getFullYear()*100+day.getMonth();
-    if(wrap.querySelector(`.mob-month-sep[data-mkey="${key}"]`)) return;
-    const sep=mk('div','mob-month-sep'); sep.dataset.mkey=key;
-    sep.textContent=capitalize(day.toLocaleString('fr-FR',{month:'long',year:'numeric'}));
-    ref ? wrap.insertBefore(sep,ref) : wrap.appendChild(sep);
-  }
-
-  function scrollToToday(smooth){
-    const wrap=$('mobile-wrap'), anchor=$('mob-today-anchor');
-    if(!wrap||!anchor) return;
-    wrap.scrollTo({top:Math.max(0,wrap.scrollTop+anchor.getBoundingClientRect().top-wrap.getBoundingClientRect().top-10),behavior:smooth?'smooth':'instant'});
+  function updateMobTitle(){
+    const monday=new Date(mobWeekStart);
+    const sunday=new Date(monday); sunday.setDate(monday.getDate()+6);
+    // Numéro de semaine ISO
+    const tmp=new Date(monday); tmp.setHours(0,0,0,0);
+    tmp.setDate(tmp.getDate()+3-(tmp.getDay()+6)%7);
+    const jan4=new Date(tmp.getFullYear(),0,4);
+    const weekNum=1+Math.round(((tmp-jan4)/86400000-3+(jan4.getDay()+6)%7)/7);
+    const fmtD = d => d.toLocaleDateString('fr-FR',{day:'2-digit',month:'short'});
+    $('calendar-title').textContent=`Sem. ${weekNum} · ${fmtD(monday)} au ${fmtD(sunday)}`;
   }
 
   async function fetchMobRange(from, to){
     const tMin=new Date(from); tMin.setHours(0,0,0,0);
     const tMax=new Date(to); tMax.setHours(23,59,59,999);
-    const items = await fetchAll(tMin, tMax);
-    return items.filter(ev => SHOW_TYPES.includes(ev.__type));
+    const items=await fetchAll(tMin,tMax);
+    return items.filter(ev=>SHOW_TYPES.includes(ev.__type));
   }
 
-  async function prependDays(n, today){
-    const wrap=$('mobile-wrap'), sentTop=$('mob-sent-top');
-    const newTo=new Date(mobFrom); newTo.setDate(newTo.getDate()-1);
-    const newFrom=new Date(newTo); newFrom.setDate(newTo.getDate()-n+1);
-    mobNorm=[...await fetchMobRange(newFrom,newTo),...mobNorm]; mobFrom=new Date(newFrom);
-    const prevH=wrap.scrollHeight;
-    const days=[]; for(let d=new Date(newFrom);d<=newTo;d.setDate(d.getDate()+1)) days.push(new Date(d));
-    let ins=sentTop.nextSibling, lastM=-1;
-    days.forEach(day=>{
-      day.setHours(0,0,0,0);
-      const k=day.getFullYear()*100+day.getMonth();
-      if(k!==lastM){ lastM=k; maybySepBefore(wrap,day,ins); ins=sentTop.nextSibling; }
-      const card=buildDayCard(day,today); wrap.insertBefore(card,ins); ins=card.nextSibling;
-    });
-    wrap.scrollTop+=wrap.scrollHeight-prevH;
-  }
+  async function renderWeekGrid(animate){
+    const wrap=$('mobile-wrap');
+    const today=new Date(); today.setHours(0,0,0,0);
+    const monday=new Date(mobWeekStart);
 
-  async function appendDays(n, today){
-    const wrap=$('mobile-wrap'), sentBot=$('mob-sent-bot');
-    const newFrom=new Date(mobTo); newFrom.setDate(newFrom.getDate()+1);
-    const newTo=new Date(newFrom); newTo.setDate(newFrom.getDate()+n-1);
-    mobNorm=[...mobNorm,...await fetchMobRange(newFrom,newTo)]; mobTo=new Date(newTo);
-    let lastM=-1;
-    for(let d=new Date(newFrom);d<=newTo;d.setDate(d.getDate()+1)){
-      const day=new Date(d); day.setHours(0,0,0,0);
-      const k=day.getFullYear()*100+day.getMonth();
-      if(k!==lastM){ lastM=k; maybySepBefore(wrap,day,sentBot); }
-      wrap.insertBefore(buildDayCard(day,today),sentBot);
+    // Fetch si nécessaire
+    const weekEnd=new Date(monday); weekEnd.setDate(monday.getDate()+7);
+    mobNorm=await fetchMobRange(monday,weekEnd);
+    updateMobTitle();
+
+    // Construire les 8 jours : lun à lun suivant
+    const days=[];
+    for(let i=0;i<8;i++){
+      const d=new Date(monday); d.setDate(monday.getDate()+i); d.setHours(0,0,0,0);
+      days.push(d);
     }
+
+    // Grille 2 colonnes : col gauche = jours 0-3 (lun-jeu), col droite = jours 4-7 (ven-sam-dim-lun)
+    const grid=mk('div','week-grid');
+    if(animate==='left'){ grid.style.transform='translateX(100%)'; grid.style.opacity='0'; }
+    if(animate==='right'){ grid.style.transform='translateX(-100%)'; grid.style.opacity='0'; }
+
+    const colL=mk('div','week-col'), colR=mk('div','week-col');
+    days.slice(0,4).forEach(d=>colL.appendChild(buildMobDayCell(d,today)));
+    days.slice(4,8).forEach(d=>colR.appendChild(buildMobDayCell(d,today)));
+    grid.append(colL,colR);
+
+    // Enlever l'ancienne grille
+    const old=wrap.querySelector('.week-grid');
+    if(old) old.remove();
+    wrap.appendChild(grid);
+
+    // Animation entrée
+    if(animate){
+      requestAnimationFrame(()=>{
+        requestAnimationFrame(()=>{
+          grid.style.transition='transform 0.28s ease, opacity 0.28s ease';
+          grid.style.transform='translateX(0)';
+          grid.style.opacity='1';
+        });
+      });
+    }
+  }
+
+  function scrollToToday(){
+    // Dans la nouvelle vue, on navigue à la semaine d'aujourd'hui
+    const today=new Date(); today.setHours(0,0,0,0);
+    mobWeekStart=getMobWeekMonday(today);
+    renderWeekGrid(null);
   }
 
   async function renderMobile(){
     const wrap=$('mobile-wrap');
     wrap.innerHTML='<div style="text-align:center;padding:40px;opacity:0.5;font-size:0.9rem">Chargement…</div>';
     const today=new Date(); today.setHours(0,0,0,0);
-    const from=new Date(today); from.setDate(today.getDate()-14);
-    const to=new Date(today); to.setDate(today.getDate()+30);
-    mobNorm=await fetchMobRange(from,to); mobFrom=new Date(from); mobTo=new Date(to); mobLoading=false;
+    mobWeekStart=getMobWeekMonday(today);
     wrap.innerHTML='';
-    const sentTop=mk('div','mob-sentinel'); sentTop.id='mob-sent-top'; wrap.appendChild(sentTop);
-    let lastM=-1;
-    for(let d=new Date(from);d<=to;d.setDate(d.getDate()+1)){
-      const day=new Date(d); day.setHours(0,0,0,0);
-      const k=day.getFullYear()*100+day.getMonth();
-      if(k!==lastM){ lastM=k; maybySepBefore(wrap,day,null); }
-      wrap.appendChild(buildDayCard(day,today));
-    }
-    const sentBot=mk('div','mob-sentinel'); sentBot.id='mob-sent-bot'; wrap.appendChild(sentBot);
-    wrap._scrollTitleHandler && wrap.removeEventListener('scroll', wrap._scrollTitleHandler);
-    wrap._scrollTitleHandler = updateTitleFromScroll;
-    wrap.addEventListener('scroll', updateTitleFromScroll, { passive: true });
-    requestAnimationFrame(() => { scrollToToday(false); setTimeout(updateTitleFromScroll, 150); });
-    if(mobObserver) mobObserver.disconnect();
-    mobObserver=new IntersectionObserver(async entries=>{
-      for(const entry of entries){
-        if(!entry.isIntersecting||mobLoading) continue;
-        mobLoading=true;
-        if(entry.target.id==='mob-sent-top') await prependDays(14,today);
-        if(entry.target.id==='mob-sent-bot') await appendDays(30,today);
-        mobLoading=false;
+    await renderWeekGrid(null);
+
+    // Swipe bas pour fermer la modale jour
+    const dmCard=$('day-modal-card');
+    let dmStartY=0, dmDy=0;
+    dmCard.addEventListener('touchstart', e=>{
+      dmStartY=e.touches[0].clientY; dmDy=0;
+    },{passive:true});
+    dmCard.addEventListener('touchmove', e=>{
+      if(!$('day-modal').classList.contains('show')) return;
+      if(dmCard.scrollTop > 0) return;
+      dmDy=e.touches[0].clientY - dmStartY;
+      if(dmDy > 0) dmCard.style.transform=`translateY(${dmDy}px)`;
+    },{passive:true});
+    dmCard.addEventListener('touchend', ()=>{
+      dmCard.style.transition='transform 0.2s ease';
+      dmCard.style.transform='';
+      setTimeout(()=>dmCard.style.transition='', 200);
+      if(dmDy > 80) closeDayModal();
+      dmDy=0;
+    },{passive:true});
+
+    // Pull-to-refresh sur le header uniquement
+    const hdr=$('calendar-header');
+    let ptrStartY=0, ptrActive=false;
+    hdr.addEventListener('touchstart',e=>{
+      ptrStartY=e.touches[0].clientY; ptrActive=true;
+    },{passive:true});
+    hdr.addEventListener('touchmove',e=>{
+      if(!ptrActive) return;
+      const dy=e.touches[0].clientY-ptrStartY;
+      if(dy>60){ ptrActive=false; location.reload(); }
+    },{passive:true});
+    hdr.addEventListener('touchend',()=>{ ptrActive=false; },{passive:true});
+
+    // Swipe gauche/droite
+    wrap.addEventListener('touchstart',e=>{
+      swipeStartX=e.touches[0].clientX;
+      swipeStartY=e.touches[0].clientY;
+      isSwiping=false;
+    },{passive:true});
+    wrap.addEventListener('touchmove',e=>{
+      const dx=e.touches[0].clientX-swipeStartX;
+      const dy=e.touches[0].clientY-swipeStartY;
+      if(!isSwiping && Math.abs(dx)>Math.abs(dy) && Math.abs(dx)>10) isSwiping=true;
+    },{passive:true});
+    wrap.addEventListener('touchend',e=>{
+      if(!isSwiping) return;
+      const dx=e.changedTouches[0].clientX-swipeStartX;
+      if(Math.abs(dx)<40) return;
+      if(dx<0){
+        // Swipe gauche → semaine suivante
+        mobWeekStart=new Date(mobWeekStart); mobWeekStart.setDate(mobWeekStart.getDate()+7);
+        renderWeekGrid('left');
+      } else {
+        // Swipe droite → semaine précédente
+        mobWeekStart=new Date(mobWeekStart); mobWeekStart.setDate(mobWeekStart.getDate()-7);
+        renderWeekGrid('right');
       }
-    },{root:wrap,rootMargin:'100px',threshold:0});
-    mobObserver.observe(sentTop); mobObserver.observe(sentBot);
+      isSwiping=false;
+    },{passive:true});
   }
 
   /* ── DESKTOP ── */
