@@ -175,7 +175,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const CACHE_TTL = 30000;
   const INDEX_URL = 'index.html';
   // Filtrer les types affichés : ['reception', 'navire'] = les deux | ['reception'] = calr | ['navire'] = caln
-  const SHOW_TYPES = ['reception', 'navire'];
+  const SHOW_TYPES = ['navire'];
   let weekView = 3, currentStartDate = new Date(), resizeTimeout, autoRefreshTimer;
 
   const $  = id => document.getElementById(id);
