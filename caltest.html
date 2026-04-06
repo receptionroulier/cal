@@ -78,6 +78,28 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
   .week-grid{transition:transform 0.3s ease,opacity 0.3s ease}
   .week-grid.swipe-left{transform:translateX(-100%);opacity:0}
   .week-grid.swipe-right{transform:translateX(100%);opacity:0}
+  /* Bandeau événement animé */
+  .mob-evt{overflow:hidden}
+  .mob-evt-ticker{display:flex;align-items:center;gap:5px;width:100%;overflow:hidden;position:relative}
+  .mob-evt-text{white-space:nowrap;display:inline-block;font-size:0.72rem;font-weight:500}
+  .mob-evt-text.scrolling{animation:mobscroll 10s linear infinite}
+  .mob-evt-text.scrolling::after{content:attr(data-text);position:absolute;left:100%;padding-left:24px;white-space:nowrap}
+  @keyframes mobscroll{0%{transform:translateX(0)}100%{transform:translateX(-100%)}}
+  /* Header jour cliquable */
+  .mob-day-header{cursor:pointer}
+  .mob-day-header:hover{background:rgba(255,255,255,0.05)}
+  /* Modale jour agrandi */
+  #day-modal{position:fixed;inset:0;display:none;align-items:flex-end;justify-content:center;background:rgba(0,0,0,0.7);z-index:998}
+  #day-modal.show{display:flex}
+  #day-modal-card{background:#0f172a;border:1px solid rgba(255,255,255,0.12);border-radius:20px 20px 0 0;width:100%;max-height:80vh;overflow-y:auto;padding:16px}
+  #day-modal-title{font-size:1rem;font-weight:700;margin-bottom:12px;color:#00e5ff}
+  .day-modal-evt{display:flex;flex-direction:column;gap:3px;padding:10px 12px;border-radius:10px;margin-bottom:8px;cursor:pointer}
+  .day-modal-evt.reception{background:linear-gradient(90deg,rgba(0,255,120,0.18),rgba(0,200,100,0.14));border:1px solid rgba(0,255,120,0.5)}
+  .day-modal-evt.navire{background:linear-gradient(90deg,rgba(0,130,255,0.18),rgba(0,110,220,0.14));border:1px solid rgba(0,160,255,0.5)}
+  .day-modal-evt-name{font-weight:700;font-size:0.88rem}
+  .day-modal-evt-time{font-size:0.75rem;color:#94a3b8}
+  .day-modal-evt-place{font-size:0.75rem;color:#64748b}
+  #day-modal-close{width:40px;height:4px;background:rgba(255,255,255,0.2);border-radius:2px;margin:0 auto 14px;cursor:pointer}
   #event-modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.65);z-index:999}
   .modal-card{background:rgba(15,23,42,0.97);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.1);padding:18px;border-radius:16px;max-width:720px;width:94%;box-shadow:0 20px 40px rgba(0,0,0,0.6);max-height:85vh;overflow-y:auto}
   .modal-card h3{margin-bottom:6px}
@@ -132,6 +154,13 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
   <div id="events-layer" aria-hidden="false"></div>
 </div>
 <div id="mobile-wrap"></div>
+<div id="day-modal">
+  <div id="day-modal-card" onclick="event.stopPropagation()">
+    <div id="day-modal-close"></div>
+    <div id="day-modal-title"></div>
+    <div id="day-modal-events"></div>
+  </div>
+</div>
 <div id="event-modal">
   <div class="modal-card" id="modal-content" onclick="event.stopPropagation()"></div>
 </div>
@@ -385,6 +414,68 @@ document.addEventListener('DOMContentLoaded', function() {
     }).sort((a,b)=>new Date(a._start)-new Date(b._start));
   }
 
+  /* Formate le texte d'un événement sur une ligne */
+  function evtOneLiner(ev){
+    if(ev.__type==='navire'){
+      const hD=String(ev._hDebut??new Date(ev._start).getHours()).padStart(2,'0');
+      const hF=String(ev._hFinDisplay??ev._hFin??new Date(ev._end).getHours()).padStart(2,'0');
+      const lieu=(ev._place||'').replace(/quai\s*/i,'').trim();
+      const nom=ev.summary?.split('—')[0].trim()||'';
+      return `<${hD}:00 ${nom} ${hF}:00>${lieu?' '+lieu:''}`;
+    } else if(ev._isAllDay){
+      return ev.summary||'(sans titre)';
+    } else {
+      return `${fmtTime(ev._start)} ${ev.summary||'(sans titre)'} ${fmtTime(ev._end)}`;
+    }
+  }
+
+  function buildEvtBand(ev){
+    const row=mk('div','mob-evt '+(ev.__type||''));
+    const ticker=mk('div','mob-evt-ticker');
+    const txt=mk('span','mob-evt-text');
+    const label=evtOneLiner(ev);
+    txt.textContent=label;
+    txt.setAttribute('data-text',label);
+    ticker.appendChild(txt);
+    row.appendChild(ticker);
+    row.addEventListener('click',e=>{ e.stopPropagation(); showEventModal(ev); });
+    // Activer scroll si overflow (après rendu)
+    requestAnimationFrame(()=>{
+      if(txt.scrollWidth > ticker.clientWidth) txt.classList.add('scrolling');
+    });
+    return row;
+  }
+
+  function showDayModal(day, evts){
+    const title=$('day-modal-title');
+    const evtsEl=$('day-modal-events');
+    title.textContent=capitalize(day.toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long'}));
+    evtsEl.innerHTML='';
+    if(!evts.length){
+      evtsEl.innerHTML='<div style="color:#475569;font-style:italic;font-size:0.85rem">Aucun événement</div>';
+    } else {
+      evts.forEach(ev=>{
+        const d=mk('div','day-modal-evt '+(ev.__type||''));
+        const name=mk('div','day-modal-evt-name'); name.textContent=ev.summary?.split('—')[0].trim()||'(sans titre)';
+        const time=mk('div','day-modal-evt-time');
+        if(ev.__type==='navire'){
+          const hD=String(ev._hDebut??new Date(ev._start).getHours()).padStart(2,'0');
+          const hF=String(ev._hFinDisplay??ev._hFin??new Date(ev._end).getHours()).padStart(2,'0');
+          time.textContent=`<${hD}:00 → ${hF}:00>`;
+        } else if(ev._isAllDay){
+          time.textContent='Journée entière';
+        } else {
+          time.textContent=`${fmtTime(ev._start)} → ${fmtTime(ev._end)}`;
+        }
+        d.append(name,time);
+        if(ev._place){ const pl=mk('div','day-modal-evt-place'); pl.textContent='📍 '+ev._place; d.appendChild(pl); }
+        d.addEventListener('click',e=>{ e.stopPropagation(); showEventModal(ev); });
+        evtsEl.appendChild(d);
+      });
+    }
+    $('day-modal').classList.add('show');
+  }
+
   function buildMobDayCell(day, today){
     const isPast=day<today, isToday=day.getTime()===today.getTime();
     const evts=mobEventsOnDay(day);
@@ -396,42 +487,30 @@ document.addEventListener('DOMContentLoaded', function() {
     const dot=mk('div','mob-day-dot');
     const dateDiv=mk('div','mob-day-date');
     dateDiv.textContent=capitalize(day.toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit',month:'short'}));
-    hdr.append(dot,dateDiv); cell.appendChild(hdr);
+    hdr.append(dot,dateDiv);
+    hdr.addEventListener('click',e=>{ e.stopPropagation(); showDayModal(day,evts); });
+    cell.appendChild(hdr);
 
     if(!evts.length){
       const e=mk('div','mob-empty'); e.textContent='—'; cell.appendChild(e);
     } else {
       const evWrap=mk('div','mob-events');
-      evts.forEach(ev=>{
-        const row=mk('div','mob-evt '+(ev.__type||''));
-        const info=mk('div','mob-evt-info');
-        const name=mk('div','mob-evt-name'); name.textContent=ev.summary?.split('—')[0].trim()||'(sans titre)';
-        const time=mk('div','mob-evt-time');
-        if(ev.__type==='navire'){
-          const hD=String(ev._hDebut??new Date(ev._start).getHours()).padStart(2,'0');
-          const hF=String(ev._hFinDisplay??ev._hFin??new Date(ev._end).getHours()).padStart(2,'0');
-          const lieu=(ev._place||'').replace(/quai\s*/i,'').trim();
-          time.textContent=`<${hD}:00 → ${hF}:00>${lieu?' — '+lieu:''}`;
-        } else if(ev._isAllDay){
-          time.textContent='Journée';
-        } else {
-          time.textContent=fmtTime(ev._start)+(ev._end?` → ${fmtTime(ev._end)}`:'');
-        }
-        info.append(name,time); row.append(mk('div','mob-evt-dot'),info);
-        row.addEventListener('click',e=>{ e.stopPropagation(); showEventModal(ev); });
-        evWrap.appendChild(row);
-      });
+      evts.forEach(ev=>evWrap.appendChild(buildEvtBand(ev)));
       cell.appendChild(evWrap);
     }
     return cell;
   }
 
   function updateMobTitle(){
-    // Affiche la semaine courante ex: "31 mar — 6 avr 2026"
     const monday=new Date(mobWeekStart);
-    const sunday=new Date(monday); sunday.setDate(monday.getDate()+7); // lun suivant = j+7
+    const sunday=new Date(monday); sunday.setDate(monday.getDate()+6);
+    // Numéro de semaine ISO
+    const tmp=new Date(monday); tmp.setHours(0,0,0,0);
+    tmp.setDate(tmp.getDate()+3-(tmp.getDay()+6)%7);
+    const jan4=new Date(tmp.getFullYear(),0,4);
+    const weekNum=1+Math.round(((tmp-jan4)/86400000-3+(jan4.getDay()+6)%7)/7);
     const fmtD = d => d.toLocaleDateString('fr-FR',{day:'2-digit',month:'short'});
-    $('calendar-title').textContent=`${fmtD(monday)} — ${fmtD(sunday)} ${sunday.getFullYear()}`;
+    $('calendar-title').textContent=`Sem. ${weekNum} · ${fmtD(monday)} au ${fmtD(sunday)}`;
   }
 
   async function fetchMobRange(from, to){
