@@ -61,6 +61,7 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
   .mob-future .mob-day-dot{background:rgba(0,229,255,0.4)}
   .mob-past .mob-day-dot{background:rgba(255,255,255,0.15)}
   .mob-day-date{color:#cbd5e1;font-size:0.75rem}
+  .mob-more-tag{margin-left:auto;font-size:0.7rem;font-weight:700;color:#94a3b8;background:rgba(255,255,255,0.1);border-radius:4px;padding:1px 5px;line-height:1.4}
   .mob-events{display:flex;flex-direction:column;gap:4px;padding:5px 6px;overflow-y:auto;flex:1}
   .mob-empty{font-size:0.68rem;color:#475569;font-style:italic;padding:4px 6px}
   /* ── Nouvelle carte événement mobile 2 lignes ── */
@@ -503,7 +504,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const dot=mk('div','mob-day-dot');
     const dateDiv=mk('div','mob-day-date');
     dateDiv.textContent=capitalize(day.toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit',month:'short'}));
-    hdr.append(dot,dateDiv);
+    const moreTag=mk('span','mob-more-tag'); moreTag.textContent='+'; moreTag.style.display='none';
+    hdr.append(dot,dateDiv,moreTag);
     hdr.addEventListener('click',e=>{ e.stopPropagation(); showDayModal(day,evts); });
     cell.appendChild(hdr);
 
@@ -513,6 +515,11 @@ document.addEventListener('DOMContentLoaded', function() {
       const evWrap=mk('div','mob-events');
       evts.forEach(ev => evWrap.appendChild(buildEvtBand(ev, day)));
       cell.appendChild(evWrap);
+      requestAnimationFrame(()=>{
+        requestAnimationFrame(()=>{
+          if(evWrap.scrollHeight > evWrap.clientHeight + 2) moreTag.style.display='';
+        });
+      });
     }
     return cell;
   }
