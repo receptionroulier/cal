@@ -89,9 +89,10 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
   .mob-day-header{cursor:pointer}
   .mob-day-header:hover{background:rgba(255,255,255,0.05)}
   /* Modale jour agrandi */
-  #day-modal{position:fixed;inset:0;display:none;align-items:flex-end;justify-content:center;background:rgba(0,0,0,0.7);z-index:998}
+  #day-modal{position:fixed;inset:0;display:none;flex-direction:column;justify-content:flex-end;background:rgba(0,0,0,0.7);z-index:998}
   #day-modal.show{display:flex}
-  #day-modal-card{background:#0f172a;border:1px solid rgba(255,255,255,0.12);border-radius:20px 20px 0 0;width:100%;max-height:80vh;overflow-y:auto;padding:16px}
+  #day-modal-backdrop{position:absolute;inset:0;cursor:pointer}
+  #day-modal-card{background:#0f172a;border:1px solid rgba(255,255,255,0.12);border-radius:20px 20px 0 0;width:100%;max-height:80vh;overflow-y:auto;padding:16px;position:relative;z-index:1}
   #day-modal-title{font-size:1rem;font-weight:700;margin-bottom:12px;color:#fff}
   .day-modal-evt{display:flex;flex-direction:column;gap:3px;padding:10px 12px;border-radius:10px;margin-bottom:8px;cursor:pointer}
   .day-modal-evt.reception{background:linear-gradient(90deg,rgba(0,255,120,0.18),rgba(0,200,100,0.14));border:1px solid rgba(0,255,120,0.5)}
@@ -155,6 +156,7 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
 </div>
 <div id="mobile-wrap"></div>
 <div id="day-modal">
+  <div id="day-modal-backdrop"></div>
   <div id="day-modal-card">
     <div id="day-modal-close"></div>
     <div id="day-modal-title"></div>
