@@ -383,7 +383,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (ev.__type === 'navire') {
       const nom = ev.summary?.split('—')[0].trim() || '';
-      const lieu = (ev._place || '').trim();
+      const lieu = (ev._place || '').replace(/quai\s*/i, '').trim();
       const quai = lieu ? ` — ${lieu}` : '';
       const evStartDay = new Date(ev._start); evStartDay.setHours(0,0,0,0);
       const evEndDay   = new Date(ev._endInclusive); evEndDay.setHours(0,0,0,0);
