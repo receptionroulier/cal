@@ -47,9 +47,8 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
   .event-text.scrolling::after{content:attr(data-text);position:absolute;left:100%;white-space:nowrap}
   @keyframes scroll{0%{transform:translateX(0)}100%{transform:translateX(-100%)}}
   .more-events{position:absolute;top:6px;right:8px;padding:2px 6px;background:rgba(0,0,0,0.45);border-radius:6px;font-size:0.72rem;cursor:pointer;z-index:60;pointer-events:auto}
-  #mobile-wrap{display:none;flex:1;flex-direction:column;overflow:hidden;touch-action:pan-y}
+  #mobile-wrap{display:none;flex:1;flex-direction:column;overflow:hidden}
   /* ── NOUVELLE VUE MOBILE SEMAINE 2 COLONNES ── */
-  #mobile-wrap{touch-action:pan-y}
   .week-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:6px;flex:1;min-height:0;overflow:hidden}
   .week-col{display:flex;flex-direction:column;gap:5px;min-height:0;overflow:hidden}
   .mob-day{background:rgba(255,255,255,0.05);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden;flex:1;display:flex;flex-direction:column;min-height:0}
@@ -386,6 +385,11 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   $('event-modal').addEventListener('click', () => $('event-modal').style.display='none');
   function showEventModal(ev){ $('modal-content').innerHTML=evtHtml(ev); $('event-modal').style.display='flex'; }
+
+  /* ── MODALE JOUR : fermeture ── */
+  const closeDayModal = () => $('day-modal').classList.remove('show');
+  $('day-modal-backdrop').addEventListener('click', closeDayModal);
+  $('day-modal-close').addEventListener('click', closeDayModal);
   function showModalForCell(c){
     $('modal-content').innerHTML=c.eventsList.map(evtHtml).join('<hr style="border:none;border-top:1px solid rgba(255,255,255,0.1);margin:8px 0">')||'<p>Aucun évènement</p>';
     $('event-modal').style.display='flex';
@@ -583,25 +587,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Swipe bas pour fermer la modale jour
     const dmCard=$('day-modal-card');
-    let dmStartY=0, dmDy=0, dmActive=false;
+    let dmStartY=0, dmDy=0;
     dmCard.addEventListener('touchstart', e=>{
-      // Ne rien faire si modal pas visible
-      if(!$('day-modal').classList.contains('show')) return;
-      dmStartY=e.touches[0].clientY; dmDy=0; dmActive=true;
+      dmStartY=e.touches[0].clientY; dmDy=0;
     },{passive:true});
     dmCard.addEventListener('touchmove', e=>{
-      if(!dmActive) return;
-      if(dmCard.scrollTop > 0){ dmActive=false; dmCard.style.transform=''; return; }
+      if(!$('day-modal').classList.contains('show')) return;
+      if(dmCard.scrollTop > 0) return;
       dmDy=e.touches[0].clientY - dmStartY;
       if(dmDy > 0) dmCard.style.transform=`translateY(${dmDy}px)`;
     },{passive:true});
-    dmCard.addEventListener('touchend', e=>{
-      if(!dmActive) return;
+    dmCard.addEventListener('touchend', ()=>{
       dmCard.style.transition='transform 0.2s ease';
       dmCard.style.transform='';
       setTimeout(()=>dmCard.style.transition='', 200);
-      if(dmDy > 80) $('day-modal').classList.remove('show');
-      dmActive=false;
+      if(dmDy > 80) closeDayModal();
+      dmDy=0;
     },{passive:true});
 
     // Swipe gauche/droite
