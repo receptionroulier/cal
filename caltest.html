@@ -387,7 +387,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (ev.__type === 'navire') {
       const nom = ev.summary?.split('—')[0].trim() || '';
       const quai = fmtPlace(ev._place) ? ` — ${fmtPlace(ev._place)}` : '';
-      const quai = placeMapped ? ` — ${placeMapped}` : '';
       const evStartDay = new Date(ev._start); evStartDay.setHours(0,0,0,0);
       const evEndDay   = new Date(ev._endInclusive); evEndDay.setHours(0,0,0,0);
       const isMultiDay = evStartDay.getTime() !== evEndDay.getTime();
