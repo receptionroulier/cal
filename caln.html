@@ -624,22 +624,28 @@ document.addEventListener('DOMContentLoaded', function() {
       if(!ptrActive) return;
       const dy=e.touches[0].clientY-ptrStartY;
       if(dy>60){ ptrActive=false; location.reload(); }
-    },{passive:true});
+    },{passive:false});
     hdr.addEventListener('touchend',()=>{ ptrActive=false; },{passive:true});
 
+    let swipeLocked=false;
     wrap.addEventListener('touchstart',e=>{
       swipeStartX=e.touches[0].clientX;
       swipeStartY=e.touches[0].clientY;
-      isSwiping=false;
+      isSwiping=false; swipeLocked=false;
     },{passive:true});
     wrap.addEventListener('touchmove',e=>{
       const dx=e.touches[0].clientX-swipeStartX;
       const dy=e.touches[0].clientY-swipeStartY;
-      if(!isSwiping && Math.abs(dx)>Math.abs(dy) && Math.abs(dx)>10) isSwiping=true;
-    },{passive:true});
+      if(!isSwiping && !swipeLocked){
+        if(Math.abs(dy)>Math.abs(dx) && Math.abs(dy)>6){ swipeLocked=true; return; }
+        if(Math.abs(dx)>Math.abs(dy) && Math.abs(dx)>10){ isSwiping=true; }
+      }
+      if(isSwiping) e.preventDefault();
+    },{passive:false});
     wrap.addEventListener('touchend',e=>{
-      if(!isSwiping) return;
+      if(!isSwiping){ isSwiping=false; swipeLocked=false; return; }
       const dx=e.changedTouches[0].clientX-swipeStartX;
+      isSwiping=false; swipeLocked=false;
       if(Math.abs(dx)<40) return;
       if(dx<0){
         mobWeekStart=new Date(mobWeekStart); mobWeekStart.setDate(mobWeekStart.getDate()+7);
@@ -648,7 +654,6 @@ document.addEventListener('DOMContentLoaded', function() {
         mobWeekStart=new Date(mobWeekStart); mobWeekStart.setDate(mobWeekStart.getDate()-7);
         renderWeekGrid('right');
       }
-      isSwiping=false;
     },{passive:true});
   }
 
