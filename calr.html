@@ -561,6 +561,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const weekEnd=new Date(monday); weekEnd.setDate(monday.getDate()+7);
     mobNorm=await fetchMobRange(monday,weekEnd);
     updateMobTitle();
+    // holidaySet est maintenant rempli par fetchNaviresAPI
 
     const days=[];
     for(let i=0;i<8;i++){
@@ -688,7 +689,6 @@ document.addEventListener('DOMContentLoaded', function() {
       if(d>today) cell.classList.add('future-day');
       if(d.getTime()===today.getTime()) cell.classList.add('today');
       const lbl=mk('div','date-label'); lbl.textContent=fmtDayLabel(d);
-      if(holidaySet.has(fmtDateISO(d))){ cell.classList.add('holiday'); const hl=mk('span','holiday-label'); hl.textContent='Férié'; lbl.appendChild(hl); }
       cell.appendChild(lbl); calEl.appendChild(cell);
       cellMap.push({date:d,el:cell,eventsList:[]});
       months.add(capitalize(d.toLocaleString('fr-FR',{month:'long'})));
@@ -744,6 +744,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const lastIdx =ev=>segments.filter(s=>s.ev===ev).reduce((a,b)=>a.endIdx>b.endIdx?a:b).endIdx;
 
     cellMap.forEach(c=>{ if(c.date<today) c.el.appendChild(mk('div','past-day-overlay')); });
+    cellMap.forEach(c=>{
+      if(holidaySet.has(fmtDateISO(c.date)) && !c.el.classList.contains('holiday')){
+        c.el.classList.add('holiday');
+        const lbl=c.el.querySelector('.date-label');
+        const hl=mk('span','holiday-label'); hl.textContent='Férié'; lbl.appendChild(hl);
+      }
+    });
 
     segments.forEach(seg=>{
       const r0=cellRects[seg.startIdx], r1=cellRects[seg.endIdx]; if(!r0||!r1) return;
