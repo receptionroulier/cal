@@ -7,7 +7,7 @@ const maintenance = false;
 if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/bug.html";
 </script>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Calendrier Navires</title>
+<title>Calendrier Réception</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   html{height:100%;overflow:hidden}
@@ -32,6 +32,10 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
   .day-cell.today{background:rgba(0,229,255,0.08);border:2px solid rgba(0,229,255,0.75);box-shadow:0 0 8px rgba(0,229,255,0.5);animation:pulse 2s infinite}
   @keyframes pulse{0%,100%{box-shadow:0 0 8px rgba(0,229,255,0.5)}50%{box-shadow:0 0 14px rgba(0,229,255,0.75)}}
   .date-label{font-size:0.72rem;color:#9bb4be;margin-bottom:6px;font-weight:400}
+  .day-cell.holiday{background:rgba(255,60,60,0.08);border-color:rgba(255,80,80,0.35)}
+  .holiday-label{font-size:0.62rem;color:rgba(255,120,120,0.85);font-weight:600;letter-spacing:0.03em;margin-left:4px}
+  .mob-day.mob-holiday{background:rgba(255,60,60,0.08);border-color:rgba(255,80,80,0.35)}
+  .mob-holiday-label{font-size:0.6rem;color:rgba(255,120,120,0.85);font-weight:600;margin-left:auto;letter-spacing:0.03em}
   .past-day-overlay{position:absolute;inset:0;background:rgba(200,210,220,0.06);backdrop-filter:grayscale(35%) brightness(0.85) contrast(0.9);-webkit-backdrop-filter:grayscale(35%) brightness(0.85) contrast(0.9);border-radius:8px;pointer-events:none;z-index:50}
   #events-layer{position:absolute;left:2px;right:6px;top:10px;bottom:10px;pointer-events:none}
   .multi-band,.single-evt{pointer-events:auto;position:absolute;display:flex;align-items:center;padding:0 10px;height:22px;border-radius:12px;font-size:0.78rem;color:#fff;white-space:nowrap;overflow:hidden;background:linear-gradient(135deg,rgba(255,255,255,0.02),rgba(255,255,255,0.03));border:1px solid rgba(255,255,255,0.06);backdrop-filter:blur(6px) saturate(150%);box-shadow:0 6px 18px rgba(0,0,0,0.45),inset 0 1px 0 rgba(255,255,255,0.02);transition:transform .15s ease,box-shadow .15s ease,background .15s ease}
@@ -167,6 +171,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const INDEX_URL = 'index.html';
   const SHOW_TYPES = ['navire'];
   let weekView = 4, currentStartDate = new Date(), resizeTimeout, autoRefreshTimer;
+  const holidaySet = new Set(); // dates ISO fériées ex: '2026-04-06'
 
   const $  = id => document.getElementById(id);
   const mk = (tag, cls) => { const e=document.createElement(tag); if(cls) e.className=cls; return e; };
@@ -204,6 +209,8 @@ document.addEventListener('DOMContentLoaded', function() {
       if (!r.ok) return [];
       const data = await r.json();
 
+      // Mémoriser les jours fériés
+      for (const day of data) { if (day.isHoliday) holidaySet.add(day.date); }
       const raw = [];
       for (const day of data) {
         if (!day.projectAssignments || !day.projectAssignments.length) continue;
@@ -500,13 +507,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const cell=mk('div','mob-day');
     if(isToday) cell.classList.add('mob-today');
     else cell.classList.add(isPast?'mob-past':'mob-future');
+    const isHoliday=holidaySet.has(fmtDateISO(day));
+    if(isHoliday) cell.classList.add('mob-holiday');
 
     const hdr=mk('div','mob-day-header');
     const dot=mk('div','mob-day-dot');
     const dateDiv=mk('div','mob-day-date');
     dateDiv.textContent=capitalize(day.toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit',month:'short'}));
     const moreTag=mk('span','mob-more-tag'); moreTag.textContent='+'; moreTag.style.display='none';
-    hdr.append(dot,dateDiv,moreTag);
+    if(isHoliday){ const hl=mk('span','mob-holiday-label'); hl.textContent='Férié'; hdr.append(dot,dateDiv,hl,moreTag); }
+    else hdr.append(dot,dateDiv,moreTag);
     hdr.addEventListener('click',e=>{ e.stopPropagation(); showDayModal(day,evts); });
     cell.appendChild(hdr);
 
@@ -678,6 +688,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if(d>today) cell.classList.add('future-day');
       if(d.getTime()===today.getTime()) cell.classList.add('today');
       const lbl=mk('div','date-label'); lbl.textContent=fmtDayLabel(d);
+      if(holidaySet.has(fmtDateISO(d))){ cell.classList.add('holiday'); const hl=mk('span','holiday-label'); hl.textContent='Férié'; lbl.appendChild(hl); }
       cell.appendChild(lbl); calEl.appendChild(cell);
       cellMap.push({date:d,el:cell,eventsList:[]});
       months.add(capitalize(d.toLocaleString('fr-FR',{month:'long'})));
