@@ -32,9 +32,9 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
   .day-cell.today{background:rgba(0,229,255,0.08);border:2px solid rgba(0,229,255,0.75);box-shadow:0 0 8px rgba(0,229,255,0.5);animation:pulse 2s infinite}
   @keyframes pulse{0%,100%{box-shadow:0 0 8px rgba(0,229,255,0.5)}50%{box-shadow:0 0 14px rgba(0,229,255,0.75)}}
   .date-label{font-size:0.72rem;color:#9bb4be;margin-bottom:6px;font-weight:400}
-  .day-cell.holiday{background:rgba(255,60,60,0.08);border-color:rgba(255,80,80,0.35)}
+  .day-cell.holiday{background:rgba(255,60,60,0.08) !important;border-color:rgba(255,80,80,0.5) !important;box-shadow:0 0 6px rgba(255,60,60,0.15) !important}
   .holiday-label{font-size:0.62rem;color:rgba(255,120,120,0.85);font-weight:600;letter-spacing:0.03em;margin-left:4px}
-  .mob-day.mob-holiday{background:rgba(255,60,60,0.08);border-color:rgba(255,80,80,0.35)}
+  .mob-day.mob-holiday{background:rgba(255,60,60,0.08) !important;border-color:rgba(255,80,80,0.5) !important;opacity:1 !important;box-shadow:0 0 6px rgba(255,60,60,0.15) !important}
   .mob-holiday-label{font-size:0.6rem;color:rgba(255,120,120,0.85);font-weight:600;margin-left:auto;letter-spacing:0.03em}
   .past-day-overlay{position:absolute;inset:0;background:rgba(200,210,220,0.06);backdrop-filter:grayscale(35%) brightness(0.85) contrast(0.9);-webkit-backdrop-filter:grayscale(35%) brightness(0.85) contrast(0.9);border-radius:8px;pointer-events:none;z-index:50}
   #events-layer{position:absolute;left:2px;right:6px;top:10px;bottom:10px;pointer-events:none}
