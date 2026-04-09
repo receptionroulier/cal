@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tableau de bord - Ponts & Réception</title>
+<title>Tableau de bord - Ponts & Navires</title>
 <style>
 /* ===================== RESET ===================== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -388,7 +388,7 @@ async function refreshPonts(force=false) {
   const API_KEY       = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
   const CAL_RECEPTION = 'receptionroulier@gmail.com';
   const NAVIRES_API   = 'https://calendar.docker.inno-web.fr/api/projectAssignments';
-  const SHOW_TYPES    = ['reception', 'navire'];
+  const SHOW_TYPES    = ['navire'];
   const PLACE_MAP     = { 'Quai RORO à Bougainville': 'BGV', 'RORO à Bougainville': 'BGV' };
   const holidaySet    = new Set();
 
