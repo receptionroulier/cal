@@ -198,8 +198,8 @@ iframe {
     <iframe id="leftB"  class="hidden"  data-src="https://receptionroulier.github.io/cal/p.html"></iframe>
   </div>
   <div class="frame-wrapper" style="width:75%;">
-    <iframe id="rightA" class="visible" data-src="https://receptionroulier.github.io/cal/calr.html"></iframe>
-    <iframe id="rightB" class="hidden"  data-src="https://receptionroulier.github.io/cal/calr.html"></iframe>
+    <iframe id="rightA" class="visible" data-src="https://receptionroulier.github.io/cal/caln.html"></iframe>
+    <iframe id="rightB" class="hidden"  data-src="https://receptionroulier.github.io/cal/caln.html"></iframe>
   </div>
 </div>
 
@@ -274,7 +274,7 @@ function startDesktop() {
   const lA=document.getElementById("leftA"), lB=document.getElementById("leftB");
   const rA=document.getElementById("rightA"), rB=document.getElementById("rightB");
   monitor("https://receptionroulier.github.io/cal/p.version.txt", lA, lB, 1000);
-  monitor("https://receptionroulier.github.io/cal/calr.version.txt", rA, rB, 5000);
+  monitor("https://receptionroulier.github.io/cal/caln.version.txt", rA, rB, 5000);
 }
 
 /* ================================================================
