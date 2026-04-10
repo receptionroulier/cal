@@ -120,6 +120,25 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
     #mob-today-standalone:hover{background:rgba(255,255,255,0.15)}
   }
   @media(max-width:400px){.nav-btn{font-size:20px;padding:2px 5px}}
+  /* ── PDF EXPORT ── */
+  #pdf-fab{position:fixed;bottom:20px;right:20px;width:44px;height:44px;border-radius:50%;background:rgba(30,41,59,0.92);border:1px solid rgba(255,255,255,0.18);color:#94a3b8;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:900;box-shadow:0 4px 16px rgba(0,0,0,0.5);transition:background .15s,color .15s,transform .15s;-webkit-tap-highlight-color:transparent}
+  #pdf-fab:hover{background:rgba(51,65,85,0.98);color:#fff;transform:scale(1.08)}
+  #pdf-panel{position:fixed;bottom:72px;right:20px;width:260px;background:rgba(15,23,42,0.97);border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:16px;z-index:901;box-shadow:0 8px 32px rgba(0,0,0,0.6);display:none;flex-direction:column;gap:10px;backdrop-filter:blur(12px)}
+  #pdf-panel.open{display:flex}
+  .pdf-panel-title{font-size:0.82rem;font-weight:700;color:#e2e8f0;margin-bottom:2px}
+  .pdf-preset-row{display:flex;gap:6px;flex-wrap:wrap}
+  .pdf-preset{font-size:0.72rem;padding:4px 10px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:#cbd5e1;cursor:pointer;transition:background .12s}
+  .pdf-preset:hover,.pdf-preset.active{background:rgba(0,229,255,0.15);border-color:rgba(0,229,255,0.4);color:#fff}
+  .pdf-range-row{display:flex;gap:6px;align-items:center}
+  .pdf-range-row label{font-size:0.7rem;color:#64748b;white-space:nowrap}
+  .pdf-date-input{flex:1;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:#e2e8f0;font-size:0.72rem;padding:4px 6px;outline:none}
+  .pdf-date-input:focus{border-color:rgba(0,229,255,0.5)}
+  .pdf-generate-btn{padding:8px;background:linear-gradient(90deg,rgba(0,130,255,0.35),rgba(0,100,220,0.3));border:1px solid rgba(0,160,255,0.5);border-radius:8px;color:#fff;font-size:0.78rem;font-weight:600;cursor:pointer;text-align:center;transition:background .12s}
+  .pdf-generate-btn:hover{background:linear-gradient(90deg,rgba(0,150,255,0.5),rgba(0,120,240,0.45))}
+  .pdf-generate-btn:disabled{opacity:0.5;cursor:not-allowed}
+  .pdf-status{font-size:0.7rem;color:#64748b;text-align:center;min-height:14px}
+  @media(max-width:719px){#pdf-fab,#pdf-panel{display:none !important}}
+
 </style>
 </head>
 <body>
@@ -159,6 +178,35 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
 </div>
 <div id="event-modal">
   <div class="modal-card" id="modal-content" onclick="event.stopPropagation()"></div>
+</div>
+
+<!-- PDF EXPORT -->
+<button id="pdf-fab" title="Exporter PDF">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+</button>
+<div id="pdf-panel">
+  <div class="pdf-panel-title">📄 Exporter en PDF</div>
+  <div>
+    <div style="font-size:0.7rem;color:#64748b;margin-bottom:5px">Plage rapide</div>
+    <div class="pdf-preset-row">
+      <span class="pdf-preset" data-preset="thisweek">Cette sem.</span>
+      <span class="pdf-preset" data-preset="next3w">+3 sem.</span>
+      <span class="pdf-preset active" data-preset="thismonth">Ce mois</span>
+      <span class="pdf-preset" data-preset="custom">Perso…</span>
+    </div>
+  </div>
+  <div id="pdf-custom-range" style="display:none;flex-direction:column;gap:6px">
+    <div class="pdf-range-row">
+      <label>Du</label>
+      <input type="date" id="pdf-date-from" class="pdf-date-input">
+    </div>
+    <div class="pdf-range-row">
+      <label>Au</label>
+      <input type="date" id="pdf-date-to" class="pdf-date-input">
+    </div>
+  </div>
+  <button class="pdf-generate-btn" id="pdf-generate-btn">Générer le PDF</button>
+  <div class="pdf-status" id="pdf-status"></div>
 </div>
 
 <script>
@@ -815,6 +863,235 @@ document.addEventListener('DOMContentLoaded', function() {
   window.addEventListener('resize',()=>{ clearTimeout(resizeTimeout); resizeTimeout=setTimeout(()=>render().catch(()=>{}),200); });
 
   render().then(()=>startAutoRefresh()).catch(e=>{ console.error(e); $('calendar-title').textContent='Erreur de chargement'; });
+
+
+  /* ── PDF EXPORT ── */
+  (function(){
+    // Charger jsPDF dynamiquement
+    function loadJsPDF(cb){
+      if(window.jspdf){ cb(); return; }
+      const s=document.createElement('script');
+      s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      s.onload=cb; document.head.appendChild(s);
+    }
+
+    const fab=$('pdf-fab'), panel=$('pdf-panel');
+    const statusEl=$('pdf-status'), genBtn=$('pdf-generate-btn');
+    const customRange=$('pdf-custom-range');
+    let activePreset='thismonth';
+
+    fab.addEventListener('click',e=>{ e.stopPropagation(); panel.classList.toggle('open'); initDates(); });
+    document.addEventListener('click',e=>{ if(!panel.contains(e.target)&&e.target!==fab) panel.classList.remove('open'); });
+
+    function initDates(){
+      const today=new Date();
+      const y=today.getFullYear(), m=today.getMonth();
+      const firstDay=new Date(y,m,1), lastDay=new Date(y,m+1,0);
+      $('pdf-date-from').value=fmtDateISO(firstDay);
+      $('pdf-date-to').value=fmtDateISO(lastDay);
+    }
+
+    // Presets
+    panel.querySelectorAll('.pdf-preset').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        panel.querySelectorAll('.pdf-preset').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        activePreset=btn.dataset.preset;
+        customRange.style.display=activePreset==='custom'?'flex':'none';
+        if(activePreset!=='custom') setPresetDates(activePreset);
+      });
+    });
+
+    function setPresetDates(preset){
+      const today=new Date(), y=today.getFullYear(), m=today.getMonth();
+      let from, to;
+      if(preset==='thisweek'){ from=getMonday(today); to=new Date(from); to.setDate(from.getDate()+6); }
+      else if(preset==='next3w'){ from=getMonday(today); to=new Date(from); to.setDate(from.getDate()+27); }
+      else if(preset==='thismonth'){ from=new Date(y,m,1); to=new Date(y,m+1,0); }
+      $('pdf-date-from').value=fmtDateISO(from);
+      $('pdf-date-to').value=fmtDateISO(to);
+    }
+    setPresetDates('thismonth');
+
+    genBtn.addEventListener('click', async()=>{
+      const fromVal=$('pdf-date-from').value, toVal=$('pdf-date-to').value;
+      if(!fromVal||!toVal){ statusEl.textContent='Choisissez une plage.'; return; }
+      const from=new Date(fromVal+'T00:00:00'), to=new Date(toVal+'T23:59:59');
+      if(from>to){ statusEl.textContent='La date de début doit être avant la fin.'; return; }
+      genBtn.disabled=true; statusEl.textContent='Chargement des données…';
+      try{
+        loadJsPDF(async()=>{
+          try{
+            const tMin=new Date(from); tMin.setHours(0,0,0,0);
+            const tMax=new Date(to); tMax.setHours(23,59,59,999);
+            statusEl.textContent='Récupération des événements…';
+            const evts=await fetchAll(tMin,tMax);
+            const norm=evts.filter(e=>SHOW_TYPES.includes(e.__type)).map(ev=>({
+              ...ev, _start:new Date(ev._start), _end:new Date(ev._end), _endInclusive:new Date(ev._endInclusive)
+            }));
+            statusEl.textContent='Génération du PDF…';
+            generatePDF(norm, from, to);
+            statusEl.textContent='✅ PDF généré !';
+            setTimeout(()=>{ statusEl.textContent=''; panel.classList.remove('open'); },1800);
+          }catch(e){ console.error(e); statusEl.textContent='Erreur : '+e.message; }
+          genBtn.disabled=false;
+        });
+      }catch(e){ statusEl.textContent='Erreur chargement jsPDF.'; genBtn.disabled=false; }
+    });
+
+    function generatePDF(norm, from, to){
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
+      const PW=297, PH=210; // A4 paysage mm
+      const MAR=10, COL_W=7; // 7 colonnes
+      const HEADER_H=12, DAY_LABEL_H=6, BAND_H=5, BAND_GAP=1.2;
+
+      // Palette couleurs
+      const COL_BG      = [15,23,42];
+      const COL_CELL    = [30,41,59];
+      const COL_CELL_FUT= [35,47,68];
+      const COL_TODAY   = [0,50,70];
+      const COL_HOLIDAY = [60,20,20];
+      const COL_NAVIRE  = [0,80,180];
+      const COL_RECEP   = [0,140,70];
+      const COL_TEXT    = [226,232,240];
+      const COL_DIMMED  = [100,116,139];
+      const COL_HOL_TXT = [255,120,120];
+
+      // Collecter toutes les semaines (lundi→dimanche) dans la plage
+      const weeks=[];
+      let cur=getMonday(from);
+      while(cur<=to){
+        const days=[];
+        for(let i=0;i<7;i++){ const d=new Date(cur); d.setDate(cur.getDate()+i); days.push(new Date(d)); }
+        weeks.push(days);
+        cur=new Date(cur); cur.setDate(cur.getDate()+7);
+      }
+
+      // Segmenter les événements par semaine/jour
+      function evtsOnDay(day){
+        const ds=new Date(day); ds.setHours(0,0,0,0);
+        return norm.filter(ev=>{
+          const s=new Date(ev._start); s.setHours(0,0,0,0);
+          const e=new Date(ev._endInclusive); e.setHours(0,0,0,0);
+          return ds>=s && ds<=e;
+        }).sort((a,b)=>new Date(a._start)-new Date(b._start));
+      }
+
+      const today=new Date(); today.setHours(0,0,0,0);
+      const DAYS_FR=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+      const gridW=PW-MAR*2;
+      const cellW=gridW/7;
+
+      weeks.forEach((days,wi)=>{
+        if(wi>0) doc.addPage();
+
+        // Fond page
+        doc.setFillColor(...COL_BG);
+        doc.rect(0,0,PW,PH,'F');
+
+        // Titre de la semaine
+        const tmp=new Date(days[0]); tmp.setHours(0,0,0,0);
+        tmp.setDate(tmp.getDate()+3-(tmp.getDay()+6)%7);
+        const jan4=new Date(tmp.getFullYear(),0,4);
+        const wn=1+Math.round(((tmp-jan4)/86400000-3+(jan4.getDay()+6)%7)/7);
+        const fmtD=d=>d.toLocaleDateString('fr-FR',{day:'2-digit',month:'short'});
+        doc.setFont('helvetica','bold');
+        doc.setFontSize(9); doc.setTextColor(...COL_TEXT);
+        doc.text(`Semaine ${wn}  ·  ${fmtD(days[0])} → ${fmtD(days[6])}`, MAR, MAR-1);
+
+        // En-têtes jours
+        days.forEach((day,di)=>{
+          const x=MAR+di*cellW;
+          const isT=day.getTime()===today.getTime();
+          const isH=holidaySet.has(fmtDateISO(day));
+          doc.setFillColor(...(isT?COL_TODAY:isH?COL_HOLIDAY:COL_CELL));
+          doc.roundedRect(x+0.5,MAR,cellW-1,HEADER_H,1.5,1.5,'F');
+          doc.setFont('helvetica',isT?'bold':'normal');
+          doc.setFontSize(8);
+          doc.setTextColor(...(isT?[0,229,255]:isH?COL_HOL_TXT:COL_TEXT));
+          const label=DAYS_FR[di]+' '+day.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+          doc.text(label, x+cellW/2, MAR+HEADER_H/2+1.5, {align:'center'});
+          if(isH){
+            doc.setFontSize(5.5); doc.setTextColor(...COL_HOL_TXT);
+            doc.text('Férié', x+cellW/2, MAR+HEADER_H-1.5, {align:'center'});
+          }
+        });
+
+        // Corps : calculer la hauteur disponible et le nb max de bandes
+        const bodyY=MAR+HEADER_H+1;
+        const bodyH=PH-bodyY-MAR;
+        const maxBands=Math.floor((bodyH-DAY_LABEL_H)/(BAND_H+BAND_GAP));
+
+        // Collecter les bandes par jour
+        const dayEvts=days.map(d=>evtsOnDay(d));
+
+        // Colonnes
+        days.forEach((day,di)=>{
+          const x=MAR+di*cellW;
+          const isPast=day<today;
+          const isT=day.getTime()===today.getTime();
+          const isH=holidaySet.has(fmtDateISO(day));
+
+          // Fond cellule
+          doc.setFillColor(...(isT?COL_TODAY:isH?COL_HOLIDAY:isPast?[22,30,46]:COL_CELL_FUT));
+          doc.setDrawColor(...(isT?[0,180,220]:isH?[180,60,60]:[50,65,85]));
+          doc.setLineWidth(isT?0.5:0.3);
+          doc.roundedRect(x+0.5,bodyY,cellW-1,bodyH,1.5,1.5,'FD');
+
+          const evts=dayEvts[di];
+          const textX=x+2.5, maxW=cellW-5;
+          let curY=bodyY+2.5;
+
+          evts.slice(0,maxBands).forEach(ev=>{
+            const isNav=ev.__type==='navire';
+            // Fond bande
+            doc.setFillColor(...(isNav?[0,60,140]:[0,100,50]));
+            doc.setDrawColor(...(isNav?[0,140,255]:[0,200,100]));
+            doc.setLineWidth(0.2);
+            doc.roundedRect(textX-0.5,curY,maxW+1,BAND_H,1,1,'FD');
+
+            // Nom
+            const nom=isNav?(ev.summary?.split('—')[0].trim()||''):(ev.summary||'');
+            doc.setFont('helvetica','bold');
+            doc.setFontSize(5.5); doc.setTextColor(...COL_TEXT);
+            const nomTrunc=doc.splitTextToSize(nom,maxW)[0]||'';
+            doc.text(nomTrunc, textX+0.5, curY+2);
+
+            // Heures
+            let timeStr='';
+            if(isNav){
+              const hD=String(ev._hDebut??0).padStart(2,'0');
+              const hF=String(ev._hFinDisplay??ev._hFin??0).padStart(2,'0');
+              const lieu=fmtPlace(ev._place);
+              timeStr=`${hD}:00→${hF}:00${lieu?' '+lieu:''}`;
+            } else if(!ev._isAllDay){
+              timeStr=`${fmtTime(ev._start)}→${fmtTime(ev._end)}`;
+            }
+            if(timeStr){
+              doc.setFont('helvetica','normal');
+              doc.setFontSize(4.5); doc.setTextColor(...COL_DIMMED);
+              doc.text(timeStr, textX+0.5, curY+BAND_H-1);
+            }
+            curY+=BAND_H+BAND_GAP;
+          });
+
+          // Indicateur overflow
+          const hidden=evts.length-maxBands;
+          if(hidden>0){
+            doc.setFont('helvetica','normal');
+            doc.setFontSize(5); doc.setTextColor(...COL_DIMMED);
+            doc.text(`+${hidden} autres`, textX, bodyY+bodyH-2);
+          }
+        });
+      });
+
+      // Nom du fichier
+      const fmtFile=d=>`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+      doc.save(`Navires_${fmtFile(from)}_${fmtFile(to)}.pdf`);
+    }
+  })();
+
 });
 </script>
 </body>
