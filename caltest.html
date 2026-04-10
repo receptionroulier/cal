@@ -213,7 +213,9 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
 document.addEventListener('DOMContentLoaded', function() {
   const API_KEY  = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
   const CAL_RECEPTION = 'receptionroulier@gmail.com';
-  const NAVIRES_API   = 'https://calendar.docker.inno-web.fr/api/projectAssignments';
+  const NAVIRES_API_OLD = 'https://calendar.docker.inno-web.fr/api/projectAssignments';
+  const NAVIRES_API_NEW = 'https://external.docker.inno-web.fr/api/shgtdocker/getweeklyprojectassignments';
+  // sectorId 25 = Parcs (exclus), 23 = SMR, 24 = Manucar
   const CACHE_KEY = 'calr_v1_cache';
   const CACHE_TTL = 30000;
   const INDEX_URL = 'index.html';
@@ -248,89 +250,151 @@ document.addEventListener('DOMContentLoaded', function() {
     return { hDebut: isNaN(hDebut) ? 0 : hDebut, hFin: isNaN(hFin) ? 23 : hFin };
   }
 
-  /* ── FETCH NAVIRES API + FUSION ── */
+  /* ── FETCH NAVIRES — nouvelle API (external.docker) avec fallback ancienne ── */
   async function fetchNaviresAPI(timeMin, timeMax) {
-    const startDate = fmtDateISO(timeMin);
-    const endDate   = fmtDateISO(timeMax);
+    // Essayer la nouvelle API en premier
     try {
-      const r = await fetch(`${NAVIRES_API}?startDate=${startDate}&endDate=${endDate}`);
-      if (!r.ok) return [];
-      const data = await r.json();
+      const items = await fetchNaviresNew(timeMin, timeMax);
+      if (items !== null) return items;
+    } catch(e) { console.warn('Nouvelle API navires indisponible, fallback:', e); }
+    // Fallback ancienne API
+    return fetchNaviresOld(timeMin, timeMax);
+  }
 
-      // Mémoriser les jours fériés
-      for (const day of data) { if (day.isHoliday) holidaySet.add(day.date); }
-      const raw = [];
-      for (const day of data) {
-        if (!day.projectAssignments || !day.projectAssignments.length) continue;
-        for (const pa of day.projectAssignments) {
-          const { hDebut, hFin } = parsePoste(pa.poste);
+  /* ── Nouvelle API : getweeklyprojectassignments par jour ── */
+  async function fetchNaviresNew(timeMin, timeMax) {
+    const raw = [];
+    // Itérer jour par jour (l'API prend une date et retourne la semaine)
+    // On fait un appel par lundi de semaine couvrant la plage
+    const dates = new Set();
+    const cur = getMonday(timeMin);
+    while (cur <= timeMax) {
+      dates.add(fmtDateISO(cur));
+      cur.setDate(cur.getDate() + 7);
+    }
+    // Ajouter aussi le lundi de timeMin au cas où
+    dates.add(fmtDateISO(getMonday(timeMin)));
+
+    const allDays = [];
+    await Promise.all([...dates].map(async date => {
+      const r = await fetch(NAVIRES_API_NEW, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date,
+          sectorId: 0,
+          SectorProjectNumberType: 0,
+          searchValue: '',
+          onlyUserData: false,
+          withRefused: false,
+        }),
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const days = await r.json();
+      allDays.push(...days);
+    }));
+
+    // Dédupliquer par date
+    const seen = new Set();
+    const days = allDays.filter(d => { if (seen.has(d.date)) return false; seen.add(d.date); return true; });
+    days.sort((a, b) => a.date.localeCompare(b.date));
+
+    for (const day of days) {
+      if (!day.postes?.length) continue;
+      for (const posteGroup of day.postes) {
+        const poste = posteGroup.poste;
+        // Heures depuis startTime/endTime ("07:00", "14:00")
+        const [hDebut] = poste.startTime.split(':').map(Number);
+        const [hFin]   = poste.endTime.split(':').map(Number);
+        for (const pa of posteGroup.projectAssignments) {
+          // Exclure Parcs (sectorId 25)
+          if (pa.sectorId === 25) continue;
           const [y, m, d] = pa.date.split('-').map(Number);
           const _start = new Date(y, m-1, d, hDebut, 0, 0, 0);
           const _end   = new Date(y, m-1, d, hFin,   0, 0, 0);
           if (_end <= _start) _end.setHours(23, 59, 0, 0);
           raw.push({
             _start, _end,
-            _name:  pa.name,
-            _place: pa.place || '',
+            _name:   pa.project?.extraInfo || pa.project?.name || '',
+            _place:  pa.project?.place?.name || '',
             _hDebut: hDebut,
             _hFin:   hFin,
+            _volumes: pa.volumes || [],
+            _equipe:  pa.customerComments || '',
             id: String(pa.id),
           });
         }
       }
-      raw.sort((a, b) => a._start - b._start);
+    }
 
-      const fused = [];
-      const used  = new Array(raw.length).fill(false);
-
-      for (let i = 0; i < raw.length; i++) {
-        if (used[i]) continue;
-        let cur = { ...raw[i] };
-        used[i] = true;
-
-        let changed = true;
-        while (changed) {
-          changed = false;
-          for (let j = 0; j < raw.length; j++) {
-            if (used[j]) continue;
-            const next = raw[j];
-            if (next._name !== cur._name || next._place !== cur._place) continue;
-            if (cur._end.getTime() === next._start.getTime()) {
-              cur._end    = new Date(next._end);
-              cur._hFin   = next._hFin;
-              used[j]     = true;
-              changed     = true;
-            }
-          }
-        }
-        fused.push(cur);
-      }
-
-      return fused.map(ev => {
-        const lieu    = fmtPlace(ev._place);
-        const summary = `${ev._name}${lieu ? ' — ' + lieu : ''}`;
-        const _endInclusive = new Date(ev._end);
-        if (ev._end.getHours() === 0 && ev._end.getMinutes() === 0) {
-          _endInclusive.setSeconds(-1);
-        }
-        return {
-          id: ev.id,
-          summary,
-          __type: 'navire',
-          _isAllDay: false,
-          _start: ev._start,
-          _end:   ev._end,
-          _endInclusive,
-          _place:  ev._place,
-          _hDebut: ev._hDebut,
-          _hFin:   ev._hFin,
-          _hFinDisplay: ev._hFin,
-        };
-      });
-    } catch(e) { console.error('fetchNaviresAPI:', e); return []; }
+    return buildFusedEvents(raw);
   }
 
-  /* ── FETCH RECEPTION (Google Calendar) ── */
+  /* ── Ancienne API (fallback) ── */
+  async function fetchNaviresOld(timeMin, timeMax) {
+    const startDate = fmtDateISO(timeMin), endDate = fmtDateISO(timeMax);
+    try {
+      const r = await fetch(`${NAVIRES_API_OLD}?startDate=${startDate}&endDate=${endDate}`);
+      if (!r.ok) return [];
+      const data = await r.json();
+      for (const day of data) { if (day.isHoliday) holidaySet.add(day.date); }
+      const raw = [];
+      for (const day of data) {
+        if (!day.projectAssignments?.length) continue;
+        for (const pa of day.projectAssignments) {
+          const { hDebut, hFin } = parsePoste(pa.poste);
+          const [y, m, d] = pa.date.split('-').map(Number);
+          const _start = new Date(y, m-1, d, hDebut, 0, 0, 0);
+          const _end   = new Date(y, m-1, d, hFin,   0, 0, 0);
+          if (_end <= _start) _end.setHours(23, 59, 0, 0);
+          raw.push({ _start, _end, _name: pa.name, _place: pa.place||'', _hDebut: hDebut, _hFin: hFin, _volumes: [], _equipe: '', id: String(pa.id) });
+        }
+      }
+      return buildFusedEvents(raw);
+    } catch(e) { console.error('fetchNaviresOld:', e); return []; }
+  }
+
+  /* ── Fusion segments contigus (même navire + même quai) ── */
+  function buildFusedEvents(raw) {
+    raw.sort((a, b) => a._start - b._start);
+    const fused = [], used = new Array(raw.length).fill(false);
+    for (let i = 0; i < raw.length; i++) {
+      if (used[i]) continue;
+      let cur = { ...raw[i] }; used[i] = true;
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (let j = 0; j < raw.length; j++) {
+          if (used[j]) continue;
+          const next = raw[j];
+          if (next._name !== cur._name || next._place !== cur._place) continue;
+          if (cur._end.getTime() === next._start.getTime()) {
+            cur._end  = new Date(next._end);
+            cur._hFin = next._hFin;
+            // Fusionner les volumes
+            cur._volumes = [...(cur._volumes||[]), ...(next._volumes||[])];
+            used[j] = true; changed = true;
+          }
+        }
+      }
+      fused.push(cur);
+    }
+    return fused.map(ev => {
+      const lieu    = fmtPlace(ev._place);
+      const summary = `${ev._name}${lieu ? ' — ' + lieu : ''}`;
+      const _endInclusive = new Date(ev._end);
+      if (ev._end.getHours() === 0 && ev._end.getMinutes() === 0) _endInclusive.setSeconds(-1);
+      return {
+        id: ev.id, summary, __type: 'navire', _isAllDay: false,
+        _start: ev._start, _end: ev._end, _endInclusive,
+        _place: ev._place, _hDebut: ev._hDebut, _hFin: ev._hFin, _hFinDisplay: ev._hFin,
+        _volumes: ev._volumes || [],
+        _equipe:  ev._equipe  || '',
+      };
+    });
+  }
+
+    /* ── FETCH RECEPTION (Google Calendar) ── */
   async function fetchReception(timeMin, timeMax) {
     const p = `?key=${encodeURIComponent(API_KEY)}&singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(timeMin.toISOString())}&timeMax=${encodeURIComponent(timeMax.toISOString())}`;
     try {
@@ -416,9 +480,25 @@ document.addEventListener('DOMContentLoaded', function() {
     if (multi) return `<p>Du ${fmtFullDate(s)} à ${fmtTime(s)}<br>Au ${fmtFullDate(e)} à ${fmtTime(e)}</p>`;
     return all ? `<p>Le ${fmtFullDate(s)}</p>` : `<p>Le ${fmtFullDate(s)} à ${fmtTime(s)}</p>`;
   }
+  function fmtVolumes(volumes) {
+    if (!volumes?.length) return '';
+    return volumes.map(v => {
+      const parts = [];
+      if (v.vlCount)         parts.push(`${v.vlCount} VL`);
+      if (v.vanCount)        parts.push(`${v.vanCount} Van`);
+      if (v.vlStrappingCount && v.vlStrappingCount !== v.vlCount) parts.push(`${v.vlStrappingCount} str.`);
+      if (v.hhCount)         parts.push(`${v.hhCount} HH`);
+      if (v.staticCount)     parts.push(`${v.staticCount} stat.`);
+      if (v.weight)          parts.push(`${v.weight} t`);
+      const qty = parts.join(' · ');
+      const comment = v.comment ? ` — ${v.comment}` : '';
+      return `<div style="font-size:0.82rem;color:#cbd5e1;margin-top:3px">${qty}${comment}</div>`;
+    }).join('');
+  }
   function evtHtml(ev) {
     const lieu = ev._place ? `<p>📍 ${ev._place}</p>` : '';
-    return `<div class="modal-item"><h3>${ev.summary||'(sans titre)'}</h3>${evtDateHtml(ev)}${lieu}${ev.description?'<p>'+ev.description+'</p>':''}</div>`;
+    const volumes = ev._volumes?.length ? `<div style="margin-top:6px"><span style="font-size:0.75rem;color:#64748b;text-transform:uppercase;letter-spacing:0.05em">Volumes</span>${fmtVolumes(ev._volumes)}</div>` : '';
+    return `<div class="modal-item"><h3>${ev.summary||'(sans titre)'}</h3>${evtDateHtml(ev)}${lieu}${volumes}${ev.description?'<p>'+ev.description+'</p>':''}</div>`;
   }
   $('event-modal').addEventListener('click', () => $('event-modal').style.display='none');
   function showEventModal(ev){ $('modal-content').innerHTML=evtHtml(ev); $('event-modal').style.display='flex'; }
@@ -815,12 +895,34 @@ document.addEventListener('DOMContentLoaded', function() {
         txt+=ev.summary||'(sans titre)';
         if(isLast&&!ev._isAllDay) txt+=` ${fmtTime(ev._end)}>\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0`;
       }
+      // Ligne volumes pour navires
+      const hasVol = ev.__type==='navire' && ev._volumes?.length;
+      const volTxt = hasVol ? ev._volumes.map(v => {
+        const p=[];
+        if(v.vlCount)    p.push(`${v.vlCount}VL`);
+        if(v.vanCount)   p.push(`${v.vanCount}Van`);
+        if(v.hhCount)    p.push(`${v.hhCount}HH`);
+        if(v.comment)    p.push(v.comment);
+        return p.join(' · ');
+      }).filter(Boolean).join(' | ') : '';
+
+      const thisBandH = hasVol && volTxt ? bandH+14 : bandH;
+      const band=mk('div','multi-band '+(ev.__type||''));
+      band.style.cssText=`left:${r0.left-calRect.left}px;width:${Math.max(36,(r1.left+r1.width)-r0.left-6)}px;top:${weekTopBase[seg.weekIdx]+dlH+2+seg.lane*bs}px;height:${thisBandH}px;display:${seg.lane<visLanes[seg.weekIdx]?'flex':'none'};flex-direction:column;align-items:flex-start;padding:2px 10px`;
+      if (new Date(ev._endInclusive) < today) band.classList.add('past-event');
+
       const tc=mk('div','event-text-container'), te=mk('div','event-text');
       te.textContent=txt; te.setAttribute('data-text',txt); tc.appendChild(te);
-      const band=mk('div','multi-band '+(ev.__type||''));
-      if (new Date(ev._endInclusive) < today) band.classList.add('past-event');
-      band.style.cssText=`left:${r0.left-calRect.left}px;width:${Math.max(36,(r1.left+r1.width)-r0.left-6)}px;top:${weekTopBase[seg.weekIdx]+dlH+2+seg.lane*bs}px;height:${bandH}px;display:${seg.lane<visLanes[seg.weekIdx]?'flex':'none'}`;
+      tc.style.cssText='width:100%;flex-shrink:0';
       band.appendChild(tc);
+
+      if(hasVol && volTxt){
+        const vl=mk('div','event-vol-line');
+        vl.textContent=volTxt;
+        vl.style.cssText='font-size:0.62rem;opacity:0.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;line-height:1.2';
+        band.appendChild(vl);
+      }
+
       band.addEventListener('click',e=>{ e.stopPropagation(); showEventModal(ev); });
       evLayer.appendChild(band);
     });
