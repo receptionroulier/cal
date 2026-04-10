@@ -942,123 +942,136 @@ document.addEventListener('DOMContentLoaded', function() {
     function generatePDF(norm, from, to){
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
-      const PW=297, PH=210; // A4 paysage mm
-      const MAR=10, COL_W=7; // 7 colonnes
-      const HEADER_H=12, DAY_LABEL_H=6, BAND_H=5, BAND_GAP=1.2;
 
-      // Palette couleurs
-      const COL_BG      = [15,23,42];
-      const COL_CELL    = [30,41,59];
-      const COL_CELL_FUT= [35,47,68];
-      const COL_TODAY   = [0,50,70];
-      const COL_HOLIDAY = [60,20,20];
-      const COL_NAVIRE  = [0,80,180];
-      const COL_RECEP   = [0,140,70];
-      const COL_TEXT    = [226,232,240];
-      const COL_DIMMED  = [100,116,139];
-      const COL_HOL_TXT = [255,120,120];
+      // ── Dimensions ──────────────────────────────────────────────
+      const PW=297, PH=210;
+      const MAR_X=8, MAR_Y=8;
+      const COLS=7, ROWS=4;
+      const HEADER_H=7;   // hauteur ligne jours (lun-dim)
+      const BAND_H=5.2, BAND_GAP=0.8, BAND_PAD_X=1.5, BAND_PAD_Y=0.9;
+      const gridW=PW-MAR_X*2, gridH=PH-MAR_Y*2-HEADER_H;
+      const cellW=gridW/COLS, cellH=gridH/ROWS;
 
-      // Collecter toutes les semaines (lundi→dimanche) dans la plage
+      // ── Couleurs ─────────────────────────────────────────────────
+      const C_WHITE   =[255,255,255];
+      const C_GRID    =[180,190,200];    // bordures grille
+      const C_HEAD_BG =[30,41,59];      // fond en-têtes jours
+      const C_HEAD_TXT=[226,232,240];
+      const C_TODAY_BG=[0,50,70];
+      const C_TODAY_BD=[0,200,220];
+      const C_HOL_BG  =[255,235,235];
+      const C_HOL_BD  =[220,80,80];
+      const C_HOL_TXT =[180,40,40];
+      const C_PAST_BG =[245,247,250];
+      const C_FUT_BG  =[250,252,255];
+      const C_DATE_TXT=[80,100,120];
+      const C_DATE_TODAY=[0,180,210];
+      const C_NAV_BG  =[220,235,255];
+      const C_NAV_BD  =[60,120,220];
+      const C_NAV_TXT =[20,60,160];
+      const C_REC_BG  =[215,255,230];
+      const C_REC_BD  =[40,180,100];
+      const C_REC_TXT =[10,120,60];
+      const C_TIME    =[100,120,150];
+
+      // ── Semaines à afficher ──────────────────────────────────────
       const weeks=[];
       let cur=getMonday(from);
-      while(cur<=to){
+      while(cur<=to && weeks.length<ROWS){
         const days=[];
-        for(let i=0;i<7;i++){ const d=new Date(cur); d.setDate(cur.getDate()+i); days.push(new Date(d)); }
+        for(let i=0;i<7;i++){ const d=new Date(cur); d.setDate(cur.getDate()+i); d.setHours(0,0,0,0); days.push(d); }
         weeks.push(days);
         cur=new Date(cur); cur.setDate(cur.getDate()+7);
       }
 
-      // Segmenter les événements par semaine/jour
+      const today=new Date(); today.setHours(0,0,0,0);
+      const DAYS_FR=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+
       function evtsOnDay(day){
-        const ds=new Date(day); ds.setHours(0,0,0,0);
         return norm.filter(ev=>{
           const s=new Date(ev._start); s.setHours(0,0,0,0);
           const e=new Date(ev._endInclusive); e.setHours(0,0,0,0);
-          return ds>=s && ds<=e;
+          return day>=s && day<=e;
         }).sort((a,b)=>new Date(a._start)-new Date(b._start));
       }
 
-      const today=new Date(); today.setHours(0,0,0,0);
-      const DAYS_FR=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
-      const gridW=PW-MAR*2;
-      const cellW=gridW/7;
+      // ── Fond blanc page ──────────────────────────────────────────
+      doc.setFillColor(...C_WHITE);
+      doc.rect(0,0,PW,PH,'F');
 
-      weeks.forEach((days,wi)=>{
-        if(wi>0) doc.addPage();
-
-        // Fond page
-        doc.setFillColor(...COL_BG);
-        doc.rect(0,0,PW,PH,'F');
-
-        // Titre de la semaine
-        const tmp=new Date(days[0]); tmp.setHours(0,0,0,0);
-        tmp.setDate(tmp.getDate()+3-(tmp.getDay()+6)%7);
-        const jan4=new Date(tmp.getFullYear(),0,4);
-        const wn=1+Math.round(((tmp-jan4)/86400000-3+(jan4.getDay()+6)%7)/7);
-        const fmtD=d=>d.toLocaleDateString('fr-FR',{day:'2-digit',month:'short'});
+      // ── En-têtes colonnes (Lun → Dim) ────────────────────────────
+      const hY=MAR_Y;
+      DAYS_FR.forEach((label,di)=>{
+        const x=MAR_X+di*cellW;
+        doc.setFillColor(...C_HEAD_BG);
+        doc.rect(x, hY, cellW, HEADER_H, 'F');
         doc.setFont('helvetica','bold');
-        doc.setFontSize(9); doc.setTextColor(...COL_TEXT);
-        doc.text(`Semaine ${wn}  ·  ${fmtD(days[0])} → ${fmtD(days[6])}`, MAR, MAR-1);
+        doc.setFontSize(7.5);
+        doc.setTextColor(...C_HEAD_TXT);
+        doc.text(label, x+cellW/2, hY+HEADER_H/2+1.4, {align:'center'});
+      });
 
-        // En-têtes jours
-        days.forEach((day,di)=>{
-          const x=MAR+di*cellW;
+      // ── Grille cellules ───────────────────────────────────────────
+      weeks.forEach((days, wi)=>{
+        const rowY=MAR_Y+HEADER_H+wi*cellH;
+
+        days.forEach((day, di)=>{
+          const x=MAR_X+di*cellW;
           const isT=day.getTime()===today.getTime();
-          const isH=holidaySet.has(fmtDateISO(day));
-          doc.setFillColor(...(isT?COL_TODAY:isH?COL_HOLIDAY:COL_CELL));
-          doc.roundedRect(x+0.5,MAR,cellW-1,HEADER_H,1.5,1.5,'F');
-          doc.setFont('helvetica',isT?'bold':'normal');
-          doc.setFontSize(8);
-          doc.setTextColor(...(isT?[0,229,255]:isH?COL_HOL_TXT:COL_TEXT));
-          const label=DAYS_FR[di]+' '+day.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
-          doc.text(label, x+cellW/2, MAR+HEADER_H/2+1.5, {align:'center'});
-          if(isH){
-            doc.setFontSize(5.5); doc.setTextColor(...COL_HOL_TXT);
-            doc.text('Férié', x+cellW/2, MAR+HEADER_H-1.5, {align:'center'});
-          }
-        });
-
-        // Corps : calculer la hauteur disponible et le nb max de bandes
-        const bodyY=MAR+HEADER_H+1;
-        const bodyH=PH-bodyY-MAR;
-        const maxBands=Math.floor((bodyH-DAY_LABEL_H)/(BAND_H+BAND_GAP));
-
-        // Collecter les bandes par jour
-        const dayEvts=days.map(d=>evtsOnDay(d));
-
-        // Colonnes
-        days.forEach((day,di)=>{
-          const x=MAR+di*cellW;
           const isPast=day<today;
-          const isT=day.getTime()===today.getTime();
           const isH=holidaySet.has(fmtDateISO(day));
 
           // Fond cellule
-          doc.setFillColor(...(isT?COL_TODAY:isH?COL_HOLIDAY:isPast?[22,30,46]:COL_CELL_FUT));
-          doc.setDrawColor(...(isT?[0,180,220]:isH?[180,60,60]:[50,65,85]));
-          doc.setLineWidth(isT?0.5:0.3);
-          doc.roundedRect(x+0.5,bodyY,cellW-1,bodyH,1.5,1.5,'FD');
+          if(isT)       doc.setFillColor(...C_TODAY_BG);
+          else if(isH)  doc.setFillColor(...C_HOL_BG);
+          else if(isPast) doc.setFillColor(...C_PAST_BG);
+          else          doc.setFillColor(...C_FUT_BG);
+          doc.rect(x, rowY, cellW, cellH, 'F');
 
-          const evts=dayEvts[di];
-          const textX=x+2.5, maxW=cellW-5;
-          let curY=bodyY+2.5;
+          // Bordure cellule
+          doc.setLineWidth(isT ? 0.5 : 0.25);
+          doc.setDrawColor(...(isT ? C_TODAY_BD : isH ? C_HOL_BD : C_GRID));
+          doc.rect(x, rowY, cellW, cellH, 'S');
 
-          evts.slice(0,maxBands).forEach(ev=>{
-            const isNav=ev.__type==='navire';
-            // Fond bande
-            doc.setFillColor(...(isNav?[0,60,140]:[0,100,50]));
-            doc.setDrawColor(...(isNav?[0,140,255]:[0,200,100]));
-            doc.setLineWidth(0.2);
-            doc.roundedRect(textX-0.5,curY,maxW+1,BAND_H,1,1,'FD');
+          // Label date
+          const dateStr=day.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+          doc.setFont('helvetica', isT?'bold':'normal');
+          doc.setFontSize(6.5);
+          doc.setTextColor(...(isT ? C_DATE_TODAY : isH ? C_HOL_TXT : C_DATE_TXT));
+          doc.text(dateStr, x+BAND_PAD_X, rowY+4);
 
-            // Nom
-            const nom=isNav?(ev.summary?.split('—')[0].trim()||''):(ev.summary||'');
+          // Label "Férié"
+          if(isH){
             doc.setFont('helvetica','bold');
-            doc.setFontSize(5.5); doc.setTextColor(...COL_TEXT);
-            const nomTrunc=doc.splitTextToSize(nom,maxW)[0]||'';
-            doc.text(nomTrunc, textX+0.5, curY+2);
+            doc.setFontSize(5);
+            doc.setTextColor(...C_HOL_TXT);
+            doc.text('Férié', x+cellW-BAND_PAD_X, rowY+4, {align:'right'});
+          }
 
-            // Heures
+          // Événements
+          const evts=evtsOnDay(day);
+          const evtStartY=rowY+6;
+          const maxBands=Math.floor((cellH-6-BAND_PAD_Y)/(BAND_H+BAND_GAP));
+          evts.slice(0,maxBands).forEach((ev,ei)=>{
+            const bY=evtStartY+ei*(BAND_H+BAND_GAP);
+            const isNav=ev.__type==='navire';
+            const bX=x+BAND_PAD_X, bW=cellW-BAND_PAD_X*2;
+
+            // Fond bande
+            doc.setFillColor(...(isNav?C_NAV_BG:C_REC_BG));
+            doc.setDrawColor(...(isNav?C_NAV_BD:C_REC_BD));
+            doc.setLineWidth(0.2);
+            doc.roundedRect(bX, bY, bW, BAND_H, 0.8, 0.8, 'FD');
+
+            // Nom navire/réception
+            const nom = isNav ? (ev.summary?.split('—')[0].trim()||'') : (ev.summary||'');
+            doc.setFont('helvetica','bold');
+            doc.setFontSize(5.2);
+            doc.setTextColor(...(isNav?C_NAV_TXT:C_REC_TXT));
+            const nomTrunc=doc.splitTextToSize(nom, bW-1)[0]||'';
+            doc.text(nomTrunc, bX+0.8, bY+BAND_H*0.42+1);
+
+            // Heures + quai
             let timeStr='';
             if(isNav){
               const hD=String(ev._hDebut??0).padStart(2,'0');
@@ -1070,23 +1083,35 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             if(timeStr){
               doc.setFont('helvetica','normal');
-              doc.setFontSize(4.5); doc.setTextColor(...COL_DIMMED);
-              doc.text(timeStr, textX+0.5, curY+BAND_H-1);
+              doc.setFontSize(4.2);
+              doc.setTextColor(...C_TIME);
+              doc.text(timeStr, bX+0.8, bY+BAND_H-0.8);
             }
-            curY+=BAND_H+BAND_GAP;
           });
 
-          // Indicateur overflow
-          const hidden=evts.length-maxBands;
-          if(hidden>0){
+          // +N autres
+          if(evts.length>maxBands){
             doc.setFont('helvetica','normal');
-            doc.setFontSize(5); doc.setTextColor(...COL_DIMMED);
-            doc.text(`+${hidden} autres`, textX, bodyY+bodyH-2);
+            doc.setFontSize(4.5);
+            doc.setTextColor(...C_DATE_TXT);
+            doc.text(`+${evts.length-maxBands}`, x+cellW-BAND_PAD_X, rowY+cellH-1.5, {align:'right'});
           }
         });
       });
 
-      // Nom du fichier
+      // ── Bordure extérieure du tableau ────────────────────────────
+      doc.setDrawColor(...C_GRID);
+      doc.setLineWidth(0.4);
+      doc.rect(MAR_X, MAR_Y, gridW, HEADER_H+gridH, 'S');
+
+      // ── Titre + date génération (discret, sous le tableau) ───────
+      const fmtD=d=>d.toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(5.5);
+      doc.setTextColor(160,170,180);
+      doc.text(`Calendrier Navires · ${fmtD(from)} – ${fmtD(to)} · Généré le ${fmtD(new Date())}`, PW/2, PH-2, {align:'center'});
+
+      // ── Sauvegarde ───────────────────────────────────────────────
       const fmtFile=d=>`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
       doc.save(`Navires_${fmtFile(from)}_${fmtFile(to)}.pdf`);
     }
