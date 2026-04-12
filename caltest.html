@@ -213,10 +213,9 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
 document.addEventListener('DOMContentLoaded', function() {
   const API_KEY  = 'AIzaSyDkQkqPoOGf8umYg2dbeTU0THfLlJnCjXo';
   const CAL_RECEPTION = 'receptionroulier@gmail.com';
-  const NAVIRES_API_OLD = 'https://calendar.docker.inno-web.fr/api/projectAssignments';
-  const NAVIRES_API_NEW = 'https://external.docker.inno-web.fr/api/shgtdocker/getweeklyprojectassignments';
-  // sectorId 25 = Parcs (exclus), 23 = SMR, 24 = Manucar
-  const CACHE_KEY = 'caltest_v1_cache';
+  const NAVIRES_API     = 'https://calendar.docker.inno-web.fr/api/projectAssignments';
+  const NAVIRES_API_NEW = 'https://shgt-proxy.receptionroulier.workers.dev';
+  const CACHE_KEY = 'calr_v1_cache';
   const CACHE_TTL = 30000;
   const INDEX_URL = 'index.html';
   const SHOW_TYPES = ['reception', 'navire'];
@@ -250,91 +249,61 @@ document.addEventListener('DOMContentLoaded', function() {
     return { hDebut: isNaN(hDebut) ? 0 : hDebut, hFin: isNaN(hFin) ? 23 : hFin };
   }
 
-  /* ── FETCH NAVIRES — nouvelle API (external.docker) avec fallback ancienne ── */
+  /* ── FETCH NAVIRES — Worker proxy (nouvelle API) + fallback ancienne ── */
   async function fetchNaviresAPI(timeMin, timeMax) {
-    // Essayer la nouvelle API en premier
     try {
       const items = await fetchNaviresNew(timeMin, timeMax);
       if (items !== null) return items;
-    } catch(e) { console.warn('Nouvelle API navires indisponible, fallback:', e); }
-    // Fallback ancienne API
+    } catch(e) { console.warn('Worker SHGT indisponible, fallback:', e.message); }
     return fetchNaviresOld(timeMin, timeMax);
   }
 
-  /* ── Nouvelle API : getweeklyprojectassignments par jour ── */
   async function fetchNaviresNew(timeMin, timeMax) {
     const raw = [];
-    // Itérer jour par jour (l'API prend une date et retourne la semaine)
-    // On fait un appel par lundi de semaine couvrant la plage
-    const dates = new Set();
-    const cur = getMonday(timeMin);
-    while (cur <= timeMax) {
-      dates.add(fmtDateISO(cur));
-      cur.setDate(cur.getDate() + 7);
-    }
-    // Ajouter aussi le lundi de timeMin au cas où
-    dates.add(fmtDateISO(getMonday(timeMin)));
+    // Un appel par lundi de semaine couvrant la plage
+    const mondays = new Set();
+    const cur = new Date(getMonday(timeMin));
+    while (cur <= timeMax) { mondays.add(fmtDateISO(cur)); cur.setDate(cur.getDate()+7); }
+    mondays.add(fmtDateISO(getMonday(timeMin)));
 
     const allDays = [];
-    await Promise.all([...dates].map(async date => {
+    await Promise.all([...mondays].map(async date => {
       const r = await fetch(NAVIRES_API_NEW, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          date,
-          sectorId: 0,
-          SectorProjectNumberType: 0,
-          searchValue: '',
-          onlyUserData: false,
-          withRefused: false,
-        }),
+        body: JSON.stringify({ date, sectorId: 0, SectorProjectNumberType: 0, searchValue: '', onlyUserData: false, withRefused: false }),
       });
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      const days = await r.json();
-      allDays.push(...days);
+      if (!r.ok) throw new Error('Worker HTTP ' + r.status);
+      allDays.push(...await r.json());
     }));
 
-    // Dédupliquer par date
+    // Dédupliquer + trier
     const seen = new Set();
-    const days = allDays.filter(d => { if (seen.has(d.date)) return false; seen.add(d.date); return true; });
-    days.sort((a, b) => a.date.localeCompare(b.date));
+    const days = allDays.filter(d=>{ if(seen.has(d.date)) return false; seen.add(d.date); return true; });
+    days.sort((a,b)=>a.date.localeCompare(b.date));
 
     for (const day of days) {
       if (!day.postes?.length) continue;
-      for (const posteGroup of day.postes) {
-        const poste = posteGroup.poste;
-        // Heures depuis startTime/endTime ("07:00", "14:00")
-        const [hDebut] = poste.startTime.split(':').map(Number);
-        const [hFin]   = poste.endTime.split(':').map(Number);
-        for (const pa of posteGroup.projectAssignments) {
-          // Exclure Parcs (sectorId 25)
-          if (pa.sectorId === 25) continue;
-          const [y, m, d] = pa.date.split('-').map(Number);
-          const _start = new Date(y, m-1, d, hDebut, 0, 0, 0);
-          const _end   = new Date(y, m-1, d, hFin,   0, 0, 0);
-          if (_end <= _start) _end.setHours(23, 59, 0, 0);
-          raw.push({
-            _start, _end,
-            _name:   pa.project?.extraInfo || pa.project?.name || '',
-            _place:  pa.project?.place?.name || '',
-            _hDebut: hDebut,
-            _hFin:   hFin,
-            _volumes: pa.volumes || [],
-            _equipe:  pa.customerComments || '',
-            id: String(pa.id),
-          });
+      for (const pg of day.postes) {
+        const [hDebut] = pg.poste.startTime.split(':').map(Number);
+        const [hFin]   = pg.poste.endTime.split(':').map(Number);
+        for (const pa of pg.projectAssignments) {
+          if (pa.sectorId === 25) continue; // exclure Parcs
+          const [y,m,d] = pa.date.split('-').map(Number);
+          const _start = new Date(y,m-1,d,hDebut,0,0,0);
+          const _end   = new Date(y,m-1,d,hFin,0,0,0);
+          if (_end <= _start) _end.setHours(23,59,0,0);
+          raw.push({ _start, _end, _name: pa.project?.extraInfo||pa.project?.name||'', _place: pa.project?.place?.name||'', _hDebut: hDebut, _hFin: hFin, _volumes: pa.volumes||[], id: String(pa.id) });
         }
       }
     }
-
     return buildFusedEvents(raw);
   }
 
-  /* ── Ancienne API (fallback) ── */
   async function fetchNaviresOld(timeMin, timeMax) {
     const startDate = fmtDateISO(timeMin), endDate = fmtDateISO(timeMax);
     try {
-      const r = await fetch(`${NAVIRES_API_OLD}?startDate=${startDate}&endDate=${endDate}`);
+      const r = await fetch(`${NAVIRES_API}?startDate=${startDate}&endDate=${endDate}`);
       if (!r.ok) return [];
       const data = await r.json();
       for (const day of data) { if (day.isHoliday) holidaySet.add(day.date); }
@@ -343,18 +312,18 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!day.projectAssignments?.length) continue;
         for (const pa of day.projectAssignments) {
           const { hDebut, hFin } = parsePoste(pa.poste);
-          const [y, m, d] = pa.date.split('-').map(Number);
-          const _start = new Date(y, m-1, d, hDebut, 0, 0, 0);
-          const _end   = new Date(y, m-1, d, hFin,   0, 0, 0);
-          if (_end <= _start) _end.setHours(23, 59, 0, 0);
-          raw.push({ _start, _end, _name: pa.name, _place: pa.place||'', _hDebut: hDebut, _hFin: hFin, _volumes: [], _equipe: '', id: String(pa.id) });
+          const [y,m,d] = pa.date.split('-').map(Number);
+          const _start = new Date(y,m-1,d,hDebut,0,0,0);
+          const _end   = new Date(y,m-1,d,hFin,0,0,0);
+          if (_end <= _start) _end.setHours(23,59,0,0);
+          raw.push({ _start, _end, _name: pa.name, _place: pa.place||'', _hDebut: hDebut, _hFin: hFin, _volumes: [], id: String(pa.id) });
         }
       }
       return buildFusedEvents(raw);
     } catch(e) { console.error('fetchNaviresOld:', e); return []; }
   }
 
-  /* ── Fusion segments contigus (même navire + même quai) ── */
+  /* ── Fusion segments contigus ── */
   function buildFusedEvents(raw) {
     raw.sort((a, b) => a._start - b._start);
     const fused = [], used = new Array(raw.length).fill(false);
@@ -369,10 +338,7 @@ document.addEventListener('DOMContentLoaded', function() {
           const next = raw[j];
           if (next._name !== cur._name || next._place !== cur._place) continue;
           if (cur._end.getTime() === next._start.getTime()) {
-            cur._end  = new Date(next._end);
-            cur._hFin = next._hFin;
-            // Fusionner les volumes
-            cur._volumes = [...(cur._volumes||[]), ...(next._volumes||[])];
+            cur._end = new Date(next._end); cur._hFin = next._hFin;
             used[j] = true; changed = true;
           }
         }
@@ -380,17 +346,11 @@ document.addEventListener('DOMContentLoaded', function() {
       fused.push(cur);
     }
     return fused.map(ev => {
-      const lieu    = fmtPlace(ev._place);
+      const lieu = fmtPlace(ev._place);
       const summary = `${ev._name}${lieu ? ' — ' + lieu : ''}`;
       const _endInclusive = new Date(ev._end);
       if (ev._end.getHours() === 0 && ev._end.getMinutes() === 0) _endInclusive.setSeconds(-1);
-      return {
-        id: ev.id, summary, __type: 'navire', _isAllDay: false,
-        _start: ev._start, _end: ev._end, _endInclusive,
-        _place: ev._place, _hDebut: ev._hDebut, _hFin: ev._hFin, _hFinDisplay: ev._hFin,
-        _volumes: ev._volumes || [],
-        _equipe:  ev._equipe  || '',
-      };
+      return { id: ev.id, summary, __type: 'navire', _isAllDay: false, _start: ev._start, _end: ev._end, _endInclusive, _place: ev._place, _hDebut: ev._hDebut, _hFin: ev._hFin, _hFinDisplay: ev._hFin, _volumes: ev._volumes||[] };
     });
   }
 
