@@ -278,22 +278,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
   async function fetchNaviresNew(timeMin, timeMax) {
     const raw = [];
-    const mondays = new Set();
-    const cur = new Date(getMonday(timeMin));
-    while (cur <= timeMax) { mondays.add(fmtDateISO(cur)); cur.setDate(cur.getDate()+7); }
-    mondays.add(fmtDateISO(getMonday(timeMin)));
-
-    const allDays = [];
-    await Promise.all([...mondays].map(async date => {
-      const headers = { 'Content-Type': 'application/json' };
-      const r = await fetch(NAVIRES_API_NEW, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ date, sectorId: 0, SectorProjectNumberType: 0, searchValue: '', onlyUserData: false, withRefused: false }),
-      });
-      if (!r.ok) throw new Error('Worker HTTP ' + r.status);
-      allDays.push(...await r.json());
-    }));
+    // Un seul appel au Worker — c'est lui qui fait les appels par semaine vers SHGT
+    const r = await fetch(NAVIRES_API_NEW, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        dateFrom: fmtDateISO(timeMin),
+        dateTo:   fmtDateISO(timeMax),
+        sectorId: 0, SectorProjectNumberType: 0, searchValue: '', onlyUserData: false, withRefused: false
+      }),
+    });
+    if (!r.ok) throw new Error('Worker HTTP ' + r.status);
+    const allDays = await r.json();
 
     const seen = new Set();
     const days = allDays.filter(d=>{ if(seen.has(d.date)) return false; seen.add(d.date); return true; });
