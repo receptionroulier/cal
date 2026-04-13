@@ -94,6 +94,7 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
   .day-modal-evt{display:flex;flex-direction:column;gap:3px;padding:10px 12px;border-radius:10px;margin-bottom:8px;cursor:pointer}
   .day-modal-evt.reception{background:linear-gradient(90deg,rgba(0,255,120,0.18),rgba(0,200,100,0.14));border:1px solid rgba(0,255,120,0.5)}
   .day-modal-evt.navire{background:linear-gradient(90deg,rgba(0,130,255,0.18),rgba(0,110,220,0.14));border:1px solid rgba(0,160,255,0.5)}
+  .day-modal-evt.transfert{background:linear-gradient(90deg,rgba(255,220,0,0.18),rgba(200,180,0,0.14));border:1px solid rgba(255,210,0,0.5)}
   .day-modal-evt-name{font-weight:700;font-size:0.88rem}
   .day-modal-evt-time{font-size:0.75rem;color:#94a3b8}
   .day-modal-evt-place{font-size:0.75rem;color:#64748b}
@@ -221,10 +222,24 @@ document.addEventListener('DOMContentLoaded', function() {
   const CACHE_KEY = 'calr_v1_cache';
   const CACHE_TTL = 30000;
   const INDEX_URL = 'index.html';
-  const SHOW_TYPES = ['reception', 'navire', 'manucar'];
+  const SHOW_TYPES = ['reception', 'navire', 'manucar', 'transfert'];
 
   let weekView = 3, currentStartDate = new Date(), resizeTimeout, autoRefreshTimer;
   const holidaySet = new Set(); // dates ISO fériées ex: '2026-04-06'
+
+  // Charge les jours fériés français depuis l'API officielle (une fois au démarrage)
+  async function loadFrenchHolidays() {
+    try {
+      const year = new Date().getFullYear();
+      const [r1, r2] = await Promise.all([
+        fetch(`https://calendrier.api.gouv.fr/jours-feries/metropole/${year}.json`),
+        fetch(`https://calendrier.api.gouv.fr/jours-feries/metropole/${year+1}.json`),
+      ]);
+      const [d1, d2] = await Promise.all([r1.json(), r2.json()]);
+      Object.keys(d1).forEach(k => holidaySet.add(k));
+      Object.keys(d2).forEach(k => holidaySet.add(k));
+    } catch(e) { console.warn('Jours fériés non chargés:', e.message); }
+  }
 
   const $  = id => document.getElementById(id);
   const mk = (tag, cls) => { const e=document.createElement(tag); if(cls) e.className=cls; return e; };
@@ -264,22 +279,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
   async function fetchNaviresNew(timeMin, timeMax) {
     const raw = [];
-    const mondays = new Set();
-    const cur = new Date(getMonday(timeMin));
-    while (cur <= timeMax) { mondays.add(fmtDateISO(cur)); cur.setDate(cur.getDate()+7); }
-    mondays.add(fmtDateISO(getMonday(timeMin)));
-
-    const allDays = [];
-    await Promise.all([...mondays].map(async date => {
-      const headers = { 'Content-Type': 'application/json' };
-      const r = await fetch(NAVIRES_API_NEW, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ date, sectorId: 0, SectorProjectNumberType: 0, searchValue: '', onlyUserData: false, withRefused: false }),
-      });
-      if (!r.ok) throw new Error('Worker HTTP ' + r.status);
-      allDays.push(...await r.json());
-    }));
+    // Un seul appel au Worker — c'est lui qui fait les appels par semaine vers SHGT
+    const r = await fetch(NAVIRES_API_NEW, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        dateFrom: fmtDateISO(timeMin),
+        dateTo:   fmtDateISO(timeMax),
+        sectorId: 0, SectorProjectNumberType: 0, searchValue: '', onlyUserData: false, withRefused: false
+      }),
+    });
+    if (!r.ok) throw new Error('Worker HTTP ' + r.status);
+    const allDays = await r.json();
 
     const seen = new Set();
     const days = allDays.filter(d=>{ if(seen.has(d.date)) return false; seen.add(d.date); return true; });
@@ -291,12 +302,21 @@ document.addEventListener('DOMContentLoaded', function() {
         const [hDebut] = pg.poste.startTime.split(':').map(Number);
         const [hFin]   = pg.poste.endTime.split(':').map(Number);
         for (const pa of pg.projectAssignments) {
-          if (pa.sectorId === 25) continue; // exclure Parcs
+          const projectName = pa.project?.name || '';
+          // Exclure tous les Parcs (sectorId 25)
+          if (pa.sectorId === 25) continue;
           const [y,m,d] = pa.date.split('-').map(Number);
           const _start = new Date(y,m-1,d,hDebut,0,0,0);
           const _end   = new Date(y,m-1,d,hFin,0,0,0);
           if (_end <= _start) _end.setHours(23,59,0,0);
-          raw.push({ _start, _end, _name: pa.project?.extraInfo||pa.project?.name||'', _place: pa.project?.place?.name||'', _hDebut: hDebut, _hFin: hFin, _volumes: pa.volumes||[], _sector: pa.sector?.name||'', id: String(pa.id) });
+          // Nom : extraInfo = vrai nom du navire, sinon nom projet
+          const _name  = pa.project?.extraInfo || pa.project?.name || '';
+          const _place = pa.project?.place?.name || '';
+          // Type selon nom projet
+          let _type = 'transfert';
+          if (projectName === 'Navire SMR')     _type = 'navire';
+          if (projectName === 'Navire Manucar') _type = 'manucar';
+          raw.push({ _start, _end, _name, _place, _hDebut: hDebut, _hFin: hFin, _volumes: pa.volumes||[], _type, id: String(pa.id) });
         }
       }
     }
@@ -352,8 +372,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const summary = `${ev._name}${lieu ? ' — ' + lieu : ''}`;
       const _endInclusive = new Date(ev._end);
       if (ev._end.getHours() === 0 && ev._end.getMinutes() === 0) _endInclusive.setSeconds(-1);
-      const isManucar = ev._sector === 'Manucar';
-      return { id: ev.id, summary, __type: isManucar ? 'manucar' : 'navire', _isAllDay: false, _start: ev._start, _end: ev._end, _endInclusive, _place: ev._place, _hDebut: ev._hDebut, _hFin: ev._hFin, _hFinDisplay: ev._hFin, _volumes: ev._volumes||[], _sector: ev._sector||'' };
+      return { id: ev.id, summary, __type: ev._type||'navire', _isAllDay: false, _start: ev._start, _end: ev._end, _endInclusive, _place: ev._place, _hDebut: ev._hDebut, _hFin: ev._hFin, _hFinDisplay: ev._hFin, _volumes: ev._volumes||[] };
     });
   }
 
@@ -392,8 +411,8 @@ document.addEventListener('DOMContentLoaded', function() {
   function calculateHash(evs) {
     return JSON.stringify(evs.map(e => ({ id: e.id, summary: e.summary, s: e._start?.getTime(), e: e._end?.getTime() })));
   }
-  function loadCache(){ try{ const o=JSON.parse(localStorage.getItem(CACHE_KEY)); return o&&Date.now()-o.ts<=CACHE_TTL?o:null; }catch{ return null; } }
-  function saveCache(items, hash){ try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ items, hash, ts: Date.now() })); }catch{} }
+  function loadCache(){ try{ const o=JSON.parse(localStorage.getItem(CACHE_KEY)); if(o&&Date.now()-o.ts<=CACHE_TTL){ if(o.holidays) o.holidays.forEach(h=>holidaySet.add(h)); return o; } return null; }catch{ return null; } }
+  function saveCache(items, hash){ try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ items, hash, ts: Date.now(), holidays: [...holidaySet] })); }catch{} }
 
   async function getItems(timeMin, timeMax, override) {
     if (override) return override;
@@ -421,7 +440,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setInterval(updateClock, 1000); updateClock();
 
   function evtDateHtml(ev) {
-    if (ev.__type === 'navire' || ev.__type === 'manucar') {
+    if (ev.__type === 'navire' || ev.__type === 'manucar' || ev.__type === 'transfert') {
       const hD = String(ev._hDebut ?? new Date(ev._start).getHours()).padStart(2,'0');
       const hF = String(ev._hFinDisplay ?? ev._hFin ?? new Date(ev._end).getHours()).padStart(2,'0');
       const dateDebut = fmtFullDate(ev._start);
@@ -473,7 +492,7 @@ document.addEventListener('DOMContentLoaded', function() {
       return { name: ev.summary || '(sans titre)', time: null };
     }
 
-    if (ev.__type === 'navire' || ev.__type === 'manucar') {
+    if (ev.__type === 'navire' || ev.__type === 'manucar' || ev.__type === 'transfert') {
       const nom = ev.summary?.split('—')[0].trim() || '';
       const quai = fmtPlace(ev._place) ? ` — ${fmtPlace(ev._place)}` : '';
       const evStartDay = new Date(ev._start); evStartDay.setHours(0,0,0,0);
@@ -835,8 +854,8 @@ document.addEventListener('DOMContentLoaded', function() {
       const r0=cellRects[seg.startIdx], r1=cellRects[seg.endIdx]; if(!r0||!r1) return;
       const ev=seg.ev, isFirst=seg.startIdx===firstIdx(ev), isLast=seg.endIdx===lastIdx(ev);
       let txt='';
-      if (ev.__type === 'navire') {
-        const hD  = String(ev._hDebut ?? new Date(ev._start).getHours()).padStart(2,'0');
+      if (ev.__type === 'navire' || ev.__type === 'manucar' || ev.__type === 'transfert') {
+        const hD  = String(ev._hDebut) ?? new Date(ev._start).getHours()).padStart(2,'0');
         const hF  = String(ev._hFinDisplay ?? ev._hFin ?? new Date(ev._end).getHours()).padStart(2,'0');
         const nom = ev.summary?.split('—')[0].trim() || '';
         const lieu = fmtPlace(ev._place);
@@ -846,7 +865,7 @@ document.addEventListener('DOMContentLoaded', function() {
         txt+=ev.summary||'(sans titre)';
         if(isLast&&!ev._isAllDay) txt+=` ${fmtTime(ev._end)}>\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0`;
       }
-      const hasVol = ev.__type==='navire' && ev._volumes?.length;
+      const hasVol = (ev.__type==='navire'||ev.__type==='manucar'||ev.__type==='transfert') && ev._volumes?.length;
       const volTxt = hasVol ? ev._volumes.map(v => {
         const p=[];
         if(v.vlCount)    p.push(`${v.vlCount}VL`);
@@ -914,7 +933,9 @@ document.addEventListener('DOMContentLoaded', function() {
   $('view-4w').addEventListener('click',()=>{ weekView=4; currentStartDate=getMonday(currentStartDate); go(); });
   window.addEventListener('resize',()=>{ clearTimeout(resizeTimeout); resizeTimeout=setTimeout(()=>render().catch(()=>{}),200); });
 
-  render().then(()=>startAutoRefresh()).catch(e=>{ console.error(e); $('calendar-title').textContent='Erreur de chargement'; });
+  loadFrenchHolidays().finally(() => {
+    render().then(()=>startAutoRefresh()).catch(e=>{ console.error(e); $('calendar-title').textContent='Erreur de chargement'; });
+  });
 
 
   /* ── PDF EXPORT ── */
@@ -1092,7 +1113,7 @@ document.addEventListener('DOMContentLoaded', function() {
           const maxBands=Math.floor((cellH-6-BAND_PAD_Y)/(BAND_H+BAND_GAP));
           evts.slice(0,maxBands).forEach((ev,ei)=>{
             const bY=evtStartY+ei*(BAND_H+BAND_GAP);
-            const isNav=ev.__type==='navire';
+            const isNav=ev.__type==='navire'||ev.__type==='manucar'||ev.__type==='transfert';
             const bX=x+BAND_PAD_X, bW=cellW-BAND_PAD_X*2;
 
             doc.setFillColor(...(isNav?C_NAV_BG:C_REC_BG));
