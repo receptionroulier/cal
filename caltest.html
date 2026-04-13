@@ -264,7 +264,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
   async function fetchNaviresNew(timeMin, timeMax) {
     const raw = [];
-    // Un appel par lundi de semaine couvrant la plage
     const mondays = new Set();
     const cur = new Date(getMonday(timeMin));
     while (cur <= timeMax) { mondays.add(fmtDateISO(cur)); cur.setDate(cur.getDate()+7); }
@@ -282,7 +281,6 @@ document.addEventListener('DOMContentLoaded', function() {
       allDays.push(...await r.json());
     }));
 
-    // Dédupliquer + trier
     const seen = new Set();
     const days = allDays.filter(d=>{ if(seen.has(d.date)) return false; seen.add(d.date); return true; });
     days.sort((a,b)=>a.date.localeCompare(b.date));
@@ -328,7 +326,6 @@ document.addEventListener('DOMContentLoaded', function() {
     } catch(e) { console.error('fetchNaviresOld:', e); return []; }
   }
 
-  /* ── Fusion segments contigus ── */
   function buildFusedEvents(raw) {
     raw.sort((a, b) => a._start - b._start);
     const fused = [], used = new Array(raw.length).fill(false);
@@ -360,7 +357,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-    /* ── FETCH RECEPTION (Google Calendar) ── */
   async function fetchReception(timeMin, timeMax) {
     const p = `?key=${encodeURIComponent(API_KEY)}&singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(timeMin.toISOString())}&timeMax=${encodeURIComponent(timeMax.toISOString())}`;
     try {
@@ -370,7 +366,6 @@ document.addEventListener('DOMContentLoaded', function() {
     } catch(e) { return []; }
   }
 
-  /* ── NORMALISE Google Calendar items ── */
   function normalizeGCal(items) {
     return items.map(ev => {
       const allDay = !!(ev.start?.date && !ev.start?.dateTime);
@@ -386,7 +381,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }).filter(e => e._start && e._endInclusive);
   }
 
-  /* ── FETCH ALL ── */
   async function fetchAll(timeMin, timeMax) {
     const [gcalItems, naviresItems] = await Promise.all([
       fetchReception(timeMin, timeMax),
@@ -395,7 +389,6 @@ document.addEventListener('DOMContentLoaded', function() {
     return [...normalizeGCal(gcalItems), ...naviresItems];
   }
 
-  /* ── CACHE ── */
   function calculateHash(evs) {
     return JSON.stringify(evs.map(e => ({ id: e.id, summary: e.summary, s: e._start?.getTime(), e: e._end?.getTime() })));
   }
@@ -424,11 +417,9 @@ document.addEventListener('DOMContentLoaded', function() {
       .filter(ev => SHOW_TYPES.includes(ev.__type));
   }
 
-  /* ── CLOCK ── */
   function updateClock(){ const n=new Date(); $('current-time').textContent=`${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`; }
   setInterval(updateClock, 1000); updateClock();
 
-  /* ── MODAL ── */
   function evtDateHtml(ev) {
     if (ev.__type === 'navire' || ev.__type === 'manucar') {
       const hD = String(ev._hDebut ?? new Date(ev._start).getHours()).padStart(2,'0');
@@ -469,16 +460,14 @@ document.addEventListener('DOMContentLoaded', function() {
   $('event-modal').addEventListener('click', () => $('event-modal').style.display='none');
   function showEventModal(ev){ $('modal-content').innerHTML=evtHtml(ev); $('event-modal').style.display='flex'; }
 
-  /* ── MODALE JOUR : fermeture ── */
   const closeDayModal = () => $('day-modal').classList.remove('show');
   $('day-modal-backdrop').addEventListener('click', closeDayModal);
   $('day-modal-close').addEventListener('click', closeDayModal);
   function showModalForCell(c){
-    $('modal-content').innerHTML=c.eventsList.map(evtHtml).join('<hr style="border:none;border-top:1px solid rgba(255,255,255,0.1);margin:8px 0")||'<p>Aucun évènement</p>';
+    $('modal-content').innerHTML=c.eventsList.map(evtHtml).join('<hr style="border:none;border-top:1px solid rgba(255,255,255,0.1);margin:8px 0">')||'<p>Aucun évènement</p>';
     $('event-modal').style.display='flex';
   }
 
-  /* ── MOBILE : retourne { name, time } pour affichage 2 lignes ── */
   function evtTwoLines(ev, day) {
     if (ev._isAllDay) {
       return { name: ev.summary || '(sans titre)', time: null };
@@ -576,7 +565,6 @@ document.addEventListener('DOMContentLoaded', function() {
     $('day-modal').classList.add('show');
   }
 
-  /* ── MOBILE SEMAINE 2 COLONNES ── */
   let mobNorm=[], mobWeekStart=null, swipeStartX=0, swipeStartY=0, isSwiping=false;
 
   function getMobWeekMonday(d){
@@ -759,7 +747,6 @@ document.addEventListener('DOMContentLoaded', function() {
     },{passive:true});
   }
 
-  /* ── DESKTOP ── */
   function updateScrollingEvents(){
     document.querySelectorAll('.event-text').forEach(e=>e.classList.toggle('scrolling',e.scrollWidth>e.parentElement.clientWidth));
   }
