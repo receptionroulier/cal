@@ -854,8 +854,8 @@ document.addEventListener('DOMContentLoaded', function() {
       const r0=cellRects[seg.startIdx], r1=cellRects[seg.endIdx]; if(!r0||!r1) return;
       const ev=seg.ev, isFirst=seg.startIdx===firstIdx(ev), isLast=seg.endIdx===lastIdx(ev);
       let txt='';
-      if (ev.__type === 'navire' || ev.__type === 'manucar' || ev.__type === 'transfert') {
-        const hD  = String(ev._hDebut) ?? new Date(ev._start).getHours()).padStart(2,'0');
+            if (ev.__type === 'navire' || ev.__type === 'manucar' || ev.__type === 'transfert') {
+        const hD  = String(ev._hDebut ?? new Date(ev._start).getHours()).padStart(2,'0');
         const hF  = String(ev._hFinDisplay ?? ev._hFin ?? new Date(ev._end).getHours()).padStart(2,'0');
         const nom = ev.summary?.split('—')[0].trim() || '';
         const lieu = fmtPlace(ev._place);
