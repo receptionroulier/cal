@@ -1,11 +1,3 @@
-Voici le fichier `calr.html` complet et nettoyé.
-
-**Ce qui a été modifié :**
-1.  **Suppression** des identifiants (`SHGT_EMAIL`, `SHGT_PASSWORD`) et de l'URL d'authentification.
-2.  **Suppression** de la fonction `getShgtToken()` et de la gestion du cache du token.
-3.  **Simplification** de `fetchNaviresNew` : le code ne s'occupe plus de l'autorisation, il envoie la requête au Worker, et c'est le Worker qui gère le login en arrière-plan.
-
-```html
 <!doctype html>
 <html lang="fr">
 <head>
