@@ -226,6 +226,20 @@ document.addEventListener('DOMContentLoaded', function() {
   let weekView = 3, currentStartDate = new Date(), resizeTimeout, autoRefreshTimer;
   const holidaySet = new Set(); // dates ISO fériées ex: '2026-04-06'
 
+  // Charge les jours fériés français depuis l'API officielle (une fois au démarrage)
+  async function loadFrenchHolidays() {
+    try {
+      const year = new Date().getFullYear();
+      const [r1, r2] = await Promise.all([
+        fetch(`https://calendrier.api.gouv.fr/jours-feries/metropole/${year}.json`),
+        fetch(`https://calendrier.api.gouv.fr/jours-feries/metropole/${year+1}.json`),
+      ]);
+      const [d1, d2] = await Promise.all([r1.json(), r2.json()]);
+      Object.keys(d1).forEach(k => holidaySet.add(k));
+      Object.keys(d2).forEach(k => holidaySet.add(k));
+    } catch(e) { console.warn('Jours fériés non chargés:', e.message); }
+  }
+
   const $  = id => document.getElementById(id);
   const mk = (tag, cls) => { const e=document.createElement(tag); if(cls) e.className=cls; return e; };
   function getMonday(d){ const r=new Date(d), day=r.getDay(); r.setDate(r.getDate()+(day===0?-6:1-day)); r.setHours(0,0,0,0); return r; }
@@ -291,12 +305,21 @@ document.addEventListener('DOMContentLoaded', function() {
         const [hDebut] = pg.poste.startTime.split(':').map(Number);
         const [hFin]   = pg.poste.endTime.split(':').map(Number);
         for (const pa of pg.projectAssignments) {
-          if (pa.sectorId === 25) continue; // exclure Parcs
+          const sectorName = pa.sector?.name || '';
+          const projectName = pa.project?.name || '';
+          // Exclure Parcs SMR uniquement — garder Parcs Manucar et SMR navires
+          if (pa.sectorId === 25 && !projectName.includes('Manucar')) continue;
           const [y,m,d] = pa.date.split('-').map(Number);
           const _start = new Date(y,m-1,d,hDebut,0,0,0);
           const _end   = new Date(y,m-1,d,hFin,0,0,0);
           if (_end <= _start) _end.setHours(23,59,0,0);
-          raw.push({ _start, _end, _name: pa.project?.extraInfo||pa.project?.name||'', _place: pa.project?.place?.name||'', _hDebut: hDebut, _hFin: hFin, _volumes: pa.volumes||[], _sector: pa.sector?.name||'', id: String(pa.id) });
+          // Nom navire : SMR → extraInfo (nom du navire), sinon nom projet
+          const _name = (pa.sectorId === 23 && pa.extraInfo) ? pa.extraInfo
+                       : pa.project?.extraInfo || pa.project?.name || '';
+          const _place = pa.project?.place?.name || '';
+          // Manucar = secteur Parcs + nom projet contient 'Manucar'
+          const _isManucar = projectName.includes('Manucar');
+          raw.push({ _start, _end, _name, _place, _hDebut: hDebut, _hFin: hFin, _volumes: pa.volumes||[], _sector: _isManucar ? 'Manucar' : sectorName, id: String(pa.id) });
         }
       }
     }
@@ -392,8 +415,8 @@ document.addEventListener('DOMContentLoaded', function() {
   function calculateHash(evs) {
     return JSON.stringify(evs.map(e => ({ id: e.id, summary: e.summary, s: e._start?.getTime(), e: e._end?.getTime() })));
   }
-  function loadCache(){ try{ const o=JSON.parse(localStorage.getItem(CACHE_KEY)); return o&&Date.now()-o.ts<=CACHE_TTL?o:null; }catch{ return null; } }
-  function saveCache(items, hash){ try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ items, hash, ts: Date.now() })); }catch{} }
+  function loadCache(){ try{ const o=JSON.parse(localStorage.getItem(CACHE_KEY)); if(o&&Date.now()-o.ts<=CACHE_TTL){ if(o.holidays) o.holidays.forEach(h=>holidaySet.add(h)); return o; } return null; }catch{ return null; } }
+  function saveCache(items, hash){ try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ items, hash, ts: Date.now(), holidays: [...holidaySet] })); }catch{} }
 
   async function getItems(timeMin, timeMax, override) {
     if (override) return override;
@@ -914,7 +937,9 @@ document.addEventListener('DOMContentLoaded', function() {
   $('view-4w').addEventListener('click',()=>{ weekView=4; currentStartDate=getMonday(currentStartDate); go(); });
   window.addEventListener('resize',()=>{ clearTimeout(resizeTimeout); resizeTimeout=setTimeout(()=>render().catch(()=>{}),200); });
 
-  render().then(()=>startAutoRefresh()).catch(e=>{ console.error(e); $('calendar-title').textContent='Erreur de chargement'; });
+  loadFrenchHolidays().finally(() => {
+    render().then(()=>startAutoRefresh()).catch(e=>{ console.error(e); $('calendar-title').textContent='Erreur de chargement'; });
+  });
 
 
   /* ── PDF EXPORT ── */
