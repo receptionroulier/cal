@@ -310,6 +310,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const days = allDays.filter(d=>{ if(seen.has(d.date)) return false; seen.add(d.date); return true; });
     days.sort((a,b)=>a.date.localeCompare(b.date));
 
+    // Mémoriser les jours fériés
+    for (const day of days) { if (day.isHoliday) holidaySet.add(day.date); }
+
     for (const day of days) {
       if (!day.postes?.length) continue;
       for (const pg of day.postes) {
@@ -853,11 +856,11 @@ document.addEventListener('DOMContentLoaded', function() {
     segments.forEach(seg=>{ for(let i=seg.startIdx;i<=seg.endIdx;i++){ const c=cellMap[i]; if(!c.eventsList.includes(seg.ev)) c.eventsList.push(seg.ev); } });
 
     const dlH=(calEl.querySelector('.date-label')?.getBoundingClientRect().height)||18;
-    const bandH=22, bandHVol=36, gap=6;
-    // bs basé sur la hauteur max (avec volumes) pour éviter les chevauchements
-    const bs=bandHVol+gap;
+    const bandH=22, bandHVol=36, gap=6, bs=bandH+gap;
     const weekTopBase=cellMap.filter((_,i)=>i%7===0).map(c=>c.el.getBoundingClientRect().top-calRect.top);
     const visLanes=Array.from({length:weekView},()=>Math.max(0,Math.floor((rowH-dlH-8+gap)/bs)));
+    // Offsets cumulés par (weekIdx, lane) pour éviter chevauchement avec bandes volumes
+    const laneOffsets={}; // clé "wi-lane" → offset y cumulé
 
     const firstIdx=ev=>segments.filter(s=>s.ev===ev).reduce((a,b)=>a.startIdx<b.startIdx?a:b).startIdx;
     const lastIdx =ev=>segments.filter(s=>s.ev===ev).reduce((a,b)=>a.endIdx>b.endIdx?a:b).endIdx;
@@ -875,7 +878,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const r0=cellRects[seg.startIdx], r1=cellRects[seg.endIdx]; if(!r0||!r1) return;
       const ev=seg.ev, isFirst=seg.startIdx===firstIdx(ev), isLast=seg.endIdx===lastIdx(ev);
       let txt='';
-      if (ev.__type === 'navire') {
+      if (ev.__type === 'navire' || ev.__type === 'manucar') {
         const hD  = String(ev._hDebut ?? new Date(ev._start).getHours()).padStart(2,'0');
         const hF  = String(ev._hFinDisplay ?? ev._hFin ?? new Date(ev._end).getHours()).padStart(2,'0');
         const nom = ev.summary?.split('—')[0].trim() || '';
@@ -887,7 +890,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if(isLast&&!ev._isAllDay) txt+=` ${fmtTime(ev._end)}>\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0`;
       }
       // Ligne volumes pour navires
-      const hasVol = ev.__type==='navire' && ev._volumes?.length;
+      const hasVol = (ev.__type==='navire'||ev.__type==='manucar') && ev._volumes?.length;
       const volTxt = hasVol ? ev._volumes.map(v => {
         const p=[];
         if(v.vlCount)    p.push(`${v.vlCount}VL`);
@@ -898,8 +901,12 @@ document.addEventListener('DOMContentLoaded', function() {
       }).filter(Boolean).join(' | ') : '';
 
       const thisBandH = hasVol && volTxt ? bandHVol : bandH;
+      const lk=`${seg.weekIdx}-${seg.lane}`;
+      if(laneOffsets[lk]===undefined) laneOffsets[lk]=0;
+      const bandTop = weekTopBase[seg.weekIdx]+dlH+2+laneOffsets[lk];
+      laneOffsets[lk] += thisBandH+gap;
       const band=mk('div','multi-band '+(ev.__type||''));
-      band.style.cssText=`left:${r0.left-calRect.left}px;width:${Math.max(36,(r1.left+r1.width)-r0.left-6)}px;top:${weekTopBase[seg.weekIdx]+dlH+2+seg.lane*bs}px;height:${thisBandH}px;display:${seg.lane<visLanes[seg.weekIdx]?'flex':'none'};flex-direction:column;align-items:flex-start;padding:2px 10px`;
+      band.style.cssText=`left:${r0.left-calRect.left}px;width:${Math.max(36,(r1.left+r1.width)-r0.left-6)}px;top:${bandTop}px;height:${thisBandH}px;display:${seg.lane<visLanes[seg.weekIdx]?'flex':'none'};flex-direction:column;align-items:flex-start;padding:2px 10px`;
       if (new Date(ev._endInclusive) < today) band.classList.add('past-event');
 
       const tc=mk('div','event-text-container'), te=mk('div','event-text');
