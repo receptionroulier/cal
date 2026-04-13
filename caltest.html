@@ -45,6 +45,9 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
   .reception:hover{background:linear-gradient(90deg,rgba(0,255,140,0.35),rgba(0,200,120,0.32));box-shadow:0 0 10px rgba(0,255,160,0.85),0 0 22px rgba(0,255,160,0.65),0 0 32px rgba(0,255,160,0.5),inset 0 0 8px rgba(0,255,180,0.45)}
   .navire{background:linear-gradient(90deg,rgba(0,130,255,0.25),rgba(0,110,220,0.22));border:1px solid rgba(0,160,255,0.75);box-shadow:0 0 6px rgba(0,150,255,0.55),0 0 12px rgba(0,150,255,0.45),0 0 22px rgba(0,150,255,0.32),inset 0 0 6px rgba(0,170,255,0.35)}
   .navire:hover{background:linear-gradient(90deg,rgba(0,160,255,0.35),rgba(0,130,255,0.32));box-shadow:0 0 10px rgba(0,180,255,0.85),0 0 22px rgba(0,180,255,0.65),0 0 32px rgba(0,180,255,0.5),inset 0 0 8px rgba(0,200,255,0.45)}
+  .manucar{background:linear-gradient(90deg,rgba(255,140,0,0.25),rgba(220,100,0,0.22));border:1px solid rgba(255,160,0,0.75);box-shadow:0 0 6px rgba(255,140,0,0.55),0 0 12px rgba(255,140,0,0.45),0 0 22px rgba(255,140,0,0.32),inset 0 0 6px rgba(255,160,0,0.35)}
+  .manucar:hover{background:linear-gradient(90deg,rgba(255,160,0,0.35),rgba(220,120,0,0.32));box-shadow:0 0 10px rgba(255,180,0,0.85),0 0 22px rgba(255,180,0,0.65),0 0 32px rgba(255,180,0,0.5),inset 0 0 8px rgba(255,200,0,0.45)}
+  .mob-evt.manucar{background:linear-gradient(90deg,rgba(255,140,0,0.18),rgba(220,100,0,0.14));border:1px solid rgba(255,160,0,0.5);box-shadow:0 0 6px rgba(255,140,0,0.2)}
   .event-text-container{display:inline-flex;white-space:nowrap;overflow:hidden;width:100%;position:relative}
   .event-text{white-space:nowrap;display:inline-block;position:relative}
   .event-text.scrolling{animation:scroll 10s linear infinite}
@@ -218,7 +221,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const CACHE_KEY = 'calr_v1_cache';
   const CACHE_TTL = 30000;
   const INDEX_URL = 'index.html';
-  const SHOW_TYPES = ['reception', 'navire'];
+  const SHOW_TYPES = ['reception', 'navire', 'manucar'];
   const SHGT_AUTH_URL = 'https://external.docker.inno-web.fr/api/authentication/authenticate';
   const SHGT_EMAIL    = 'smaillard@smr-france.com';
   const SHGT_PASSWORD = 'Jsmm1408';
@@ -318,7 +321,7 @@ document.addEventListener('DOMContentLoaded', function() {
           const _start = new Date(y,m-1,d,hDebut,0,0,0);
           const _end   = new Date(y,m-1,d,hFin,0,0,0);
           if (_end <= _start) _end.setHours(23,59,0,0);
-          raw.push({ _start, _end, _name: pa.project?.extraInfo||pa.project?.name||'', _place: pa.project?.place?.name||'', _hDebut: hDebut, _hFin: hFin, _volumes: pa.volumes||[], id: String(pa.id) });
+          raw.push({ _start, _end, _name: pa.project?.extraInfo||pa.project?.name||'', _place: pa.project?.place?.name||'', _hDebut: hDebut, _hFin: hFin, _volumes: pa.volumes||[], _sector: pa.sector?.name||'', id: String(pa.id) });
         }
       }
     }
@@ -375,7 +378,8 @@ document.addEventListener('DOMContentLoaded', function() {
       const summary = `${ev._name}${lieu ? ' — ' + lieu : ''}`;
       const _endInclusive = new Date(ev._end);
       if (ev._end.getHours() === 0 && ev._end.getMinutes() === 0) _endInclusive.setSeconds(-1);
-      return { id: ev.id, summary, __type: 'navire', _isAllDay: false, _start: ev._start, _end: ev._end, _endInclusive, _place: ev._place, _hDebut: ev._hDebut, _hFin: ev._hFin, _hFinDisplay: ev._hFin, _volumes: ev._volumes||[] };
+      const isManucar = ev._sector === 'Manucar';
+      return { id: ev.id, summary, __type: isManucar ? 'manucar' : 'navire', _isAllDay: false, _start: ev._start, _end: ev._end, _endInclusive, _place: ev._place, _hDebut: ev._hDebut, _hFin: ev._hFin, _hFinDisplay: ev._hFin, _volumes: ev._volumes||[], _sector: ev._sector||'' };
     });
   }
 
@@ -449,7 +453,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   /* ── MODAL ── */
   function evtDateHtml(ev) {
-    if (ev.__type === 'navire') {
+    if (ev.__type === 'navire' || ev.__type === 'manucar') {
       const hD = String(ev._hDebut ?? new Date(ev._start).getHours()).padStart(2,'0');
       const hF = String(ev._hFinDisplay ?? ev._hFin ?? new Date(ev._end).getHours()).padStart(2,'0');
       const dateDebut = fmtFullDate(ev._start);
@@ -504,7 +508,7 @@ document.addEventListener('DOMContentLoaded', function() {
       return { name: ev.summary || '(sans titre)', time: null };
     }
 
-    if (ev.__type === 'navire') {
+    if (ev.__type === 'navire' || ev.__type === 'manucar') {
       const nom = ev.summary?.split('—')[0].trim() || '';
       const quai = fmtPlace(ev._place) ? ` — ${fmtPlace(ev._place)}` : '';
       const evStartDay = new Date(ev._start); evStartDay.setHours(0,0,0,0);
@@ -849,7 +853,9 @@ document.addEventListener('DOMContentLoaded', function() {
     segments.forEach(seg=>{ for(let i=seg.startIdx;i<=seg.endIdx;i++){ const c=cellMap[i]; if(!c.eventsList.includes(seg.ev)) c.eventsList.push(seg.ev); } });
 
     const dlH=(calEl.querySelector('.date-label')?.getBoundingClientRect().height)||18;
-    const bandH=22, gap=6, bs=bandH+gap;
+    const bandH=22, bandHVol=36, gap=6;
+    // bs basé sur la hauteur max (avec volumes) pour éviter les chevauchements
+    const bs=bandHVol+gap;
     const weekTopBase=cellMap.filter((_,i)=>i%7===0).map(c=>c.el.getBoundingClientRect().top-calRect.top);
     const visLanes=Array.from({length:weekView},()=>Math.max(0,Math.floor((rowH-dlH-8+gap)/bs)));
 
@@ -891,7 +897,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return p.join(' · ');
       }).filter(Boolean).join(' | ') : '';
 
-      const thisBandH = hasVol && volTxt ? bandH+14 : bandH;
+      const thisBandH = hasVol && volTxt ? bandHVol : bandH;
       const band=mk('div','multi-band '+(ev.__type||''));
       band.style.cssText=`left:${r0.left-calRect.left}px;width:${Math.max(36,(r1.left+r1.width)-r0.left-6)}px;top:${weekTopBase[seg.weekIdx]+dlH+2+seg.lane*bs}px;height:${thisBandH}px;display:${seg.lane<visLanes[seg.weekIdx]?'flex':'none'};flex-direction:column;align-items:flex-start;padding:2px 10px`;
       if (new Date(ev._endInclusive) < today) band.classList.add('past-event');
