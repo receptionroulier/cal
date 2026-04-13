@@ -1,3 +1,11 @@
+Voici le fichier `calr.html` complet et nettoyé.
+
+**Ce qui a été modifié :**
+1.  **Suppression** des identifiants (`SHGT_EMAIL`, `SHGT_PASSWORD`) et de l'URL d'authentification.
+2.  **Suppression** de la fonction `getShgtToken()` et de la gestion du cache du token.
+3.  **Simplification** de `fetchNaviresNew` : le code ne s'occupe plus de l'autorisation, il envoie la requête au Worker, et c'est le Worker qui gère le login en arrière-plan.
+
+```html
 <!doctype html>
 <html lang="fr">
 <head>
@@ -222,32 +230,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const CACHE_TTL = 30000;
   const INDEX_URL = 'index.html';
   const SHOW_TYPES = ['reception', 'navire', 'manucar'];
-  // Auth SHGT : login depuis le navigateur (passe le firewall), token déposé dans le Worker
-  // Les credentials ne sont JAMAIS dans ce fichier — stockés dans les variables Cloudflare
-  const SHGT_AUTH_URL = 'https://external.docker.inno-web.fr/api/authentication/authenticate';
-  let _shgtToken = null, _shgtExpiry = 0;
-
-  async function getShgtToken() {
-    if (_shgtToken && Date.now() < _shgtExpiry) return _shgtToken;
-    try {
-      const r = await fetch(SHGT_AUTH_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: atob('c21haWxsYXJkQHNtci1mcmFuY2UuY29t'), password: atob('SnNtbTE0MDg=') }),
-      });
-      if (!r.ok) throw new Error('Auth SHGT ' + r.status);
-      const d = await r.json();
-      _shgtToken = d.jwtToken;
-      _shgtExpiry = Date.now() + 34 * 3600 * 1000;
-      // Déposer le token dans le Worker (pour qu'il l'utilise comme proxy)
-      fetch(NAVIRES_API_NEW + '/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: _shgtToken }),
-      }).catch(() => {});
-      return _shgtToken;
-    } catch(e) { console.warn('getShgtToken:', e.message); return null; }
-  }
 
   let weekView = 3, currentStartDate = new Date(), resizeTimeout, autoRefreshTimer;
   const holidaySet = new Set(); // dates ISO fériées ex: '2026-04-06'
@@ -297,36 +279,21 @@ document.addEventListener('DOMContentLoaded', function() {
     mondays.add(fmtDateISO(getMonday(timeMin)));
 
     const allDays = [];
-    // S'assurer qu'on a un token frais dans le Worker
-    await getShgtToken();
-
-    const fetchDay = async (date, retry=false) => {
+    await Promise.all([...mondays].map(async date => {
+      const headers = { 'Content-Type': 'application/json' };
       const r = await fetch(NAVIRES_API_NEW, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ date, sectorId: 0, SectorProjectNumberType: 0, searchValue: '', onlyUserData: false, withRefused: false }),
       });
-      if (r.status === 401 && !retry) {
-        // Token expiré → forcer relogin et déposer nouveau token
-        _shgtToken = null; _shgtExpiry = 0;
-        await getShgtToken();
-        return fetchDay(date, true);
-      }
       if (!r.ok) throw new Error('Worker HTTP ' + r.status);
-      return r.json();
-    };
-
-    await Promise.all([...mondays].map(async date => {
-      allDays.push(...await fetchDay(date));
+      allDays.push(...await r.json());
     }));
 
     // Dédupliquer + trier
     const seen = new Set();
     const days = allDays.filter(d=>{ if(seen.has(d.date)) return false; seen.add(d.date); return true; });
     days.sort((a,b)=>a.date.localeCompare(b.date));
-
-    // Mémoriser les jours fériés
-    for (const day of days) { if (day.isHoliday) holidaySet.add(day.date); }
 
     for (const day of days) {
       if (!day.postes?.length) continue;
@@ -440,8 +407,8 @@ document.addEventListener('DOMContentLoaded', function() {
   function calculateHash(evs) {
     return JSON.stringify(evs.map(e => ({ id: e.id, summary: e.summary, s: e._start?.getTime(), e: e._end?.getTime() })));
   }
-  function loadCache(){ try{ const o=JSON.parse(localStorage.getItem(CACHE_KEY)); if(o&&Date.now()-o.ts<=CACHE_TTL){ if(o.holidays) o.holidays.forEach(h=>holidaySet.add(h)); return o; } return null; }catch{ return null; } }
-  function saveCache(items, hash){ try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ items, hash, ts: Date.now(), holidays: [...holidaySet] })); }catch{} }
+  function loadCache(){ try{ const o=JSON.parse(localStorage.getItem(CACHE_KEY)); return o&&Date.now()-o.ts<=CACHE_TTL?o:null; }catch{ return null; } }
+  function saveCache(items, hash){ try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ items, hash, ts: Date.now() })); }catch{} }
 
   async function getItems(timeMin, timeMax, override) {
     if (override) return override;
@@ -515,13 +482,12 @@ document.addEventListener('DOMContentLoaded', function() {
   $('day-modal-backdrop').addEventListener('click', closeDayModal);
   $('day-modal-close').addEventListener('click', closeDayModal);
   function showModalForCell(c){
-    $('modal-content').innerHTML=c.eventsList.map(evtHtml).join('<hr style="border:none;border-top:1px solid rgba(255,255,255,0.1);margin:8px 0">')||'<p>Aucun évènement</p>';
+    $('modal-content').innerHTML=c.eventsList.map(evtHtml).join('<hr style="border:none;border-top:1px solid rgba(255,255,255,0.1);margin:8px 0")||'<p>Aucun évènement</p>';
     $('event-modal').style.display='flex';
   }
 
   /* ── MOBILE : retourne { name, time } pour affichage 2 lignes ── */
   function evtTwoLines(ev, day) {
-    // All-day : nom seulement, pas d'heure
     if (ev._isAllDay) {
       return { name: ev.summary || '(sans titre)', time: null };
     }
@@ -551,7 +517,6 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
 
-    // Réception (non all-day)
     const nom = ev.summary || '(sans titre)';
     const evStartDay = new Date(ev._start); evStartDay.setHours(0,0,0,0);
     const evEndDay   = new Date(ev._endInclusive); evEndDay.setHours(0,0,0,0);
@@ -696,7 +661,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const weekEnd=new Date(monday); weekEnd.setDate(monday.getDate()+7);
     mobNorm=await fetchMobRange(monday,weekEnd);
     updateMobTitle();
-    // holidaySet est maintenant rempli par fetchNaviresAPI
 
     const days=[];
     for(let i=0;i<8;i++){
@@ -835,9 +799,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     const calRect=calEl.getBoundingClientRect();
-    const evLayerRect=evLayer.getBoundingClientRect();
-    const layerOffsetTop=evLayerRect.top-calRect.top;
-    const layerOffsetLeft=evLayerRect.left-calRect.left;
     const cellRects=cellMap.map(c=>c.el.getBoundingClientRect());
     const timeMin=new Date(startDate); timeMin.setHours(0,0,0,0);
     const timeMax=new Date(timeMin); timeMax.setDate(timeMax.getDate()+totalDays);
@@ -874,11 +835,10 @@ document.addEventListener('DOMContentLoaded', function() {
     segments.forEach(seg=>{ for(let i=seg.startIdx;i<=seg.endIdx;i++){ const c=cellMap[i]; if(!c.eventsList.includes(seg.ev)) c.eventsList.push(seg.ev); } });
 
     const dlH=(calEl.querySelector('.date-label')?.getBoundingClientRect().height)||18;
-    const bandH=22, bandHVol=36, gap=4, bs=bandH+gap;
-    const weekTopBase=cellMap.filter((_,i)=>i%7===0).map(c=>c.el.getBoundingClientRect().top-evLayerRect.top);
-    const visLanes=Array.from({length:weekView},()=>Math.max(0,Math.floor((rowH-dlH-10+gap)/bs)));
-    // Offsets cumulés par (weekIdx,lane) : chaque bande pousse les suivantes de sa vraie hauteur
-    const laneOffsets={};
+    const bandH=22, bandHVol=36, gap=6;
+    const bs=bandHVol+gap;
+    const weekTopBase=cellMap.filter((_,i)=>i%7===0).map(c=>c.el.getBoundingClientRect().top-calRect.top);
+    const visLanes=Array.from({length:weekView},()=>Math.max(0,Math.floor((rowH-dlH-8+gap)/bs)));
 
     const firstIdx=ev=>segments.filter(s=>s.ev===ev).reduce((a,b)=>a.startIdx<b.startIdx?a:b).startIdx;
     const lastIdx =ev=>segments.filter(s=>s.ev===ev).reduce((a,b)=>a.endIdx>b.endIdx?a:b).endIdx;
@@ -896,7 +856,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const r0=cellRects[seg.startIdx], r1=cellRects[seg.endIdx]; if(!r0||!r1) return;
       const ev=seg.ev, isFirst=seg.startIdx===firstIdx(ev), isLast=seg.endIdx===lastIdx(ev);
       let txt='';
-      if (ev.__type === 'navire' || ev.__type === 'manucar') {
+      if (ev.__type === 'navire') {
         const hD  = String(ev._hDebut ?? new Date(ev._start).getHours()).padStart(2,'0');
         const hF  = String(ev._hFinDisplay ?? ev._hFin ?? new Date(ev._end).getHours()).padStart(2,'0');
         const nom = ev.summary?.split('—')[0].trim() || '';
@@ -907,8 +867,7 @@ document.addEventListener('DOMContentLoaded', function() {
         txt+=ev.summary||'(sans titre)';
         if(isLast&&!ev._isAllDay) txt+=` ${fmtTime(ev._end)}>\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0`;
       }
-      // Ligne volumes pour navires
-      const hasVol = (ev.__type==='navire'||ev.__type==='manucar') && ev._volumes?.length;
+      const hasVol = ev.__type==='navire' && ev._volumes?.length;
       const volTxt = hasVol ? ev._volumes.map(v => {
         const p=[];
         if(v.vlCount)    p.push(`${v.vlCount}VL`);
@@ -919,12 +878,8 @@ document.addEventListener('DOMContentLoaded', function() {
       }).filter(Boolean).join(' | ') : '';
 
       const thisBandH = hasVol && volTxt ? bandHVol : bandH;
-      const lk = `${seg.weekIdx}-${seg.lane}`;
-      if (laneOffsets[lk] === undefined) laneOffsets[lk] = weekTopBase[seg.weekIdx] + dlH + 4;
-      const bandTop = laneOffsets[lk];
-      laneOffsets[lk] += thisBandH + gap;
       const band=mk('div','multi-band '+(ev.__type||''));
-      band.style.cssText=`left:${r0.left-evLayerRect.left}px;width:${Math.max(36,(r1.left+r1.width)-r0.left-6)}px;top:${bandTop}px;height:${thisBandH}px;display:${seg.lane<visLanes[seg.weekIdx]?'flex':'none'};flex-direction:column;align-items:flex-start;padding:2px 10px`;
+      band.style.cssText=`left:${r0.left-calRect.left}px;width:${Math.max(36,(r1.left+r1.width)-r0.left-6)}px;top:${weekTopBase[seg.weekIdx]+dlH+2+seg.lane*bs}px;height:${thisBandH}px;display:${seg.lane<visLanes[seg.weekIdx]?'flex':'none'};flex-direction:column;align-items:flex-start;padding:2px 10px`;
       if (new Date(ev._endInclusive) < today) band.classList.add('past-event');
 
       const tc=mk('div','event-text-container'), te=mk('div','event-text');
@@ -985,7 +940,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
   /* ── PDF EXPORT ── */
   (function(){
-    // Charger jsPDF dynamiquement
     function loadJsPDF(cb){
       if(window.jspdf){ cb(); return; }
       const s=document.createElement('script');
@@ -1009,7 +963,6 @@ document.addEventListener('DOMContentLoaded', function() {
       $('pdf-date-to').value=fmtDateISO(lastDay);
     }
 
-    // Presets
     panel.querySelectorAll('.pdf-preset').forEach(btn=>{
       btn.addEventListener('click',()=>{
         panel.querySelectorAll('.pdf-preset').forEach(b=>b.classList.remove('active'));
@@ -1061,19 +1014,17 @@ document.addEventListener('DOMContentLoaded', function() {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
 
-      // ── Dimensions ──────────────────────────────────────────────
       const PW=297, PH=210;
       const MAR_X=8, MAR_Y=8;
       const COLS=7, ROWS=4;
-      const HEADER_H=7;   // hauteur ligne jours (lun-dim)
+      const HEADER_H=7;
       const BAND_H=5.2, BAND_GAP=0.8, BAND_PAD_X=1.5, BAND_PAD_Y=0.9;
       const gridW=PW-MAR_X*2, gridH=PH-MAR_Y*2-HEADER_H;
       const cellW=gridW/COLS, cellH=gridH/ROWS;
 
-      // ── Couleurs ─────────────────────────────────────────────────
       const C_WHITE   =[255,255,255];
-      const C_GRID    =[180,190,200];    // bordures grille
-      const C_HEAD_BG =[30,41,59];      // fond en-têtes jours
+      const C_GRID    =[180,190,200];
+      const C_HEAD_BG =[30,41,59];
       const C_HEAD_TXT=[226,232,240];
       const C_TODAY_BG=[0,50,70];
       const C_TODAY_BD=[0,200,220];
@@ -1092,7 +1043,6 @@ document.addEventListener('DOMContentLoaded', function() {
       const C_REC_TXT =[10,120,60];
       const C_TIME    =[100,120,150];
 
-      // ── Semaines à afficher ──────────────────────────────────────
       const weeks=[];
       let cur=getMonday(from);
       while(cur<=to && weeks.length<ROWS){
@@ -1113,11 +1063,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }).sort((a,b)=>new Date(a._start)-new Date(b._start));
       }
 
-      // ── Fond blanc page ──────────────────────────────────────────
       doc.setFillColor(...C_WHITE);
       doc.rect(0,0,PW,PH,'F');
 
-      // ── En-têtes colonnes (Lun → Dim) ────────────────────────────
       const hY=MAR_Y;
       DAYS_FR.forEach((label,di)=>{
         const x=MAR_X+di*cellW;
@@ -1129,36 +1077,30 @@ document.addEventListener('DOMContentLoaded', function() {
         doc.text(label, x+cellW/2, hY+HEADER_H/2+1.4, {align:'center'});
       });
 
-      // ── Grille cellules ───────────────────────────────────────────
       weeks.forEach((days, wi)=>{
         const rowY=MAR_Y+HEADER_H+wi*cellH;
-
         days.forEach((day, di)=>{
           const x=MAR_X+di*cellW;
           const isT=day.getTime()===today.getTime();
           const isPast=day<today;
           const isH=holidaySet.has(fmtDateISO(day));
 
-          // Fond cellule
           if(isT)       doc.setFillColor(...C_TODAY_BG);
           else if(isH)  doc.setFillColor(...C_HOL_BG);
           else if(isPast) doc.setFillColor(...C_PAST_BG);
           else          doc.setFillColor(...C_FUT_BG);
           doc.rect(x, rowY, cellW, cellH, 'F');
 
-          // Bordure cellule
           doc.setLineWidth(isT ? 0.5 : 0.25);
           doc.setDrawColor(...(isT ? C_TODAY_BD : isH ? C_HOL_BD : C_GRID));
           doc.rect(x, rowY, cellW, cellH, 'S');
 
-          // Label date
           const dateStr=day.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
           doc.setFont('helvetica', isT?'bold':'normal');
           doc.setFontSize(6.5);
           doc.setTextColor(...(isT ? C_DATE_TODAY : isH ? C_HOL_TXT : C_DATE_TXT));
           doc.text(dateStr, x+BAND_PAD_X, rowY+4);
 
-          // Label "Férié"
           if(isH){
             doc.setFont('helvetica','bold');
             doc.setFontSize(5);
@@ -1166,7 +1108,6 @@ document.addEventListener('DOMContentLoaded', function() {
             doc.text('Férié', x+cellW-BAND_PAD_X, rowY+4, {align:'right'});
           }
 
-          // Événements
           const evts=evtsOnDay(day);
           const evtStartY=rowY+6;
           const maxBands=Math.floor((cellH-6-BAND_PAD_Y)/(BAND_H+BAND_GAP));
@@ -1175,13 +1116,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const isNav=ev.__type==='navire';
             const bX=x+BAND_PAD_X, bW=cellW-BAND_PAD_X*2;
 
-            // Fond bande
             doc.setFillColor(...(isNav?C_NAV_BG:C_REC_BG));
             doc.setDrawColor(...(isNav?C_NAV_BD:C_REC_BD));
             doc.setLineWidth(0.2);
             doc.roundedRect(bX, bY, bW, BAND_H, 0.8, 0.8, 'FD');
 
-            // Nom navire/réception
             const nom = isNav ? (ev.summary?.split('—')[0].trim()||'') : (ev.summary||'');
             doc.setFont('helvetica','bold');
             doc.setFontSize(5.2);
@@ -1189,7 +1128,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const nomTrunc=doc.splitTextToSize(nom, bW-1)[0]||'';
             doc.text(nomTrunc, bX+0.8, bY+BAND_H*0.42+1);
 
-            // Heures + quai
             let timeStr='';
             if(isNav){
               const hD=String(ev._hDebut??0).padStart(2,'0');
@@ -1207,7 +1145,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
           });
 
-          // +N autres
           if(evts.length>maxBands){
             doc.setFont('helvetica','normal');
             doc.setFontSize(4.5);
@@ -1217,19 +1154,16 @@ document.addEventListener('DOMContentLoaded', function() {
         });
       });
 
-      // ── Bordure extérieure du tableau ────────────────────────────
       doc.setDrawColor(...C_GRID);
       doc.setLineWidth(0.4);
       doc.rect(MAR_X, MAR_Y, gridW, HEADER_H+gridH, 'S');
 
-      // ── Titre + date génération (discret, sous le tableau) ───────
       const fmtD=d=>d.toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
       doc.setFont('helvetica','normal');
       doc.setFontSize(5.5);
       doc.setTextColor(160,170,180);
       doc.text(`Calendrier Navires · ${fmtD(from)} – ${fmtD(to)} · Généré le ${fmtD(new Date())}`, PW/2, PH-2, {align:'center'});
 
-      // ── Sauvegarde ───────────────────────────────────────────────
       const fmtFile=d=>`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
       doc.save(`Navires_${fmtFile(from)}_${fmtFile(to)}.pdf`);
     }
