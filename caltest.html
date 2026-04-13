@@ -222,28 +222,12 @@ document.addEventListener('DOMContentLoaded', function() {
   const CACHE_TTL = 30000;
   const INDEX_URL = 'index.html';
   const SHOW_TYPES = ['reception', 'navire', 'manucar'];
-  const SHGT_AUTH_URL = 'https://external.docker.inno-web.fr/api/authentication/authenticate';
-  const SHGT_EMAIL    = 'smaillard@smr-france.com';
-  const SHGT_PASSWORD = 'Jsmm1408';
+  // Authentification déléguée au Worker Cloudflare (credentials non exposés côté client)
+  const SHGT_AUTH_URL = null; // inutilisé — le Worker gère l'auth
+  const SHGT_EMAIL    = null;
+  const SHGT_PASSWORD = null;
 
-  // Cache token SHGT côté client
-  let shgtToken = null, shgtTokenExpiry = 0;
-  async function getShgtToken() {
-    const now = Date.now();
-    if (shgtToken && now < shgtTokenExpiry) return shgtToken;
-    try {
-      const r = await fetch(SHGT_AUTH_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: SHGT_EMAIL, password: SHGT_PASSWORD }),
-      });
-      if (!r.ok) throw new Error('Login SHGT échoué: ' + r.status);
-      const d = await r.json();
-      shgtToken = d.jwtToken;
-      shgtTokenExpiry = now + 30 * 3600 * 1000;
-      return shgtToken;
-    } catch(e) { console.warn('getShgtToken:', e); return null; }
-  }
+  // getShgtToken inutilisé côté client (le Worker porte les credentials)
   let weekView = 3, currentStartDate = new Date(), resizeTimeout, autoRefreshTimer;
   const holidaySet = new Set(); // dates ISO fériées ex: '2026-04-06'
 
@@ -293,12 +277,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const allDays = [];
     await Promise.all([...mondays].map(async date => {
-      const tok = await getShgtToken();
-      const headers = { 'Content-Type': 'application/json' };
-      if (tok) headers['Authorization'] = `Bearer ${tok}`;
       const r = await fetch(NAVIRES_API_NEW, {
         method: 'POST',
-        headers,
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ date, sectorId: 0, SectorProjectNumberType: 0, searchValue: '', onlyUserData: false, withRefused: false }),
       });
       if (!r.ok) throw new Error('Worker HTTP ' + r.status);
@@ -425,8 +406,8 @@ document.addEventListener('DOMContentLoaded', function() {
   function calculateHash(evs) {
     return JSON.stringify(evs.map(e => ({ id: e.id, summary: e.summary, s: e._start?.getTime(), e: e._end?.getTime() })));
   }
-  function loadCache(){ try{ const o=JSON.parse(localStorage.getItem(CACHE_KEY)); return o&&Date.now()-o.ts<=CACHE_TTL?o:null; }catch{ return null; } }
-  function saveCache(items, hash){ try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ items, hash, ts: Date.now() })); }catch{} }
+  function loadCache(){ try{ const o=JSON.parse(localStorage.getItem(CACHE_KEY)); if(o&&Date.now()-o.ts<=CACHE_TTL){ if(o.holidays) o.holidays.forEach(h=>holidaySet.add(h)); return o; } return null; }catch{ return null; } }
+  function saveCache(items, hash){ try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ items, hash, ts: Date.now(), holidays: [...holidaySet] })); }catch{} }
 
   async function getItems(timeMin, timeMax, override) {
     if (override) return override;
@@ -820,6 +801,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     const calRect=calEl.getBoundingClientRect();
+    const evLayerRect=evLayer.getBoundingClientRect();
+    const layerOffsetTop=evLayerRect.top-calRect.top;
+    const layerOffsetLeft=evLayerRect.left-calRect.left;
     const cellRects=cellMap.map(c=>c.el.getBoundingClientRect());
     const timeMin=new Date(startDate); timeMin.setHours(0,0,0,0);
     const timeMax=new Date(timeMin); timeMax.setDate(timeMax.getDate()+totalDays);
@@ -857,7 +841,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const dlH=(calEl.querySelector('.date-label')?.getBoundingClientRect().height)||18;
     const bandH=22, bandHVol=36, gap=6, bs=bandH+gap;
-    const weekTopBase=cellMap.filter((_,i)=>i%7===0).map(c=>c.el.getBoundingClientRect().top-calRect.top);
+    const weekTopBase=cellMap.filter((_,i)=>i%7===0).map(c=>c.el.getBoundingClientRect().top-evLayerRect.top);
     const visLanes=Array.from({length:weekView},()=>Math.max(0,Math.floor((rowH-dlH-8+gap)/bs)));
     // Offsets cumulés par (weekIdx, lane) pour éviter chevauchement avec bandes volumes
     const laneOffsets={}; // clé "wi-lane" → offset y cumulé
@@ -906,7 +890,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const bandTop = weekTopBase[seg.weekIdx]+dlH+2+laneOffsets[lk];
       laneOffsets[lk] += thisBandH+gap;
       const band=mk('div','multi-band '+(ev.__type||''));
-      band.style.cssText=`left:${r0.left-calRect.left}px;width:${Math.max(36,(r1.left+r1.width)-r0.left-6)}px;top:${bandTop}px;height:${thisBandH}px;display:${seg.lane<visLanes[seg.weekIdx]?'flex':'none'};flex-direction:column;align-items:flex-start;padding:2px 10px`;
+      band.style.cssText=`left:${r0.left-evLayerRect.left}px;width:${Math.max(36,(r1.left+r1.width)-r0.left-6)}px;top:${bandTop}px;height:${thisBandH}px;display:${seg.lane<visLanes[seg.weekIdx]?'flex':'none'};flex-direction:column;align-items:flex-start;padding:2px 10px`;
       if (new Date(ev._endInclusive) < today) band.classList.add('past-event');
 
       const tc=mk('div','event-text-container'), te=mk('div','event-text');
