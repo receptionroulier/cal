@@ -94,6 +94,7 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
   .day-modal-evt{display:flex;flex-direction:column;gap:3px;padding:10px 12px;border-radius:10px;margin-bottom:8px;cursor:pointer}
   .day-modal-evt.reception{background:linear-gradient(90deg,rgba(0,255,120,0.18),rgba(0,200,100,0.14));border:1px solid rgba(0,255,120,0.5)}
   .day-modal-evt.navire{background:linear-gradient(90deg,rgba(0,130,255,0.18),rgba(0,110,220,0.14));border:1px solid rgba(0,160,255,0.5)}
+  .day-modal-evt.transfert{background:linear-gradient(90deg,rgba(255,220,0,0.18),rgba(200,180,0,0.14));border:1px solid rgba(255,210,0,0.5)}
   .day-modal-evt-name{font-weight:700;font-size:0.88rem}
   .day-modal-evt-time{font-size:0.75rem;color:#94a3b8}
   .day-modal-evt-place{font-size:0.75rem;color:#64748b}
@@ -221,7 +222,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const CACHE_KEY = 'calr_v1_cache';
   const CACHE_TTL = 30000;
   const INDEX_URL = 'index.html';
-  const SHOW_TYPES = ['reception', 'navire', 'manucar'];
+  const SHOW_TYPES = ['reception', 'navire', 'manucar', 'transfert'];
 
   let weekView = 3, currentStartDate = new Date(), resizeTimeout, autoRefreshTimer;
   const holidaySet = new Set(); // dates ISO fériées ex: '2026-04-06'
@@ -301,21 +302,21 @@ document.addEventListener('DOMContentLoaded', function() {
         const [hDebut] = pg.poste.startTime.split(':').map(Number);
         const [hFin]   = pg.poste.endTime.split(':').map(Number);
         for (const pa of pg.projectAssignments) {
-          const sectorName = pa.sector?.name || '';
           const projectName = pa.project?.name || '';
-          // Exclure Parcs SMR uniquement — garder Parcs Manucar et SMR navires
-          if (pa.sectorId === 25 && !projectName.includes('Manucar')) continue;
+          // Exclure tous les Parcs (sectorId 25)
+          if (pa.sectorId === 25) continue;
           const [y,m,d] = pa.date.split('-').map(Number);
           const _start = new Date(y,m-1,d,hDebut,0,0,0);
           const _end   = new Date(y,m-1,d,hFin,0,0,0);
           if (_end <= _start) _end.setHours(23,59,0,0);
-          // Nom navire : SMR → extraInfo (nom du navire), sinon nom projet
-          const _name = (pa.sectorId === 23 && pa.extraInfo) ? pa.extraInfo
-                       : pa.project?.extraInfo || pa.project?.name || '';
+          // Nom : extraInfo = vrai nom du navire, sinon nom projet
+          const _name  = pa.project?.extraInfo || pa.project?.name || '';
           const _place = pa.project?.place?.name || '';
-          // Manucar = secteur Parcs + nom projet contient 'Manucar'
-          const _isManucar = projectName.includes('Manucar');
-          raw.push({ _start, _end, _name, _place, _hDebut: hDebut, _hFin: hFin, _volumes: pa.volumes||[], _sector: _isManucar ? 'Manucar' : sectorName, id: String(pa.id) });
+          // Type selon nom projet
+          let _type = 'transfert';
+          if (projectName === 'Navire SMR')     _type = 'navire';
+          if (projectName === 'Navire Manucar') _type = 'manucar';
+          raw.push({ _start, _end, _name, _place, _hDebut: hDebut, _hFin: hFin, _volumes: pa.volumes||[], _type, id: String(pa.id) });
         }
       }
     }
@@ -371,8 +372,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const summary = `${ev._name}${lieu ? ' — ' + lieu : ''}`;
       const _endInclusive = new Date(ev._end);
       if (ev._end.getHours() === 0 && ev._end.getMinutes() === 0) _endInclusive.setSeconds(-1);
-      const isManucar = ev._sector === 'Manucar';
-      return { id: ev.id, summary, __type: isManucar ? 'manucar' : 'navire', _isAllDay: false, _start: ev._start, _end: ev._end, _endInclusive, _place: ev._place, _hDebut: ev._hDebut, _hFin: ev._hFin, _hFinDisplay: ev._hFin, _volumes: ev._volumes||[], _sector: ev._sector||'' };
+      return { id: ev.id, summary, __type: ev._type||'navire', _isAllDay: false, _start: ev._start, _end: ev._end, _endInclusive, _place: ev._place, _hDebut: ev._hDebut, _hFin: ev._hFin, _hFinDisplay: ev._hFin, _volumes: ev._volumes||[] };
     });
   }
 
@@ -440,7 +440,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setInterval(updateClock, 1000); updateClock();
 
   function evtDateHtml(ev) {
-    if (ev.__type === 'navire' || ev.__type === 'manucar') {
+    if (ev.__type === 'navire' || ev.__type === 'manucar' || ev.__type === 'transfert') {
       const hD = String(ev._hDebut ?? new Date(ev._start).getHours()).padStart(2,'0');
       const hF = String(ev._hFinDisplay ?? ev._hFin ?? new Date(ev._end).getHours()).padStart(2,'0');
       const dateDebut = fmtFullDate(ev._start);
@@ -492,7 +492,7 @@ document.addEventListener('DOMContentLoaded', function() {
       return { name: ev.summary || '(sans titre)', time: null };
     }
 
-    if (ev.__type === 'navire' || ev.__type === 'manucar') {
+    if (ev.__type === 'navire' || ev.__type === 'manucar' || ev.__type === 'transfert') {
       const nom = ev.summary?.split('—')[0].trim() || '';
       const quai = fmtPlace(ev._place) ? ` — ${fmtPlace(ev._place)}` : '';
       const evStartDay = new Date(ev._start); evStartDay.setHours(0,0,0,0);
@@ -854,8 +854,8 @@ document.addEventListener('DOMContentLoaded', function() {
       const r0=cellRects[seg.startIdx], r1=cellRects[seg.endIdx]; if(!r0||!r1) return;
       const ev=seg.ev, isFirst=seg.startIdx===firstIdx(ev), isLast=seg.endIdx===lastIdx(ev);
       let txt='';
-      if (ev.__type === 'navire') {
-        const hD  = String(ev._hDebut ?? new Date(ev._start).getHours()).padStart(2,'0');
+      if (ev.__type === 'navire' || ev.__type === 'manucar' || ev.__type === 'transfert') {
+        const hD  = String(ev._hDebut) ?? new Date(ev._start).getHours()).padStart(2,'0');
         const hF  = String(ev._hFinDisplay ?? ev._hFin ?? new Date(ev._end).getHours()).padStart(2,'0');
         const nom = ev.summary?.split('—')[0].trim() || '';
         const lieu = fmtPlace(ev._place);
@@ -865,7 +865,7 @@ document.addEventListener('DOMContentLoaded', function() {
         txt+=ev.summary||'(sans titre)';
         if(isLast&&!ev._isAllDay) txt+=` ${fmtTime(ev._end)}>\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0`;
       }
-      const hasVol = ev.__type==='navire' && ev._volumes?.length;
+      const hasVol = (ev.__type==='navire'||ev.__type==='manucar'||ev.__type==='transfert') && ev._volumes?.length;
       const volTxt = hasVol ? ev._volumes.map(v => {
         const p=[];
         if(v.vlCount)    p.push(`${v.vlCount}VL`);
@@ -1113,7 +1113,7 @@ document.addEventListener('DOMContentLoaded', function() {
           const maxBands=Math.floor((cellH-6-BAND_PAD_Y)/(BAND_H+BAND_GAP));
           evts.slice(0,maxBands).forEach((ev,ei)=>{
             const bY=evtStartY+ei*(BAND_H+BAND_GAP);
-            const isNav=ev.__type==='navire';
+            const isNav=ev.__type==='navire'||ev.__type==='manucar'||ev.__type==='transfert';
             const bX=x+BAND_PAD_X, bW=cellW-BAND_PAD_X*2;
 
             doc.setFillColor(...(isNav?C_NAV_BG:C_REC_BG));
