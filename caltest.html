@@ -840,11 +840,9 @@ document.addEventListener('DOMContentLoaded', function() {
     segments.forEach(seg=>{ for(let i=seg.startIdx;i<=seg.endIdx;i++){ const c=cellMap[i]; if(!c.eventsList.includes(seg.ev)) c.eventsList.push(seg.ev); } });
 
     const dlH=(calEl.querySelector('.date-label')?.getBoundingClientRect().height)||18;
-    const bandH=22, bandHVol=36, gap=6, bs=bandH+gap;
+    const bandH=22, gap=4, bs=bandH+gap;
     const weekTopBase=cellMap.filter((_,i)=>i%7===0).map(c=>c.el.getBoundingClientRect().top-evLayerRect.top);
-    const visLanes=Array.from({length:weekView},()=>Math.max(0,Math.floor((rowH-dlH-8+gap)/bs)));
-    // Offsets cumulés par (weekIdx, lane) pour éviter chevauchement avec bandes volumes
-    const laneOffsets={}; // clé "wi-lane" → offset y cumulé
+    const visLanes=Array.from({length:weekView},()=>Math.max(0,Math.floor((rowH-dlH-10+gap)/bs)));
 
     const firstIdx=ev=>segments.filter(s=>s.ev===ev).reduce((a,b)=>a.startIdx<b.startIdx?a:b).startIdx;
     const lastIdx =ev=>segments.filter(s=>s.ev===ev).reduce((a,b)=>a.endIdx>b.endIdx?a:b).endIdx;
@@ -884,11 +882,9 @@ document.addEventListener('DOMContentLoaded', function() {
         return p.join(' · ');
       }).filter(Boolean).join(' | ') : '';
 
-      const thisBandH = hasVol && volTxt ? bandHVol : bandH;
-      const lk=`${seg.weekIdx}-${seg.lane}`;
-      if(laneOffsets[lk]===undefined) laneOffsets[lk]=0;
-      const bandTop = weekTopBase[seg.weekIdx]+dlH+2+laneOffsets[lk];
-      laneOffsets[lk] += thisBandH+gap;
+      // Position fixe par lane : lane 0 → row 0, lane 1 → row 1, etc. Pas d'accumulation.
+      const thisBandH = bandH;
+      const bandTop = weekTopBase[seg.weekIdx] + dlH + 4 + seg.lane * bs;
       const band=mk('div','multi-band '+(ev.__type||''));
       band.style.cssText=`left:${r0.left-evLayerRect.left}px;width:${Math.max(36,(r1.left+r1.width)-r0.left-6)}px;top:${bandTop}px;height:${thisBandH}px;display:${seg.lane<visLanes[seg.weekIdx]?'flex':'none'};flex-direction:column;align-items:flex-start;padding:2px 10px`;
       if (new Date(ev._endInclusive) < today) band.classList.add('past-event');
