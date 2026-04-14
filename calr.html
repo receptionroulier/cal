@@ -492,8 +492,9 @@ document.addEventListener('DOMContentLoaded', function() {
       return { name: ev.summary || '(sans titre)', time: null };
     }
 
-    if (ev.__type === 'navire-smr' || ev.__type === 'navire-manucar' || ev.__type === 'autre') {
+    if (isNavire(ev.__type)) {
       const nom = ev.summary?.split('—')[0].trim() || '';
+      const quai = fmtPlace(ev._place) ? ` — ${fmtPlace(ev._place)}` : '';
       const evStartDay = new Date(ev._start); evStartDay.setHours(0,0,0,0);
       const evEndDay   = new Date(ev._endInclusive); evEndDay.setHours(0,0,0,0);
       const isMultiDay = evStartDay.getTime() !== evEndDay.getTime();
