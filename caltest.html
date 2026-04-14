@@ -448,7 +448,7 @@ function buildFusedEvents(raw) {
   function loadCache(){ try{ const o=JSON.parse(localStorage.getItem(CACHE_KEY)); if(o&&Date.now()-o.ts<=CACHE_TTL){ if(o.holidays) o.holidays.forEach(h=>holidaySet.add(h)); return o; } return null; }catch{ return null; } }
   function saveCache(items, hash){ try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ items, hash, ts: Date.now(), holidays: [...holidaySet] })); }catch{} }
 
-    async function getItems(timeMin, timeMax, override) {
+      async function getItems(timeMin, timeMax, override) {
     let items;
     if (override) {
       items = override;
@@ -479,8 +479,6 @@ function buildFusedEvents(raw) {
       }))
       .filter(ev => SHOW_TYPES.includes(ev.__type));
   }
-
-
   const isNavire = t => t === 'navire-smr' || t === 'navire-manucar' || t === 'autre';
 
   function updateClock(){ const n=new Date(); $('current-time').textContent=`${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`; }
