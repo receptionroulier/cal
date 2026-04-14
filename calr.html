@@ -351,26 +351,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function buildFusedEvents(raw) {
     raw.sort((a, b) => a._start - b._start);
-    const fused = [], used = new Array(raw.length).fill(false);
-    for (let i = 0; i < raw.length; i++) {
-      if (used[i]) continue;
-      let cur = { ...raw[i] }; used[i] = true;
-      let changed = true;
-      while (changed) {
-        changed = false;
-        for (let j = 0; j < raw.length; j++) {
-          if (used[j]) continue;
-          const next = raw[j];
-          if (next._name !== cur._name || next._place !== cur._place) continue;
-          if (cur._end.getTime() === next._start.getTime()) {
-            cur._end = new Date(next._end); cur._hFin = next._hFin;
-            used[j] = true; changed = true;
-          }
-        }
+    // Fusion des postes consécutifs par clé nom+lieu en O(n log n) au lieu de O(n²)
+    const map = new Map();
+    for (const ev of raw) {
+      const key = `${ev._name}||${ev._place}`;
+      const cur = map.get(key);
+      if (cur && cur._end.getTime() === ev._start.getTime()) {
+        cur._end = new Date(ev._end);
+        cur._hFin = ev._hFin;
+      } else {
+        map.set(key, { ...ev });
       }
-      fused.push(cur);
     }
-    return fused.map(ev => {
+    return [...map.values()].map(ev => {
       const lieu = fmtPlace(ev._place);
       const summary = `${ev._name}${lieu ? ' — ' + lieu : ''}`;
       const _endInclusive = new Date(ev._end);
@@ -439,11 +432,13 @@ document.addEventListener('DOMContentLoaded', function() {
       .filter(ev => SHOW_TYPES.includes(ev.__type));
   }
 
+  const isNavire = t => t === 'navire-smr' || t === 'navire-manucar' || t === 'autre';
+
   function updateClock(){ const n=new Date(); $('current-time').textContent=`${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`; }
   setInterval(updateClock, 1000); updateClock();
 
   function evtDateHtml(ev) {
-    if (ev.__type === 'navire-smr' || ev.__type === 'navire-manucar' || ev.__type === 'autre') {
+    if (isNavire(ev.__type)) {
       const hD = String(ev._hDebut ?? new Date(ev._start).getHours()).padStart(2,'0');
       const hF = String(ev._hFinDisplay ?? ev._hFin ?? new Date(ev._end).getHours()).padStart(2,'0');
       const dateDebut = fmtFullDate(ev._start);
@@ -499,7 +494,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (ev.__type === 'navire-smr' || ev.__type === 'navire-manucar' || ev.__type === 'autre') {
       const nom = ev.summary?.split('—')[0].trim() || '';
-      const quai = fmtPlace(ev._place) ? ` — ${fmtPlace(ev._place)}` : '';
       const evStartDay = new Date(ev._start); evStartDay.setHours(0,0,0,0);
       const evEndDay   = new Date(ev._endInclusive); evEndDay.setHours(0,0,0,0);
       const isMultiDay = evStartDay.getTime() !== evEndDay.getTime();
@@ -571,7 +565,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const d=mk('div','day-modal-evt '+(ev.__type||''));
         const name=mk('div','day-modal-evt-name'); name.textContent=ev.summary?.split('—')[0].trim()||'(sans titre)';
         const time=mk('div','day-modal-evt-time');
-        if(ev.__type==='navire-smr'){
+        if(isNavire(ev.__type)){
           const hD=String(ev._hDebut??new Date(ev._start).getHours()).padStart(2,'0');
           const hF=String(ev._hFinDisplay??ev._hFin??new Date(ev._end).getHours()).padStart(2,'0');
           time.textContent=`${hD}:00 → ${hF}:00`;
@@ -859,7 +853,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const r0=cellRects[seg.startIdx], r1=cellRects[seg.endIdx]; if(!r0||!r1) return;
       const ev=seg.ev, isFirst=seg.startIdx===firstIdx(ev), isLast=seg.endIdx===lastIdx(ev);
       let txt='';
-      if (ev.__type === 'navire-smr' || ev.__type === 'navire-manucar' || ev.__type === 'autre') {
+      if (isNavire(ev.__type)) {
         const hD  = String(ev._hDebut ?? new Date(ev._start).getHours()).padStart(2,'0');
         const hF  = String(ev._hFinDisplay ?? ev._hFin ?? new Date(ev._end).getHours()).padStart(2,'0');
         const nom = ev.summary?.split('—')[0].trim() || '';
@@ -870,7 +864,7 @@ document.addEventListener('DOMContentLoaded', function() {
         txt+=ev.summary||'(sans titre)';
         if(isLast&&!ev._isAllDay) txt+=` ${fmtTime(ev._end)}>\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0`;
       }
-      const hasVol = (ev.__type==='navire-smr'||ev.__type==='navire-manucar'||ev.__type==='autre') && ev._volumes?.length;
+      const hasVol = isNavire(ev.__type) && ev._volumes?.length;
       const volTxt = hasVol ? ev._volumes.map(v => {
         const p=[];
         if(v.vlCount)    p.push(`${v.vlCount}VL`);
@@ -880,7 +874,10 @@ document.addEventListener('DOMContentLoaded', function() {
         return p.join(' · ');
       }).filter(Boolean).join(' | ') : '';
 
-      const thisBandH = hasVol && volTxt ? bandHVol : bandH;
+      const subTxt = (hasVol && volTxt) ? volTxt
+                   : (isNavire(ev.__type) && ev._comments) ? ev._comments.replace(/<[^>]*>/g,'').trim()
+                   : '';
+      const thisBandH = subTxt ? bandHVol : bandH;
       const band=mk('div','multi-band '+(ev.__type||''));
       band.style.cssText=`left:${r0.left-calRect.left}px;width:${Math.max(36,(r1.left+r1.width)-r0.left-6)}px;top:${weekTopBase[seg.weekIdx]+dlH+2+seg.lane*bs}px;height:${thisBandH}px;display:${seg.lane<visLanes[seg.weekIdx]?'flex':'none'};flex-direction:column;align-items:flex-start;padding:2px 10px`;
       if (new Date(ev._endInclusive) < today) band.classList.add('past-event');
@@ -890,9 +887,6 @@ document.addEventListener('DOMContentLoaded', function() {
       tc.style.cssText='width:100%;flex-shrink:0';
       band.appendChild(tc);
 
-      const subTxt = (hasVol && volTxt) ? volTxt
-                   : (ev.__type==='autre' && ev._comments) ? ev._comments.replace(/<[^>]*>/g,'').trim()
-                   : '';
       if(subTxt){
         const vl=mk('div','event-vol-line');
         vl.textContent=subTxt;
@@ -1121,7 +1115,7 @@ document.addEventListener('DOMContentLoaded', function() {
           const maxBands=Math.floor((cellH-6-BAND_PAD_Y)/(BAND_H+BAND_GAP));
           evts.slice(0,maxBands).forEach((ev,ei)=>{
             const bY=evtStartY+ei*(BAND_H+BAND_GAP);
-            const isNav=ev.__type==='navire-smr'||ev.__type==='navire-manucar'||ev.__type==='autre';
+            const isNav=isNavire(ev.__type);
             const bX=x+BAND_PAD_X, bW=cellW-BAND_PAD_X*2;
 
             doc.setFillColor(...(isNav?C_NAV_BG:C_REC_BG));
