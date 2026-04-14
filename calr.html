@@ -43,11 +43,14 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
   .multi-band:hover,.single-evt:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(0,0,0,0.55),inset 0 1px 0 rgba(255,255,255,0.03);background:linear-gradient(135deg,rgba(255,255,255,0.03),rgba(255,255,255,0.05))}
   .reception{background:linear-gradient(90deg,rgba(0,255,120,0.25),rgba(0,200,100,0.22));border:1px solid rgba(0,255,120,0.75);box-shadow:0 0 6px rgba(0,255,140,0.55),0 0 12px rgba(0,255,140,0.45),0 0 22px rgba(0,255,140,0.32),inset 0 0 6px rgba(0,255,160,0.35)}
   .reception:hover{background:linear-gradient(90deg,rgba(0,255,140,0.35),rgba(0,200,120,0.32));box-shadow:0 0 10px rgba(0,255,160,0.85),0 0 22px rgba(0,255,160,0.65),0 0 32px rgba(0,255,160,0.5),inset 0 0 8px rgba(0,255,180,0.45)}
-  .navire{background:linear-gradient(90deg,rgba(0,130,255,0.25),rgba(0,110,220,0.22));border:1px solid rgba(0,160,255,0.75);box-shadow:0 0 6px rgba(0,150,255,0.55),0 0 12px rgba(0,150,255,0.45),0 0 22px rgba(0,150,255,0.32),inset 0 0 6px rgba(0,170,255,0.35)}
-  .navire:hover{background:linear-gradient(90deg,rgba(0,160,255,0.35),rgba(0,130,255,0.32));box-shadow:0 0 10px rgba(0,180,255,0.85),0 0 22px rgba(0,180,255,0.65),0 0 32px rgba(0,180,255,0.5),inset 0 0 8px rgba(0,200,255,0.45)}
-  .manucar{background:linear-gradient(90deg,rgba(255,140,0,0.25),rgba(220,100,0,0.22));border:1px solid rgba(255,160,0,0.75);box-shadow:0 0 6px rgba(255,140,0,0.55),0 0 12px rgba(255,140,0,0.45),0 0 22px rgba(255,140,0,0.32),inset 0 0 6px rgba(255,160,0,0.35)}
-  .manucar:hover{background:linear-gradient(90deg,rgba(255,160,0,0.35),rgba(220,120,0,0.32));box-shadow:0 0 10px rgba(255,180,0,0.85),0 0 22px rgba(255,180,0,0.65),0 0 32px rgba(255,180,0,0.5),inset 0 0 8px rgba(255,200,0,0.45)}
-  .mob-evt.manucar{background:linear-gradient(90deg,rgba(255,140,0,0.18),rgba(220,100,0,0.14));border:1px solid rgba(255,160,0,0.5);box-shadow:0 0 6px rgba(255,140,0,0.2)}
+  .navire-smr{background:linear-gradient(90deg,rgba(0,130,255,0.25),rgba(0,110,220,0.22));border:1px solid rgba(0,160,255,0.75);box-shadow:0 0 6px rgba(0,150,255,0.55),0 0 12px rgba(0,150,255,0.45),0 0 22px rgba(0,150,255,0.32),inset 0 0 6px rgba(0,170,255,0.35)}
+  .navire-smr:hover{background:linear-gradient(90deg,rgba(0,160,255,0.35),rgba(0,130,255,0.32));box-shadow:0 0 10px rgba(0,180,255,0.85),0 0 22px rgba(0,180,255,0.65),0 0 32px rgba(0,180,255,0.5),inset 0 0 8px rgba(0,200,255,0.45)}
+  .navire-manucar{background:linear-gradient(90deg,rgba(255,140,0,0.25),rgba(220,100,0,0.22));border:1px solid rgba(255,160,0,0.75);box-shadow:0 0 6px rgba(255,140,0,0.55),0 0 12px rgba(255,140,0,0.45),0 0 22px rgba(255,140,0,0.32),inset 0 0 6px rgba(255,160,0,0.35)}
+  .navire-manucar:hover{background:linear-gradient(90deg,rgba(255,160,0,0.35),rgba(220,120,0,0.32));box-shadow:0 0 10px rgba(255,180,0,0.85),0 0 22px rgba(255,180,0,0.65),0 0 32px rgba(255,180,0,0.5),inset 0 0 8px rgba(255,200,0,0.45)}
+  .autre{background:linear-gradient(90deg,rgba(255,220,0,0.25),rgba(200,180,0,0.22));border:1px solid rgba(255,210,0,0.75);box-shadow:0 0 6px rgba(255,220,0,0.55),0 0 12px rgba(255,220,0,0.45),0 0 22px rgba(255,220,0,0.32),inset 0 0 6px rgba(255,230,0,0.35)}
+  .autre:hover{background:linear-gradient(90deg,rgba(255,230,0,0.35),rgba(220,190,0,0.32));box-shadow:0 0 10px rgba(255,240,0,0.85),0 0 22px rgba(255,240,0,0.65),0 0 32px rgba(255,240,0,0.5),inset 0 0 8px rgba(255,255,0,0.45)}
+  .mob-evt.navire-manucar{background:linear-gradient(90deg,rgba(255,140,0,0.18),rgba(220,100,0,0.14));border:1px solid rgba(255,160,0,0.5);box-shadow:0 0 6px rgba(255,140,0,0.2)}
+  .mob-evt.autre{background:linear-gradient(90deg,rgba(255,220,0,0.18),rgba(200,180,0,0.14));border:1px solid rgba(255,210,0,0.5);box-shadow:0 0 6px rgba(255,220,0,0.2)}
   .event-text-container{display:inline-flex;white-space:nowrap;overflow:hidden;width:100%;position:relative}
   .event-text{white-space:nowrap;display:inline-block;position:relative}
   .event-text.scrolling{animation:scroll 10s linear infinite}
@@ -75,7 +78,7 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
   .mob-evt{display:flex;flex-direction:column;gap:2px;padding:5px 7px;border-radius:7px;cursor:pointer;transition:transform .12s;flex-shrink:0;overflow:hidden}
   .mob-evt:active{transform:translateX(2px)}
   .mob-evt.reception{background:linear-gradient(90deg,rgba(0,255,120,0.18),rgba(0,200,100,0.14));border:1px solid rgba(0,255,120,0.5);box-shadow:0 0 6px rgba(0,255,140,0.2)}
-  .mob-evt.navire{background:linear-gradient(90deg,rgba(0,130,255,0.18),rgba(0,110,220,0.14));border:1px solid rgba(0,160,255,0.5);box-shadow:0 0 6px rgba(0,150,255,0.2)}
+  .mob-evt.navire-smr{background:linear-gradient(90deg,rgba(0,130,255,0.18),rgba(0,110,220,0.14));border:1px solid rgba(0,160,255,0.5);box-shadow:0 0 6px rgba(0,150,255,0.2)}
   .mob-evt-name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:0.73rem;color:#f0f8ff}
   .mob-evt-time{font-size:0.65rem;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   /* Swipe animation */
@@ -93,8 +96,8 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
   #day-modal-title{font-size:1rem;font-weight:700;margin-bottom:12px;color:#fff}
   .day-modal-evt{display:flex;flex-direction:column;gap:3px;padding:10px 12px;border-radius:10px;margin-bottom:8px;cursor:pointer}
   .day-modal-evt.reception{background:linear-gradient(90deg,rgba(0,255,120,0.18),rgba(0,200,100,0.14));border:1px solid rgba(0,255,120,0.5)}
-  .day-modal-evt.navire{background:linear-gradient(90deg,rgba(0,130,255,0.18),rgba(0,110,220,0.14));border:1px solid rgba(0,160,255,0.5)}
-  .day-modal-evt.transfert{background:linear-gradient(90deg,rgba(255,220,0,0.18),rgba(200,180,0,0.14));border:1px solid rgba(255,210,0,0.5)}
+  .day-modal-evt.navire-smr{background:linear-gradient(90deg,rgba(0,130,255,0.18),rgba(0,110,220,0.14));border:1px solid rgba(0,160,255,0.5)}
+  .day-modal-evt.autre{background:linear-gradient(90deg,rgba(255,220,0,0.18),rgba(200,180,0,0.14));border:1px solid rgba(255,210,0,0.5)}
   .day-modal-evt-name{font-weight:700;font-size:0.88rem}
   .day-modal-evt-time{font-size:0.75rem;color:#94a3b8}
   .day-modal-evt-place{font-size:0.75rem;color:#64748b}
@@ -201,11 +204,11 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
   </div>
   <div id="pdf-custom-range" style="display:none;flex-direction:column;gap:6px">
     <div class="pdf-range-row">
-      <label>Du</label>
+      <label for="pdf-date-from">Du</label>
       <input type="date" id="pdf-date-from" class="pdf-date-input">
     </div>
     <div class="pdf-range-row">
-      <label>Au</label>
+      <label for="pdf-date-to">Au</label>
       <input type="date" id="pdf-date-to" class="pdf-date-input">
     </div>
   </div>
@@ -222,7 +225,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const CACHE_KEY = 'calr_v1_cache';
   const CACHE_TTL = 30000;
   const INDEX_URL = 'index.html';
-  const SHOW_TYPES = ['reception', 'navire', 'manucar', 'transfert'];
+  const SHOW_TYPES = ['reception', 'navire-smr', 'navire-manucar', 'autre'];
 
   let weekView = 3, currentStartDate = new Date(), resizeTimeout, autoRefreshTimer;
   const holidaySet = new Set(); // dates ISO fériées ex: '2026-04-06'
@@ -313,10 +316,10 @@ document.addEventListener('DOMContentLoaded', function() {
           const _name  = pa.project?.extraInfo || pa.project?.name || '';
           const _place = pa.project?.place?.name || '';
           // Type selon nom projet
-          let _type = 'transfert';
-          if (projectName === 'Navire SMR')     _type = 'navire';
-          if (projectName === 'Navire Manucar') _type = 'manucar';
-          raw.push({ _start, _end, _name, _place, _hDebut: hDebut, _hFin: hFin, _volumes: pa.volumes||[], _type, id: String(pa.id) });
+          let _type = 'autre';
+          if (projectName === 'Navire SMR')     _type = 'navire-smr';
+          if (projectName === 'Navire Manucar') _type = 'navire-manucar';
+          raw.push({ _start, _end, _name, _place, _hDebut: hDebut, _hFin: hFin, _volumes: pa.volumes||[], _comments: pa.comments||pa.customerComments||'', _type, id: String(pa.id) });
         }
       }
     }
@@ -372,7 +375,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const summary = `${ev._name}${lieu ? ' — ' + lieu : ''}`;
       const _endInclusive = new Date(ev._end);
       if (ev._end.getHours() === 0 && ev._end.getMinutes() === 0) _endInclusive.setSeconds(-1);
-      return { id: ev.id, summary, __type: ev._type||'navire', _isAllDay: false, _start: ev._start, _end: ev._end, _endInclusive, _place: ev._place, _hDebut: ev._hDebut, _hFin: ev._hFin, _hFinDisplay: ev._hFin, _volumes: ev._volumes||[] };
+      return { id: ev.id, summary, __type: ev._type||'navire-smr', _isAllDay: false, _start: ev._start, _end: ev._end, _endInclusive, _place: ev._place, _hDebut: ev._hDebut, _hFin: ev._hFin, _hFinDisplay: ev._hFin, _volumes: ev._volumes||[], _comments: ev._comments||'' };
     });
   }
 
@@ -440,7 +443,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setInterval(updateClock, 1000); updateClock();
 
   function evtDateHtml(ev) {
-    if (ev.__type === 'navire' || ev.__type === 'manucar' || ev.__type === 'transfert') {
+    if (ev.__type === 'navire-smr' || ev.__type === 'navire-manucar' || ev.__type === 'autre') {
       const hD = String(ev._hDebut ?? new Date(ev._start).getHours()).padStart(2,'0');
       const hF = String(ev._hFinDisplay ?? ev._hFin ?? new Date(ev._end).getHours()).padStart(2,'0');
       const dateDebut = fmtFullDate(ev._start);
@@ -474,7 +477,9 @@ document.addEventListener('DOMContentLoaded', function() {
   function evtHtml(ev) {
     const lieu = ev._place ? `<p>📍 ${ev._place}</p>` : '';
     const volumes = ev._volumes?.length ? `<div style="margin-top:6px"><span style="font-size:0.75rem;color:#64748b;text-transform:uppercase;letter-spacing:0.05em">Volumes</span>${fmtVolumes(ev._volumes)}</div>` : '';
-    return `<div class="modal-item"><h3>${ev.summary||'(sans titre)'}</h3>${evtDateHtml(ev)}${lieu}${volumes}${ev.description?'<p>'+ev.description+'</p>':''}</div>`;
+    const commentsRaw = (!ev._volumes?.length && ev.__type === 'autre' && ev._comments) ? ev._comments.replace(/<[^>]*>/g,'').trim() : '';
+    const comments = commentsRaw ? `<p style="font-size:0.82rem;color:#cbd5e1;margin-top:4px">${commentsRaw}</p>` : '';
+    return `<div class="modal-item"><h3>${ev.summary||'(sans titre)'}</h3>${evtDateHtml(ev)}${lieu}${volumes}${comments}${ev.description?'<p>'+ev.description+'</p>':''}</div>`;
   }
   $('event-modal').addEventListener('click', () => $('event-modal').style.display='none');
   function showEventModal(ev){ $('modal-content').innerHTML=evtHtml(ev); $('event-modal').style.display='flex'; }
@@ -492,7 +497,7 @@ document.addEventListener('DOMContentLoaded', function() {
       return { name: ev.summary || '(sans titre)', time: null };
     }
 
-    if (ev.__type === 'navire' || ev.__type === 'manucar' || ev.__type === 'transfert') {
+    if (ev.__type === 'navire-smr' || ev.__type === 'navire-manucar' || ev.__type === 'autre') {
       const nom = ev.summary?.split('—')[0].trim() || '';
       const quai = fmtPlace(ev._place) ? ` — ${fmtPlace(ev._place)}` : '';
       const evStartDay = new Date(ev._start); evStartDay.setHours(0,0,0,0);
@@ -566,7 +571,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const d=mk('div','day-modal-evt '+(ev.__type||''));
         const name=mk('div','day-modal-evt-name'); name.textContent=ev.summary?.split('—')[0].trim()||'(sans titre)';
         const time=mk('div','day-modal-evt-time');
-        if(ev.__type==='navire'){
+        if(ev.__type==='navire-smr'){
           const hD=String(ev._hDebut??new Date(ev._start).getHours()).padStart(2,'0');
           const hF=String(ev._hFinDisplay??ev._hFin??new Date(ev._end).getHours()).padStart(2,'0');
           time.textContent=`${hD}:00 → ${hF}:00`;
@@ -854,8 +859,8 @@ document.addEventListener('DOMContentLoaded', function() {
       const r0=cellRects[seg.startIdx], r1=cellRects[seg.endIdx]; if(!r0||!r1) return;
       const ev=seg.ev, isFirst=seg.startIdx===firstIdx(ev), isLast=seg.endIdx===lastIdx(ev);
       let txt='';
-      if (ev.__type === 'navire' || ev.__type === 'manucar' || ev.__type === 'transfert') {
-        const hD  = String(ev._hDebut) ?? new Date(ev._start).getHours()).padStart(2,'0');
+      if (ev.__type === 'navire-smr' || ev.__type === 'navire-manucar' || ev.__type === 'autre') {
+        const hD  = String(ev._hDebut ?? new Date(ev._start).getHours()).padStart(2,'0');
         const hF  = String(ev._hFinDisplay ?? ev._hFin ?? new Date(ev._end).getHours()).padStart(2,'0');
         const nom = ev.summary?.split('—')[0].trim() || '';
         const lieu = fmtPlace(ev._place);
@@ -865,7 +870,7 @@ document.addEventListener('DOMContentLoaded', function() {
         txt+=ev.summary||'(sans titre)';
         if(isLast&&!ev._isAllDay) txt+=` ${fmtTime(ev._end)}>\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0`;
       }
-      const hasVol = (ev.__type==='navire'||ev.__type==='manucar'||ev.__type==='transfert') && ev._volumes?.length;
+      const hasVol = (ev.__type==='navire-smr'||ev.__type==='navire-manucar'||ev.__type==='autre') && ev._volumes?.length;
       const volTxt = hasVol ? ev._volumes.map(v => {
         const p=[];
         if(v.vlCount)    p.push(`${v.vlCount}VL`);
@@ -885,9 +890,12 @@ document.addEventListener('DOMContentLoaded', function() {
       tc.style.cssText='width:100%;flex-shrink:0';
       band.appendChild(tc);
 
-      if(hasVol && volTxt){
+      const subTxt = (hasVol && volTxt) ? volTxt
+                   : (ev.__type==='autre' && ev._comments) ? ev._comments.replace(/<[^>]*>/g,'').trim()
+                   : '';
+      if(subTxt){
         const vl=mk('div','event-vol-line');
-        vl.textContent=volTxt;
+        vl.textContent=subTxt;
         vl.style.cssText='font-size:0.62rem;opacity:0.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;line-height:1.2';
         band.appendChild(vl);
       }
@@ -1113,7 +1121,7 @@ document.addEventListener('DOMContentLoaded', function() {
           const maxBands=Math.floor((cellH-6-BAND_PAD_Y)/(BAND_H+BAND_GAP));
           evts.slice(0,maxBands).forEach((ev,ei)=>{
             const bY=evtStartY+ei*(BAND_H+BAND_GAP);
-            const isNav=ev.__type==='navire'||ev.__type==='manucar'||ev.__type==='transfert';
+            const isNav=ev.__type==='navire-smr'||ev.__type==='navire-manucar'||ev.__type==='autre';
             const bX=x+BAND_PAD_X, bW=cellW-BAND_PAD_X*2;
 
             doc.setFillColor(...(isNav?C_NAV_BG:C_REC_BG));
