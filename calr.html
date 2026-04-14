@@ -526,8 +526,6 @@ function buildFusedEvents(raw) {
       return `<div style="font-size:0.82rem;color:#cbd5e1;margin-top:3px">${finalLine}</div>`;
     }).join('');
 }
-
-}
   function evtHtml(ev) {
     const lieu = ev._place ? `<p>📍 ${ev._place}</p>` : '';
     const volumes = ev._volumes?.length ? `<div style="margin-top:6px"><span style="font-size:0.75rem;color:#64748b;text-transform:uppercase;letter-spacing:0.05em">Volumes</span>${fmtVolumes(ev._volumes)}</div>` : '';
