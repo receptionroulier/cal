@@ -236,7 +236,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const CACHE_KEY = 'caln_v1_cache';
   const CACHE_TTL = 30000;
   const INDEX_URL = 'index.html';
-  const SHOW_TYPES = ['navire-smr', 'navire-manucar', 'autre'];
+  const SHOW_TYPES = ['reception', 'navire-smr', 'navire-manucar', 'autre'];
 
   let weekView = 4, currentStartDate = new Date(), resizeTimeout, autoRefreshTimer;
   const holidaySet = new Set(); // dates ISO fériées ex: '2026-04-06'
@@ -360,29 +360,56 @@ document.addEventListener('DOMContentLoaded', function() {
     } catch(e) { console.error('fetchNaviresOld:', e); return []; }
   }
 
-  function buildFusedEvents(raw) {
-    raw.sort((a, b) => a._start - b._start);
-    // Fusion des postes consécutifs par clé nom+lieu en O(n log n) au lieu de O(n²)
-    const map = new Map();
-    for (const ev of raw) {
-      const key = `${ev._name}||${ev._place}`;
-      const cur = map.get(key);
-      if (cur && cur._end.getTime() === ev._start.getTime()) {
-        cur._end = new Date(ev._end);
-        cur._hFin = ev._hFin;
-      } else {
-        map.set(key, { ...ev });
-      }
+function buildFusedEvents(raw) {
+  // 1. On trie par date de début pour être sûr de traiter les événements dans l'ordre
+  raw.sort((a, b) => a._start - b._start);
+
+  const fused = []; // Liste finale de tous les segments fusionnés
+  const lastSegments = new Map(); // Pour suivre le dernier segment actif de chaque navire
+
+  for (const ev of raw) {
+    const key = `${ev._name}||${ev._place}`;
+    const lastSeg = lastSegments.get(key);
+
+    // Si on a un segment précédent pour ce navire ET qu'il se termine exactement quand celui-ci commence
+    if (lastSeg && lastSeg._end.getTime() === ev._start.getTime()) {
+      // On prolonge le segment existant
+      lastSeg._end = new Date(ev._end);
+      lastSeg._hFin = ev._hFin;
+    } else {
+      // Soit c'est un nouveau navire, soit il y a un trou dans le planning (comme ton cas 06h vs 07h)
+      // On crée un nouveau segment indépendant
+      const newSeg = { ...ev };
+      fused.push(newSeg);
+      // On mémorise ce segment comme étant le dernier pour ce navire
+      lastSegments.set(key, newSeg);
     }
-    return [...map.values()].map(ev => {
-      const lieu = fmtPlace(ev._place);
-      const summary = `${ev._name}${lieu ? ' — ' + lieu : ''}`;
-      const _endInclusive = new Date(ev._end);
-      if (ev._end.getHours() === 0 && ev._end.getMinutes() === 0) _endInclusive.setSeconds(-1);
-      return { id: ev.id, summary, __type: ev._type||'navire-smr', _isAllDay: false, _start: ev._start, _end: ev._end, _endInclusive, _place: ev._place, _hDebut: ev._hDebut, _hFin: ev._hFin, _hFinDisplay: ev._hFin, _volumes: ev._volumes||[], _comments: ev._comments||'' };
-    });
   }
 
+  // 2. On transforme les segments bruts en objets formatés pour le calendrier
+  return fused.map(ev => {
+    const lieu = fmtPlace(ev._place);
+    const summary = `${ev._name}${lieu ? ' — ' + lieu : ''}`;
+    const _endInclusive = new Date(ev._end);
+    if (ev._end.getHours() === 0 && ev._end.getMinutes() === 0) _endInclusive.setSeconds(-1);
+
+    return {
+      id: ev.id,
+      summary,
+      __type: ev._type || 'navire-smr',
+      _isAllDay: false,
+      _start: ev._start,
+      _end: ev._end,
+      _endInclusive,
+      _place: ev._place,
+      _hDebut: ev._hDebut,
+      _hFin: ev._hFin,
+      _hFinDisplay: ev._hFin,
+      _volumes: ev._volumes || [],
+      _comments: ev._comments || ''
+    };
+  });
+}
   async function fetchReception(timeMin, timeMax) {
     const p = `?key=${encodeURIComponent(API_KEY)}&singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(timeMin.toISOString())}&timeMax=${encodeURIComponent(timeMax.toISOString())}`;
     try {
@@ -421,18 +448,28 @@ document.addEventListener('DOMContentLoaded', function() {
   function loadCache(){ try{ const o=JSON.parse(localStorage.getItem(CACHE_KEY)); if(o&&Date.now()-o.ts<=CACHE_TTL){ if(o.holidays) o.holidays.forEach(h=>holidaySet.add(h)); return o; } return null; }catch{ return null; } }
   function saveCache(items, hash){ try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ items, hash, ts: Date.now(), holidays: [...holidaySet] })); }catch{} }
 
-  async function getItems(timeMin, timeMax, override) {
-    if (override) return override;
-    const cache = loadCache();
+      async function getItems(timeMin, timeMax, override) {
     let items;
-    if (cache) {
-      const fetched = await fetchAll(timeMin, timeMax).catch(() => []);
-      const h = calculateHash(fetched);
-      if (h !== cache.hash) { items = fetched; saveCache(items, h); } else items = cache.items;
+    if (override) {
+      items = override;
     } else {
-      items = await fetchAll(timeMin, timeMax);
-      saveCache(items, calculateHash(items));
+      const cache = loadCache();
+      if (cache) {
+        const fetched = await fetchAll(timeMin, timeMax).catch(() => []);
+        const h = calculateHash(fetched);
+        if (h !== cache.hash) {
+          items = fetched;
+          saveCache(items, h);
+        } else {
+          items = cache.items;
+        }
+      } else {
+        items = await fetchAll(timeMin, timeMax);
+        saveCache(items, calculateHash(items));
+      }
     }
+
+    // On applique TOUJOURS le filtrage et la conversion des dates avant de retourner les données
     return items
       .map(ev => ({
         ...ev,
@@ -442,7 +479,6 @@ document.addEventListener('DOMContentLoaded', function() {
       }))
       .filter(ev => SHOW_TYPES.includes(ev.__type));
   }
-
   const isNavire = t => t === 'navire-smr' || t === 'navire-manucar' || t === 'autre';
 
   function updateClock(){ const n=new Date(); $('current-time').textContent=`${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`; }
@@ -466,20 +502,28 @@ document.addEventListener('DOMContentLoaded', function() {
     return all ? `<p>Le ${fmtFullDate(s)}</p>` : `<p>Le ${fmtFullDate(s)} à ${fmtTime(s)}</p>`;
   }
   function fmtVolumes(volumes) {
-    if (!volumes?.length) return '';
-    return volumes.map(v => {
-      const parts = [];
-      if (v.vlCount)         parts.push(`${v.vlCount} VL`);
-      if (v.vanCount)        parts.push(`${v.vanCount} Van`);
-      if (v.vlStrappingCount && v.vlStrappingCount !== v.vlCount) parts.push(`${v.vlStrappingCount} str.`);
-      if (v.hhCount)         parts.push(`${v.hhCount} HH`);
-      if (v.staticCount)     parts.push(`${v.staticCount} stat.`);
-      if (v.weight)          parts.push(`${v.weight} t`);
-      const qty = parts.join(' · ');
-      const comment = v.comment ? ` — ${v.comment}` : '';
-      return `<div style="font-size:0.82rem;color:#cbd5e1;margin-top:3px">${qty}${comment}</div>`;
-    }).join('');
-  }
+  if (!volumes?.length) return '';
+  return volumes.map(v => {
+    const prefix = v.type === 1 ? 'Imp' : (v.type === 2 ? 'Exp' : '');
+
+    const details = [];
+    if (v.vlCount)         details.push(`${v.vlCount} vl`);
+    if (v.vanCount)       details.push(`${v.vanCount} van`);
+    if (v.hhCount)         details.push(`${v.hhCount} hh`);
+    if (v.staticCount)    details.push(`${v.staticCount} stat`);
+
+    const detailStr = details.join('+');
+    const total = v.vlStrappingCount ?? 0;
+    const comment = v.comment ? ` - ${v.comment}` : '';
+
+    // CONDITION : Si on a des détails, on met "Détail=Total", sinon juste "Total"
+    const finalLine = detailStr
+      ? `${prefix}:${detailStr}=${total}${comment}`
+      : `${prefix}:${total}${comment}`;
+
+    return `<div style="font-size:0.82rem;color:#cbd5e1;margin-top:3px">${finalLine}</div>`;
+  }).join('');
+}
   function evtHtml(ev) {
     const lieu = ev._place ? `<p>📍 ${ev._place}</p>` : '';
     const volumes = ev._volumes?.length ? `<div style="margin-top:6px"><span style="font-size:0.75rem;color:#64748b;text-transform:uppercase;letter-spacing:0.05em">Volumes</span>${fmtVolumes(ev._volumes)}</div>` : '';
@@ -876,14 +920,17 @@ document.addEventListener('DOMContentLoaded', function() {
         txt+=ev.summary||'(sans titre)';
         if(isLast&&!ev._isAllDay) txt+=` ${fmtTime(ev._end)}>\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0`;
       }
-      const hasVol = isNavire(ev.__type) && ev._volumes?.length;
+                  const hasVol = isNavire(ev.__type) && ev._volumes?.length;
       const volTxt = hasVol ? ev._volumes.map(v => {
-        const p=[];
-        if(v.vlCount)    p.push(`${v.vlCount}VL`);
-        if(v.vanCount)   p.push(`${v.vanCount}Van`);
-        if(v.hhCount)    p.push(`${v.hhCount}HH`);
-        if(v.comment)    p.push(v.comment);
-        return p.join(' · ');
+        const prefix = v.type === 1 ? 'Imp' : (v.type === 2 ? 'Exp' : '');
+        const total = v.vlStrappingCount ?? 0;
+
+        // On vérifie s'il y a au moins un volume (total > 0 ou un des détails > 0)
+        const hasRealValue = total > 0 || v.vlCount > 0 || v.vanCount > 0 || v.hhCount > 0;
+
+        if (!hasRealValue) return null; // On ne renvoie rien si tout est à zéro
+
+        return prefix ? `${prefix}: ${total}` : `${total}`;
       }).filter(Boolean).join(' | ') : '';
 
       const subTxt = (hasVol && volTxt) ? volTxt
