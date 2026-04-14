@@ -236,7 +236,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const CACHE_KEY = 'caln_v1_cache';
   const CACHE_TTL = 30000;
   const INDEX_URL = 'index.html';
-  const SHOW_TYPES = ['reception', 'navire-smr', 'navire-manucar', 'autre'];
+  const SHOW_TYPES = ['navire-smr', 'navire-manucar', 'autre'];
 
   let weekView = 4, currentStartDate = new Date(), resizeTimeout, autoRefreshTimer;
   const holidaySet = new Set(); // dates ISO fériées ex: '2026-04-06'
@@ -434,17 +434,13 @@ function buildFusedEvents(raw) {
     }).filter(e => e._start && e._endInclusive);
   }
 
-    async function fetchAll(timeMin, timeMax) {
+  async function fetchAll(timeMin, timeMax) {
     const [gcalItems, naviresItems] = await Promise.all([
       fetchReception(timeMin, timeMax),
       fetchNaviresAPI(timeMin, timeMax),
     ]);
-
-    // On fusionne et on filtre IMMÉDIATEMENT selon SHOW_TYPES
-    const allEvents = [...normalizeGCal(gcalItems), ...naviresItems];
-    return allEvents.filter(ev => SHOW_TYPES.includes(ev.__type));
+    return [...normalizeGCal(gcalItems), ...naviresItems];
   }
-
 
   function calculateHash(evs) {
     return JSON.stringify(evs.map(e => ({ id: e.id, summary: e.summary, s: e._start?.getTime(), e: e._end?.getTime() })));
@@ -452,7 +448,37 @@ function buildFusedEvents(raw) {
   function loadCache(){ try{ const o=JSON.parse(localStorage.getItem(CACHE_KEY)); if(o&&Date.now()-o.ts<=CACHE_TTL){ if(o.holidays) o.holidays.forEach(h=>holidaySet.add(h)); return o; } return null; }catch{ return null; } }
   function saveCache(items, hash){ try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ items, hash, ts: Date.now(), holidays: [...holidaySet] })); }catch{} }
 
-      async function getItems
+      async function getItems(timeMin, timeMax, override) {
+    let items;
+    if (override) {
+      items = override;
+    } else {
+      const cache = loadCache();
+      if (cache) {
+        const fetched = await fetchAll(timeMin, timeMax).catch(() => []);
+        const h = calculateHash(fetched);
+        if (h !== cache.hash) {
+          items = fetched;
+          saveCache(items, h);
+        } else {
+          items = cache.items;
+        }
+      } else {
+        items = await fetchAll(timeMin, timeMax);
+        saveCache(items, calculateHash(items));
+      }
+    }
+
+    // On applique TOUJOURS le filtrage et la conversion des dates avant de retourner les données
+    return items
+      .map(ev => ({
+        ...ev,
+        _start: new Date(ev._start),
+        _end: new Date(ev._end),
+        _endInclusive: new Date(ev._endInclusive),
+      }))
+      .filter(ev => SHOW_TYPES.includes(ev.__type));
+  }
   const isNavire = t => t === 'navire-smr' || t === 'navire-manucar' || t === 'autre';
 
   function updateClock(){ const n=new Date(); $('current-time').textContent=`${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`; }
