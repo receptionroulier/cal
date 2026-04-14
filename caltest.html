@@ -47,7 +47,10 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
   .navire-smr:hover{background:linear-gradient(90deg,rgba(0,160,255,0.35),rgba(0,130,255,0.32));box-shadow:0 0 10px rgba(0,180,255,0.85),0 0 22px rgba(0,180,255,0.65),0 0 32px rgba(0,180,255,0.5),inset 0 0 8px rgba(0,200,255,0.45)}
   .navire-manucar{background:linear-gradient(90deg,rgba(255,140,0,0.25),rgba(220,100,0,0.22));border:1px solid rgba(255,160,0,0.75);box-shadow:0 0 6px rgba(255,140,0,0.55),0 0 12px rgba(255,140,0,0.45),0 0 22px rgba(255,140,0,0.32),inset 0 0 6px rgba(255,160,0,0.35)}
   .navire-manucar:hover{background:linear-gradient(90deg,rgba(255,160,0,0.35),rgba(220,120,0,0.32));box-shadow:0 0 10px rgba(255,180,0,0.85),0 0 22px rgba(255,180,0,0.65),0 0 32px rgba(255,180,0,0.5),inset 0 0 8px rgba(255,200,0,0.45)}
+  .autre{background:linear-gradient(90deg,rgba(255,220,0,0.25),rgba(200,180,0,0.22));border:1px solid rgba(255,210,0,0.75);box-shadow:0 0 6px rgba(255,220,0,0.55),0 0 12px rgba(255,220,0,0.45),0 0 22px rgba(255,220,0,0.32),inset 0 0 6px rgba(255,230,0,0.35)}
+  .autre:hover{background:linear-gradient(90deg,rgba(255,230,0,0.35),rgba(220,190,0,0.32));box-shadow:0 0 10px rgba(255,240,0,0.85),0 0 22px rgba(255,240,0,0.65),0 0 32px rgba(255,240,0,0.5),inset 0 0 8px rgba(255,255,0,0.45)}
   .mob-evt.navire-manucar{background:linear-gradient(90deg,rgba(255,140,0,0.18),rgba(220,100,0,0.14));border:1px solid rgba(255,160,0,0.5);box-shadow:0 0 6px rgba(255,140,0,0.2)}
+  .mob-evt.autre{background:linear-gradient(90deg,rgba(255,220,0,0.18),rgba(200,180,0,0.14));border:1px solid rgba(255,210,0,0.5);box-shadow:0 0 6px rgba(255,220,0,0.2)}
   .event-text-container{display:inline-flex;white-space:nowrap;overflow:hidden;width:100%;position:relative}
   .event-text{white-space:nowrap;display:inline-block;position:relative}
   .event-text.scrolling{animation:scroll 10s linear infinite}
@@ -201,11 +204,11 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
   </div>
   <div id="pdf-custom-range" style="display:none;flex-direction:column;gap:6px">
     <div class="pdf-range-row">
-      <label>Du</label>
+      <label for="pdf-date-from">Du</label>
       <input type="date" id="pdf-date-from" class="pdf-date-input">
     </div>
     <div class="pdf-range-row">
-      <label>Au</label>
+      <label for="pdf-date-to">Au</label>
       <input type="date" id="pdf-date-to" class="pdf-date-input">
     </div>
   </div>
@@ -474,7 +477,9 @@ document.addEventListener('DOMContentLoaded', function() {
   function evtHtml(ev) {
     const lieu = ev._place ? `<p>📍 ${ev._place}</p>` : '';
     const volumes = ev._volumes?.length ? `<div style="margin-top:6px"><span style="font-size:0.75rem;color:#64748b;text-transform:uppercase;letter-spacing:0.05em">Volumes</span>${fmtVolumes(ev._volumes)}</div>` : '';
-    return `<div class="modal-item"><h3>${ev.summary||'(sans titre)'}</h3>${evtDateHtml(ev)}${lieu}${volumes}${ev.description?'<p>'+ev.description+'</p>':''}</div>`;
+    const commentsRaw = (!ev._volumes?.length && ev.__type === 'autre' && ev._comments) ? ev._comments.replace(/<[^>]*>/g,'').trim() : '';
+    const comments = commentsRaw ? `<p style="font-size:0.82rem;color:#cbd5e1;margin-top:4px">${commentsRaw}</p>` : '';
+    return `<div class="modal-item"><h3>${ev.summary||'(sans titre)'}</h3>${evtDateHtml(ev)}${lieu}${volumes}${comments}${ev.description?'<p>'+ev.description+'</p>':''}</div>`;
   }
   $('event-modal').addEventListener('click', () => $('event-modal').style.display='none');
   function showEventModal(ev){ $('modal-content').innerHTML=evtHtml(ev); $('event-modal').style.display='flex'; }
