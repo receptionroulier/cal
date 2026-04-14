@@ -94,7 +94,18 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
   #day-modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.7);cursor:pointer}
   #day-modal-card{position:fixed;bottom:0;left:0;right:0;background:#0f172a;border:1px solid rgba(255,255,255,0.12);border-radius:20px 20px 0 0;max-height:80vh;overflow-y:auto;padding:16px;z-index:1}
   #day-modal-title{font-size:1rem;font-weight:700;margin-bottom:12px;color:#fff}
-  .day-modal-evt{display:flex;flex-direction:column;gap:3px;padding:10px 12px;border-radius:10px;margin-bottom:8px;cursor:pointer}
+    .day-modal-evt {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    margin-bottom: 8px;
+    cursor: pointer;
+  }
+  .day-modal-evt-left { display: flex; flex-direction: column; gap: 3px; }
+  .day-modal-evt-right { text-align: right; font-size: 0.75rem; font-weight: 600; color: #cbd5e1; }
   .day-modal-evt.reception{background:linear-gradient(90deg,rgba(0,255,120,0.18),rgba(0,200,100,0.14));border:1px solid rgba(0,255,120,0.5)}
   .day-modal-evt.navire-smr{background:linear-gradient(90deg,rgba(0,130,255,0.18),rgba(0,110,220,0.14));border:1px solid rgba(0,160,255,0.5)}
   .day-modal-evt.autre{background:linear-gradient(90deg,rgba(255,220,0,0.18),rgba(200,180,0,0.14));border:1px solid rgba(255,210,0,0.5)}
@@ -622,7 +633,7 @@ function buildFusedEvents(raw) {
     return row;
   }
 
-  function showDayModal(day, evts){
+    function showDayModal(day, evts){
     const title=$('day-modal-title');
     const evtsEl=$('day-modal-events');
     title.textContent=capitalize(day.toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long'}));
@@ -632,7 +643,12 @@ function buildFusedEvents(raw) {
     } else {
       evts.forEach(ev=>{
         const d=mk('div','day-modal-evt '+(ev.__type||''));
-        const name=mk('div','day-modal-evt-name'); name.textContent=ev.summary?.split('—')[0].trim()||'(sans titre)';
+
+        // --- BLOC GAUCHE (Nom, Heure, Lieu) ---
+        const left = mk('div', 'day-modal-evt-left');
+        const name=mk('div','day-modal-evt-name');
+        name.textContent=ev.summary?.split('—')[0].trim()||'(sans titre)';
+
         const time=mk('div','day-modal-evt-time');
         if(isNavire(ev.__type)){
           const hD=String(ev._hDebut??new Date(ev._start).getHours()).padStart(2,'0');
@@ -643,14 +659,29 @@ function buildFusedEvents(raw) {
         } else {
           time.textContent=`${fmtTime(ev._start)} → ${fmtTime(ev._end)}`;
         }
-        d.append(name,time);
-        if(ev._place){ const pl=mk('div','day-modal-evt-place'); pl.textContent='📍 '+ev._place; d.appendChild(pl); }
+        left.append(name, time);
+        if(ev._place){
+          const pl=mk('div','day-modal-evt-place');
+          pl.textContent='📍 '+ev._place;
+          left.appendChild(pl);
+        }
+
+        // --- BLOC DROIT (Totaux Imp/Exp) ---
+        const right = mk('div', 'day-modal-evt-right');
+        const totals = getVolTotals(ev._volumes);
+        if (totals) {
+          if(totals.imp) right.innerHTML += `<div>Imp: ${totals.imp}</div>`;
+          if(totals.exp) right.innerHTML += `<div>Exp: ${totals.exp}</div>`;
+        }
+
+        d.append(left, right);
         d.addEventListener('click',e=>{ e.stopPropagation(); showEventModal(ev); });
         evtsEl.appendChild(d);
       });
     }
     $('day-modal').classList.add('show');
   }
+
 
   let mobNorm=[], mobWeekStart=null, swipeStartX=0, swipeStartY=0, isSwiping=false;
 
@@ -837,6 +868,16 @@ function buildFusedEvents(raw) {
   function updateScrollingEvents(){
     document.querySelectorAll('.event-text').forEach(e=>e.classList.toggle('scrolling',e.scrollWidth>e.parentElement.clientWidth));
   }
+function getVolTotals(volumes) {
+  if (!volumes?.length) return null;
+  function hasAny(v) { return (v.vlCount||0)+(v.vanCount||0)+(v.hhCount||0)+(v.staticCount||0) > 0; }
+  const imp = volumes.filter(v => v.type === 1 && hasAny(v));
+  const exp = volumes.filter(v => v.type === 2 && hasAny(v));
+  const total = arr => arr.reduce((s,v)=>s+(v.vlCount||0)+(v.vanCount||0)+(v.hhCount||0)+(v.staticCount||0),0);
+  const impTotal = total(imp), expTotal = total(exp);
+  if (!impTotal && !expTotal) return null;
+  return { imp: impTotal, exp: expTotal };
+}
 
   async function renderCalendar(override){
     const calEl=$('calendar'), evLayer=$('events-layer');
@@ -934,22 +975,8 @@ function buildFusedEvents(raw) {
         if(isLast&&!ev._isAllDay) txt+=` ${fmtTime(ev._end)}>\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0`;
       }
                         const hasVol = isNavire(ev.__type) && ev._volumes?.length;
-      const volTxt = hasVol ? (() => {
-        // Agrégation par type : on somme tous les IDs de même type
-        const totals = {};
-        for (const v of ev._volumes) {
-          const t = v.type;
-          if (t !== 1 && t !== 2) continue;
-          const sum = (v.vlCount || 0) + (v.vanCount || 0) + (v.hhCount || 0) + (v.staticCount || 0);
-          if (sum === 0) continue;
-          totals[t] = (totals[t] || 0) + sum;
-        }
-        const parts = [];
-        if (totals[1]) parts.push(`Imp: ${totals[1]}`);
-        if (totals[2]) parts.push(`Exp: ${totals[2]}`);
-        return parts.join(' | ');
-      })() : '';
-
+      const totals = getVolTotals(ev._volumes);
+const volTxt = totals ? `${totals.imp ? 'Imp: '+totals.imp + (totals.exp ? ' | ' : '') : ''}${totals.exp ? 'Exp: '+totals.exp : ''}` : '';
 
       const subTxt = (hasVol && volTxt) ? volTxt
                    : (isNavire(ev.__type) && ev._comments) ? ev._comments.replace(/<[^>]*>/g,'').trim()
