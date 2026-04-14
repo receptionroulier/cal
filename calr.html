@@ -144,6 +144,9 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
   .pdf-generate-btn:hover{background:linear-gradient(90deg,rgba(0,150,255,0.5),rgba(0,120,240,0.45))}
   .pdf-generate-btn:disabled{opacity:0.5;cursor:not-allowed}
   .pdf-status{font-size:0.7rem;color:#64748b;text-align:center;min-height:14px}
+  .pdf-chk-label{display:flex;align-items:center;gap:7px;font-size:0.72rem;color:#cbd5e1;cursor:pointer;user-select:none}
+  .pdf-chk-label input[type=checkbox]{accent-color:#00e5ff;width:13px;height:13px;cursor:pointer;flex-shrink:0}
+  .pdf-chk-dot{display:inline-block;width:9px;height:9px;border-radius:50%;flex-shrink:0}
   @media(max-width:719px){#pdf-fab,#pdf-panel{display:none !important}}
 
 </style>
@@ -210,6 +213,14 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
     <div class="pdf-range-row">
       <label for="pdf-date-to">Au</label>
       <input type="date" id="pdf-date-to" class="pdf-date-input">
+    </div>
+  </div>
+  <div>
+    <div style="font-size:0.7rem;color:#64748b;margin-bottom:6px">Chantiers à inclure</div>
+    <div style="display:flex;flex-direction:column;gap:5px">
+      <label class="pdf-chk-label"><input type="checkbox" id="pdf-chk-smr" checked> <span class="pdf-chk-dot" style="background:rgba(0,160,255,0.7)"></span> Navire SMR</label>
+      <label class="pdf-chk-label"><input type="checkbox" id="pdf-chk-manucar" checked> <span class="pdf-chk-dot" style="background:rgba(255,160,0,0.8)"></span> Navire Manucar</label>
+      <label class="pdf-chk-label"><input type="checkbox" id="pdf-chk-autre" checked> <span class="pdf-chk-dot" style="background:rgba(255,220,0,0.85)"></span> Autre</label>
     </div>
   </div>
   <button class="pdf-generate-btn" id="pdf-generate-btn">Générer le PDF</button>
@@ -349,29 +360,56 @@ document.addEventListener('DOMContentLoaded', function() {
     } catch(e) { console.error('fetchNaviresOld:', e); return []; }
   }
 
-  function buildFusedEvents(raw) {
-    raw.sort((a, b) => a._start - b._start);
-    // Fusion des postes consécutifs par clé nom+lieu en O(n log n) au lieu de O(n²)
-    const map = new Map();
-    for (const ev of raw) {
-      const key = `${ev._name}||${ev._place}`;
-      const cur = map.get(key);
-      if (cur && cur._end.getTime() === ev._start.getTime()) {
-        cur._end = new Date(ev._end);
-        cur._hFin = ev._hFin;
-      } else {
-        map.set(key, { ...ev });
-      }
+function buildFusedEvents(raw) {
+  // 1. On trie par date de début pour être sûr de traiter les événements dans l'ordre
+  raw.sort((a, b) => a._start - b._start);
+
+  const fused = []; // Liste finale de tous les segments fusionnés
+  const lastSegments = new Map(); // Pour suivre le dernier segment actif de chaque navire
+
+  for (const ev of raw) {
+    const key = `${ev._name}||${ev._place}`;
+    const lastSeg = lastSegments.get(key);
+
+    // Si on a un segment précédent pour ce navire ET qu'il se termine exactement quand celui-ci commence
+    if (lastSeg && lastSeg._end.getTime() === ev._start.getTime()) {
+      // On prolonge le segment existant
+      lastSeg._end = new Date(ev._end);
+      lastSeg._hFin = ev._hFin;
+    } else {
+      // Soit c'est un nouveau navire, soit il y a un trou dans le planning (comme ton cas 06h vs 07h)
+      // On crée un nouveau segment indépendant
+      const newSeg = { ...ev };
+      fused.push(newSeg);
+      // On mémorise ce segment comme étant le dernier pour ce navire
+      lastSegments.set(key, newSeg);
     }
-    return [...map.values()].map(ev => {
-      const lieu = fmtPlace(ev._place);
-      const summary = `${ev._name}${lieu ? ' — ' + lieu : ''}`;
-      const _endInclusive = new Date(ev._end);
-      if (ev._end.getHours() === 0 && ev._end.getMinutes() === 0) _endInclusive.setSeconds(-1);
-      return { id: ev.id, summary, __type: ev._type||'navire-smr', _isAllDay: false, _start: ev._start, _end: ev._end, _endInclusive, _place: ev._place, _hDebut: ev._hDebut, _hFin: ev._hFin, _hFinDisplay: ev._hFin, _volumes: ev._volumes||[], _comments: ev._comments||'' };
-    });
   }
 
+  // 2. On transforme les segments bruts en objets formatés pour le calendrier
+  return fused.map(ev => {
+    const lieu = fmtPlace(ev._place);
+    const summary = `${ev._name}${lieu ? ' — ' + lieu : ''}`;
+    const _endInclusive = new Date(ev._end);
+    if (ev._end.getHours() === 0 && ev._end.getMinutes() === 0) _endInclusive.setSeconds(-1);
+
+    return {
+      id: ev.id,
+      summary,
+      __type: ev._type || 'navire-smr',
+      _isAllDay: false,
+      _start: ev._start,
+      _end: ev._end,
+      _endInclusive,
+      _place: ev._place,
+      _hDebut: ev._hDebut,
+      _hFin: ev._hFin,
+      _hFinDisplay: ev._hFin,
+      _volumes: ev._volumes || [],
+      _comments: ev._comments || ''
+    };
+  });
+}
   async function fetchReception(timeMin, timeMax) {
     const p = `?key=${encodeURIComponent(API_KEY)}&singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(timeMin.toISOString())}&timeMax=${encodeURIComponent(timeMax.toISOString())}`;
     try {
@@ -955,7 +993,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const customRange=$('pdf-custom-range');
     let activePreset='thismonth';
 
-    fab.addEventListener('click',e=>{ e.stopPropagation(); panel.classList.toggle('open'); initDates(); });
+    fab.addEventListener('click',e=>{ e.stopPropagation(); panel.classList.toggle('open'); initDates(); loadJsPDF(()=>{}); });
     document.addEventListener('click',e=>{ if(!panel.contains(e.target)&&e.target!==fab) panel.classList.remove('open'); });
 
     function initDates(){
@@ -992,25 +1030,27 @@ document.addEventListener('DOMContentLoaded', function() {
       if(!fromVal||!toVal){ statusEl.textContent='Choisissez une plage.'; return; }
       const from=new Date(fromVal+'T00:00:00'), to=new Date(toVal+'T23:59:59');
       if(from>to){ statusEl.textContent='La date de début doit être avant la fin.'; return; }
-      genBtn.disabled=true; statusEl.textContent='Chargement des données…';
+      genBtn.disabled=true; statusEl.textContent='Récupération des événements…';
       try{
-        loadJsPDF(async()=>{
-          try{
-            const tMin=new Date(from); tMin.setHours(0,0,0,0);
-            const tMax=new Date(to); tMax.setHours(23,59,59,999);
-            statusEl.textContent='Récupération des événements…';
-            const evts=await fetchAll(tMin,tMax);
-            const norm=evts.filter(e=>SHOW_TYPES.includes(e.__type)).map(ev=>({
-              ...ev, _start:new Date(ev._start), _end:new Date(ev._end), _endInclusive:new Date(ev._endInclusive)
-            }));
-            statusEl.textContent='Génération du PDF…';
-            generatePDF(norm, from, to);
-            statusEl.textContent='✅ PDF généré !';
-            setTimeout(()=>{ statusEl.textContent=''; panel.classList.remove('open'); },1800);
-          }catch(e){ console.error(e); statusEl.textContent='Erreur : '+e.message; }
-          genBtn.disabled=false;
-        });
-      }catch(e){ statusEl.textContent='Erreur chargement jsPDF.'; genBtn.disabled=false; }
+        if(!window.jspdf) await new Promise(res=>loadJsPDF(res));
+        const tMin=new Date(from); tMin.setHours(0,0,0,0);
+        const tMax=new Date(to); tMax.setHours(23,59,59,999);
+        const evts=await fetchAll(tMin,tMax);
+        // Filtrer selon les chantiers cochés (jamais réception)
+        const selectedTypes = [];
+        if($('pdf-chk-smr').checked)     selectedTypes.push('navire-smr');
+        if($('pdf-chk-manucar').checked) selectedTypes.push('navire-manucar');
+        if($('pdf-chk-autre').checked)   selectedTypes.push('autre');
+        if(!selectedTypes.length){ statusEl.textContent='Cochez au moins un chantier.'; genBtn.disabled=false; return; }
+        const norm=evts.filter(e=>selectedTypes.includes(e.__type)).map(ev=>({
+          ...ev, _start:new Date(ev._start), _end:new Date(ev._end), _endInclusive:new Date(ev._endInclusive)
+        }));
+        statusEl.textContent='Génération du PDF…';
+        generatePDF(norm, from, to);
+        statusEl.textContent='✅ PDF généré !';
+        setTimeout(()=>{ statusEl.textContent=''; panel.classList.remove('open'); },1800);
+      }catch(e){ console.error(e); statusEl.textContent='Erreur : '+e.message; }
+      genBtn.disabled=false;
     });
 
     function generatePDF(norm, from, to){
@@ -1019,9 +1059,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
       const PW=297, PH=210;
       const MAR_X=8, MAR_Y=8;
-      const COLS=7, ROWS=4;
+      const COLS=7;
       const HEADER_H=7;
       const BAND_H=5.2, BAND_GAP=0.8, BAND_PAD_X=1.5, BAND_PAD_Y=0.9;
+
+      // Nombre de semaines réel (max 6 pour tenir en A4 paysage lisiblement)
+      const firstMon=getMonday(from);
+      let countRows=0, cur2=new Date(firstMon);
+      while(cur2<=to){ countRows++; cur2.setDate(cur2.getDate()+7); }
+      const ROWS=Math.min(6,Math.max(1,countRows));
+
       const gridW=PW-MAR_X*2, gridH=PH-MAR_Y*2-HEADER_H;
       const cellW=gridW/COLS, cellH=gridH/ROWS;
 
@@ -1041,13 +1088,31 @@ document.addEventListener('DOMContentLoaded', function() {
       const C_NAV_BG  =[220,235,255];
       const C_NAV_BD  =[60,120,220];
       const C_NAV_TXT =[20,60,160];
+      const C_AUTRE_BG=[255,252,210];
+      const C_AUTRE_BD=[200,170,0];
+      const C_AUTRE_TXT=[120,90,0];
       const C_REC_BG  =[215,255,230];
       const C_REC_BD  =[40,180,100];
       const C_REC_TXT =[10,120,60];
       const C_TIME    =[100,120,150];
 
+      // Index par date ISO → events pour éviter O(n × jours)
+      const evtIndex = new Map();
+      for(const ev of norm){
+        const s=new Date(ev._start); s.setHours(0,0,0,0);
+        const e=new Date(ev._endInclusive); e.setHours(0,0,0,0);
+        for(let d=new Date(s); d<=e; d.setDate(d.getDate()+1)){
+          const k=fmtDateISO(d);
+          if(!evtIndex.has(k)) evtIndex.set(k,[]);
+          evtIndex.get(k).push(ev);
+        }
+      }
+      function evtsOnDay(day){
+        return (evtIndex.get(fmtDateISO(day))||[]).slice().sort((a,b)=>new Date(a._start)-new Date(b._start));
+      }
+
       const weeks=[];
-      let cur=getMonday(from);
+      let cur=new Date(firstMon);
       while(cur<=to && weeks.length<ROWS){
         const days=[];
         for(let i=0;i<7;i++){ const d=new Date(cur); d.setDate(cur.getDate()+i); d.setHours(0,0,0,0); days.push(d); }
@@ -1057,14 +1122,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
       const today=new Date(); today.setHours(0,0,0,0);
       const DAYS_FR=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
-
-      function evtsOnDay(day){
-        return norm.filter(ev=>{
-          const s=new Date(ev._start); s.setHours(0,0,0,0);
-          const e=new Date(ev._endInclusive); e.setHours(0,0,0,0);
-          return day>=s && day<=e;
-        }).sort((a,b)=>new Date(a._start)-new Date(b._start));
-      }
 
       doc.setFillColor(...C_WHITE);
       doc.rect(0,0,PW,PH,'F');
@@ -1119,15 +1176,19 @@ document.addEventListener('DOMContentLoaded', function() {
             const isNav=isNavire(ev.__type);
             const bX=x+BAND_PAD_X, bW=cellW-BAND_PAD_X*2;
 
-            doc.setFillColor(...(isNav?C_NAV_BG:C_REC_BG));
-            doc.setDrawColor(...(isNav?C_NAV_BD:C_REC_BD));
+            const isAutre = ev.__type === 'autre';
+            const bgCol  = isAutre ? C_AUTRE_BG : isNav ? C_NAV_BG : C_REC_BG;
+            const bdCol  = isAutre ? C_AUTRE_BD : isNav ? C_NAV_BD : C_REC_BD;
+            const txtCol = isAutre ? C_AUTRE_TXT : isNav ? C_NAV_TXT : C_REC_TXT;
+            doc.setFillColor(...bgCol);
+            doc.setDrawColor(...bdCol);
             doc.setLineWidth(0.2);
             doc.roundedRect(bX, bY, bW, BAND_H, 0.8, 0.8, 'FD');
 
             const nom = isNav ? (ev.summary?.split('—')[0].trim()||'') : (ev.summary||'');
             doc.setFont('helvetica','bold');
             doc.setFontSize(5.2);
-            doc.setTextColor(...(isNav?C_NAV_TXT:C_REC_TXT));
+            doc.setTextColor(...txtCol);
             const nomTrunc=doc.splitTextToSize(nom, bW-1)[0]||'';
             doc.text(nomTrunc, bX+0.8, bY+BAND_H*0.42+1);
 
@@ -1167,8 +1228,10 @@ document.addEventListener('DOMContentLoaded', function() {
       doc.setTextColor(160,170,180);
       doc.text(`Calendrier Navires · ${fmtD(from)} – ${fmtD(to)} · Généré le ${fmtD(new Date())}`, PW/2, PH-2, {align:'center'});
 
-      const fmtFile=d=>`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
-      doc.save(`Navires_${fmtFile(from)}_${fmtFile(to)}.pdf`);
+      const now=new Date();
+      const fmtFile=d=>`${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
+      const fmtTime2=d=>`${String(d.getHours()).padStart(2,'0')}h${String(d.getMinutes()).padStart(2,'0')}`;
+      doc.save(`RoulierLH-${fmtFile(now)}-${fmtTime2(now)}.pdf`);
     }
   })();
 
