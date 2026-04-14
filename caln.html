@@ -7,7 +7,7 @@ const maintenance = false;
 if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/bug.html";
 </script>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Calendrier Navire</title>
+<title>Calendrier Navires</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   html{height:100%;overflow:hidden}
@@ -434,13 +434,17 @@ function buildFusedEvents(raw) {
     }).filter(e => e._start && e._endInclusive);
   }
 
-  async function fetchAll(timeMin, timeMax) {
+    async function fetchAll(timeMin, timeMax) {
     const [gcalItems, naviresItems] = await Promise.all([
       fetchReception(timeMin, timeMax),
       fetchNaviresAPI(timeMin, timeMax),
     ]);
-    return [...normalizeGCal(gcalItems), ...naviresItems];
+
+    // On fusionne et on filtre IMMÉDIATEMENT selon SHOW_TYPES
+    const allEvents = [...normalizeGCal(gcalItems), ...naviresItems];
+    return allEvents.filter(ev => SHOW_TYPES.includes(ev.__type));
   }
+
 
   function calculateHash(evs) {
     return JSON.stringify(evs.map(e => ({ id: e.id, summary: e.summary, s: e._start?.getTime(), e: e._end?.getTime() })));
@@ -448,37 +452,7 @@ function buildFusedEvents(raw) {
   function loadCache(){ try{ const o=JSON.parse(localStorage.getItem(CACHE_KEY)); if(o&&Date.now()-o.ts<=CACHE_TTL){ if(o.holidays) o.holidays.forEach(h=>holidaySet.add(h)); return o; } return null; }catch{ return null; } }
   function saveCache(items, hash){ try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ items, hash, ts: Date.now(), holidays: [...holidaySet] })); }catch{} }
 
-      async function getItems(timeMin, timeMax, override) {
-    let items;
-    if (override) {
-      items = override;
-    } else {
-      const cache = loadCache();
-      if (cache) {
-        const fetched = await fetchAll(timeMin, timeMax).catch(() => []);
-        const h = calculateHash(fetched);
-        if (h !== cache.hash) {
-          items = fetched;
-          saveCache(items, h);
-        } else {
-          items = cache.items;
-        }
-      } else {
-        items = await fetchAll(timeMin, timeMax);
-        saveCache(items, calculateHash(items));
-      }
-    }
-
-    // On applique TOUJOURS le filtrage et la conversion des dates avant de retourner les données
-    return items
-      .map(ev => ({
-        ...ev,
-        _start: new Date(ev._start),
-        _end: new Date(ev._end),
-        _endInclusive: new Date(ev._endInclusive),
-      }))
-      .filter(ev => SHOW_TYPES.includes(ev.__type));
-  }
+      async function getItems
   const isNavire = t => t === 'navire-smr' || t === 'navire-manucar' || t === 'autre';
 
   function updateClock(){ const n=new Date(); $('current-time').textContent=`${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`; }
@@ -501,28 +475,30 @@ function buildFusedEvents(raw) {
     if (multi) return `<p>Du ${fmtFullDate(s)} à ${fmtTime(s)}<br>Au ${fmtFullDate(e)} à ${fmtTime(e)}</p>`;
     return all ? `<p>Le ${fmtFullDate(s)}</p>` : `<p>Le ${fmtFullDate(s)} à ${fmtTime(s)}</p>`;
   }
-  function fmtVolumes(volumes) {
+ function fmtVolumes(volumes) {
   if (!volumes?.length) return '';
-  return volumes.map(v => {
-    const prefix = v.type === 1 ? 'Imp' : (v.type === 2 ? 'Exp' : '');
 
-    const details = [];
-    if (v.vlCount)         details.push(`${v.vlCount} vl`);
-    if (v.vanCount)       details.push(`${v.vanCount} van`);
-    if (v.hhCount)         details.push(`${v.hhCount} hh`);
-    if (v.staticCount)    details.push(`${v.staticCount} stat`);
+  return volumes
+    // FILTRE : On ne garde que les volumes qui ont au moins une valeur > 0
+    .filter(v => (v.vlStrappingCount ?? 0) > 0 || v.vlCount > 0 || v.vanCount > 0 || v.hhCount > 0 || v.staticCount > 0)
+    .map(v => {
+      const prefix = v.type === 1 ? 'Imp' : (v.type === 2 ? 'Exp' : '');
+      const details = [];
+      if (v.vlCount)         details.push(`${v.vlCount} vl`);
+      if (v.vanCount)       details.push(`${v.vanCount} van`);
+      if (v.hhCount)         details.push(`${v.hhCount} hh`);
+      if (v.staticCount)    details.push(`${v.staticCount} stat`);
 
-    const detailStr = details.join('+');
-    const total = v.vlStrappingCount ?? 0;
-    const comment = v.comment ? ` - ${v.comment}` : '';
+      const detailStr = details.join('+');
+      const total = v.vlStrappingCount ?? 0;
+      const comment = v.comment ? ` - ${v.comment}` : '';
 
-    // CONDITION : Si on a des détails, on met "Détail=Total", sinon juste "Total"
-    const finalLine = detailStr
-      ? `${prefix}:${detailStr}=${total}${comment}`
-      : `${prefix}:${total}${comment}`;
+      const finalLine = detailStr
+        ? `${prefix}:${detailStr}=${total}${comment}`
+        : `${prefix}:${total}${comment}`;
 
-    return `<div style="font-size:0.82rem;color:#cbd5e1;margin-top:3px">${finalLine}</div>`;
-  }).join('');
+      return `<div style="font-size:0.82rem;color:#cbd5e1;margin-top:3px">${finalLine}</div>`;
+    }).join('');
 }
   function evtHtml(ev) {
     const lieu = ev._place ? `<p>📍 ${ev._place}</p>` : '';
@@ -920,18 +896,19 @@ function buildFusedEvents(raw) {
         txt+=ev.summary||'(sans titre)';
         if(isLast&&!ev._isAllDay) txt+=` ${fmtTime(ev._end)}>\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0`;
       }
-                  const hasVol = isNavire(ev.__type) && ev._volumes?.length;
+                        const hasVol = isNavire(ev.__type) && ev._volumes?.length;
       const volTxt = hasVol ? ev._volumes.map(v => {
         const prefix = v.type === 1 ? 'Imp' : (v.type === 2 ? 'Exp' : '');
         const total = v.vlStrappingCount ?? 0;
 
-        // On vérifie s'il y a au moins un volume (total > 0 ou un des détails > 0)
-        const hasRealValue = total > 0 || v.vlCount > 0 || v.vanCount > 0 || v.hhCount > 0;
+        // On vérifie s'il y a au moins une valeur réelle
+        const hasRealValue = total > 0 || v.vlCount > 0 || v.vanCount > 0 || v.hhCount > 0 || v.staticCount > 0;
 
-        if (!hasRealValue) return null; // On ne renvoie rien si tout est à zéro
+        if (!hasRealValue) return null;
 
         return prefix ? `${prefix}: ${total}` : `${total}`;
       }).filter(Boolean).join(' | ') : '';
+
 
       const subTxt = (hasVol && volTxt) ? volTxt
                    : (isNavire(ev.__type) && ev._comments) ? ev._comments.replace(/<[^>]*>/g,'').trim()
