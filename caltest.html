@@ -504,42 +504,38 @@ function buildFusedEvents(raw) {
  function fmtVolumes(volumes) {
   if (!volumes?.length) return '';
 
-  // Grouper par type (1=Imp, 2=Exp, autre) et sommer les valeurs
-  const grouped = {};
-  for (const v of volumes) {
-    const key = v.type ?? 0;
-    if (!grouped[key]) {
-      grouped[key] = { type: v.type, vlCount: 0, vanCount: 0, hhCount: 0, staticCount: 0, vlStrappingCount: 0, comments: [] };
-    }
-    grouped[key].vlCount          += v.vlCount          || 0;
-    grouped[key].vanCount         += v.vanCount         || 0;
-    grouped[key].hhCount          += v.hhCount          || 0;
-    grouped[key].staticCount      += v.staticCount      || 0;
-    grouped[key].vlStrappingCount += v.vlStrappingCount ?? 0;
-    if (v.comment) grouped[key].comments.push(v.comment);
+  const imp = volumes.filter(v => v.type === 1);
+  const exp = volumes.filter(v => v.type === 2);
+
+  function hasAny(v) {
+    return (v.vlCount || 0) + (v.vanCount || 0) + (v.hhCount || 0) + (v.staticCount || 0) > 0;
   }
 
-  return Object.values(grouped)
-    .filter(v => v.vlStrappingCount > 0 || v.vlCount > 0 || v.vanCount > 0 || v.hhCount > 0 || v.staticCount > 0)
-    .map(v => {
-      const prefix = v.type === 1 ? 'Imp' : (v.type === 2 ? 'Exp' : '');
-      const details = [];
-      if (v.vlCount)     details.push(`${v.vlCount} vl`);
-      if (v.vanCount)    details.push(`${v.vanCount} van`);
-      if (v.hhCount)     details.push(`${v.hhCount} hh`);
-      if (v.staticCount) details.push(`${v.staticCount} stat`);
+  function detailLine(v) {
+    const parts = [];
+    if (v.vlCount)     parts.push(`${v.vlCount}vl`);
+    if (v.vanCount)    parts.push(`${v.vanCount}van`);
+    if (v.hhCount)     parts.push(`${v.hhCount}hh`);
+    if (v.staticCount) parts.push(`${v.staticCount}stat`);
+    const detail = parts.join('+');
+    const comment = v.comment ? ` - ${v.comment}` : '';
+    return detail ? `${detail}${comment}` : null;
+  }
 
-      const detailStr = details.join('+');
-      const total = v.vlStrappingCount;
-      const comment = v.comments.length ? ` - ${v.comments.join(', ')}` : '';
+  function renderGroup(label, group) {
+    const active = group.filter(hasAny);
+    if (!active.length) return '';
+    const total = active.reduce((s, v) =>
+      s + (v.vlCount || 0) + (v.vanCount || 0) + (v.hhCount || 0) + (v.staticCount || 0), 0);
+    let html = `<div style="font-size:0.82rem;color:#e2e8f0;margin-top:4px;font-weight:600">${label}: ${total}</div>`;
+    for (const v of active) {
+      const line = detailLine(v);
+      if (line) html += `<div style="font-size:0.78rem;color:#94a3b8;margin-left:10px;margin-top:1px">${line}</div>`;
+    }
+    return html;
+  }
 
-      // Si aucun détail (vl/van/hh/stat tous à 0), on affiche seulement le total
-      const finalLine = detailStr
-        ? `${prefix}:${detailStr}=${total}${comment}`
-        : `${prefix}:${total}${comment}`;
-
-      return `<div style="font-size:0.82rem;color:#cbd5e1;margin-top:3px">${finalLine}</div>`;
-    }).join('');
+  return renderGroup('Imp', imp) + renderGroup('Exp', exp);
 }
   function evtHtml(ev) {
     const lieu = ev._place ? `<p>📍 ${ev._place}</p>` : '';
@@ -938,17 +934,21 @@ function buildFusedEvents(raw) {
         if(isLast&&!ev._isAllDay) txt+=` ${fmtTime(ev._end)}>\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0`;
       }
                         const hasVol = isNavire(ev.__type) && ev._volumes?.length;
-      const volTxt = hasVol ? ev._volumes.map(v => {
-        const prefix = v.type === 1 ? 'Imp' : (v.type === 2 ? 'Exp' : '');
-        const total = v.vlStrappingCount ?? 0;
-
-        // On vérifie s'il y a au moins une valeur réelle
-        const hasRealValue = total > 0 || v.vlCount > 0 || v.vanCount > 0 || v.hhCount > 0 || v.staticCount > 0;
-
-        if (!hasRealValue) return null;
-
-        return prefix ? `${prefix}: ${total}` : `${total}`;
-      }).filter(Boolean).join(' | ') : '';
+      const volTxt = hasVol ? (() => {
+        // Agrégation par type : on somme tous les IDs de même type
+        const totals = {};
+        for (const v of ev._volumes) {
+          const t = v.type;
+          if (t !== 1 && t !== 2) continue;
+          const sum = (v.vlCount || 0) + (v.vanCount || 0) + (v.hhCount || 0) + (v.staticCount || 0);
+          if (sum === 0) continue;
+          totals[t] = (totals[t] || 0) + sum;
+        }
+        const parts = [];
+        if (totals[1]) parts.push(`Imp: ${totals[1]}`);
+        if (totals[2]) parts.push(`Exp: ${totals[2]}`);
+        return parts.join(' | ');
+      })() : '';
 
 
       const subTxt = (hasVol && volTxt) ? volTxt
