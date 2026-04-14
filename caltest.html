@@ -360,28 +360,57 @@ document.addEventListener('DOMContentLoaded', function() {
     } catch(e) { console.error('fetchNaviresOld:', e); return []; }
   }
 
-  function buildFusedEvents(raw) {
-    raw.sort((a, b) => a._start - b._start);
-    // Fusion des postes consécutifs par clé nom+lieu en O(n log n) au lieu de O(n²)
-    const map = new Map();
-    for (const ev of raw) {
-      const key = `${ev._name}||${ev._place}`;
-      const cur = map.get(key);
-      if (cur && cur._end.getTime() === ev._start.getTime()) {
-        cur._end = new Date(ev._end);
-        cur._hFin = ev._hFin;
-      } else {
-        map.set(key, { ...ev });
-      }
+function buildFusedEvents(raw) {
+  // 1. On trie par date de début pour être sûr de traiter les événements dans l'ordre
+  raw.sort((a, b) => a._start - b._start);
+
+  const fused = []; // Liste finale de tous les segments fusionnés
+  const lastSegments = new Map(); // Pour suivre le dernier segment actif de chaque navire
+
+  for (const ev of raw) {
+    const key = `${ev._name}||${ev._place}`;
+    const lastSeg = lastSegments.get(key);
+
+    // Si on a un segment précédent pour ce navire ET qu'il se termine exactement quand celui-ci commence
+    if (lastSeg && lastSeg._end.getTime() === ev._start.getTime()) {
+      // On prolonge le segment existant
+      lastSeg._end = new Date(ev._end);
+      lastSeg._hFin = ev._hFin;
+    } else {
+      // Soit c'est un nouveau navire, soit il y a un trou dans le planning (comme ton cas 06h vs 07h)
+      // On crée un nouveau segment indépendant
+      const newSeg = { ...ev };
+      fused.push(newSeg);
+      // On mémorise ce segment comme étant le dernier pour ce navire
+      lastSegments.set(key, newSeg);
     }
-    return [...map.values()].map(ev => {
-      const lieu = fmtPlace(ev._place);
-      const summary = `${ev._name}${lieu ? ' — ' + lieu : ''}`;
-      const _endInclusive = new Date(ev._end);
-      if (ev._end.getHours() === 0 && ev._end.getMinutes() === 0) _endInclusive.setSeconds(-1);
-      return { id: ev.id, summary, __type: ev._type||'navire-smr', _isAllDay: false, _start: ev._start, _end: ev._end, _endInclusive, _place: ev._place, _hDebut: ev._hDebut, _hFin: ev._hFin, _hFinDisplay: ev._hFin, _volumes: ev._volumes||[], _comments: ev._comments||'' };
-    });
   }
+
+  // 2. On transforme les segments bruts en objets formatés pour le calendrier
+  return fused.map(ev => {
+    const lieu = fmtPlace(ev._place);
+    const summary = `${ev._name}${lieu ? ' — ' + lieu : ''}`;
+    const _endInclusive = new Date(ev._end);
+    if (ev._end.getHours() === 0 && ev._end.getMinutes() === 0) _endInclusive.setSeconds(-1);
+
+    return {
+      id: ev.id,
+      summary,
+      __type: ev._type || 'navire-smr',
+      _isAllDay: false,
+      _start: ev._start,
+      _end: ev._end,
+      _endInclusive,
+      _place: ev._place,
+      _hDebut: ev._hDebut,
+      _hFin: ev._hFin,
+      _hFinDisplay: ev._hFin,
+      _volumes: ev._volumes || [],
+      _comments: ev._comments || ''
+    };
+  });
+}
+
 
   async function fetchReception(timeMin, timeMax) {
     const p = `?key=${encodeURIComponent(API_KEY)}&singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(timeMin.toISOString())}&timeMax=${encodeURIComponent(timeMax.toISOString())}`;
