@@ -501,28 +501,32 @@ function buildFusedEvents(raw) {
     if (multi) return `<p>Du ${fmtFullDate(s)} à ${fmtTime(s)}<br>Au ${fmtFullDate(e)} à ${fmtTime(e)}</p>`;
     return all ? `<p>Le ${fmtFullDate(s)}</p>` : `<p>Le ${fmtFullDate(s)} à ${fmtTime(s)}</p>`;
   }
-  function fmtVolumes(volumes) {
+ function fmtVolumes(volumes) {
   if (!volumes?.length) return '';
-  return volumes.map(v => {
-    const prefix = v.type === 1 ? 'Imp' : (v.type === 2 ? 'Exp' : '');
 
-    const details = [];
-    if (v.vlCount)         details.push(`${v.vlCount} vl`);
-    if (v.vanCount)       details.push(`${v.vanCount} van`);
-    if (v.hhCount)         details.push(`${v.hhCount} hh`);
-    if (v.staticCount)    details.push(`${v.staticCount} stat`);
+  return volumes
+    // FILTRE : On ne garde que les volumes qui ont au moins une valeur > 0
+    .filter(v => (v.vlStrappingCount ?? 0) > 0 || v.vlCount > 0 || v.vanCount > 0 || v.hhCount > 0 || v.staticCount > 0)
+    .map(v => {
+      const prefix = v.type === 1 ? 'Imp' : (v.type === 2 ? 'Exp' : '');
+      const details = [];
+      if (v.vlCount)         details.push(`${v.vlCount} vl`);
+      if (v.vanCount)       details.push(`${v.vanCount} van`);
+      if (v.hhCount)         details.push(`${v.hhCount} hh`);
+      if (v.staticCount)    details.push(`${v.staticCount} stat`);
 
-    const detailStr = details.join('+');
-    const total = v.vlStrappingCount ?? 0;
-    const comment = v.comment ? ` - ${v.comment}` : '';
+      const detailStr = details.join('+');
+      const total = v.vlStrappingCount ?? 0;
+      const comment = v.comment ? ` - ${v.comment}` : '';
 
-    // CONDITION : Si on a des détails, on met "Détail=Total", sinon juste "Total"
-    const finalLine = detailStr
-      ? `${prefix}:${detailStr}=${total}${comment}`
-      : `${prefix}:${total}${comment}`;
+      const finalLine = detailStr
+        ? `${prefix}:${detailStr}=${total}${comment}`
+        : `${prefix}:${total}${comment}`;
 
-    return `<div style="font-size:0.82rem;color:#cbd5e1;margin-top:3px">${finalLine}</div>`;
-  }).join('');
+      return `<div style="font-size:0.82rem;color:#cbd5e1;margin-top:3px">${finalLine}</div>`;
+    }).join('');
+}
+
 }
   function evtHtml(ev) {
     const lieu = ev._place ? `<p>📍 ${ev._place}</p>` : '';
@@ -920,18 +924,19 @@ function buildFusedEvents(raw) {
         txt+=ev.summary||'(sans titre)';
         if(isLast&&!ev._isAllDay) txt+=` ${fmtTime(ev._end)}>\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0`;
       }
-                  const hasVol = isNavire(ev.__type) && ev._volumes?.length;
+                        const hasVol = isNavire(ev.__type) && ev._volumes?.length;
       const volTxt = hasVol ? ev._volumes.map(v => {
         const prefix = v.type === 1 ? 'Imp' : (v.type === 2 ? 'Exp' : '');
         const total = v.vlStrappingCount ?? 0;
 
-        // On vérifie s'il y a au moins un volume (total > 0 ou un des détails > 0)
-        const hasRealValue = total > 0 || v.vlCount > 0 || v.vanCount > 0 || v.hhCount > 0;
+        // On vérifie s'il y a au moins une valeur réelle
+        const hasRealValue = total > 0 || v.vlCount > 0 || v.vanCount > 0 || v.hhCount > 0 || v.staticCount > 0;
 
-        if (!hasRealValue) return null; // On ne renvoie rien si tout est à zéro
+        if (!hasRealValue) return null;
 
         return prefix ? `${prefix}: ${total}` : `${total}`;
       }).filter(Boolean).join(' | ') : '';
+
 
       const subTxt = (hasVol && volTxt) ? volTxt
                    : (isNavire(ev.__type) && ev._comments) ? ev._comments.replace(/<[^>]*>/g,'').trim()
