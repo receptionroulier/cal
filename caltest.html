@@ -1166,6 +1166,9 @@ const volTxt = totals ? `${totals.imp ? 'Imp: '+totals.imp + (totals.exp ? ' | '
       const C_NAV_BG  =[220,235,255];
       const C_NAV_BD  =[60,120,220];
       const C_NAV_TXT =[20,60,160];
+      const C_MAN_BG  =[255,238,210];
+      const C_MAN_BD  =[220,130,0];
+      const C_MAN_TXT =[140,70,0];
       const C_AUTRE_BG=[255,252,210];
       const C_AUTRE_BD=[200,170,0];
       const C_AUTRE_TXT=[120,90,0];
@@ -1258,10 +1261,12 @@ const volTxt = totals ? `${totals.imp ? 'Imp: '+totals.imp + (totals.exp ? ' | '
             const isNav=isNavire(ev.__type);
             const bX=x+BAND_PAD_X, bW=cellW-BAND_PAD_X*2;
 
-            const isAutre = ev.__type === 'autre';
-            const bgCol  = isAutre ? C_AUTRE_BG : isNav ? C_NAV_BG : C_REC_BG;
-            const bdCol  = isAutre ? C_AUTRE_BD : isNav ? C_NAV_BD : C_REC_BD;
-            const txtCol = isAutre ? C_AUTRE_TXT : isNav ? C_NAV_TXT : C_REC_TXT;
+            const isSmr     = ev.__type === 'navire-smr';
+            const isManucar = ev.__type === 'navire-manucar';
+            const isAutre   = ev.__type === 'autre';
+            const bgCol  = isManucar ? C_MAN_BG  : isSmr ? C_NAV_BG  : isAutre ? C_AUTRE_BG : C_REC_BG;
+            const bdCol  = isManucar ? C_MAN_BD  : isSmr ? C_NAV_BD  : isAutre ? C_AUTRE_BD : C_REC_BD;
+            const txtCol = isManucar ? C_MAN_TXT : isSmr ? C_NAV_TXT : isAutre ? C_AUTRE_TXT : C_REC_TXT;
             doc.setFillColor(...bgCol);
             doc.setDrawColor(...bdCol);
             doc.setLineWidth(0.2);
