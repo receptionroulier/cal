@@ -14,15 +14,12 @@ if (maintenance) window.location.href = "https://receptionroulier.github.io/cal/
   body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;display:flex;flex-direction:column;height:100%;overflow:hidden;min-height:0}
   #calendar-header{display:flex;flex-wrap:nowrap;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);backdrop-filter:blur(8px);min-height:52px;position:relative}
   .header-left{display:flex;align-items:center;flex-shrink:0}
-  /* Aujourd'hui : centré entre la flèche retour (~44px) et le titre (50%) */
   #today-group{position:absolute;left:calc(44px + (50% - 44px) / 2);transform:translateX(-50%);display:flex;align-items:center;gap:2px;pointer-events:auto}
-  /* Titre : centré, se tronque si besoin */
-  #calendar-title{position:absolute;left:50%;transform:translateX(-50%);font-weight:bold;font-size:1.1rem;white-space:nowrap;pointer-events:none;max-width:calc(100% - 480px);overflow:hidden;text-overflow:ellipsis;text-align:center}
-  /* Boutons 3/4 sem : centrés entre le titre (50%) et l'heure (droite ~110px) */
   #week-group{position:absolute;left:calc(50% + (100% - 50% - 110px) / 2);transform:translateX(-50%);display:flex;align-items:center;gap:6px;pointer-events:auto}
   .back-btn{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;color:#94a3b8;flex-shrink:0;transition:background .15s,color .15s;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;cursor:pointer;background:none;border:none}
   .back-btn:hover{background:rgba(255,255,255,0.1);color:#fff}
-  #current-time{flex-shrink:0;font-size:2rem;font-weight:bold;font-family:"Trebuchet MS",sans-serif;white-space:nowrap}
+  #calendar-title{position:absolute;left:50%;transform:translateX(-50%);font-weight:bold;font-size:1.1rem;white-space:nowrap;pointer-events:none;max-width:calc(100% - 480px);overflow:hidden;text-overflow:ellipsis;text-align:center}
+  #current-time{margin-left:auto;flex-shrink:0;font-size:2rem;font-weight:bold;font-family:"Trebuchet MS",sans-serif;white-space:nowrap}
   #header-right{display:flex;align-items:center;gap:6px;margin-left:auto;flex-shrink:0}
   .nav-btn{cursor:pointer;color:#fff;font-size:24px;padding:2px 8px;border-radius:6px;line-height:1;flex-shrink:0;user-select:none;-webkit-user-select:none;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
   .nav-btn:hover{background:rgba(255,255,255,0.1)}
@@ -1059,17 +1056,17 @@ const volTxt = totals ? `${totals.imp ? 'Imp: '+totals.imp + (totals.exp ? ' | '
     const fab=$('pdf-fab'), panel=$('pdf-panel');
     const statusEl=$('pdf-status'), genBtn=$('pdf-generate-btn');
     const customRange=$('pdf-custom-range');
-    let activePreset='thismonth';
+    let activePreset='custom';
 
-    fab.addEventListener('click',e=>{ e.stopPropagation(); panel.classList.toggle('open'); initDates(); loadJsPDF(()=>{}); });
+    fab.addEventListener('click',e=>{ e.stopPropagation(); panel.classList.toggle('open'); loadJsPDF(()=>{}); });
     document.addEventListener('click',e=>{ if(!panel.contains(e.target)&&e.target!==fab) panel.classList.remove('open'); });
 
-    function initDates(){
+    function initDefaultCustomDates(){
       const today=new Date();
-      const y=today.getFullYear(), m=today.getMonth();
-      const firstDay=new Date(y,m,1), lastDay=new Date(y,m+1,0);
-      $('pdf-date-from').value=fmtDateISO(firstDay);
-      $('pdf-date-to').value=fmtDateISO(lastDay);
+      const from=getMonday(today);
+      const to=new Date(from); to.setDate(from.getDate()+27);
+      $('pdf-date-from').value=fmtDateISO(from);
+      $('pdf-date-to').value=fmtDateISO(to);
     }
 
     panel.querySelectorAll('.pdf-preset').forEach(btn=>{
@@ -1091,7 +1088,11 @@ const volTxt = totals ? `${totals.imp ? 'Imp: '+totals.imp + (totals.exp ? ' | '
       $('pdf-date-from').value=fmtDateISO(from);
       $('pdf-date-to').value=fmtDateISO(to);
     }
-    setPresetDates('thismonth');
+    // Par défaut : perso = lundi semaine courante + 3 semaines
+    initDefaultCustomDates();
+    customRange.style.display='flex';
+    panel.querySelectorAll('.pdf-preset').forEach(b=>b.classList.remove('active'));
+    panel.querySelector('[data-preset="custom"]').classList.add('active');
 
     genBtn.addEventListener('click', async()=>{
       const fromVal=$('pdf-date-from').value, toVal=$('pdf-date-to').value;
@@ -1125,11 +1126,24 @@ const volTxt = totals ? `${totals.imp ? 'Imp: '+totals.imp + (totals.exp ? ' | '
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
 
+      // Fonction pour nettoyer les caractères non-latin1 (évite les "!" dans jsPDF)
+      function safeStr(s){
+        return (s||'')
+          .replace(/\u2192/g,'>').replace(/\u2013/g,'-').replace(/\u2014/g,'-')
+          .replace(/\u00e9/g,'\xe9').replace(/\u00e8/g,'\xe8').replace(/\u00ea/g,'\xea')
+          .replace(/\u00eb/g,'\xeb').replace(/\u00e0/g,'\xe0').replace(/\u00e2/g,'\xe2')
+          .replace(/\u00ee/g,'\xee').replace(/\u00ef/g,'\xef').replace(/\u00f4/g,'\xf4')
+          .replace(/\u00f9/g,'\xf9').replace(/\u00fb/g,'\xfb').replace(/\u00fc/g,'\xfc')
+          .replace(/\u00e7/g,'\xe7').replace(/\u00c9/g,'\xc9').replace(/\u00c0/g,'\xc0')
+          .replace(/\u00c2/g,'\xc2').replace(/\u00c7/g,'\xc7').replace(/\u00d4/g,'\xd4')
+          .replace(/[^\x00-\xff]/g,'?');
+      }
+
       const PW=297, PH=210;
-      const MAR_X=8, MAR_Y=8;
+      const TITLE_H=8;  // hauteur en-tête titre
+      const MAR_X=8, MAR_Y=TITLE_H+4;
       const COLS=7;
-      const HEADER_H=7;
-      const BAND_H=5.2, BAND_GAP=0.8, BAND_PAD_X=1.5, BAND_PAD_Y=0.9;
+      const BAND_H=5.8, BAND_GAP=1.0, BAND_PAD_X=1.5, BAND_PAD_Y=1.0;
 
       // Nombre de semaines réel (max 6 pour tenir en A4 paysage lisiblement)
       const firstMon=getMonday(from);
@@ -1137,34 +1151,33 @@ const volTxt = totals ? `${totals.imp ? 'Imp: '+totals.imp + (totals.exp ? ' | '
       while(cur2<=to){ countRows++; cur2.setDate(cur2.getDate()+7); }
       const ROWS=Math.min(6,Math.max(1,countRows));
 
-      const gridW=PW-MAR_X*2, gridH=PH-MAR_Y*2-HEADER_H;
+      const gridW=PW-MAR_X*2, gridH=PH-MAR_Y-6;
       const cellW=gridW/COLS, cellH=gridH/ROWS;
 
       const C_WHITE   =[255,255,255];
       const C_GRID    =[180,190,200];
-      const C_HEAD_BG =[30,41,59];
-      const C_HEAD_TXT=[226,232,240];
-      const C_TODAY_BG=[0,50,70];
-      const C_TODAY_BD=[0,200,220];
-      const C_HOL_BG  =[255,235,235];
+      const C_TITLE_BG=[7,85,150];   // #075596
+      const C_HOL_BG  =[255,225,225];
       const C_HOL_BD  =[220,80,80];
-      const C_HOL_TXT =[180,40,40];
-      const C_PAST_BG =[245,247,250];
+      const C_HOL_TXT =[160,30,30];
+      const C_PAST_BG =[243,245,248];
       const C_FUT_BG  =[250,252,255];
-      const C_DATE_TXT=[80,100,120];
-      const C_DATE_TODAY=[0,180,210];
+      const C_DATE_TXT=[60,80,110];
       const C_NAV_BG  =[220,235,255];
       const C_NAV_BD  =[60,120,220];
       const C_NAV_TXT =[20,60,160];
+      const C_MAN_BG  =[255,238,210];
+      const C_MAN_BD  =[220,130,0];
+      const C_MAN_TXT =[140,70,0];
       const C_AUTRE_BG=[255,252,210];
       const C_AUTRE_BD=[200,170,0];
       const C_AUTRE_TXT=[120,90,0];
       const C_REC_BG  =[215,255,230];
       const C_REC_BD  =[40,180,100];
       const C_REC_TXT =[10,120,60];
-      const C_TIME    =[100,120,150];
+      const C_TIME    =[90,110,145];
 
-      // Index par date ISO → events pour éviter O(n × jours)
+      // Index par date ISO
       const evtIndex = new Map();
       for(const ev of norm){
         const s=new Date(ev._start); s.setHours(0,0,0,0);
@@ -1191,89 +1204,95 @@ const volTxt = totals ? `${totals.imp ? 'Imp: '+totals.imp + (totals.exp ? ' | '
       const today=new Date(); today.setHours(0,0,0,0);
       const DAYS_FR=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
 
+      // Fond blanc
       doc.setFillColor(...C_WHITE);
       doc.rect(0,0,PW,PH,'F');
 
-      const hY=MAR_Y;
-      DAYS_FR.forEach((label,di)=>{
-        const x=MAR_X+di*cellW;
-        doc.setFillColor(...C_HEAD_BG);
-        doc.rect(x, hY, cellW, HEADER_H, 'F');
-        doc.setFont('helvetica','bold');
-        doc.setFontSize(7.5);
-        doc.setTextColor(...C_HEAD_TXT);
-        doc.text(label, x+cellW/2, hY+HEADER_H/2+1.4, {align:'center'});
-      });
+      // ── En-tête titre bleu ──
+      doc.setFillColor(...C_TITLE_BG);
+      doc.rect(0,0,PW,TITLE_H+2,'F');
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(10);
+      doc.setTextColor(...C_WHITE);
+      doc.text('Planning RoulierLH', PW/2, TITLE_H/2+3, {align:'center'});
 
+      // ── Grille des cases (sans ligne d'en-tête séparée pour les jours) ──
       weeks.forEach((days, wi)=>{
-        const rowY=MAR_Y+HEADER_H+wi*cellH;
+        const rowY=MAR_Y+wi*cellH;
         days.forEach((day, di)=>{
           const x=MAR_X+di*cellW;
-          const isT=day.getTime()===today.getTime();
-          const isPast=day<today;
           const isH=holidaySet.has(fmtDateISO(day));
+          const isPast=day<today;
 
-          if(isT)       doc.setFillColor(...C_TODAY_BG);
-          else if(isH)  doc.setFillColor(...C_HOL_BG);
+          // Fond : on n'applique plus de fond spécial pour aujourd'hui
+          if(isH)        doc.setFillColor(...C_HOL_BG);
           else if(isPast) doc.setFillColor(...C_PAST_BG);
-          else          doc.setFillColor(...C_FUT_BG);
+          else            doc.setFillColor(...C_FUT_BG);
           doc.rect(x, rowY, cellW, cellH, 'F');
 
-          doc.setLineWidth(isT ? 0.5 : 0.25);
-          doc.setDrawColor(...(isT ? C_TODAY_BD : isH ? C_HOL_BD : C_GRID));
+          // Bordure
+          doc.setLineWidth(0.25);
+          doc.setDrawColor(...(isH ? C_HOL_BD : C_GRID));
           doc.rect(x, rowY, cellW, cellH, 'S');
 
+          // Jour + date dans la case en haut à gauche (ex: "Lun 14/04")
+          const dayName=DAYS_FR[di];
           const dateStr=day.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
-          doc.setFont('helvetica', isT?'bold':'normal');
-          doc.setFontSize(6.5);
-          doc.setTextColor(...(isT ? C_DATE_TODAY : isH ? C_HOL_TXT : C_DATE_TXT));
-          doc.text(dateStr, x+BAND_PAD_X, rowY+4);
+          const dayLabel=safeStr(`${dayName} ${dateStr}`);
+          doc.setFont('helvetica','bold');
+          doc.setFontSize(6.2);
+          doc.setTextColor(...(isH ? C_HOL_TXT : C_DATE_TXT));
+          doc.text(dayLabel, x+BAND_PAD_X, rowY+4.2);
 
+          // "Férié" à droite en haut
           if(isH){
             doc.setFont('helvetica','bold');
-            doc.setFontSize(5);
+            doc.setFontSize(5.2);
             doc.setTextColor(...C_HOL_TXT);
-            doc.text('Férié', x+cellW-BAND_PAD_X, rowY+4, {align:'right'});
+            doc.text(safeStr('Ferie'), x+cellW-BAND_PAD_X, rowY+4.2, {align:'right'});
           }
 
+          // Événements
           const evts=evtsOnDay(day);
-          const evtStartY=rowY+6;
-          const maxBands=Math.floor((cellH-6-BAND_PAD_Y)/(BAND_H+BAND_GAP));
+          const evtStartY=rowY+6.5;
+          const maxBands=Math.floor((cellH-6.5-BAND_PAD_Y)/(BAND_H+BAND_GAP));
           evts.slice(0,maxBands).forEach((ev,ei)=>{
             const bY=evtStartY+ei*(BAND_H+BAND_GAP);
             const isNav=isNavire(ev.__type);
             const bX=x+BAND_PAD_X, bW=cellW-BAND_PAD_X*2;
 
-            const isAutre = ev.__type === 'autre';
-            const bgCol  = isAutre ? C_AUTRE_BG : isNav ? C_NAV_BG : C_REC_BG;
-            const bdCol  = isAutre ? C_AUTRE_BD : isNav ? C_NAV_BD : C_REC_BD;
-            const txtCol = isAutre ? C_AUTRE_TXT : isNav ? C_NAV_TXT : C_REC_TXT;
+            const isSmr     = ev.__type === 'navire-smr';
+            const isManucar = ev.__type === 'navire-manucar';
+            const isAutre   = ev.__type === 'autre';
+            const bgCol  = isManucar ? C_MAN_BG  : isSmr ? C_NAV_BG  : isAutre ? C_AUTRE_BG : C_REC_BG;
+            const bdCol  = isManucar ? C_MAN_BD  : isSmr ? C_NAV_BD  : isAutre ? C_AUTRE_BD : C_REC_BD;
+            const txtCol = isManucar ? C_MAN_TXT : isSmr ? C_NAV_TXT : isAutre ? C_AUTRE_TXT : C_REC_TXT;
             doc.setFillColor(...bgCol);
             doc.setDrawColor(...bdCol);
             doc.setLineWidth(0.2);
             doc.roundedRect(bX, bY, bW, BAND_H, 0.8, 0.8, 'FD');
 
-            const nom = isNav ? (ev.summary?.split('—')[0].trim()||'') : (ev.summary||'');
+            const nom = isNav ? (ev.summary?.split('\u2014')[0].split('—')[0].trim()||'') : (ev.summary||'');
             doc.setFont('helvetica','bold');
-            doc.setFontSize(5.2);
+            doc.setFontSize(5.4);
             doc.setTextColor(...txtCol);
-            const nomTrunc=doc.splitTextToSize(nom, bW-1)[0]||'';
-            doc.text(nomTrunc, bX+0.8, bY+BAND_H*0.42+1);
+            const nomTrunc=doc.splitTextToSize(safeStr(nom), bW-1.5)[0]||'';
+            doc.text(nomTrunc, bX+1.0, bY+2.4);
 
             let timeStr='';
             if(isNav){
               const hD=String(ev._hDebut??0).padStart(2,'0');
               const hF=String(ev._hFinDisplay??ev._hFin??0).padStart(2,'0');
               const lieu=fmtPlace(ev._place);
-              timeStr=`${hD}:00→${hF}:00${lieu?' '+lieu:''}`;
+              timeStr=`${hD}:00>${hF}:00${lieu?' '+lieu:''}`;
             } else if(!ev._isAllDay){
-              timeStr=`${fmtTime(ev._start)}→${fmtTime(ev._end)}`;
+              timeStr=`${fmtTime(ev._start)}>${fmtTime(ev._end)}`;
             }
             if(timeStr){
               doc.setFont('helvetica','normal');
-              doc.setFontSize(4.2);
+              doc.setFontSize(4.5);
               doc.setTextColor(...C_TIME);
-              doc.text(timeStr, bX+0.8, bY+BAND_H-0.8);
+              doc.text(safeStr(timeStr), bX+1.0, bY+BAND_H-0.9);
             }
           });
 
@@ -1286,15 +1305,22 @@ const volTxt = totals ? `${totals.imp ? 'Imp: '+totals.imp + (totals.exp ? ' | '
         });
       });
 
+      // Bordure extérieure de la grille
       doc.setDrawColor(...C_GRID);
       doc.setLineWidth(0.4);
-      doc.rect(MAR_X, MAR_Y, gridW, HEADER_H+gridH, 'S');
+      doc.rect(MAR_X, MAR_Y, gridW, gridH, 'S');
 
-      const fmtD=d=>d.toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
+      // Pied de page
+      const fmtD=d=>{
+        const dd=String(d.getDate()).padStart(2,'0');
+        const mm=String(d.getMonth()+1).padStart(2,'0');
+        const yyyy=d.getFullYear();
+        return `${dd}/${mm}/${yyyy}`;
+      };
       doc.setFont('helvetica','normal');
       doc.setFontSize(5.5);
       doc.setTextColor(160,170,180);
-      doc.text(`Calendrier Navires · ${fmtD(from)} – ${fmtD(to)} · Généré le ${fmtD(new Date())}`, PW/2, PH-2, {align:'center'});
+      doc.text(safeStr(`Du ${fmtD(from)} au ${fmtD(to)}  -  Genere le ${fmtD(new Date())}`), PW/2, PH-1.5, {align:'center'});
 
       const now=new Date();
       const fmtFile=d=>`${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
