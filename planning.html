@@ -422,57 +422,50 @@ function saveState() {
   savePlanningRemote();
 }
 
+// ── SYNC DISTANTE ──
+// Le Worker Cloudflare doit supporter type:'savePlanning' et 'loadPlanning'
+// Tant que ce n'est pas le cas, la sync reste silencieusement en mode local.
 let _saveTimer = null;
+let _remoteSupported = null; // null=inconnu, true=OK, false=non supporté
+
 function savePlanningRemote() {
-  // Debounce : attendre 800ms après la dernière modif avant d'envoyer
   clearTimeout(_saveTimer);
   _saveTimer = setTimeout(async () => {
+    if (_remoteSupported === false) { showSyncStatus('offline'); return; }
     try {
       const payload = { type: 'savePlanning', planning: state.planning, config: state.config };
-      const r = await fetch(PLAN_PROXY, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      const r = await fetch(PLAN_PROXY, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await r.json();
       if (data.ok) {
+        _remoteSupported = true;
         showSyncStatus('saved');
       } else {
-        console.warn('[saveRemote] Erreur:', data);
-        showSyncStatus('error');
+        // Worker répond mais ne connaît pas ce type → mode local silencieux
+        _remoteSupported = false;
+        showSyncStatus('offline');
       }
     } catch(e) {
-      console.warn('[saveRemote] Hors-ligne, sauvegarde locale uniquement');
       showSyncStatus('offline');
     }
   }, 800);
 }
 
 async function loadPlanningRemote() {
+  if (_remoteSupported === false) { showSyncStatus('offline'); return; }
   try {
-    const r = await fetch(PLAN_PROXY, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'loadPlanning' })
-    });
+    const r = await fetch(PLAN_PROXY, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'loadPlanning' }) });
     const data = await r.json();
     if (data.ok && data.planning) {
-      // Fusionner : le distant prime sur le local
+      _remoteSupported = true;
       state.planning = { ...state.planning, ...data.planning };
       if (data.config) state.config = { ...state.config, ...data.config };
-      // Mettre à jour le local
-      try {
-        localStorage.setItem('planningRoulier_v20', JSON.stringify({
-          planning: state.planning, slots: state.slots, config: state.config,
-        }));
-      } catch(e) {}
+      try { localStorage.setItem('planningRoulier_v20', JSON.stringify({ planning: state.planning, slots: state.slots, config: state.config })); } catch(e) {}
       showSyncStatus('loaded');
-      console.log('[loadRemote] Affectations chargées depuis le serveur:', Object.keys(data.planning).length);
     } else {
+      _remoteSupported = false;
       showSyncStatus('offline');
     }
   } catch(e) {
-    console.warn('[loadRemote] Impossible de charger depuis le serveur:', e);
     showSyncStatus('offline');
   }
 }
@@ -664,47 +657,85 @@ function renderStaffList(filter='') {
 // Stocke les largeurs en px pour chaque colonne (7 jours)
 if (!state.colWidths) state.colWidths = Array(7).fill(null); // null = auto (1fr)
 
+// Canvas offscreen pour mesurer le texte sans rendu DOM
+let _measureCanvas = null;
+function measureText(text, font) {
+  if (!_measureCanvas) _measureCanvas = document.createElement('canvas');
+  const ctx = _measureCanvas.getContext('2d');
+  ctx.font = font;
+  return ctx.measureText(text).width;
+}
+
+function computeAutoWidths() {
+  // Largeur minimale par colonne basée sur le contenu textuel réel
+  const MIN_COL = 110; // px minimum absolu
+  const H_PAD = 24;    // padding horizontal dans les cellules (2x12px)
+  const CHIP_PAD = 32; // padding chip + marge + scrollbar éventuelle
+
+  const widths = Array(7).fill(MIN_COL);
+
+  // 1. Noms de jours dans l'en-tête (ex: "Jeudi 08 mai")
+  for (let i = 0; i < 7; i++) {
+    const d = addDays(state.weekStart, i);
+    const label = DAYS[i] + ' ' + fmtFR(d);
+    const w = Math.ceil(measureText(label, '700 0.72rem Syne, sans-serif')) + H_PAD + 30;
+    widths[i] = Math.max(widths[i], w);
+  }
+
+  // 2. Section labels (ex: "Chef de Manutention")
+  for (let i = 0; i < 7; i++) {
+    const daySlots = state.slots[i] || {};
+    SECTIONS_ORDER.forEach(secId => {
+      if (!daySlots[secId] || daySlots[secId].length === 0) return;
+      const sec = SECTIONS_MAP[secId];
+      const w = Math.ceil(measureText(sec.name.toUpperCase(), '700 0.58rem Syne, sans-serif')) + H_PAD;
+      widths[i] = Math.max(widths[i], w);
+      // Heures
+      if (sec.hours) {
+        const wh = Math.ceil(measureText(sec.hours, '400 0.55rem DM Mono, monospace')) + H_PAD;
+        widths[i] = Math.max(widths[i], wh);
+      }
+    });
+  }
+
+  // 3. Noms des agents affectés (chip-name) — c'est souvent le texte le plus long
+  for (let i = 0; i < 7; i++) {
+    const daySlots = state.slots[i] || {};
+    SECTIONS_ORDER.forEach(secId => {
+      (daySlots[secId] || []).forEach(slot => {
+        const workerId = state.planning[`${i}_${secId}_${slot.id}`];
+        const w = getWorker(workerId);
+        if (!w) return;
+        const name = w.lastName + ' ' + w.firstName;
+        const nameW = Math.ceil(measureText(name, '600 0.68rem Syne, sans-serif')) + CHIP_PAD;
+        widths[i] = Math.max(widths[i], nameW);
+      });
+    });
+  }
+
+  return widths;
+}
+
 function applyGridColumns(autoFit = false) {
   const header = document.getElementById('days-header');
   const grid = document.getElementById('week-grid');
   if (!header || !grid) return;
 
-  if (autoFit) {
-    // Passe 1 : grille libre pour mesurer le contenu naturel
-    const freeCols = state.colWidths.map(() => 'max-content').join(' ');
-    header.style.gridTemplateColumns = freeCols;
-    grid.style.gridTemplateColumns = freeCols;
+  const cols = state.colWidths.map((manualW, i) => {
+    if (manualW) return manualW + 'px';
+    if (autoFit && state._autoWidths) return state._autoWidths[i] + 'px';
+    // Conserver la valeur courante si déjà calculée
+    return (state._autoWidths ? state._autoWidths[i] : 120) + 'px';
+  }).join(' ');
 
-    // Passe 2 : après rendu, lire la largeur réelle de chaque cellule header
-    requestAnimationFrame(() => {
-      const cells = header.querySelectorAll('.day-header-cell');
-      const measured = Array.from(cells).map(c => Math.ceil(c.getBoundingClientRect().width));
+  header.style.gridTemplateColumns = cols;
+  grid.style.gridTemplateColumns = cols;
+}
 
-      // Pour chaque colonne sans largeur manuelle, prendre le max(header, grid col)
-      const gridCols = grid.querySelectorAll('.day-col');
-      gridCols.forEach((col, i) => {
-        if (state.colWidths[i] == null) {
-          const gw = Math.ceil(col.getBoundingClientRect().width);
-          measured[i] = Math.max(measured[i] || 0, gw);
-        }
-      });
-
-      // Appliquer les largeurs mesurées (sauf colonnes à largeur manuelle)
-      const finalCols = state.colWidths.map((w, i) => w ? w + 'px' : (measured[i] || 120) + 'px').join(' ');
-      header.style.gridTemplateColumns = finalCols;
-      grid.style.gridTemplateColumns = finalCols;
-    });
-  } else {
-    // Colonnes manuelles uniquement — les colonnes auto restent à leur dernière valeur mesurée
-    const cols = state.colWidths.map((w, i) => {
-      if (w) return w + 'px';
-      // Lire la largeur actuelle de la cellule header pour conserver la mesure
-      const cell = header.querySelectorAll('.day-header-cell')[i];
-      return cell ? Math.ceil(cell.getBoundingClientRect().width) + 'px' : '120px';
-    }).join(' ');
-    header.style.gridTemplateColumns = cols;
-    grid.style.gridTemplateColumns = cols;
-  }
+function applyGridColumnsAuto() {
+  // Calculer les largeurs automatiques puis appliquer
+  state._autoWidths = computeAutoWidths();
+  applyGridColumns(true);
 }
 
 function renderWeekHeader() {
@@ -776,14 +807,15 @@ function renderWeekHeader() {
     header.appendChild(cell);
   });
 
-  applyGridColumns(true);
+  applyGridColumnsAuto();
 }
 
 function renderWeekGrid() {
   const grid = document.getElementById('week-grid');
   grid.innerHTML = '';
   const today = new Date(); today.setHours(0,0,0,0);
-  // applyGridColumns(true) est appelé dans renderWeekHeader qui est toujours appelé avant
+  // Recalculer les largeurs après rendu des chips (noms agents)
+  setTimeout(() => applyGridColumnsAuto(), 0);
 
   DAYS.forEach((_, dayIdx) => {
     const col = document.createElement('div');
