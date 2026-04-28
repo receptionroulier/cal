@@ -194,49 +194,18 @@ main { display: flex; flex: 1; min-height: 0; }
 <script>
 const PLAN_PROXY = "https://planning-proxy.receptionroulier.workers.dev";
 const NAV_PROXY = "https://shgt-proxy.receptionroulier.workers.dev";
-const HOLIDAYS_2026 = "https://calendrier.api.gouv.fr/jours-feries/metropole/2026.json";
-const HOLIDAYS_2027 = "https://calendrier.api.gouv.fr/jours-feries/metropole/2027.json";
+const HOLIDAYS_BASE = "https://calendrier.api.gouv.fr/jours-feries/metropole";
 
 // ── 5 CHANTIERS + AUTRES (ORDRE DEFINITIF) ──
 const SECTIONS_ORDER = ['cm', 'fcq', 'pn', 'matin', 'aprem', 'autre'];
 
 const SECTIONS_MAP = {
-  'cm': {
-    id: 'cm',
-    name: 'Chef de Manutention',
-    hours: '',
-    color: '#ff4d6d'
-  },
-  'fcq': {
-    id: 'fcq',
-    name: 'Chef de quai',
-    hours: '8h30-12h00 / 14h00-17h30',
-    color: '#a78bfa'
-  },
-  'pn': {
-    id: 'pn',
-    name: 'Montage / Prépa',
-    hours: '8h30-12h00 / 14h00-17h30',
-    color: '#00c896'
-  },
-  'matin': {
-    id: 'matin',
-    name: 'Réception Matin',
-    hours: '7h00 / 14h00',
-    color: '#3b8fff'
-  },
-  'aprem': {
-    id: 'aprem',
-    name: 'Réception Après-Midi',
-    hours: '13h00 / 20h00',
-    color: '#ffd060'
-  },
-  'autre': {
-    id: 'autre',
-    name: 'Autres',
-    hours: '',
-    color: '#94a3b8'
-  }
+  'cm': { id: 'cm', name: 'Chef de Manutention', hours: '', color: '#ff4d6d' },
+  'fcq': { id: 'fcq', name: 'Chef de quai', hours: '8h30-12h00 / 14h00-17h30', color: '#a78bfa' },
+  'pn': { id: 'pn', name: 'Montage / Prépa', hours: '8h30-12h00 / 14h00-17h30', color: '#00c896' },
+  'matin': { id: 'matin', name: 'Réception Matin', hours: '7h00 / 14h00', color: '#3b8fff' },
+  'aprem': { id: 'aprem', name: 'Réception Après-Midi', hours: '13h00 / 20h00', color: '#ffd060' },
+  'autre': { id: 'autre', name: 'Autres', hours: '', color: '#94a3b8' }
 };
 
 const DAYS = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
@@ -289,18 +258,37 @@ async function fetchPersonnel(dateFrom, dateTo) {
     }
 }
 
+// ── FETCH JOURS FÉRIÉS (ANNÉES DYNAMIQUES) ──
 async function fetchHolidays() {
     try {
-        const [res2026, res2027] = await Promise.all([
-            fetch(HOLIDAYS_2026).then(r => r.json()).catch(() => []),
-            fetch(HOLIDAYS_2027).then(r => r.json()).catch(() => [])
-        ]);
+        const currentYear = new Date().getFullYear();
+        // Charger année en cours + 2 années avant + 2 années après (toujours à jour)
+        const yearsToFetch = [currentYear - 2, currentYear - 1, currentYear, currentYear + 1, currentYear + 2];
+
         const holidays = {};
-        [...res2026, ...res2027].forEach(h => {
-            if (h.date) holidays[h.date] = h.nom;
+
+        const results = await Promise.all(
+            yearsToFetch.map(year =>
+                fetch(`${HOLIDAYS_BASE}/${year}.json`)
+                    .then(r => r.ok ? r.json() : [])
+                    .catch(() => [])
+            )
+        );
+
+        results.forEach((yearData, idx) => {
+            const year = yearsToFetch[idx];
+            if (Array.isArray(yearData)) {
+                yearData.forEach(h => {
+                    if (h.date) {
+                        holidays[h.date] = h.nom;
+                    }
+                });
+                console.log(`[HOLIDAYS] ${year}: ${yearData.length} jours fériés`);
+            }
         });
+
         state.holidays = holidays;
-        console.log('[HOLIDAYS] Loaded:', Object.keys(holidays).length, 'holidays');
+        console.log('[HOLIDAYS] Total loaded:', Object.keys(holidays).length, 'holidays');
     } catch(e) {
         console.error('[HOLIDAYS] Error:', e);
         state.holidays = {};
@@ -341,7 +329,7 @@ function getRandomColor(id) {
     return colors[Math.abs(hash) % colors.length];
 }
 
-// ── TROUVER LA SECTION SELON JOB CODE, POSTE CODE ET NOM PROJET ──
+// ── TROUVER LA SECTION ──
 function findSectionForWorker(jobCode, posteCode, projectName) {
     const isParcProject = projectName && (projectName.includes('Parc SMR') || projectName.includes('Parc Manucar'));
 
@@ -357,7 +345,7 @@ function findSectionForWorker(jobCode, posteCode, projectName) {
 // ── STATE MANAGEMENT ──
 function loadState() {
   try {
-    const s = localStorage.getItem('planningRoulier_v17');
+    const s = localStorage.getItem('planningRoulier_v19');
     if (s) {
       const saved = JSON.parse(s);
       state.planning = saved.planning || {};
@@ -368,7 +356,7 @@ function loadState() {
 }
 function saveState() {
   try {
-    localStorage.setItem('planningRoulier_v17', JSON.stringify({
+    localStorage.setItem('planningRoulier_v19', JSON.stringify({
       planning: state.planning, slots: state.slots, config: state.config,
     }));
   } catch(e) {}
