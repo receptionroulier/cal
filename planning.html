@@ -25,11 +25,13 @@ header {
   display: flex; align-items: center; gap: 16px;
   padding: 12px 20px; background: var(--surface);
   border-bottom: 1px solid var(--border2); flex-shrink: 0;
+  justify-content: space-between;
 }
+.header-center { display: flex; align-items: center; gap: 16px; flex: 1; justify-content: center; }
 .header-left-action { display: flex; align-items: center; }
 .logo { font-size: 1.1rem; font-weight: 800; color: var(--accent); white-space: nowrap; }
 .logo span { color: var(--text2); font-weight: 400; }
-.week-nav { display: flex; align-items: center; gap: 8px; margin: 0 auto; }
+.week-nav { display: flex; align-items: center; gap: 8px; }
 .week-nav button { background: var(--surface2); border: 1px solid var(--border2); color: var(--text); width: 28px; height: 28px; border-radius: 6px; cursor: pointer; }
 #btn-today { width: auto; height: 28px; padding: 0 12px; font-size: 0.72rem; font-weight: 700; font-family: inherit; white-space: nowrap; }
 #week-label { font-size: 0.82rem; font-weight: 700; background: var(--surface2); padding: 5px 14px; border-radius: 20px; border: 1px solid var(--border2); }
@@ -89,7 +91,7 @@ main { display: flex; flex: 1; min-height: 0; }
 .day-col {
   background: var(--surface); border: 2px solid var(--border); border-radius: 10px; padding: 8px;
   display: flex; flex-direction: column; gap: 8px; align-items: stretch;
-  height: fit-content; overflow: hidden; box-sizing: border-box;
+  height: fit-content; box-sizing: border-box;
 }
 .day-col.today { border-color: var(--accent); }
 .day-col.ferie { border-color: var(--red); }
@@ -102,7 +104,7 @@ main { display: flex; flex: 1; min-height: 0; }
 .section-label {
   font-size: 0.58rem; font-weight: 700; color: var(--text3); padding: 6px 0 2px;
   border-top: 1px solid var(--border); text-transform: uppercase; text-align: center;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .section-hours {
   font-size: 0.55rem; color: var(--text3); font-family: 'DM Mono', monospace;
@@ -117,7 +119,7 @@ main { display: flex; flex: 1; min-height: 0; }
   display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; border-radius: 5px;
   background: var(--bg); border: 1px solid var(--border); cursor: pointer; position: relative; width: 100%;
 }
-.chip-name { font-size: 0.68rem; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+.chip-name { font-size: 0.68rem; font-weight: 600; flex: 1; white-space: nowrap; color: var(--text); }
 .chip-matric { font-size: 0.58rem; color: var(--text3); font-family: 'DM Mono', monospace; }
 .chip-remove {
   position: absolute; right: 4px; top: 4px; font-size: 0.65rem; color: var(--red);
@@ -171,6 +173,14 @@ main { display: flex; flex: 1; min-height: 0; }
 .modal-btn-cancel { background: var(--surface2); color: var(--text2); }
 .modal-btn-ok { background: var(--accent); color: #000; }
 
+.chip-modified-badge {
+  font-size: 0.52rem; font-weight: 700; color: var(--warn);
+  background: rgba(255,107,53,0.18); border-radius: 3px;
+  padding: 1px 5px; text-align: center; width: 100%;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  display: block; margin-bottom: 2px;
+}
+
 #toast { position: fixed; bottom: 20px; right: 20px; background: var(--accent); color: #000; padding: 10px 18px; border-radius: 8px; font-size: 0.78rem; font-weight: 700; transform: translateY(60px); opacity: 0; transition: all .25s; z-index: 2000; }
 #toast.show { transform: translateY(0); opacity: 1; }
 </style>
@@ -182,20 +192,23 @@ main { display: flex; flex: 1; min-height: 0; }
         <button class="btn btn-ghost" id="btn-settings" style="padding: 6px; border-radius: 50%;">⚙️</button>
     </div>
     <div class="logo">RÉCEPTION<span> ROULIER</span></div>
-    <div class="week-nav">
-      <button id="btn-today">Aujourd'hui</button>
-      <button id="prev-week">‹</button>
-      <div id="week-label">Chargement...</div>
-      <button id="next-week">›</button>
-    </div>
-    <div class="view-tabs">
-      <div class="view-tab active" data-view="week">Planning</div>
-      <div class="view-tab" data-view="absences">Absences</div>
+    <div class="header-center">
+      <div class="week-nav">
+        <button id="btn-today">Aujourd'hui</button>
+        <button id="prev-week">‹</button>
+        <div id="week-label">Chargement...</div>
+        <button id="next-week">›</button>
+      </div>
+      <div class="view-tabs">
+        <div class="view-tab active" data-view="week">Planning</div>
+        <div class="view-tab" data-view="absences">Absences</div>
+      </div>
     </div>
     <div class="header-actions">
-      <span id="sync-status" style="display:flex;align-items:center;padding:0 6px;"></span>
       <button class="btn btn-ghost" id="btn-email-week">✉ Mail Hebdo</button>
     </div>
+    <span id="sync-status" style="display:flex;align-items:center;padding:0 6px;white-space:nowrap;"></span>
+  </header>
   </header>
 
   <main>
@@ -266,6 +279,7 @@ let state = {
   staff: [],
   workerAssignmentMap: {},
   dragWorker: null,
+  navModified: {}, // { "dayIdx_secId_slotId": true } — indique que NAV a proposé un nom différent
 };
 
 // ── API ──
@@ -531,6 +545,34 @@ function parsePersonnelData(personnelData, dateFrom, dateTo) {
     };
 }
 
+// ── APPLY NAV SUGGESTIONS ──
+// Pour chaque slot ayant un navWorkerId :
+//   - Si le slot est vide → on affecte le nom NAV
+//   - Si le slot est rempli avec un nom différent → on note "modifié" mais on ne change pas
+//   - Si même nom → rien
+function applyNavSuggestions() {
+    state.navModified = {};
+    for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
+        const daySlots = state.slots[dayIdx] || {};
+        SECTIONS_ORDER.forEach(secId => {
+            (daySlots[secId] || []).forEach(slot => {
+                if (!slot.navWorkerId) return;
+                const planKey = `${dayIdx}_${secId}_${slot.id}`;
+                const currentWorkerId = state.planning[planKey];
+
+                if (!currentWorkerId) {
+                    // Slot vide → on remplit avec le nom NAV
+                    state.planning[planKey] = slot.navWorkerId;
+                } else if (currentWorkerId !== slot.navWorkerId) {
+                    // Nom différent → on marque comme modifié
+                    state.navModified[planKey] = true;
+                }
+                // Même nom → rien à faire
+            });
+        });
+    }
+}
+
 // ── BUILD SLOTS FROM NAVIRES ──
 async function buildDynamicSlots() {
     const dateStart = fmtISO(state.weekStart);
@@ -576,6 +618,9 @@ async function buildDynamicSlots() {
 
                     builtSlotIds.add(slotId);
 
+                    // Résoudre le workerId NAV via le map des affectations
+                    const navWorkerId = state.workerAssignmentMap[String(w.id)] || null;
+
                     state.slots[dayIdx][secId].push({
                         id: slotId,
                         label: jobCode,
@@ -583,7 +628,8 @@ async function buildDynamicSlots() {
                         posteCode: posteCode,
                         projectName: projectName,
                         assignmentId: pa.id,
-                        workerAssignmentId: String(w.id)
+                        workerAssignmentId: String(w.id),
+                        navWorkerId: navWorkerId
                     });
                 });
             });
@@ -625,6 +671,7 @@ async function loadAllData() {
     state.workerAssignmentMap = parsed.workerAssignmentMap;
 
     await buildDynamicSlots();
+    applyNavSuggestions();
 }
 
 // ── RENDER STAFF ──
@@ -862,17 +909,25 @@ function renderWeekGrid() {
             slots.forEach((slot, slotIdx) => {
                 const slotDiv = document.createElement('div');
                 slotDiv.className = 'slot-container';
-                const workerId = state.planning[`${dayIdx}_${secId}_${slot.id}`];
+                const planKey = `${dayIdx}_${secId}_${slot.id}`;
+                const workerId = state.planning[planKey];
                 const w = getWorker(workerId);
+                const isModified = !!state.navModified?.[planKey];
 
                 const safeSecId = secId.replace(/'/g, "\\'");
                 const safeSlotId = slot.id.replace(/'/g, "\\'");
 
+                // Construire le label du slot avec jobCode + indicateur de modification
+                const slotLabelDisplay = isModified
+                    ? `${slot.label} <span style="color:var(--warn);font-size:0.5rem;">▲</span>`
+                    : slot.label;
+
                 slotDiv.innerHTML = `
-                    <div class="slot-info"><span>${slot.label}</span><span class="slot-remove" onclick="removeSlot(${dayIdx}, '${safeSecId}', ${slotIdx})">✕</span></div>
+                    <div class="slot-info"><span>${slotLabelDisplay}</span><span class="slot-remove" onclick="removeSlot(${dayIdx}, '${safeSecId}', ${slotIdx})">✕</span></div>
                     <div class="drop-zone" data-day="${dayIdx}" data-sec="${secId}" data-slot="${slot.id}">
                         ${w ? `
                           <div class="assigned-chip">
+                            ${isModified ? `<span class="chip-modified-badge">modifié</span>` : ''}
                             <div class="chip-name">${w.lastName} ${w.firstName}</div>
                             <div class="chip-matric">${w.matricule||'—'}</div>
                             <div class="chip-remove" onclick="removeFromSlot(${dayIdx},'${safeSecId}','${safeSlotId}')">✕</div>
@@ -1098,6 +1153,8 @@ async function initApp() {
     await loadAllData();
     // Charger les affectations depuis le serveur (écrase le local si plus récent)
     await loadPlanningRemote();
+    // Ré-appliquer les suggestions NAV après chargement distant
+    applyNavSuggestions();
     render();
 }
 
