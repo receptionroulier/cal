@@ -12,7 +12,7 @@
 :root {
   --bg: #0a0e14; --surface: #111722; --surface2: #1a2130;
   --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.12);
-  --accent: #00d4aa; --text: #e8edf5; --text2: #7a8fa8; --text3: #4a5a6e;
+  --accent: #3b8fff; --text: #e8edf5; --text2: #7a8fa8; --text3: #4a5a6e;
   --red: #ff4d6d; --blue: #3b8fff; --warn: #ff6b35;
 }
 
@@ -35,7 +35,7 @@ header {
 .header-actions { display: flex; gap: 8px; }
 .btn { padding: 7px 14px; border-radius: 7px; cursor: pointer; font-size: 0.75rem; font-weight: 700; border: none; transition: all .15s; white-space: nowrap; }
 .btn-ghost { background: var(--surface2); color: var(--text2); border: 1px solid var(--border2); }
-.btn-ghost:hover { color: var(--text); background: var(--surface); }
+.btn-ghost:hover { color: var(--text); background: var(--surface); border-color: var(--accent); }
 .view-tabs { display: flex; gap: 4px; background: var(--surface2); border-radius: 8px; padding: 3px; border: 1px solid var(--border); }
 .view-tab { padding: 4px 12px; border-radius: 5px; font-size: 0.73rem; font-weight: 700; cursor: pointer; color: var(--text3); }
 .view-tab.active { background: var(--accent); color: #000; }
@@ -64,28 +64,60 @@ main { display: flex; flex: 1; min-height: 0; }
 
 #view-week { display: flex; flex-direction: column; height: 100%; }
 .days-header { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; padding: 8px 10px 4px; }
-.day-header-cell { text-align: center; padding: 6px 4px; border-radius: 7px; font-size: 0.72rem; font-weight: 700; background: var(--surface); border: 1px solid var(--border); cursor: pointer; position: relative; }
+.day-header-cell {
+  text-align: center; padding: 6px 4px; border-radius: 7px; font-size: 0.72rem; font-weight: 700;
+  background: var(--surface); border: 1px solid var(--border); cursor: pointer; position: relative;
+}
 .day-header-cell.today { border-color: var(--accent); color: var(--accent); }
-.day-mail-btn { position: absolute; right: 5px; top: 5px; font-size: 0.7rem; cursor: pointer; opacity: 0.6; }
-.day-mail-btn:hover { opacity: 1; color: var(--accent); }
+.day-header-cell.ferie { border-color: var(--red); color: var(--red); }
+.day-header-cell.today.ferie { border-color: var(--red); color: var(--red); }
+.ferie-badge {
+  position: absolute; left: 4px; top: 4px; font-size: 0.55rem; font-weight: 700;
+  color: var(--red); background: rgba(255,77,109,0.15); padding: 1px 4px; border-radius: 3px;
+}
+.day-mail-btn {
+  position: absolute; right: 5px; top: 5px; font-size: 0.7rem; cursor: pointer; opacity: 0.6;
+  background: var(--surface2); border-radius: 50%; width: 18px; height: 18px;
+  display: flex; align-items: center; justify-content: center;
+}
+.day-mail-btn:hover { opacity: 1; color: var(--accent); background: var(--accent); color: #000; }
 
 .week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; padding: 4px 10px 10px; flex: 1; overflow-y: auto; align-content: start; }
-.day-col { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 6px; display: flex; flex-direction: column; gap: 5px; }
+.day-col {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 8px;
+  display: flex; flex-direction: column; gap: 8px; align-items: stretch;
+}
 
-.section-label { font-size: 0.58rem; font-weight: 700; color: var(--text3); padding: 4px 0 2px; border-top: 1px solid var(--border); text-transform: uppercase; }
-.section-hours { font-size: 0.55rem; color: var(--text3); font-family: 'DM Mono', monospace; margin-bottom: 3px; }
+.section-label {
+  font-size: 0.58rem; font-weight: 700; color: var(--text3); padding: 6px 0 2px;
+  border-top: 1px solid var(--border); text-transform: uppercase; text-align: center;
+}
+.section-hours {
+  font-size: 0.55rem; color: var(--text3); font-family: 'DM Mono', monospace;
+  margin-bottom: 3px; text-align: center;
+}
 
 .slot-container { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; margin-bottom: 4px; }
 .slot-info { display: flex; justify-content: space-between; font-size: 0.6rem; font-weight: 700; color: var(--text3); margin-bottom: 4px; }
 .slot-remove { color: var(--red); cursor: pointer; }
 
-.assigned-chip { display: flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 5px; background: var(--bg); border: 1px solid var(--border); cursor: pointer; position: relative; width: 100%; }
-.chip-name { font-size: 0.68rem; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.chip-remove { font-size: 0.65rem; color: var(--red); margin-left: auto; display: none; }
+.assigned-chip {
+  display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; border-radius: 5px;
+  background: var(--bg); border: 1px solid var(--border); cursor: pointer; position: relative; width: 100%;
+}
+.chip-name { font-size: 0.68rem; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+.chip-matric { font-size: 0.58rem; color: var(--text3); font-family: 'DM Mono', monospace; }
+.chip-remove {
+  position: absolute; right: 4px; top: 4px; font-size: 0.65rem; color: var(--red);
+  display: none; background: var(--surface); border-radius: 3px; padding: 0 2px;
+}
 .assigned-chip:hover .chip-remove { display: block; }
 
-.drop-zone { border: 1px dashed var(--border); border-radius: 5px; padding: 4px; min-height: 28px; font-size: 0.62rem; color: var(--text3); display: flex; align-items: center; justify-content: center; }
-.drop-zone.active { border-color: var(--accent); background: rgba(0,212,170,0.04); }
+.drop-zone {
+  border: 1px dashed var(--border); border-radius: 5px; padding: 4px; min-height: 32px;
+  font-size: 0.62rem; color: var(--text3); display: flex; align-items: center; justify-content: center;
+}
+.drop-zone.active { border-color: var(--accent); background: rgba(59,143,255,0.08); }
 
 #view-absences { display: none; flex: 1; padding: 20px; overflow-y: auto; }
 .abs-table { width: 100%; border-collapse: collapse; font-size: 0.65rem; background: var(--surface); }
@@ -162,6 +194,8 @@ main { display: flex; flex: 1; min-height: 0; }
 <script>
 const PLAN_PROXY = "https://planning-proxy.receptionroulier.workers.dev";
 const NAV_PROXY = "https://shgt-proxy.receptionroulier.workers.dev";
+const HOLIDAYS_2026 = "https://calendrier.api.gouv.fr/jours-feries/metropole/2026.json";
+const HOLIDAYS_2027 = "https://calendrier.api.gouv.fr/jours-feries/metropole/2027.json";
 
 // ── 5 CHANTIERS + AUTRES (ORDRE DEFINITIF) ──
 const SECTIONS_ORDER = ['cm', 'fcq', 'pn', 'matin', 'aprem', 'autre'];
@@ -214,6 +248,7 @@ let state = {
   planning: {},
   slots: {},
   absences: {},
+  holidays: {},
   config: {
     emailWeek: 'chefmanutention.tmt@shgt.fr',
     emailCcWeek: 'smaillard@smr-france.com',
@@ -254,6 +289,24 @@ async function fetchPersonnel(dateFrom, dateTo) {
     }
 }
 
+async function fetchHolidays() {
+    try {
+        const [res2026, res2027] = await Promise.all([
+            fetch(HOLIDAYS_2026).then(r => r.json()).catch(() => []),
+            fetch(HOLIDAYS_2027).then(r => r.json()).catch(() => [])
+        ]);
+        const holidays = {};
+        [...res2026, ...res2027].forEach(h => {
+            if (h.date) holidays[h.date] = h.nom;
+        });
+        state.holidays = holidays;
+        console.log('[HOLIDAYS] Loaded:', Object.keys(holidays).length, 'holidays');
+    } catch(e) {
+        console.error('[HOLIDAYS] Error:', e);
+        state.holidays = {};
+    }
+}
+
 // ── HELPERS ──
 function getMonday(d) {
   const r = new Date(d);
@@ -273,7 +326,7 @@ function getWeekNum(d) {
 function getWorker(id) { return state.staff.find(w => w.id === id); }
 function initials(w) { return ((w.firstName||'')[0]||'') + ((w.lastName||'')[0]||''); }
 function avatar(w, size=26) {
-  const color = w.color || '#00d4aa';
+  const color = w.color || '#3b8fff';
   return `<div class="staff-avatar" style="width:${size}px;height:${size}px;background:${color}22;color:${color};border:1px solid ${color}44">${initials(w).toUpperCase()}</div>`;
 }
 function toast(msg) {
@@ -282,7 +335,7 @@ function toast(msg) {
   setTimeout(() => t.classList.remove('show'), 2400);
 }
 function getRandomColor(id) {
-    const colors = ['#00d4aa', '#3b8fff', '#a78bfa', '#00c896', '#ffd060', '#ff6b6b'];
+    const colors = ['#3b8fff', '#a78bfa', '#00c896', '#ffd060', '#ff6b6b', '#ff4d6d'];
     let hash = 0;
     for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
     return colors[Math.abs(hash) % colors.length];
@@ -292,29 +345,19 @@ function getRandomColor(id) {
 function findSectionForWorker(jobCode, posteCode, projectName) {
     const isParcProject = projectName && (projectName.includes('Parc SMR') || projectName.includes('Parc Manucar'));
 
-    // Chef de Manutention (CM + poste 0817)
     if (jobCode === 'CM' && posteCode === '0817') return 'cm';
-
-    // Chef de quai (FCQ + poste 0817)
     if (jobCode === 'FCQ' && posteCode === '0817') return 'fcq';
-
-    // Montage / Prépa (PN + poste 0817)
     if (jobCode === 'PN' && posteCode === '0817') return 'pn';
-
-    // Réception Matin (CI/CO + poste 0714 + projet Parc)
     if ((jobCode === 'CI' || jobCode === 'CO') && posteCode === '0714' && isParcProject) return 'matin';
-
-    // Réception Après-Midi (CI/CO + poste 1320 + projet Parc)
     if ((jobCode === 'CI' || jobCode === 'CO') && posteCode === '1320' && isParcProject) return 'aprem';
 
-    // Autres (tout le reste)
     return 'autre';
 }
 
 // ── STATE MANAGEMENT ──
 function loadState() {
   try {
-    const s = localStorage.getItem('planningRoulier_v16');
+    const s = localStorage.getItem('planningRoulier_v17');
     if (s) {
       const saved = JSON.parse(s);
       state.planning = saved.planning || {};
@@ -325,7 +368,7 @@ function loadState() {
 }
 function saveState() {
   try {
-    localStorage.setItem('planningRoulier_v16', JSON.stringify({
+    localStorage.setItem('planningRoulier_v17', JSON.stringify({
       planning: state.planning, slots: state.slots, config: state.config,
     }));
   } catch(e) {}
@@ -384,7 +427,6 @@ async function buildDynamicSlots() {
     const dateEnd = fmtISO(addDays(state.weekStart, 6));
     const naviresData = await fetchNavires(dateStart, dateEnd);
 
-    // Initialize slots for 7 days
     for(let i=0; i<7; i++) {
         state.slots[i] = {};
         SECTIONS_ORDER.forEach(secId => {
@@ -480,9 +522,18 @@ function renderWeekHeader() {
   const today = new Date(); today.setHours(0,0,0,0);
   DAYS.forEach((name, i) => {
     const d = addDays(state.weekStart, i);
+    const dateISO = fmtISO(d);
+    const isToday = d.getTime() === today.getTime();
+    const isFerie = state.holidays[dateISO];
+
     const cell = document.createElement('div');
-    cell.className = `day-header-cell${d.getTime()===today.getTime()?' today':''}`;
-    cell.innerHTML = `<div class="day-name">${name}</div><div class="day-num">${fmtFR(d)}</div><div class="day-mail-btn" onclick="event.stopPropagation(); sendDailyMail(${i})">✉️</div>`;
+    cell.className = `day-header-cell${isToday ? ' today' : ''}${isFerie ? ' ferie' : ''}`;
+    cell.innerHTML = `
+      ${isFerie ? `<div class="ferie-badge">Férié</div>` : ''}
+      <div class="day-name">${name}</div>
+      <div class="day-num">${fmtFR(d)}</div>
+      <div class="day-mail-btn" onclick="event.stopPropagation(); sendDailyMail(${i})">💬</div>
+    `;
     header.appendChild(cell);
   });
 }
@@ -496,7 +547,6 @@ function renderWeekGrid() {
     col.className = 'day-col';
     const daySlots = state.slots[dayIdx] || {};
 
-    // Vérifier s'il y a des slots ce jour
     let hasAnySlots = false;
     SECTIONS_ORDER.forEach(secId => {
         if (daySlots[secId] && daySlots[secId].length > 0) hasAnySlots = true;
@@ -505,12 +555,11 @@ function renderWeekGrid() {
     if (!hasAnySlots) {
         col.innerHTML = `<div style="font-size:0.6rem; color:var(--text3); text-align:center; margin-top:20px">Aucune activité</div>`;
     } else {
-        // Afficher uniquement les sections qui ont des slots
         SECTIONS_ORDER.forEach(secId => {
             const sec = SECTIONS_MAP[secId];
             const slots = daySlots[secId] || [];
 
-            if (slots.length === 0) return; // Ne pas afficher les sections vides
+            if (slots.length === 0) return;
 
             const label = document.createElement('div');
             label.className = 'section-label';
@@ -537,7 +586,13 @@ function renderWeekGrid() {
                 slotDiv.innerHTML = `
                     <div class="slot-info"><span>${slot.label}</span><span class="slot-remove" onclick="removeSlot(${dayIdx}, '${safeSecId}', ${slotIdx})">✕</span></div>
                     <div class="drop-zone" data-day="${dayIdx}" data-sec="${secId}" data-slot="${slot.id}">
-                        ${w ? `<div class="assigned-chip"><div class="chip-name"><span style="font-family:'DM Mono',monospace;color:var(--text3);font-size:0.6rem">${w.matricule||'—'}</span> ${w.lastName} ${w.firstName}</div><div class="chip-remove" onclick="removeFromSlot(${dayIdx},'${safeSecId}','${safeSlotId}')">✕</div></div>` : 'Glisser ici'}
+                        ${w ? `
+                          <div class="assigned-chip">
+                            <div class="chip-name">${w.lastName} ${w.firstName}</div>
+                            <div class="chip-matric">${w.matricule||'—'}</div>
+                            <div class="chip-remove" onclick="removeFromSlot(${dayIdx},'${safeSecId}','${safeSlotId}')">✕</div>
+                          </div>
+                        ` : 'Glisser ici'}
                     </div>
                 `;
 
@@ -701,6 +756,7 @@ window.closeModal = closeModal;
 // ── INIT ──
 async function initApp() {
     state.absMonth = new Date();
+    await fetchHolidays();
     await loadAllData();
     render();
 }
