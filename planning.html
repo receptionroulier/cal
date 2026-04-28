@@ -88,8 +88,7 @@ main { display: flex; flex: 1; min-height: 0; }
 .day-col {
   background: var(--surface); border: 2px solid var(--border); border-radius: 10px; padding: 8px;
   display: flex; flex-direction: column; gap: 8px; align-items: stretch;
-  height: fit-content; overflow: visible; box-sizing: border-box;
-  position: relative;
+  height: fit-content; overflow: hidden; box-sizing: border-box;
 }
 .day-col.today { border-color: var(--accent); }
 .day-col.ferie { border-color: var(--red); }
@@ -131,18 +130,18 @@ main { display: flex; flex: 1; min-height: 0; }
 }
 .drop-zone.active { border-color: var(--accent); background: rgba(59,143,255,0.08); }
 
-/* Bouton dupliquer - bulle style mail */
+/* Bouton dupliquer - bulle style mail sur la carte jour */
 .btn-dup {
-  position: absolute; bottom: -10px; right: -10px;
-  width: 24px; height: 24px; border-radius: 50%;
+  position: absolute; bottom: -9px; right: 28px;
+  width: 20px; height: 20px; border-radius: 50%;
   background: var(--surface2); border: 1px solid var(--border2);
-  color: var(--text2); font-size: 0.72rem; font-weight: 800;
+  color: var(--text2); font-size: 0.65rem; font-weight: 800;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
   opacity: 0; transition: opacity .15s, background .15s, color .15s, transform .15s;
-  z-index: 20; box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  z-index: 20; box-shadow: 0 2px 8px rgba(0,0,0,0.5);
   line-height: 1;
 }
-.day-col:hover .btn-dup { opacity: 1; }
+.day-header-cell:hover .btn-dup { opacity: 1; }
 .btn-dup:hover { background: var(--accent); color: #000; border-color: var(--accent); transform: scale(1.15); }
 
 /* Poignée resize : indicateur visuel discret */
@@ -614,7 +613,7 @@ function renderWeekHeader() {
 
     const cell = document.createElement('div');
     cell.className = `day-header-cell${isToday ? ' today' : ''}${isFerie ? ' ferie' : ''}`;
-    cell.style.cssText = 'overflow:visible;';
+    cell.style.overflow = 'visible';
 
     cell.innerHTML = `
       ${isFerie ? `<div class="ferie-badge">Férié</div>` : ''}
@@ -652,6 +651,19 @@ function renderWeekHeader() {
       applyGridColumns();
       try { localStorage.setItem('planningRoulier_colWidths', JSON.stringify(state.colWidths)); } catch(e) {}
     });
+
+    // Bouton dupliquer (sur la carte jour, pas sur les chantiers) - sauf dimanche
+    if (i < 6) {
+      const btnDup = document.createElement('button');
+      btnDup.className = 'btn-dup';
+      btnDup.title = 'Dupliquer les affectations vers le jour suivant';
+      btnDup.textContent = '»';
+      btnDup.addEventListener('click', e => {
+        e.stopPropagation();
+        duplicateDayToNext(i);
+      });
+      cell.appendChild(btnDup);
+    }
 
     cell.appendChild(handle);
     header.appendChild(cell);
@@ -741,19 +753,6 @@ function renderWeekGrid() {
                 col.appendChild(slotDiv);
             });
         });
-    }
-
-    // Bouton dupliquer vers le jour suivant
-    if (dayIdx < 6) {
-      const btnDup = document.createElement('button');
-      btnDup.className = 'btn-dup';
-      btnDup.title = 'Dupliquer vers le jour suivant';
-      btnDup.textContent = '»';
-      btnDup.addEventListener('click', e => {
-        e.stopPropagation();
-        duplicateDayToNext(dayIdx);
-      });
-      col.appendChild(btnDup);
     }
 
     grid.appendChild(col);
