@@ -179,26 +179,26 @@ main { display: flex; flex: 1; min-height: 0; }
 <div id="toast"></div>
 
 <script>
-const PROXY_URL = "https://shgt-proxy.receptionroulier.workers.dev";
+const PROXY_URL = "https://planning-proxy.receptionroulier.workers.dev";
 
-const SECTIONS = [
-  { id: 'prepа', name: 'FCQ/CC/Montage/Prépa', hours: '8h30 / 12h00  14h00 / 17h30', color: '#a78bfa', defaultSlots: ['FCQ', 'PN', 'PN', 'PN'] },
-  { id: 'matin', name: 'Réception Matin',       hours: '7h00 / 14h00',                color: '#00c896', defaultSlots: ['CI', 'CO'] },
-  { id: 'aprem', name: 'Réception Après-Midi',  hours: '13h00 / 20h00',               color: '#3b8fff', defaultSlots: ['CI', 'CO'] },
-  { id: 'autre', name: 'Autre / Parc',           hours: '',                            color: '#ffd060', defaultSlots: [] },
-];
+const SECTIONS_MAP = {
+  '0817': { id: 'prepа', name: 'FCQ/CC/Montage/Prépa', hours: '8h30 / 12h00  14h00 / 17h30', color: '#a78bfa' },
+  '0714': { id: 'matin', name: 'Réception Matin',       hours: '7h00 / 14h00',                color: '#00c896' },
+  '1320': { id: 'aprem', name: 'Réception Après-Midi',  hours: '13h00 / 20h00',               color: '#3b8fff' },
+  'default': { id: 'autre', name: 'Autre / Parc',           hours: '',                            color: '#ffd060' },
+};
 
 const DAYS = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
 const DAY_SHORT = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
 
 let state = {
   weekStart: getMonday(new Date()),
-  absMonth: new Date(), // Date pour la vue absences (début du mois)
+  absMonth: new Date(),
   view: 'week',
   activeDay: 0,
   planning: {},
   slots: {},
-  absences: {}, // [workerId][dateISO] = code
+  absences: {},
   config: {
     emailWeek: 'chefmanutention.tmt@shgt.fr',
     emailCcWeek: 'smaillard@smr-france.com',
@@ -216,20 +216,24 @@ async function fetchStaffAndAbsences(dateFrom, dateTo) {
         const response = await fetch(PROXY_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                dateFrom: dateFrom,
-                dateTo: dateTo,
-                pageNumber: 0,
-                pageSize: 200
-            })
+            body: JSON.stringify({ dateFrom, dateTo, pageNumber: 0, pageSize: 200 })
         });
         if (!response.ok) throw new Error('Proxy Error');
         const data = await response.json();
         return (data.items || []);
-    } catch(e) {
-        console.error("API Error:", e);
-        return [];
-    }
+    } catch(e) { console.error("API Error:", e); return []; }
+}
+
+async function fetchNavireAssignments(dateFrom, dateTo) {
+    try {
+        const response = await fetch(PROXY_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dateFrom, dateTo })
+        });
+        if (!response.ok) throw new Error('Proxy Error');
+        return await response.json();
+    } catch(e) { console.error("API Navire Error:", e); return []; }
 }
 
 // ── HELPERS ──
@@ -262,7 +266,7 @@ function toast(msg) {
 // ── STATE MANAGEMENT ──
 function loadState() {
   try {
-    const s = localStorage.getItem('planningRoulier_v5');
+    const s = localStorage.getItem('planningRoulier_v8');
     if (s) {
       const saved = JSON.parse(s);
       state.planning = saved.planning || {};
@@ -273,7 +277,7 @@ function loadState() {
 }
 function saveState() {
   try {
-    localStorage.setItem('planningRoulier_v5', JSON.stringify({
+    localStorage.setItem('planningRoulier_v8', JSON.stringify({
       planning: state.planning,
       slots: state.slots,
       config: state.config,
@@ -281,18 +285,40 @@ function saveState() {
   } catch(e) {}
 }
 
-function initSlots() {
-    for(let i=0; i<7; i++) {
-        if(!state.slots[i]) state.slots[i] = {};
-        SECTIONS.forEach(sec => {
-            if(!state.slots[i][sec.id]) {
-                state.slots[i][sec.id] = sec.defaultSlots.map((label, idx) => ({
-                    id: `slot_${idx}_${Date.now()}`,
-                    label: label
-                }));
-            }
+// ── DYNAMIQUE SLOTS (Secteur Parc) ──
+async function buildDynamicSlots() {
+    const dateStart = fmtISO(state.weekStart);
+    const dateEnd = fmtISO(addDays(state.weekStart, 6));
+    const naviresData = await fetchNavireAssignments(dateStart, dateEnd);
+
+    // On vide les slots pour la semaine actuelle
+    for(let i=0; i<7; i++) { state.slots[i] = {}; }
+
+    naviresData.forEach(dayData => {
+        if (!dayData || !dayData.postes) return;
+        const dateObj = new Date(dayData.date);
+        const dayIdx = Math.floor((dateObj - state.weekStart) / (1000 * 60 * 60 * 24));
+        if (dayIdx < 0 || dayIdx > 6) return;
+
+        dayData.postes.forEach(p => {
+            const parcAssignments = p.projectAssignments.filter(pa => pa.sectorId === 25);
+            if (parcAssignments.length === 0) return;
+
+            const sectionCfg = SECTIONS_MAP[p.poste.code] || SECTIONS_MAP['default'];
+            const secId = sectionCfg.id;
+            if (!state.slots[dayIdx][secId]) state.slots[dayIdx][secId] = [];
+
+            parcAssignments.forEach(pa => {
+                pa.projectAssignmentWorkers.forEach(w => {
+                    const label = w.job?.code || 'PN';
+                    state.slots[dayIdx][secId].push({
+                        id: `slot_${pa.id}_${w.id}`,
+                        label: label
+                    });
+                });
+            });
         });
-    }
+    });
 }
 
 // ── RENDER STAFF LIST ──
@@ -304,25 +330,14 @@ function renderStaffList(filter='') {
   state.staff.forEach(w => {
     const name = `${w.firstName} ${w.lastName}`.toLowerCase();
     if (q && !name.includes(q) && !(w.matricule||'').toLowerCase().includes(q)) return;
-
     const dateToday = fmtISO(addDays(state.weekStart, 0));
     const absCode = state.absences[w.id]?.[dateToday] || '';
 
     const el = document.createElement('div');
     el.className = 'staff-item' + (absCode ? ' absent' : '');
     el.draggable = true;
-    el.innerHTML = `
-      ${avatar(w)}
-      <div class="staff-info">
-        <div class="staff-name">${w.firstName} ${w.lastName}</div>
-        <div class="staff-matric">${w.matricule||'—'}</div>
-      </div>
-      ${absCode ? `<div class="absence-badge">${absCode}</div>` : ''}
-    `;
-    el.addEventListener('dragstart', e => {
-      state.dragWorker = w.id;
-      el.classList.add('dragging');
-    });
+    el.innerHTML = `${avatar(w)}<div class="staff-info"><div class="staff-name">${w.firstName} ${w.lastName}</div><div class="staff-matric">${w.matricule||'—'}</div></div>${absCode ? `<div class="absence-badge">${absCode}</div>` : ''}`;
+    el.addEventListener('dragstart', e => { state.dragWorker = w.id; el.classList.add('dragging'); });
     el.addEventListener('dragend', () => el.classList.remove('dragging'));
     list.appendChild(el);
   });
@@ -353,68 +368,68 @@ function renderWeekGrid() {
     const col = document.createElement('div');
     col.className = `day-col${isWE?' weekend':''}`;
 
-    SECTIONS.forEach(sec => {
-      const label = document.createElement('div');
-      label.className = 'section-label';
-      label.style.color = sec.color;
-      label.textContent = sec.name;
-      col.appendChild(label);
+    const daySlots = state.slots[dayIdx] || {};
+    const hasSlots = Object.keys(daySlots).length > 0;
 
-      if (sec.hours) {
-        const hours = document.createElement('div');
-        hours.className = 'section-hours';
-        hours.textContent = sec.hours;
-        col.appendChild(hours);
-      }
+    if (!hasSlots) {
+      col.innerHTML = `<div style="font-size:0.6rem; color:var(--text3); text-align:center; margin-top:20px">Aucune activité Parc</div>`;
+    } else {
+        Object.values(SECTIONS_MAP).forEach(sec => {
+            const slots = daySlots[sec.id] || [];
+            if (slots.length === 0) return;
 
-      const daySlots = state.slots[dayIdx]?.[sec.id] || [];
-      daySlots.forEach((slot, slotIdx) => {
-        const slotDiv = document.createElement('div');
-        slotDiv.className = 'slot-container';
-        const workerId = state.planning[`${dayIdx}_${sec.id}_${slot.id}`];
-        const w = getWorker(workerId);
+            const label = document.createElement('div');
+            label.className = 'section-label';
+            label.style.color = sec.color;
+            label.textContent = sec.name;
+            col.appendChild(label);
 
-        slotDiv.innerHTML = `
-            <div class="slot-info">
-                <span>${slot.label}</span>
-                <span class="slot-remove" onclick="removeSlot(${dayIdx}, '${sec.id}', ${slotIdx})">✕</span>
-            </div>
-            <div class="drop-zone" data-day="${dayIdx}" data-sec="${sec.id}" data-slot="${slot.id}">
-                ${w ? `
-                    <div class="assigned-chip">
-                        <div class="chip-avatar" style="background:${w.color}22;color:${w.color}">${initials(w).toUpperCase()}</div>
-                        <div class="chip-name">${w.lastName}</div>
-                        <div class="chip-remove" onclick="removeFromSlot(${dayIdx},'${sec.id}','${slot.id}')">✕</div>
+            if (sec.hours) {
+                const hours = document.createElement('div');
+                hours.className = 'section-hours';
+                hours.textContent = sec.hours;
+                col.appendChild(hours);
+            }
+
+            slots.forEach((slot, slotIdx) => {
+                const slotDiv = document.createElement('div');
+                slotDiv.className = 'slot-container';
+                const workerId = state.planning[`${dayIdx}_${sec.id}_${slot.id}`];
+                const w = getWorker(workerId);
+
+                slotDiv.innerHTML = `
+                    <div class="slot-info"><span>${slot.label}</span><span class="slot-remove" onclick="removeSlot(${dayIdx}, '${sec.id}', ${slotIdx})">✕</span></div>
+                    <div class="drop-zone" data-day="${dayIdx}" data-sec="${sec.id}" data-slot="${slot.id}">
+                        ${w ? `<div class="assigned-chip"><div class="chip-avatar" style="background:${w.color}22;color:${w.color}">${initials(w).toUpperCase()}</div><div class="chip-name">${w.lastName}</div><div class="chip-remove" onclick="removeFromSlot(${dayIdx},'${sec.id}','${slot.id}')">✕</div></div>` : 'Glisser ici'}
                     </div>
-                ` : 'Glisser ici'}
-            </div>
-        `;
+                `;
 
-        const dz = slotDiv.querySelector('.drop-zone');
-        dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('active'); });
-        dz.addEventListener('dragleave', () => dz.classList.remove('active'));
-        dz.addEventListener('drop', e => {
-            e.preventDefault();
-            dz.classList.remove('active');
-            if (!state.dragWorker) return;
-            addToSlot(dayIdx, sec.id, slot.id, state.dragWorker);
-            state.dragWorker = null;
+                const dz = slotDiv.querySelector('.drop-zone');
+                dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('active'); });
+                dz.addEventListener('dragleave', () => dz.classList.remove('active'));
+                dz.addEventListener('drop', e => {
+                    e.preventDefault(); dz.classList.remove('active');
+                    if (!state.dragWorker) return;
+                    addToSlot(dayIdx, sec.id, slot.id, state.dragWorker);
+                    state.dragWorker = null;
+                });
+                col.appendChild(slotDiv);
+            });
+
+            const addBtn = document.createElement('div');
+            addBtn.className = 'btn-add-slot';
+            addBtn.textContent = '+ Ajouter un poste';
+            addBtn.onclick = () => {
+                const label = prompt("Nom du poste (ex: PN, CI, etc.)");
+                if(label) {
+                    if(!state.slots[dayIdx][sec.id]) state.slots[dayIdx][sec.id] = [];
+                    state.slots[dayIdx][sec.id].push({id: 's'+Date.now(), label});
+                    saveState(); renderWeekGrid();
+                }
+            };
+            col.appendChild(addBtn);
         });
-        col.appendChild(slotDiv);
-      });
-
-      const addBtn = document.createElement('div');
-      addBtn.className = 'btn-add-slot';
-      addBtn.textContent = '+ Ajouter un poste';
-      addBtn.onclick = () => {
-          const label = prompt("Nom du poste (ex: PN, CI, etc.)");
-          if(label) {
-              state.slots[dayIdx][sec.id].push({id: 's'+Date.now(), label});
-              saveState(); renderWeekGrid();
-          }
-      };
-      col.appendChild(addBtn);
-    });
+    }
     grid.appendChild(col);
   });
 }
@@ -470,19 +485,11 @@ function renderDayView() {
   const content = document.getElementById('day-content');
   content.innerHTML = '';
 
-  SECTIONS.forEach(sec => {
+  Object.values(SECTIONS_MAP).forEach(sec => {
     const slots = state.slots[dayIdx]?.[sec.id] || [];
     const card = document.createElement('div');
     card.className = 'section-card';
-    card.innerHTML = `
-      <div class="section-card-header">
-        <div style="width:10px;height:10px;border-radius:50%;background:${sec.color}"></div>
-        <div class="section-card-name">${sec.name}</div>
-        <div class="section-card-count">${slots.length} postes</div>
-        ${sec.hours ? `<div class="section-card-time">${sec.hours}</div>` : ''}
-      </div>
-      <div class="section-card-body" id="body_${sec.id}"></div>
-    `;
+    card.innerHTML = `<div class="section-card-header"><div style="width:10px;height:10px;border-radius:50%;background:${sec.color}"></div><div class="section-card-name">${sec.name}</div><div class="section-card-count">${slots.length} postes</div>${sec.hours ? `<div class="section-card-time">${sec.hours}</div>` : ''}</div><div class="section-card-body" id="body_${sec.id}"></div>`;
     content.appendChild(card);
     const body = card.querySelector(`#body_${sec.id}`);
 
@@ -491,13 +498,7 @@ function renderDayView() {
         const w = getWorker(workerId);
         const row = document.createElement('div');
         row.className = 'daily-row';
-        row.innerHTML = `
-            <div class="daily-qual" style="color:var(--accent)">${slot.label}</div>
-            ${w ? avatar(w, 28) : '<div class="staff-avatar" style="background:#333;color:#777">?</div>'}
-            <div class="daily-name">${w ? w.lastName + ' ' + w.firstName : 'Non affecté'}</div>
-            <div class="daily-matric">${w ? w.matricule : '—'}</div>
-            <div style="margin-left:auto;cursor:pointer;color:var(--red);font-size:0.7rem" onclick="removeFromSlot(${dayIdx},'${sec.id}','${slot.id}')">✕</div>
-        `;
+        row.innerHTML = `<div class="daily-qual" style="color:var(--accent)">${slot.label}</div>${w ? avatar(w, 28) : '<div class="staff-avatar" style="background:#333;color:#777">?</div></div><div class="daily-name">${w ? w.lastName + ' ' + w.firstName : 'Non affecté'}</div><div class="daily-matric">${w ? w.matricule : '—'}</div><div style="margin-left:auto;cursor:pointer;color:var(--red);font-size:0.7rem" onclick="removeFromSlot(${dayIdx},'${sec.id}','${slot.id}')">✕</div>`;
         body.appendChild(row);
     });
   });
@@ -507,27 +508,18 @@ function renderDayView() {
 async function refreshAbsencesMonth() {
     const startOfMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth(), 1);
     const endOfMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth() + 1, 0);
-
     document.getElementById('abs-month-label').textContent = startOfMonth.toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
-
     const data = await fetchStaffAndAbsences(fmtISO(startOfMonth), fmtISO(endOfMonth));
-
-    // On met à jour state.absences avec les données du mois
     const staffMap = new Map();
     data.forEach(w => {
         if(!staffMap.has(w.workerId)) {
-            staffMap.set(w.workerId, {
-                id: w.workerId, firstName: w.firstName, lastName: (w.lastName||'').toUpperCase(),
-                matricule: w.matricule, color: w.color || '#00d4aa'
-            });
+            staffMap.set(w.workerId, { id: w.workerId, firstName: w.firstName, lastName: (w.lastName||'').toUpperCase(), matricule: w.matricule, color: w.color || '#00d4aa' });
         }
         if(w.absenceCode) {
             if(!state.absences[w.workerId]) state.absences[w.workerId] = {};
             state.absences[w.workerId][w.date] = w.absenceCode;
         }
     });
-
-    // Mise à jour de la liste du personnel (si nouveaux arrivants)
     state.staff = Array.from(staffMap.values());
     renderAbsences();
     renderStaffList(document.getElementById('staff-search').value);
@@ -537,14 +529,12 @@ function renderAbsences() {
     const container = document.getElementById('absences-container');
     const startOfMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth(), 1);
     const daysInMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth() + 1, 0).getDate();
-
     let html = `<table class="abs-table"><thead><tr><th style="position:sticky; left:0; background:var(--surface2); z-index:1">Personnel</th>`;
     for(let i=1; i<=daysInMonth; i++) {
         const d = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), i);
         html += `<th>${i}<br>${d.toLocaleDateString('fr-FR',{weekday:'short'}).substring(0,3)}</th>`;
     }
     html += `</tr></thead><tbody>`;
-
     state.staff.forEach(w => {
         html += `<tr><td style="position:sticky; left:0; background:var(--surface); border-right:1px solid var(--border2)">${w.lastName} ${w.firstName}</td>`;
         for(let i=1; i<=daysInMonth; i++) {
@@ -554,12 +544,11 @@ function renderAbsences() {
         }
         html += `</tr>`;
     });
-
     html += `</tbody></table>`;
     container.innerHTML = html;
 }
 
-// ── CONFIG & EMAIL (Original logic restored) ──
+// ── CONFIG & EMAIL ──
 function showConfigModal() {
   showModal(`
     <h2>⚙ Configuration</h2>
@@ -602,13 +591,12 @@ function buildWeekEmail() {
     html += `<th style="padding:8px;border:1px solid #ccc">${name}<br>${fmtFR(d)}</th>`;
   });
   html += '</tr>';
-
   const maxRows = 20;
   for(let r=0; r<maxRows; r++) {
       html += '<tr>';
       for(let d=0; d<7; d++) {
           let cell = '';
-          SECTIONS.forEach(sec => {
+          Object.values(SECTIONS_MAP).forEach(sec => {
               const slots = state.slots[d]?.[sec.id] || [];
               if(slots[r]) {
                   const wId = state.planning[`${d}_${sec.id}_${slots[r].id}`];
@@ -644,9 +632,7 @@ function showEmailWeekModal() {
 window.sendEmail = function(type) {
     const to = document.getElementById('mail-to').value;
     const cc = document.getElementById('mail-cc').value;
-    const subject = `Planning Semaine`;
-    const body = "Veuillez consulter le planning joint.";
-    window.open(`mailto:${to}?cc=${cc}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+    window.open(`mailto:${to}?cc=${cc}&subject=${encodeURIComponent('Planning Semaine')}&body=${encodeURIComponent('Veuillez consulter le planning joint.')}`);
     closeModal();
 };
 
@@ -659,14 +645,16 @@ window.closeModal = closeModal;
 
 // ── INIT & UPDATE ──
 async function initApp() {
-    // 1. Charger le personnel et les absences du mois en cours
     state.absMonth = new Date();
     await refreshAbsencesMonth();
+    await refreshPlanningData();
+    render();
+}
 
-    // 2. Initialiser les slots
-    initSlots();
-
-    // 3. Rendre l'interface
+async function refreshPlanningData() {
+    const dateStart = fmtISO(state.weekStart);
+    const dateEnd = fmtISO(addDays(state.weekStart, 6));
+    await buildDynamicSlots();
     render();
 }
 
@@ -690,14 +678,13 @@ function render() {
   }
 }
 
-// Event bindings
-document.getElementById('prev-week').addEventListener('click', () => {
+document.getElementById('prev-week').addEventListener('click', async () => {
   state.weekStart = addDays(state.weekStart, -7);
-  render();
+  await refreshPlanningData();
 });
-document.getElementById('next-week').addEventListener('click', () => {
+document.getElementById('next-week').addEventListener('click', async () => {
   state.weekStart = addDays(state.weekStart, 7);
-  render();
+  await refreshPlanningData();
 });
 document.querySelectorAll('.view-tab').forEach(tab => {
   tab.addEventListener('click', () => {
@@ -713,14 +700,13 @@ document.getElementById('btn-settings').addEventListener('click', showConfigModa
 document.getElementById('btn-email-week').addEventListener('click', showEmailWeekModal);
 document.getElementById('staff-search').addEventListener('input', e => renderStaffList(e.target.value));
 
-// Nav absences
-document.getElementById('abs-prev').addEventListener('click', () => {
+document.getElementById('abs-prev').addEventListener('click', async () => {
     state.absMonth.setMonth(state.absMonth.getMonth() - 1);
-    refreshAbsencesMonth();
+    await refreshAbsencesMonth();
 });
-document.getElementById('abs-next').addEventListener('click', () => {
+document.getElementById('abs-next').addEventListener('click', async () => {
     state.absMonth.setMonth(state.absMonth.getMonth() + 1);
-    refreshAbsencesMonth();
+    await refreshAbsencesMonth();
 });
 
 loadState();
