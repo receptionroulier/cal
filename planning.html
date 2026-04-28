@@ -193,6 +193,7 @@ main { display: flex; flex: 1; min-height: 0; }
       <div class="view-tab" data-view="absences">Absences</div>
     </div>
     <div class="header-actions">
+      <span id="sync-status" style="display:flex;align-items:center;padding:0 6px;"></span>
       <button class="btn btn-ghost" id="btn-email-week">✉ Mail Hebdo</button>
     </div>
   </header>
@@ -411,14 +412,83 @@ function loadState() {
   } catch(e) { console.error('[loadState]', e); state.colWidths = Array(7).fill(null); }
 }
 function saveState() {
+  // Sauvegarde locale immédiate
   try {
     localStorage.setItem('planningRoulier_v20', JSON.stringify({
-      planning: state.planning,
-      slots: state.slots,
-      config: state.config,
+      planning: state.planning, slots: state.slots, config: state.config,
     }));
-    console.log('[saveState] Affectations sauvegardées', Object.keys(state.planning).length, 'entrées');
-  } catch(e) { console.error('[saveState]', e); }
+  } catch(e) {}
+  // Sauvegarde distante (cross-PC) en arrière-plan
+  savePlanningRemote();
+}
+
+let _saveTimer = null;
+function savePlanningRemote() {
+  // Debounce : attendre 800ms après la dernière modif avant d'envoyer
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(async () => {
+    try {
+      const payload = { type: 'savePlanning', planning: state.planning, config: state.config };
+      const r = await fetch(PLAN_PROXY, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await r.json();
+      if (data.ok) {
+        showSyncStatus('saved');
+      } else {
+        console.warn('[saveRemote] Erreur:', data);
+        showSyncStatus('error');
+      }
+    } catch(e) {
+      console.warn('[saveRemote] Hors-ligne, sauvegarde locale uniquement');
+      showSyncStatus('offline');
+    }
+  }, 800);
+}
+
+async function loadPlanningRemote() {
+  try {
+    const r = await fetch(PLAN_PROXY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'loadPlanning' })
+    });
+    const data = await r.json();
+    if (data.ok && data.planning) {
+      // Fusionner : le distant prime sur le local
+      state.planning = { ...state.planning, ...data.planning };
+      if (data.config) state.config = { ...state.config, ...data.config };
+      // Mettre à jour le local
+      try {
+        localStorage.setItem('planningRoulier_v20', JSON.stringify({
+          planning: state.planning, slots: state.slots, config: state.config,
+        }));
+      } catch(e) {}
+      showSyncStatus('loaded');
+      console.log('[loadRemote] Affectations chargées depuis le serveur:', Object.keys(data.planning).length);
+    } else {
+      showSyncStatus('offline');
+    }
+  } catch(e) {
+    console.warn('[loadRemote] Impossible de charger depuis le serveur:', e);
+    showSyncStatus('offline');
+  }
+}
+
+function showSyncStatus(status) {
+  const el = document.getElementById('sync-status');
+  if (!el) return;
+  const map = {
+    saved: { icon: '☁️', text: 'Sauvegardé', color: 'var(--accent)' },
+    loaded: { icon: '☁️', text: 'Synchronisé', color: 'var(--accent)' },
+    offline: { icon: '💾', text: 'Local uniquement', color: 'var(--text3)' },
+    error: { icon: '⚠️', text: 'Erreur sync', color: 'var(--warn)' },
+    saving: { icon: '⏳', text: 'Sauvegarde…', color: 'var(--text2)' },
+  };
+  const s = map[status] || map.offline;
+  el.innerHTML = `<span style="color:${s.color};font-size:0.65rem;font-weight:700;">${s.icon} ${s.text}</span>`;
 }
 
 // ── PARSE PERSONNEL DATA ──
@@ -594,11 +664,47 @@ function renderStaffList(filter='') {
 // Stocke les largeurs en px pour chaque colonne (7 jours)
 if (!state.colWidths) state.colWidths = Array(7).fill(null); // null = auto (1fr)
 
-function applyGridColumns() {
-  // null = max-content (auto selon le contenu) ; valeur px = fixée par l'utilisateur
-  const cols = state.colWidths.map(w => w ? w + 'px' : 'minmax(max-content, 1fr)').join(' ');
-  document.getElementById('days-header').style.gridTemplateColumns = cols;
-  document.getElementById('week-grid').style.gridTemplateColumns = cols;
+function applyGridColumns(autoFit = false) {
+  const header = document.getElementById('days-header');
+  const grid = document.getElementById('week-grid');
+  if (!header || !grid) return;
+
+  if (autoFit) {
+    // Passe 1 : grille libre pour mesurer le contenu naturel
+    const freeCols = state.colWidths.map(() => 'max-content').join(' ');
+    header.style.gridTemplateColumns = freeCols;
+    grid.style.gridTemplateColumns = freeCols;
+
+    // Passe 2 : après rendu, lire la largeur réelle de chaque cellule header
+    requestAnimationFrame(() => {
+      const cells = header.querySelectorAll('.day-header-cell');
+      const measured = Array.from(cells).map(c => Math.ceil(c.getBoundingClientRect().width));
+
+      // Pour chaque colonne sans largeur manuelle, prendre le max(header, grid col)
+      const gridCols = grid.querySelectorAll('.day-col');
+      gridCols.forEach((col, i) => {
+        if (state.colWidths[i] == null) {
+          const gw = Math.ceil(col.getBoundingClientRect().width);
+          measured[i] = Math.max(measured[i] || 0, gw);
+        }
+      });
+
+      // Appliquer les largeurs mesurées (sauf colonnes à largeur manuelle)
+      const finalCols = state.colWidths.map((w, i) => w ? w + 'px' : (measured[i] || 120) + 'px').join(' ');
+      header.style.gridTemplateColumns = finalCols;
+      grid.style.gridTemplateColumns = finalCols;
+    });
+  } else {
+    // Colonnes manuelles uniquement — les colonnes auto restent à leur dernière valeur mesurée
+    const cols = state.colWidths.map((w, i) => {
+      if (w) return w + 'px';
+      // Lire la largeur actuelle de la cellule header pour conserver la mesure
+      const cell = header.querySelectorAll('.day-header-cell')[i];
+      return cell ? Math.ceil(cell.getBoundingClientRect().width) + 'px' : '120px';
+    }).join(' ');
+    header.style.gridTemplateColumns = cols;
+    grid.style.gridTemplateColumns = cols;
+  }
 }
 
 function renderWeekHeader() {
@@ -670,15 +776,14 @@ function renderWeekHeader() {
     header.appendChild(cell);
   });
 
-  applyGridColumns();
+  applyGridColumns(true);
 }
 
 function renderWeekGrid() {
   const grid = document.getElementById('week-grid');
   grid.innerHTML = '';
   const today = new Date(); today.setHours(0,0,0,0);
-  // Appliquer les largeurs synchronisées header/grid
-  setTimeout(() => applyGridColumns(), 0);
+  // applyGridColumns(true) est appelé dans renderWeekHeader qui est toujours appelé avant
 
   DAYS.forEach((_, dayIdx) => {
     const col = document.createElement('div');
@@ -773,25 +878,38 @@ function duplicateDayToNext(dayIdx) {
     const srcSlots = daySlots[secId] || [];
     const dstSlots = nextDaySlots[secId] || [];
 
+    // File de slots disponibles au lendemain, groupés par signature (jobCode+posteCode)
+    // On consomme chaque slot destination au fur et à mesure pour gérer les doublons (ex: 3x PN)
+    const dstAvailable = {};
+    dstSlots.forEach(dstSlot => {
+      const sig = `${dstSlot.jobCode}__${dstSlot.posteCode}`;
+      if (!dstAvailable[sig]) dstAvailable[sig] = [];
+      dstAvailable[sig].push(dstSlot);
+    });
+    // Retirer de la file les slots déjà affectés au lendemain
+    dstSlots.forEach(dstSlot => {
+      const dstKey = `${nextIdx}_${secId}_${dstSlot.id}`;
+      if (state.planning[dstKey]) {
+        const sig = `${dstSlot.jobCode}__${dstSlot.posteCode}`;
+        const idx = (dstAvailable[sig] || []).findIndex(s => s.id === dstSlot.id);
+        if (idx !== -1) dstAvailable[sig].splice(idx, 1);
+      }
+    });
+
     srcSlots.forEach(srcSlot => {
       const srcKey = `${dayIdx}_${secId}_${srcSlot.id}`;
       const workerId = state.planning[srcKey];
       if (!workerId) return;
 
-      // Chercher dans le lendemain un slot du même chantier (même jobCode ET même posteCode)
-      // On ne copie QUE si ce slot identique existe au lendemain
-      const matchingDstSlot = dstSlots.find(dstSlot =>
-        dstSlot.jobCode === srcSlot.jobCode &&
-        dstSlot.posteCode === srcSlot.posteCode
-      );
-      if (!matchingDstSlot) return;
+      const sig = `${srcSlot.jobCode}__${srcSlot.posteCode}`;
+      const available = dstAvailable[sig];
+      if (!available || available.length === 0) return;
 
+      // Prendre le premier slot disponible et le consommer de la file
+      const matchingDstSlot = available.shift();
       const dstKey = `${nextIdx}_${secId}_${matchingDstSlot.id}`;
-      // Ne pas écraser une affectation déjà existante
-      if (!state.planning[dstKey]) {
-        state.planning[dstKey] = workerId;
-        count++;
-      }
+      state.planning[dstKey] = workerId;
+      count++;
     });
   });
 
@@ -946,6 +1064,8 @@ async function initApp() {
     state.absMonth = new Date();
     await fetchHolidays();
     await loadAllData();
+    // Charger les affectations depuis le serveur (écrase le local si plus récent)
+    await loadPlanningRemote();
     render();
 }
 
