@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Planning Réception Roulier</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<!-- Bibliothèques PDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
 <style>
 :root {
   --bg: #0a0e14; --surface: #111722; --surface2: #1a2130;
@@ -25,6 +29,7 @@ header {
   padding: 12px 20px; background: var(--surface);
   border-bottom: 1px solid var(--border2); flex-shrink: 0;
 }
+.header-left-action { display: flex; align-items: center; }
 .logo { font-size: 1.1rem; font-weight: 800; color: var(--accent); white-space: nowrap; }
 .logo span { color: var(--text2); font-weight: 400; }
 .week-nav { display: flex; align-items: center; gap: 8px; margin: 0 auto; }
@@ -64,8 +69,10 @@ main { display: flex; flex: 1; min-height: 0; }
 
 #view-week { display: flex; flex-direction: column; height: 100%; }
 .days-header { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; padding: 8px 10px 4px; }
-.day-header-cell { text-align: center; padding: 6px 4px; border-radius: 7px; font-size: 0.72rem; font-weight: 700; background: var(--surface); border: 1px solid var(--border); cursor: pointer; }
+.day-header-cell { text-align: center; padding: 6px 4px; border-radius: 7px; font-size: 0.72rem; font-weight: 700; background: var(--surface); border: 1px solid var(--border); cursor: pointer; position: relative; }
 .day-header-cell.today { border-color: var(--accent); color: var(--accent); }
+.day-mail-btn { position: absolute; right: 5px; top: 5px; font-size: 0.7rem; cursor: pointer; opacity: 0.6; transition: 0.2s; }
+.day-mail-btn:hover { opacity: 1; color: var(--accent); }
 
 .week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; padding: 4px 10px 10px; flex: 1; overflow-y: auto; align-content: start; }
 .day-col { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 6px; display: flex; flex-direction: column; gap: 5px; }
@@ -87,20 +94,6 @@ main { display: flex; flex: 1; min-height: 0; }
 .drop-zone.active { border-color: var(--accent); background: rgba(0,212,170,0.04); }
 .btn-add-slot { font-size: 0.55rem; border: 1px dashed var(--border); color: var(--text3); text-align: center; padding: 2px; cursor: pointer; border-radius: 4px; margin-bottom: 8px; }
 
-#view-day { display: flex; flex-direction: column; height: 100%; }
-.day-selector { display: flex; gap: 4px; padding: 8px 10px 4px; }
-.day-tab { padding: 5px 12px; border-radius: 7px; font-size: 0.73rem; font-weight: 700; cursor: pointer; background: var(--surface); border: 1px solid var(--border); color: var(--text2); }
-.day-tab.active { background: var(--blue); color: #fff; }
-.day-content { flex: 1; overflow-y: auto; padding: 6px 10px 10px; display: flex; flex-direction: column; gap: 10px; }
-.section-card { background: var(--surface); border: 1px solid var(--border2); border-radius: 12px; overflow: hidden; }
-.section-card-header { padding: 10px 14px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); }
-.section-card-name { font-size: 0.82rem; font-weight: 700; }
-.section-card-body { padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; }
-.daily-row { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 8px; background: var(--surface2); border: 1px solid var(--border); }
-.daily-qual { font-size: 0.68rem; font-weight: 700; width: 38px; color: var(--accent); }
-.daily-name { font-size: 0.82rem; font-weight: 600; flex: 1; }
-.daily-matric { font-size: 0.65rem; color: var(--text3); font-family: 'DM Mono', monospace; }
-
 #view-absences { display: none; flex: 1; padding: 20px; overflow-y: auto; }
 .abs-table { width: 100%; border-collapse: collapse; font-size: 0.65rem; background: var(--surface); }
 .abs-table th, .abs-table td { border: 1px solid var(--border2); padding: 4px; text-align: center; }
@@ -117,7 +110,6 @@ main { display: flex; flex: 1; min-height: 0; }
 .modal-btn-cancel { background: var(--surface2); color: var(--text2); }
 .modal-btn-ok { background: var(--accent); color: #000; }
 
-.email-preview { background: #fff; color: #000; border-radius: 8px; padding: 16px; font-family: Arial, sans-serif; font-size: 12px; max-height: 400px; overflow-y: auto; margin-top: 12px; border: 1px solid var(--border2); }
 #toast { position: fixed; bottom: 20px; right: 20px; background: var(--accent); color: #000; padding: 10px 18px; border-radius: 8px; font-size: 0.78rem; font-weight: 700; transform: translateY(60px); opacity: 0; transition: all .25s; z-index: 2000; }
 #toast.show { transform: translateY(0); opacity: 1; }
 </style>
@@ -125,6 +117,9 @@ main { display: flex; flex: 1; min-height: 0; }
 <body>
 <div id="app">
   <header>
+    <div class="header-left-action">
+        <button class="btn btn-ghost" id="btn-settings" style="padding: 6px; border-radius: 50%;">⚙️</button>
+    </div>
     <div class="logo">RÉCEPTION<span> ROULIER</span></div>
     <div class="week-nav">
       <button id="prev-week">‹</button>
@@ -132,14 +127,11 @@ main { display: flex; flex: 1; min-height: 0; }
       <button id="next-week">›</button>
     </div>
     <div class="view-tabs">
-      <div class="view-tab active" data-view="week">Hebdo</div>
-      <div class="view-tab" data-view="day">Journalier</div>
+      <div class="view-tab active" data-view="week">Planning</div>
       <div class="view-tab" data-view="absences">Absences</div>
     </div>
     <div class="header-actions">
-      <button class="btn btn-ghost" id="btn-settings">⚙ Config</button>
-      <button class="btn btn-ghost" id="btn-email-week">✉ Semaine</button>
-      <button class="btn btn-day" id="btn-email-day">✉ Journée</button>
+      <button class="btn btn-ghost" id="btn-email-week">✉ Mail Hebdo</button>
     </div>
   </header>
 
@@ -153,10 +145,6 @@ main { display: flex; flex: 1; min-height: 0; }
       <div id="view-week">
         <div class="days-header" id="days-header"></div>
         <div class="week-grid" id="week-grid"></div>
-      </div>
-      <div id="view-day" style="display:none">
-        <div class="day-selector" id="day-selector"></div>
-        <div class="day-content" id="day-content"></div>
       </div>
       <div id="view-absences" style="display:none">
           <div class="panel-title" style="padding: 20px; display:flex; justify-content:space-between; align-items:center">
@@ -179,7 +167,9 @@ main { display: flex; flex: 1; min-height: 0; }
 <div id="toast"></div>
 
 <script>
-const PROXY_URL = "https://planning-proxy.receptionroulier.workers.dev";
+// --- CONFIGURATION PROXIES ---
+const NAV_PROXY = "https://shgt-proxy.receptionroulier.workers.dev";
+const PLAN_PROXY = "https://planning-proxy.receptionroulier.workers.dev";
 
 const SECTIONS_MAP = {
   '0817': { id: 'prepа', name: 'FCQ/CC/Montage/Prépa', hours: '8h30 / 12h00  14h00 / 17h30', color: '#a78bfa' },
@@ -195,15 +185,12 @@ let state = {
   weekStart: getMonday(new Date()),
   absMonth: new Date(),
   view: 'week',
-  activeDay: 0,
   planning: {},
   slots: {},
   absences: {},
   config: {
     emailWeek: 'chefmanutention.tmt@shgt.fr',
     emailCcWeek: 'smaillard@smr-france.com',
-    emailDay: 'chefmanutention.tmt@shgt.fr',
-    emailCcDay: 'smaillard@smr-france.com',
     emailSenderName: 'Planning Réception',
   },
   staff: [],
@@ -213,25 +200,23 @@ let state = {
 // ── API ──
 async function fetchStaffAndAbsences(dateFrom, dateTo) {
     try {
-        const response = await fetch(PROXY_URL, {
+        const response = await fetch(PLAN_PROXY, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ dateFrom, dateTo, pageNumber: 0, pageSize: 200 })
         });
-        if (!response.ok) throw new Error('Proxy Error');
         const data = await response.json();
         return (data.items || []);
-    } catch(e) { console.error("API Error:", e); return []; }
+    } catch(e) { console.error("API Personnel Error:", e); return []; }
 }
 
 async function fetchNavireAssignments(dateFrom, dateTo) {
     try {
-        const response = await fetch(PROXY_URL, {
+        const response = await fetch(NAV_PROXY, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ dateFrom, dateTo })
         });
-        if (!response.ok) throw new Error('Proxy Error');
         return await response.json();
     } catch(e) { console.error("API Navire Error:", e); return []; }
 }
@@ -266,7 +251,7 @@ function toast(msg) {
 // ── STATE MANAGEMENT ──
 function loadState() {
   try {
-    const s = localStorage.getItem('planningRoulier_v8');
+    const s = localStorage.getItem('planningRoulier_v9');
     if (s) {
       const saved = JSON.parse(s);
       state.planning = saved.planning || {};
@@ -277,7 +262,7 @@ function loadState() {
 }
 function saveState() {
   try {
-    localStorage.setItem('planningRoulier_v8', JSON.stringify({
+    localStorage.setItem('planningRoulier_v9', JSON.stringify({
       planning: state.planning,
       slots: state.slots,
       config: state.config,
@@ -285,13 +270,12 @@ function saveState() {
   } catch(e) {}
 }
 
-// ── DYNAMIQUE SLOTS (Secteur Parc) ──
+// ── DYNAMIQUE SLOTS (API Navires) ──
 async function buildDynamicSlots() {
     const dateStart = fmtISO(state.weekStart);
     const dateEnd = fmtISO(addDays(state.weekStart, 6));
     const naviresData = await fetchNavireAssignments(dateStart, dateEnd);
 
-    // On vide les slots pour la semaine actuelle
     for(let i=0; i<7; i++) { state.slots[i] = {}; }
 
     naviresData.forEach(dayData => {
@@ -351,11 +335,9 @@ function renderWeekHeader() {
   DAYS.forEach((name, i) => {
     const d = addDays(state.weekStart, i);
     const isToday = d.getTime() === today.getTime();
-    const isWE = i >= 5;
     const cell = document.createElement('div');
-    cell.className = `day-header-cell${isToday?' today':''}${isWE?' weekend':''}`;
-    cell.innerHTML = `<div class="day-name">${name}</div><div class="day-num">${fmtFR(d)}</div>`;
-    cell.addEventListener('click', () => switchToDay(i));
+    cell.className = `day-header-cell${isToday?' today':''}`;
+    cell.innerHTML = `<div class="day-name">${name}</div><div class="day-num">${fmtFR(d)}</div><div class="day-mail-btn" onclick="event.stopPropagation(); sendDailyMail(${i})">✉️</div>`;
     header.appendChild(cell);
   });
 }
@@ -364,14 +346,11 @@ function renderWeekGrid() {
   const grid = document.getElementById('week-grid');
   grid.innerHTML = '';
   DAYS.forEach((_, dayIdx) => {
-    const isWE = dayIdx >= 5;
     const col = document.createElement('div');
-    col.className = `day-col${isWE?' weekend':''}`;
+    col.className = 'day-col';
 
     const daySlots = state.slots[dayIdx] || {};
-    const hasSlots = Object.keys(daySlots).length > 0;
-
-    if (!hasSlots) {
+    if (Object.keys(daySlots).length === 0) {
       col.innerHTML = `<div style="font-size:0.6rem; color:var(--text3); text-align:center; margin-top:20px">Aucune activité Parc</div>`;
     } else {
         Object.values(SECTIONS_MAP).forEach(sec => {
@@ -415,20 +394,7 @@ function renderWeekGrid() {
                 });
                 col.appendChild(slotDiv);
             });
-
-            const addBtn = document.createElement('div');
-            addBtn.className = 'btn-add-slot';
-            addBtn.textContent = '+ Ajouter un poste';
-            addBtn.onclick = () => {
-                const label = prompt("Nom du poste (ex: PN, CI, etc.)");
-                if(label) {
-                    if(!state.slots[dayIdx][sec.id]) state.slots[dayIdx][sec.id] = [];
-                    state.slots[dayIdx][sec.id].push({id: 's'+Date.now(), label});
-                    saveState(); renderWeekGrid();
-                }
-            };
-            col.appendChild(addBtn);
-        });
+        }
     }
     grid.appendChild(col);
   });
@@ -443,13 +409,13 @@ function addToSlot(dayIdx, secId, slotId, workerId) {
     if (!confirm(`⚠️ ${worker.firstName} ${worker.lastName} est absent (${absCode}) le ${dateISO}. Forcer l'affectation ?`)) return;
   }
   state.planning[`${dayIdx}_${secId}_${slotId}`] = workerId;
-  saveState(); renderWeekGrid(); renderDayView();
+  saveState(); renderWeekGrid();
   toast('Affecté ✓');
 }
 
 function removeFromSlot(dayIdx, secId, slotId) {
     delete state.planning[`${dayIdx}_${secId}_${slotId}`];
-    saveState(); renderWeekGrid(); renderDayView();
+    saveState(); renderWeekGrid();
 }
 
 function removeSlot(dayIdx, secId, slotIdx) {
@@ -457,51 +423,6 @@ function removeSlot(dayIdx, secId, slotIdx) {
     delete state.planning[`${dayIdx}_${secId}_${slot.id}`];
     state.slots[dayIdx][secId].splice(slotIdx, 1);
     saveState(); renderWeekGrid();
-}
-
-// ── DAILY VIEW ──
-function switchToDay(dayIdx) {
-  state.view = 'day';
-  state.activeDay = dayIdx;
-  document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t.dataset.view === 'day'));
-  document.getElementById('view-week').style.display = 'none';
-  document.getElementById('view-day').style.display = 'flex';
-  document.getElementById('view-absences').style.display = 'none';
-  renderDayView();
-}
-
-function renderDayView() {
-  const sel = document.getElementById('day-selector');
-  sel.innerHTML = '';
-  DAYS.forEach((name, i) => {
-    const tab = document.createElement('div');
-    tab.className = 'day-tab' + (i === state.activeDay ? ' active' : '');
-    tab.textContent = DAY_SHORT[i];
-    tab.addEventListener('click', () => { state.activeDay = i; renderDayView(); });
-    sel.appendChild(tab);
-  });
-
-  const dayIdx = state.activeDay;
-  const content = document.getElementById('day-content');
-  content.innerHTML = '';
-
-  Object.values(SECTIONS_MAP).forEach(sec => {
-    const slots = state.slots[dayIdx]?.[sec.id] || [];
-    const card = document.createElement('div');
-    card.className = 'section-card';
-    card.innerHTML = `<div class="section-card-header"><div style="width:10px;height:10px;border-radius:50%;background:${sec.color}"></div><div class="section-card-name">${sec.name}</div><div class="section-card-count">${slots.length} postes</div>${sec.hours ? `<div class="section-card-time">${sec.hours}</div>` : ''}</div><div class="section-card-body" id="body_${sec.id}"></div>`;
-    content.appendChild(card);
-    const body = card.querySelector(`#body_${sec.id}`);
-
-    slots.forEach(slot => {
-        const workerId = state.planning[`${dayIdx}_${sec.id}_${slot.id}`];
-        const w = getWorker(workerId);
-        const row = document.createElement('div');
-        row.className = 'daily-row';
-        row.innerHTML = `<div class="daily-qual" style="color:var(--accent)">${slot.label}</div>${w ? avatar(w, 28) : '<div class="staff-avatar" style="background:#333;color:#777">?</div></div><div class="daily-name">${w ? w.lastName + ' ' + w.firstName : 'Non affecté'}</div><div class="daily-matric">${w ? w.matricule : '—'}</div><div style="margin-left:auto;cursor:pointer;color:var(--red);font-size:0.7rem" onclick="removeFromSlot(${dayIdx},'${sec.id}','${slot.id}')">✕</div>`;
-        body.appendChild(row);
-    });
-  });
 }
 
 // ── ABSENCES VIEW (MENSUEL) ──
@@ -548,20 +469,94 @@ function renderAbsences() {
     container.innerHTML = html;
 }
 
-// ── CONFIG & EMAIL ──
+// ── PDF & EMAILS ──
+async function generatePDF(dayIdx = null) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const wn = getWeekNum(state.weekStart);
+    const dFrom = fmtFR(state.weekStart);
+    const dTo = fmtFR(addDays(state.weekStart, 6));
+
+    let title = "";
+    let fileName = "";
+    let rows = [];
+
+    if (dayIdx === null) { // HEBDO
+        title = `Effectif Parc Roulier - Semaine ${wn} (${dFrom} au ${dTo})`;
+        fileName = `Planning_Réception_Semaine${wn}_du_${dFrom}_au_${dTo}.pdf`;
+
+        for(let i=0; i<7; i++) {
+            const d = addDays(state.weekStart, i);
+            rows.push([`${DAYS[i]} ${fmtFR(d)}`, '']);
+            Object.values(SECTIONS_MAP).forEach(sec => {
+                const slots = state.slots[i]?.[sec.id] || [];
+                slots.forEach(s => {
+                    const wId = state.planning[`${i}_${sec.id}_${s.id}`];
+                    const w = getWorker(wId);
+                    rows.push([`  ${sec.name} (${s.label})`, w ? `${w.lastName} ${w.firstName}` : 'Non affecté']);
+                });
+            });
+            rows.push([]);
+        }
+    } else { // JOUR
+        const d = addDays(state.weekStart, dayIdx);
+        const dateStr = d.toLocaleDateString('fr-FR', {day:'2-digit', month:'long', year:'numeric'});
+        title = `Effectif Parc Roulier - ${DAYS[dayIdx]} ${dateStr}`;
+        fileName = `Planning_Réception_du_${dateStr.replace(/ /g,'_')}.pdf`;
+
+        Object.values(SECTIONS_MAP).forEach(sec => {
+            const slots = state.slots[dayIdx]?.[sec.id] || [];
+            rows.push([sec.name, '']);
+            slots.forEach(s => {
+                const wId = state.planning[`${dayIdx}_${sec.id}_${s.id}`];
+                const w = getWorker(wId);
+                rows.push([`  ${s.label}`, w ? `${w.lastName} ${w.firstName}` : 'Non affecté']);
+            });
+        });
+    }
+
+    doc.text(title, 14, 15);
+    doc.autoTable({
+        startY: 20,
+        head: [['Poste / Section', 'Personnel']],
+        body: rows,
+        theme: 'grid',
+        styles: { fontSize: 9 }
+    });
+
+    doc.save(fileName);
+    return fileName;
+}
+
+async function sendDailyMail(dayIdx) {
+    const d = addDays(state.weekStart, dayIdx);
+    const dateStr = d.toLocaleDateString('fr-FR', {weekday:'long', day:'2-digit', month:'long', year:'numeric'});
+    const fileName = await generatePDF(dayIdx);
+
+    const body = `Bonjour,\n\nCi-joint l'effectif Parc Roulier Réception et Prépa-Navire pour le ${dateStr}.`;
+    const subject = `Planning Réception du ${fmtFR(d)}`;
+    window.open(`mailto:${state.config.emailDay || state.config.emailWeek}?cc=${state.config.emailCcDay || state.config.emailCcWeek}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+}
+
+async function sendWeeklyMail() {
+    const wn = getWeekNum(state.weekStart);
+    const dFrom = fmtFR(state.weekStart);
+    const dTo = fmtFR(addDays(state.weekStart, 6));
+    const fileName = await generatePDF();
+
+    const body = `Bonjour,\n\nCi-joint l'effectif Parc Roulier Réception et Prépa-Navire pour la Semaine ${wn} du ${dFrom} au ${dTo}.`;
+    const subject = `Planning Hebdo Semaine ${wn}`;
+    window.open(`mailto:${state.config.emailWeek}?cc=${state.config.emailCcWeek}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+}
+
+// ──L'AUTRE MODALS & CONFIG──
 function showConfigModal() {
   showModal(`
     <h2>⚙ Configuration</h2>
-    <div class="modal-label">Email destinataires (Planning Semaine)</div>
+    <div class="modal-label">Email destinataires (Hebdo)</div>
     <input class="modal-input" id="cfg-email-week" value="${state.config.emailWeek}">
-    <div class="modal-label">Copie (CC) Semaine</div>
+    <div class="modal-label">Copie (CC) Hebdo</div>
     <input class="modal-input" id="cfg-cc-week" value="${state.config.emailCcWeek}">
-    <div class="modal-label">Email destinataires (Planning Journalier)</div>
-    <input class="modal-input" id="cfg-email-day" value="${state.config.emailDay}">
-    <div class="modal-label">Copie (CC) Journalier</div>
-    <input class="modal-input" id="cfg-cc-day" value="${state.config.emailCcDay}">
-    <div class="modal-label">Nom expéditeur</div>
-    <input class="modal-input" id="cfg-sender" value="${state.config.emailSenderName}">
     <div class="modal-actions">
       <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Annuler</button>
       <button class="modal-btn modal-btn-ok" onclick="saveConfig()">Enregistrer</button>
@@ -571,69 +566,7 @@ function showConfigModal() {
 window.saveConfig = function() {
   state.config.emailWeek = document.getElementById('cfg-email-week').value;
   state.config.emailCcWeek = document.getElementById('cfg-cc-week').value;
-  state.config.emailDay = document.getElementById('cfg-email-day').value;
-  state.config.emailCcDay = document.getElementById('cfg-cc-day').value;
-  state.config.emailSenderName = document.getElementById('cfg-sender').value;
   saveState(); closeModal(); toast('Configuration sauvegardée');
-};
-
-function buildWeekEmail() {
-  const wn = getWeekNum(state.weekStart);
-  const dFrom = fmtFR(state.weekStart);
-  const dTo = fmtFR(addDays(state.weekStart, 6));
-  let html = `<div style="font-family:Arial,sans-serif;font-size:12px;color:#000">
-    <h2 style="color:#1a3a5c;font-size:16px;margin-bottom:4px">Effectif Parc Roulier — Semaine N° ${wn}</h2>
-    <p style="color:#666;margin-bottom:16px">Du ${dFrom} au ${dTo}</p>
-    <table border="0" cellpadding="4" cellspacing="0" style="border-collapse:collapse;width:100%">
-      <tr style="background:#1a3a5c;color:#fff">`;
-  DAYS.forEach((name, i) => {
-    const d = addDays(state.weekStart, i);
-    html += `<th style="padding:8px;border:1px solid #ccc">${name}<br>${fmtFR(d)}</th>`;
-  });
-  html += '</tr>';
-  const maxRows = 20;
-  for(let r=0; r<maxRows; r++) {
-      html += '<tr>';
-      for(let d=0; d<7; d++) {
-          let cell = '';
-          Object.values(SECTIONS_MAP).forEach(sec => {
-              const slots = state.slots[d]?.[sec.id] || [];
-              if(slots[r]) {
-                  const wId = state.planning[`${d}_${sec.id}_${slots[r].id}`];
-                  const w = getWorker(wId);
-                  cell = `<div style="font-size:10px;border-bottom:1px solid #eee"><b>${slots[r].label}</b>: ${w ? w.lastName : '—'}</div>`;
-              }
-          });
-          html += `<td style="border:1px solid #eee;padding:4px">${cell}</td>`;
-      }
-      html += '</tr>';
-  }
-  html += '</table></div>';
-  return { html, subject: `Planning Semaine ${wn} — Réception Roulier` };
-}
-
-function showEmailWeekModal() {
-  const { html, subject } = buildWeekEmail();
-  showModal(`
-    <h2>✉ Envoi Planning Semaine</h2>
-    <div class="modal-label">À</div>
-    <input class="modal-input" id="mail-to" value="${state.config.emailWeek}">
-    <div class="modal-label">CC</div>
-    <input class="modal-input" id="mail-cc" value="${state.config.emailCcWeek}">
-    <div class="modal-label">Aperçu</div>
-    <div class="email-preview">${html}</div>
-    <div class="modal-actions">
-      <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Annuler</button>
-      <button class="modal-btn modal-btn-send" onclick="sendEmail('week')">Ouvrir messagerie</button>
-    </div>
-  `);
-}
-
-window.sendEmail = function(type) {
-    const to = document.getElementById('mail-to').value;
-    const cc = document.getElementById('mail-cc').value;
-    window.open(`mailto:${to}?cc=${cc}&subject=${encodeURIComponent('Planning Semaine')}&body=${encodeURIComponent('Veuillez consulter le planning joint.')}`);
-    closeModal();
 };
 
 function showModal(content) {
@@ -671,8 +604,6 @@ function render() {
   if (state.view === 'week') {
     renderWeekHeader();
     renderWeekGrid();
-  } else if (state.view === 'day') {
-    renderDayView();
   } else if (state.view === 'absences') {
     renderAbsences();
   }
@@ -691,13 +622,12 @@ document.querySelectorAll('.view-tab').forEach(tab => {
     state.view = tab.dataset.view;
     document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t === tab));
     document.getElementById('view-week').style.display = state.view === 'week' ? 'flex' : 'none';
-    document.getElementById('view-day').style.display = state.view === 'day' ? 'flex' : 'none';
     document.getElementById('view-absences').style.display = state.view === 'absences' ? 'block' : 'none';
     render();
   });
 });
 document.getElementById('btn-settings').addEventListener('click', showConfigModal);
-document.getElementById('btn-email-week').addEventListener('click', showEmailWeekModal);
+document.getElementById('btn-email-week').addEventListener('click', sendWeeklyMail);
 document.getElementById('staff-search').addEventListener('input', e => renderStaffList(e.target.value));
 
 document.getElementById('abs-prev').addEventListener('click', async () => {
