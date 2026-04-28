@@ -31,6 +31,7 @@ header {
 .logo span { color: var(--text2); font-weight: 400; }
 .week-nav { display: flex; align-items: center; gap: 8px; margin: 0 auto; }
 .week-nav button { background: var(--surface2); border: 1px solid var(--border2); color: var(--text); width: 28px; height: 28px; border-radius: 6px; cursor: pointer; }
+#btn-today { width: auto; height: 28px; padding: 0 12px; font-size: 0.72rem; font-weight: 700; font-family: inherit; white-space: nowrap; }
 #week-label { font-size: 0.82rem; font-weight: 700; background: var(--surface2); padding: 5px 14px; border-radius: 20px; border: 1px solid var(--border2); }
 .header-actions { display: flex; gap: 8px; }
 .btn { padding: 7px 14px; border-radius: 7px; cursor: pointer; font-size: 0.75rem; font-weight: 700; border: none; transition: all .15s; white-space: nowrap; }
@@ -182,7 +183,7 @@ main { display: flex; flex: 1; min-height: 0; }
     </div>
     <div class="logo">RÉCEPTION<span> ROULIER</span></div>
     <div class="week-nav">
-      <button id="btn-today" style="font-size:0.65rem;font-weight:700;padding:0 10px;white-space:nowrap;font-family:inherit;">Aujourd'hui</button>
+      <button id="btn-today">Aujourd'hui</button>
       <button id="prev-week">‹</button>
       <div id="week-label">Chargement...</div>
       <button id="next-week">›</button>
@@ -595,7 +596,7 @@ if (!state.colWidths) state.colWidths = Array(7).fill(null); // null = auto (1fr
 
 function applyGridColumns() {
   // null = max-content (auto selon le contenu) ; valeur px = fixée par l'utilisateur
-  const cols = state.colWidths.map(w => w ? w + 'px' : '1fr').join(' ');
+  const cols = state.colWidths.map(w => w ? w + 'px' : 'minmax(max-content, 1fr)').join(' ');
   document.getElementById('days-header').style.gridTemplateColumns = cols;
   document.getElementById('week-grid').style.gridTemplateColumns = cols;
 }
@@ -760,29 +761,43 @@ function renderWeekGrid() {
 }
 
 function duplicateDayToNext(dayIdx) {
+  // Strictement jour+1 uniquement
   const nextIdx = dayIdx + 1;
   if (nextIdx > 6) return;
+
   const daySlots = state.slots[dayIdx] || {};
+  const nextDaySlots = state.slots[nextIdx] || {};
   let count = 0;
+
   SECTIONS_ORDER.forEach(secId => {
-    const slots = daySlots[secId] || [];
-    const nextSlots = (state.slots[nextIdx] || {})[secId] || [];
-    slots.forEach((slot, si) => {
-      const srcKey = `${dayIdx}_${secId}_${slot.id}`;
+    const srcSlots = daySlots[secId] || [];
+    const dstSlots = nextDaySlots[secId] || [];
+
+    srcSlots.forEach(srcSlot => {
+      const srcKey = `${dayIdx}_${secId}_${srcSlot.id}`;
       const workerId = state.planning[srcKey];
       if (!workerId) return;
-      // Trouver le slot correspondant dans le jour suivant (même index)
-      const targetSlot = nextSlots[si];
-      if (!targetSlot) return;
-      const dstKey = `${nextIdx}_${secId}_${targetSlot.id}`;
+
+      // Chercher dans le lendemain un slot du même chantier (même jobCode ET même posteCode)
+      // On ne copie QUE si ce slot identique existe au lendemain
+      const matchingDstSlot = dstSlots.find(dstSlot =>
+        dstSlot.jobCode === srcSlot.jobCode &&
+        dstSlot.posteCode === srcSlot.posteCode
+      );
+      if (!matchingDstSlot) return;
+
+      const dstKey = `${nextIdx}_${secId}_${matchingDstSlot.id}`;
+      // Ne pas écraser une affectation déjà existante
       if (!state.planning[dstKey]) {
         state.planning[dstKey] = workerId;
         count++;
       }
     });
   });
-  saveState(); renderWeekGrid();
-  toast(count > 0 ? `${count} affectation(s) dupliquée(s) →` : 'Rien à dupliquer');
+
+  saveState();
+  render();
+  toast(count > 0 ? `${count} affectation(s) dupliquée(s) vers demain ✓` : 'Aucun chantier identique trouvé demain');
 }
 
 function addToSlot(dayIdx, secId, slotId, workerId) {
