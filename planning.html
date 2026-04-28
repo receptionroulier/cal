@@ -65,14 +65,15 @@ main { display: flex; flex: 1; min-height: 0; }
 #view-week { display: flex; flex-direction: column; height: 100%; }
 .days-header { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; padding: 8px 10px 4px; }
 .day-header-cell {
-  text-align: center; padding: 6px 4px; border-radius: 7px; font-size: 0.72rem; font-weight: 700;
-  background: var(--surface); border: 1px solid var(--border); cursor: pointer; position: relative;
+  text-align: center; padding: 8px 4px; border-radius: 7px; font-size: 0.72rem; font-weight: 700;
+  background: var(--surface); border: 2px solid var(--border); cursor: pointer; position: relative;
+  min-height: 60px;
 }
-.day-header-cell.today { border-color: var(--accent); color: var(--accent); }
-.day-header-cell.ferie { border-color: var(--red); color: var(--red); }
-.day-header-cell.today.ferie { border-color: var(--red); color: var(--red); }
+.day-header-cell.today { border-color: var(--accent); }
+.day-header-cell.ferie { border-color: var(--red); }
+.day-header-cell.today.ferie { border-color: var(--red); }
 .ferie-badge {
-  position: absolute; left: 4px; top: 4px; font-size: 0.55rem; font-weight: 700;
+  position: absolute; left: 4px; top: 4px; font-size: 0.52rem; font-weight: 700;
   color: var(--red); background: rgba(255,77,109,0.15); padding: 1px 4px; border-radius: 3px;
 }
 .day-mail-btn {
@@ -84,8 +85,16 @@ main { display: flex; flex: 1; min-height: 0; }
 
 .week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; padding: 4px 10px 10px; flex: 1; overflow-y: auto; align-content: start; }
 .day-col {
-  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 8px;
+  background: var(--surface); border: 2px solid var(--border); border-radius: 10px; padding: 8px;
   display: flex; flex-direction: column; gap: 8px; align-items: stretch;
+  min-height: 200px;
+}
+.day-col.today { border-color: var(--accent); }
+.day-col.ferie { border-color: var(--red); }
+.day-col.today.ferie { border-color: var(--red); }
+.day-col.no-activity {
+  opacity: 0.5;
+  background: linear-gradient(135deg, var(--surface) 0%, rgba(10,14,20,0.8) 100%);
 }
 
 .section-label {
@@ -196,7 +205,6 @@ const PLAN_PROXY = "https://planning-proxy.receptionroulier.workers.dev";
 const NAV_PROXY = "https://shgt-proxy.receptionroulier.workers.dev";
 const HOLIDAYS_BASE = "https://calendrier.api.gouv.fr/jours-feries/metropole";
 
-// ── 5 CHANTIERS + AUTRES (ORDRE DEFINITIF) ──
 const SECTIONS_ORDER = ['cm', 'fcq', 'pn', 'matin', 'aprem', 'autre'];
 
 const SECTIONS_MAP = {
@@ -258,11 +266,10 @@ async function fetchPersonnel(dateFrom, dateTo) {
     }
 }
 
-// ── FETCH JOURS FÉRIÉS (ANNÉES DYNAMIQUES) ──
+// ── FETCH JOURS FÉRIÉS ──
 async function fetchHolidays() {
     try {
         const currentYear = new Date().getFullYear();
-        // Charger année en cours + 2 années avant + 2 années après (toujours à jour)
         const yearsToFetch = [currentYear - 2, currentYear - 1, currentYear, currentYear + 1, currentYear + 2];
 
         const holidays = {};
@@ -270,8 +277,17 @@ async function fetchHolidays() {
         const results = await Promise.all(
             yearsToFetch.map(year =>
                 fetch(`${HOLIDAYS_BASE}/${year}.json`)
-                    .then(r => r.ok ? r.json() : [])
-                    .catch(() => [])
+                    .then(r => {
+                        if (!r.ok) {
+                            console.log(`[HOLIDAYS] ${year}: HTTP ${r.status}`);
+                            return [];
+                        }
+                        return r.json();
+                    })
+                    .catch(err => {
+                        console.error(`[HOLIDAYS] ${year}:`, err);
+                        return [];
+                    })
             )
         );
 
@@ -288,7 +304,8 @@ async function fetchHolidays() {
         });
 
         state.holidays = holidays;
-        console.log('[HOLIDAYS] Total loaded:', Object.keys(holidays).length, 'holidays');
+        console.log('[HOLIDAYS] Total:', Object.keys(holidays).length, 'holidays');
+        console.log('[HOLIDAYS] Sample:', Object.entries(holidays).slice(0, 5));
     } catch(e) {
         console.error('[HOLIDAYS] Error:', e);
         state.holidays = {};
@@ -329,7 +346,6 @@ function getRandomColor(id) {
     return colors[Math.abs(hash) % colors.length];
 }
 
-// ── TROUVER LA SECTION ──
 function findSectionForWorker(jobCode, posteCode, projectName) {
     const isParcProject = projectName && (projectName.includes('Parc SMR') || projectName.includes('Parc Manucar'));
 
@@ -345,7 +361,7 @@ function findSectionForWorker(jobCode, posteCode, projectName) {
 // ── STATE MANAGEMENT ──
 function loadState() {
   try {
-    const s = localStorage.getItem('planningRoulier_v19');
+    const s = localStorage.getItem('planningRoulier_v20');
     if (s) {
       const saved = JSON.parse(s);
       state.planning = saved.planning || {};
@@ -356,7 +372,7 @@ function loadState() {
 }
 function saveState() {
   try {
-    localStorage.setItem('planningRoulier_v19', JSON.stringify({
+    localStorage.setItem('planningRoulier_v20', JSON.stringify({
       planning: state.planning, slots: state.slots, config: state.config,
     }));
   } catch(e) {}
@@ -508,11 +524,14 @@ function renderWeekHeader() {
   const header = document.getElementById('days-header');
   header.innerHTML = '';
   const today = new Date(); today.setHours(0,0,0,0);
+
   DAYS.forEach((name, i) => {
     const d = addDays(state.weekStart, i);
     const dateISO = fmtISO(d);
     const isToday = d.getTime() === today.getTime();
-    const isFerie = state.holidays[dateISO];
+    const isFerie = !!state.holidays[dateISO];
+
+    console.log(`[DAY ${i}] ${dateISO} isFerie=${isFerie} holidayName=${state.holidays[dateISO]}`);
 
     const cell = document.createElement('div');
     cell.className = `day-header-cell${isToday ? ' today' : ''}${isFerie ? ' ferie' : ''}`;
@@ -529,10 +548,20 @@ function renderWeekHeader() {
 function renderWeekGrid() {
   const grid = document.getElementById('week-grid');
   grid.innerHTML = '';
+  const today = new Date(); today.setHours(0,0,0,0);
 
   DAYS.forEach((_, dayIdx) => {
     const col = document.createElement('div');
     col.className = 'day-col';
+
+    const d = addDays(state.weekStart, dayIdx);
+    const dateISO = fmtISO(d);
+    const isToday = d.getTime() === today.getTime();
+    const isFerie = !!state.holidays[dateISO];
+
+    if (isToday) col.classList.add('today');
+    if (isFerie) col.classList.add('ferie');
+
     const daySlots = state.slots[dayIdx] || {};
 
     let hasAnySlots = false;
@@ -541,7 +570,8 @@ function renderWeekGrid() {
     });
 
     if (!hasAnySlots) {
-        col.innerHTML = `<div style="font-size:0.6rem; color:var(--text3); text-align:center; margin-top:20px">Aucune activité</div>`;
+        col.classList.add('no-activity');
+        col.innerHTML = `<div style="font-size:0.6rem; color:var(--text3); text-align:center; margin-top:40px">Aucune activité</div>`;
     } else {
         SECTIONS_ORDER.forEach(secId => {
             const sec = SECTIONS_MAP[secId];
