@@ -7,286 +7,666 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #0a0e14; --surface: #111722; --surface2: #1a2130;
-  --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.12);
-  --accent: #00d4aa; --accent2: #0096ff; --warn: #ff6b35;
-  --text: #e8edf5; --text2: #7a8fa8; --text3: #4a5a6e;
-  --red: #ff4d6d; --blue: #3b8fff;
+  --bg: #0a0e14;
+  --surface: #111722;
+  --surface2: #1a2130;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.12);
+  --accent: #00d4aa;
+  --accent2: #0096ff;
+  --warn: #ff6b35;
+  --text: #e8edf5;
+  --text2: #7a8fa8;
+  --text3: #4a5a6e;
+  --green: #00c896;
+  --blue: #3b8fff;
+  --orange: #ff8c42;
+  --yellow: #ffd060;
+  --red: #ff4d6d;
+  --purple: #a78bfa;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: var(--bg); color: var(--text); font-family: 'Syne', sans-serif; height: 100vh; overflow: hidden; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Syne', sans-serif; overflow: hidden; }
 
+/* ── LAYOUT ── */
 #app { display: flex; flex-direction: column; height: 100vh; }
 
-/* Header */
-header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: var(--surface); border-bottom: 1px solid var(--border2); }
-.logo { font-size: 1.1rem; font-weight: 800; color: var(--accent); }
-.view-tabs { display: flex; gap: 4px; background: var(--surface2); padding: 3px; border-radius: 8px; }
-.view-tab { padding: 4px 12px; border-radius: 5px; font-size: 0.73rem; cursor: pointer; color: var(--text3); }
+/* ── HEADER ── */
+header {
+  display: flex; align-items: center; gap: 16px;
+  padding: 12px 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border2);
+  flex-shrink: 0;
+}
+.logo { font-size: 1.1rem; font-weight: 800; letter-spacing: -0.02em; color: var(--accent); white-space: nowrap; }
+.logo span { color: var(--text2); font-weight: 400; }
+.week-nav { display: flex; align-items: center; gap: 8px; margin: 0 auto; }
+.week-nav button { background: var(--surface2); border: 1px solid var(--border2); color: var(--text); width: 28px; height: 28px; border-radius: 6px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; transition: all .15s; }
+.week-nav button:hover { background: var(--border2); border-color: var(--accent); }
+#week-label { font-size: 0.82rem; font-weight: 700; color: var(--text); white-space: nowrap; background: var(--surface2); padding: 5px 14px; border-radius: 20px; border: 1px solid var(--border2); }
+.header-actions { display: flex; gap: 8px; }
+.btn { display: flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 7px; cursor: pointer; font-family: 'Syne', sans-serif; font-size: 0.75rem; font-weight: 700; border: none; transition: all .15s; white-space: nowrap; }
+.btn-ghost { background: var(--surface2); color: var(--text2); border: 1px solid var(--border2); }
+.btn-ghost:hover { color: var(--text); border-color: var(--border2); background: var(--surface); }
+.btn-primary { background: var(--accent); color: #000; }
+.btn-primary:hover { filter: brightness(1.1); }
+.btn-day { background: var(--blue); color: #fff; }
+.btn-day:hover { filter: brightness(1.1); }
+.view-tabs { display: flex; gap: 4px; background: var(--surface2); border-radius: 8px; padding: 3px; border: 1px solid var(--border); }
+.view-tab { padding: 4px 12px; border-radius: 5px; font-size: 0.73rem; font-weight: 700; cursor: pointer; color: var(--text3); transition: all .15s; }
 .view-tab.active { background: var(--accent); color: #000; }
 
-main { display: flex; flex: 1; overflow: hidden; }
+/* ── MAIN CONTENT ── */
+main { display: flex; flex: 1; min-height: 0; }
 
-/* Personnel Panel */
-#panel-staff { width: 240px; background: var(--surface); border-right: 1px solid var(--border2); display: flex; flex-direction: column; }
-.panel-title { font-size: 0.65rem; font-weight: 700; padding: 12px; color: var(--text3); text-transform: uppercase; }
-#staff-list { flex: 1; overflow-y: auto; padding: 10px; }
+/* ── LEFT PANEL : Personnel ── */
+#panel-staff {
+  width: 220px; flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border2);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.panel-title { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text3); padding: 12px 14px 8px; border-bottom: 1px solid var(--border); }
+#staff-search { margin: 8px 10px; padding: 6px 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-family: 'Syne', sans-serif; font-size: 0.75rem; outline: none; }
+#staff-search:focus { border-color: var(--accent); }
+#staff-list { flex: 1; overflow-y: auto; padding: 4px 8px 8px; }
 .staff-item {
-    display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 6px;
-    cursor: grab; margin-bottom: 4px; background: var(--surface2); border: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; border-radius: 7px;
+  cursor: grab; margin-bottom: 3px;
+  border: 1px solid transparent;
+  transition: all .12s; user-select: none;
 }
-.staff-item.absent { opacity: 0.5; border-left: 3px solid var(--red); }
+.staff-item:hover { background: var(--surface2); border-color: var(--border); }
+.staff-item.dragging { opacity: 0.4; cursor: grabbing; }
+.staff-avatar { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.62rem; font-weight: 700; flex-shrink: 0; }
+.staff-info { min-width: 0; }
+.staff-name { font-size: 0.73rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.staff-matric { font-size: 0.62rem; color: var(--text3); font-family: 'DM Mono', monospace; }
+.staff-item.absent { opacity: 0.45; }
+.staff-item.absent .staff-name { text-decoration: line-through; }
+.absence-badge { font-size: 0.58rem; font-family: 'DM Mono', monospace; padding: 1px 4px; border-radius: 3px; background: rgba(255,107,53,0.2); color: var(--warn); margin-left: auto; flex-shrink: 0; }
 
-/* Planning View */
-#view-planning { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
-.days-header { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; padding: 10px; }
-.day-cell-head { text-align: center; padding: 8px; background: var(--surface2); border-radius: 6px; font-weight: 700; font-size: 0.8rem; }
+/* ── RIGHT CONTENT ── */
+#content { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
 
-.week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; padding: 0 10px 10px; flex: 1; overflow-y: auto; }
-.day-col { background: var(--surface); border: 1px solid var(--border2); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 10px; }
+/* ── WEEKLY VIEW ── */
+#view-week { display: flex; flex-direction: column; height: 100%; }
+.days-header { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; padding: 8px 10px 4px; flex-shrink: 0; }
+.day-header-cell {
+  text-align: center; padding: 6px 4px; border-radius: 7px;
+  font-size: 0.72rem; font-weight: 700;
+  background: var(--surface); border: 1px solid var(--border);
+  cursor: pointer; transition: all .15s;
+}
+.day-header-cell:hover { border-color: var(--blue); color: var(--blue); }
+.day-header-cell.today { background: rgba(0,212,170,0.1); border-color: var(--accent); color: var(--accent); }
+.day-header-cell.weekend { opacity: 0.5; }
+.day-name { font-size: 0.68rem; color: var(--text2); font-weight: 400; }
+.day-num { font-size: 1rem; font-weight: 800; line-height: 1; }
 
-/* Dynamic Slots (Postes) */
+.week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; padding: 4px 10px 10px; flex: 1; min-height: 0; overflow-y: auto; align-content: start; }
+.day-col {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 6px; min-height: 200px;
+  display: flex; flex-direction: column; gap: 5px;
+  position: relative;
+}
+.day-col.drag-over { border-color: var(--accent); background: rgba(0,212,170,0.05); }
+.day-col.weekend { opacity: 0.6; }
+.day-col.today { border-color: rgba(0,212,170,0.4); }
+
+.section-label {
+  font-size: 0.58rem; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text3);
+  padding: 4px 0 2px; border-top: 1px solid var(--border);
+  margin-top: 2px;
+}
+.section-label:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+.section-hours { font-size: 0.55rem; color: var(--text3); font-family: 'DM Mono', monospace; margin-bottom: 3px; }
+
+/* Postes de travail */
 .slot-container {
-    background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
-    padding: 8px; display: flex; flex-direction: column; gap: 5px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 6px; margin-bottom: 4px;
 }
-.slot-header {
-    font-size: 0.65rem; font-weight: 700; color: var(--accent);
+.slot-info {
     display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 5px;
+    font-size: 0.6rem; font-weight: 700; color: var(--text3);
+    margin-bottom: 4px;
 }
-.slot-remove { cursor: pointer; color: var(--red); }
+.slot-remove { color: var(--red); cursor: pointer; font-size: 0.7rem; }
 
-.drop-zone-worker {
-    border: 1px dashed var(--border2); border-radius: 4px;
-    padding: 6px; font-size: 0.7rem; text-align: center; color: var(--text3);
-    min-height: 30px; transition: 0.2s;
+.assigned-chip {
+  display: flex; align-items: center; gap: 5px;
+  padding: 4px 6px; border-radius: 5px;
+  background: var(--bg); border: 1px solid var(--border);
+  cursor: pointer; transition: all .12s; position: relative;
 }
-.drop-zone-worker.active { border-color: var(--accent); background: rgba(0,212,170,0.05); }
-.worker-assigned {
-    background: var(--bg); padding: 4px 8px; border-radius: 4px;
-    font-size: 0.7rem; display: flex; justify-content: space-between; align-items: center;
+.assigned-chip:hover { border-color: var(--red); }
+.chip-avatar { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.52rem; font-weight: 700; flex-shrink: 0; }
+.chip-name { font-size: 0.68rem; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.chip-remove { opacity: 0; font-size: 0.65rem; color: var(--red); margin-left: auto; flex-shrink: 0; line-height: 1; }
+.assigned-chip:hover .chip-remove { opacity: 1; }
+
+.drop-zone {
+  border: 1px dashed var(--border); border-radius: 5px;
+  padding: 4px; min-height: 28px; font-size: 0.62rem;
+  color: var(--text3); display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
 }
+.drop-zone.active { border-color: var(--accent); color: var(--accent); background: rgba(0,212,170,0.04); }
 
 .btn-add-slot {
-    font-size: 0.6rem; padding: 5px; border: 1px dashed var(--text3);
-    color: var(--text3); cursor: pointer; text-align: center; border-radius: 4px;
+    font-size: 0.55rem; border: 1px dashed var(--border);
+    color: var(--text3); text-align: center; padding: 2px;
+    cursor: pointer; border-radius: 4px; margin-bottom: 8px;
 }
-.btn-add-slot:hover { color: var(--accent); border-color: var(--accent); }
+.btn-add-slot:hover { border-color: var(--accent); color: var(--accent); }
 
-/* Absences Grid View */
+/* ── DAILY VIEW ── */
+#view-day { display: flex; flex-direction: column; height: 100%; }
+.day-selector { display: flex; gap: 4px; padding: 8px 10px 4px; flex-shrink: 0; }
+.day-tab { padding: 5px 12px; border-radius: 7px; font-size: 0.73rem; font-weight: 700; cursor: pointer; background: var(--surface); border: 1px solid var(--border); color: var(--text2); transition: all .15s; }
+.day-tab.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+.day-tab:hover:not(.active) { border-color: var(--border2); color: var(--text); }
+
+.day-content { flex: 1; overflow-y: auto; padding: 6px 10px 10px; display: flex; flex-direction: column; gap: 10px; }
+.section-card {
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 12px; overflow: hidden;
+}
+.section-card-header {
+  padding: 10px 14px; display: flex; align-items: center; gap: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.section-card-name { font-size: 0.82rem; font-weight: 700; }
+.section-card-time { font-size: 0.72rem; color: var(--text2); font-family: 'DM Mono', monospace; margin-left: auto; }
+.section-card-count { font-size: 0.65rem; background: var(--surface2); padding: 2px 8px; border-radius: 10px; color: var(--text2); }
+.section-card-body { padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; }
+.daily-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 10px; border-radius: 8px;
+  background: var(--surface2); border: 1px solid var(--border);
+}
+.daily-qual { font-size: 0.68rem; font-family: 'DM Mono', monospace; font-weight: 700; width: 38px; flex-shrink: 0; }
+.daily-name { font-size: 0.82rem; font-weight: 600; flex: 1; }
+.daily-matric { font-size: 0.65rem; color: var(--text3); font-family: 'DM Mono', monospace; }
+
+/* ── ABSENCES VIEW ── */
 #view-absences { display: none; flex: 1; padding: 20px; overflow-y: auto; }
-.abs-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+.abs-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; background: var(--surface); }
 .abs-table th, .abs-table td { border: 1px solid var(--border2); padding: 8px; text-align: center; }
-.abs-table th { background: var(--surface2); }
-.abs-code { font-weight: bold; padding: 2px 4px; border-radius: 3px; }
-.abs-code.cp { background: #ff4d6d33; color: #ff4d6d; }
-.abs-code.rr { background: #3b8fff33; color: #3b8fff; }
+.abs-table th { background: var(--surface2); color: var(--text2); }
+.abs-code { font-weight: bold; padding: 2px 4px; border-radius: 3px; background: rgba(255,107,53,0.2); color: var(--warn); }
 
-/* Modal */
-#modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 1000; }
+/* ── MODAL ── */
+#modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+  display: none; align-items: center; justify-content: center; z-index: 1000;
+  backdrop-filter: blur(4px);
+}
 #modal-overlay.show { display: flex; }
-.modal { background: var(--surface); padding: 20px; border-radius: 12px; width: 300px; border: 1px solid var(--border2); }
-.modal-input { width: 100%; padding: 8px; margin: 10px 0; background: var(--surface2); color: white; border: 1px solid var(--border2); }
+.modal {
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 16px; padding: 24px; max-width: 520px; width: 94%;
+  max-height: 80vh; overflow-y: auto;
+}
+.modal h2 { font-size: 1rem; font-weight: 800; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+.modal-label { font-size: 0.72rem; color: var(--text3); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em; }
+.modal-input, .modal-select, .modal-textarea {
+  width: 100%; background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: 8px; color: var(--text); font-family: 'Syne', sans-serif;
+  font-size: 0.82rem; padding: 8px 12px; outline: none; margin-bottom: 12px;
+}
+.modal-input:focus, .modal-select:focus, .modal-textarea:focus { border-color: var(--accent); }
+.modal-textarea { resize: vertical; min-height: 80px; }
+.modal-row { display: flex; gap: 10px; }
+.modal-row > * { flex: 1; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+.modal-btn { padding: 8px 20px; border-radius: 8px; font-family: 'Syne', sans-serif; font-size: 0.8rem; font-weight: 700; cursor: pointer; border: none; }
+.modal-btn-cancel { background: var(--surface2); color: var(--text2); }
+.modal-btn-ok { background: var(--accent); color: #000; }
+.modal-btn-send { background: var(--blue); color: #fff; }
 
+/* ── EMAIL PREVIEW ── */
+.email-preview {
+  background: #fff; color: #000; border-radius: 8px;
+  padding: 16px; font-family: Arial, sans-serif; font-size: 12px;
+  max-height: 400px; overflow-y: auto; margin-top: 12px;
+  border: 1px solid var(--border2);
+}
+
+/* ── SCROLL ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 3px; }
+
+/* ── TOAST ── */
+#toast {
+  position: fixed; bottom: 20px; right: 20px;
+  background: var(--accent); color: #000;
+  padding: 10px 18px; border-radius: 8px;
+  font-size: 0.78rem; font-weight: 700;
+  transform: translateY(60px); opacity: 0;
+  transition: all .25s; z-index: 2000;
+}
+#toast.show { transform: translateY(0); opacity: 1; }
 </style>
 </head>
 <body>
-
 <div id="app">
   <header>
-    <div class="logo">RÉCEPTION ROULIER</div>
-    <div class="view-tabs">
-      <div class="view-tab active" data-view="planning">📅 Planning</div>
-      <div class="view-tab" data-view="absences">📋 Absences</div>
+    <div class="logo">RÉCEPTION<span> ROULIER</span></div>
+    <div class="week-nav">
+      <button id="prev-week">‹</button>
+      <div id="week-label">Chargement...</div>
+      <button id="next-week">›</button>
     </div>
-    <div style="margin-left: auto; display: flex; gap: 10px;">
-        <button id="prev-week" style="cursor:pointer">‹</button>
-        <span id="week-label">Chargement...</span>
-        <button id="next-week" style="cursor:pointer">›</button>
+    <div class="view-tabs">
+      <div class="view-tab active" data-view="week">Hebdo</div>
+      <div class="view-tab" data-view="day">Journalier</div>
+      <div class="view-tab" data-view="absences">Absences</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-ghost" id="btn-settings">⚙ Config</button>
+      <button class="btn btn-ghost" id="btn-email-week">✉ Semaine</button>
+      <button class="btn btn-day" id="btn-email-day">✉ Journée</button>
     </div>
   </header>
 
   <main>
+    <!-- Personnel panel -->
     <div id="panel-staff">
       <div class="panel-title">Personnel</div>
+      <input type="text" id="staff-search" placeholder="Rechercher…">
       <div id="staff-list"></div>
     </div>
 
-    <div id="view-planning">
-      <div class="days-header" id="days-header"></div>
-      <div class="week-grid" id="week-grid"></div>
-    </div>
-
-    <div id="view-absences">
-        <h2 style="margin-bottom: 20px;">Suivi des Absences</h2>
-        <div id="absences-container"></div>
+    <!-- Content -->
+    <div id="content">
+      <!-- Weekly view -->
+      <div id="view-week">
+        <div class="days-header" id="days-header"></div>
+        <div class="week-grid" id="week-grid"></div>
+      </div>
+      <!-- Daily view -->
+      <div id="view-day" style="display:none">
+        <div class="day-selector" id="day-selector"></div>
+        <div class="day-content" id="day-content"></div>
+      </div>
+      <!-- Absences view -->
+      <div id="view-absences" style="display:none">
+          <div class="panel-title" style="padding: 20px">Suivi Global des Absences</div>
+          <div id="absences-container" style="padding: 0 20px 20px"></div>
+      </div>
     </div>
   </main>
 </div>
 
+<!-- Modal -->
 <div id="modal-overlay">
-    <div class="modal" id="modal-content"></div>
+  <div class="modal" id="modal-content"></div>
 </div>
+<div id="toast"></div>
 
 <script>
 // ── CONFIG ──
 const PROXY_URL = "https://shgt-proxy.receptionroulier.workers.dev";
 const API_PATH = "/api/shgtdocker/getworkerscalendarsforuser";
 
+const SECTIONS = [
+  { id: 'prepа', name: 'FCQ/CC/Montage/Prépa', hours: '8h30 / 12h00  14h00 / 17h30', color: '#a78bfa', defaultSlots: ['FCQ', 'PN', 'PN', 'PN'] },
+  { id: 'matin', name: 'Réception Matin',       hours: '7h00 / 14h00',                color: '#00c896', defaultSlots: ['CI', 'CO'] },
+  { id: 'aprem', name: 'Réception Après-Midi',  hours: '13h00 / 20h00',               color: '#3b8fff', defaultSlots: ['CI', 'CO'] },
+  { id: 'autre', name: 'Autre / Parc',           hours: '',                            color: '#ffd060', defaultSlots: [] },
+];
+
+const DAYS = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+const DAY_SHORT = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+
+// ── STATE ──
 let state = {
-    workers: [],
-    absences: {}, // { workerId: { '2026-04-28': 'CP' } }
-    planning: {}, // { 'dayIdx_slotId': workerId }
-    slots: {},    // { dayIdx: [ {id, name} ] }
-    weekStart: getMonday(new Date()),
-    view: 'planning'
+  weekStart: getMonday(new Date()),
+  view: 'week',
+  activeDay: 0,
+  // planning[dayIdx][sectionId][slotId] = workerId
+  planning: {},
+  // slots[dayIdx][sectionId] = [{id, label}]
+  slots: {},
+  absences: {}, // [workerId][dateISO] = code
+  config: {
+    emailWeek: 'chefmanutention.tmt@shgt.fr',
+    emailCcWeek: 'smaillard@smr-france.com',
+    emailDay: 'chefmanutention.tmt@shgt.fr',
+    emailCcDay: 'smaillard@smr-france.com',
+    emailSenderName: 'Planning Réception',
+  },
+  staff: [],
+  dragWorker: null,
 };
 
-// ── API SERVICES ──
-async function fetchWorkers(date) {
-    const url = `${PROXY_URL}${API_PATH}?pageNumber=0&pageSize=200&date=${date}&familyId=0&workerGroupId=0&searchValue=`;
+// ── API ──
+async function fetchStaffForDate(dateISO) {
+    const url = `${PROXY_URL}${API_PATH}?pageNumber=0&pageSize=200&date=${dateISO}&familyId=0&workerGroupId=0&searchValue=`;
     try {
         const response = await fetch(url);
         const data = await response.json();
-        // On adapte les données de l'API vers notre format interne
         return data.items.map(w => ({
             id: w.workerId,
             firstName: w.firstName,
-            lastName: w.lastName,
-            absCode: w.absenceCode || null, // On récupère l'absence pour le jour précis
-            color: w.color || '#00d4aa'
+            lastName: w.lastName.toUpperCase(),
+            matricule: w.matricule,
+            color: w.color || '#00d4aa',
+            absCode: w.absenceCode || null
         }));
-    } catch (e) {
+    } catch(e) {
         console.error("Erreur API:", e);
         return [];
     }
 }
 
-// ── CORE LOGIC ──
+// ── HELPERS ──
 function getMonday(d) {
-    const r = new Date(d);
-    r.setDate(r.getDate() + (r.getDay() === 0 ? -6 : 1 - r.getDay()));
-    r.setHours(0,0,0,0); return r;
+  const r = new Date(d);
+  const day = r.getDay();
+  r.setDate(r.getDate() + (day === 0 ? -6 : 1 - day));
+  r.setHours(0,0,0,0); return r;
+}
+function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
+function fmtISO(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function fmtFR(d) { return d.toLocaleDateString('fr-FR', { day:'2-digit', month:'short' }); }
+function getWeekNum(d) {
+  const t = new Date(d); t.setHours(0,0,0,0);
+  t.setDate(t.getDate() + 3 - (t.getDay()+6)%7);
+  const j4 = new Date(t.getFullYear(),0,4);
+  return 1 + Math.round(((t-j4)/86400000 - 3 + (j4.getDay()+6)%7)/7);
+}
+function getWorker(id) { return state.staff.find(w => w.id === id); }
+function initials(w) { return ((w.firstName||'')[0]||'') + ((w.lastName||'')[0]||''); }
+function avatar(w, size=26) {
+  return `<div class="staff-avatar" style="width:${size}px;height:${size}px;background:${w.color}22;color:${w.color};border:1px solid ${w.color}44">${initials(w).toUpperCase()}</div>`;
+}
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2400);
 }
 
-function fmtISO(d) { return d.toISOString().split('T')[0]; }
-
-async function initApp() {
-    const dateStr = fmtISO(state.weekStart);
-    state.workers = await fetchWorkers(dateStr);
-
-    // On simule le remplissage des absences pour la semaine via l'API
-    // Dans la réalité, il faudrait boucler sur les 7 jours de la semaine
-    state.workers.forEach(w => {
-        if(w.absCode) state.absences[w.id] = { [dateStr]: w.absCode };
-    });
-
-    render();
-}
-
-// ── UI RENDERING ──
-function render() {
-    updateWeekLabel();
-    renderStaffList();
-    if (state.view === 'planning') {
-        renderPlanning();
-    } else {
-        renderAbsences();
+// ── STATE MANAGEMENT ──
+function loadState() {
+  try {
+    const s = localStorage.getItem('planningRoulier_v3');
+    if (s) {
+      const saved = JSON.parse(s);
+      state.planning = saved.planning || {};
+      state.slots = saved.slots || {};
+      state.config = { ...state.config, ...saved.config };
     }
+  } catch(e) {}
+}
+function saveState() {
+  try {
+    localStorage.setItem('planningRoulier_v3', JSON.stringify({
+      planning: state.planning,
+      slots: state.slots,
+      config: state.config,
+    }));
+  } catch(e) {}
 }
 
-function renderStaffList() {
-    const list = document.getElementById('staff-list');
-    list.innerHTML = '';
-    state.workers.forEach(w => {
-        const isAbsent = state.absences[w.id]?.[fmtISO(state.weekStart)] || false;
-        const el = document.createElement('div');
-        el.className = `staff-item ${isAbsent ? 'absent' : ''}`;
-        el.draggable = true;
-        el.innerHTML = `<span>${w.firstName} ${w.lastName}</span> ${isAbsent ? `<small style="color:var(--red)">${isAbsent}</small>` : ''}`;
-        el.ondragstart = (e) => e.dataTransfer.setData('workerId', w.id);
-        list.appendChild(el);
-    });
-}
-
-function renderPlanning() {
-    const header = document.getElementById('days-header');
-    const grid = document.getElementById('week-grid');
-    header.innerHTML = ''; grid.innerHTML = '';
-
-    for (let i = 0; i < 7; i++) {
-        const d = new Date(state.weekStart); d.setDate(d.getDate() + i);
-
-        // Header
-        const h = document.createElement('div');
-        h.className = 'day-cell-head';
-        h.textContent = `${d.toLocaleDateString('fr-FR', {weekday:'short'})} ${d.getDate()}/${d.getMonth()+1}`;
-        header.appendChild(h);
-
-        // Column
-        const col = document.createElement('div');
-        col.className = 'day-col';
-
-        // Render Slots
-        if (!state.slots[i]) state.slots[i] = [];
-        state.slots[i].forEach((slot, slotIdx) => {
-            const slotDiv = document.createElement('div');
-            slotDiv.className = 'slot-container';
-
-            const workerId = state.planning[`${i}_${slot.id}`];
-            const worker = state.workers.find(w => w.id === workerId);
-
-            slotDiv.innerHTML = `
-                <div class="slot-header">
-                    <span>${slot.name}</span>
-                    <span class="slot-remove" onclick="removeSlot(${i}, ${slotIdx})">✕</span>
-                </div>
-                <div class="drop-zone-worker" data-day="${i}" data-slot="${slot.id}">
-                    ${worker ? `<div class="worker-assigned">${worker.firstName} ${worker.lastName} <span class="slot-remove" onclick="removeFromSlot(${i},'${slot.id}')">✕</span></div>` : 'Glisser personne ici'}
-                </div>
-            `;
-
-            const dz = slotDiv.querySelector('.drop-zone-worker');
-            dz.ondragover = (e) => { e.preventDefault(); dz.classList.add('active'); };
-            dz.ondragleave = () => dz.classList.remove('active');
-            dz.ondrop = (e) => {
-                e.preventDefault();
-                dz.classList.remove('active');
-                const wId = e.dataTransfer.getData('workerId');
-                assignWorker(i, slot.id, wId);
-            };
-
-            col.appendChild(slotDiv);
+function initSlots() {
+    // On initialise les slots par défaut si vide
+    for(let i=0; i<7; i++) {
+        if(!state.slots[i]) state.slots[i] = {};
+        SECTIONS.forEach(sec => {
+            if(!state.slots[i][sec.id]) {
+                state.slots[i][sec.id] = sec.defaultSlots.map((label, idx) => ({
+                    id: `slot_${idx}_${Date.now()}`,
+                    label: label
+                }));
+            }
         });
-
-        // Add Slot Button
-        const addBtn = document.createElement('div');
-        addBtn.className = 'btn-add-slot';
-        addBtn.textContent = '+ Créer un poste';
-        addBtn.onclick = () => createSlot(i);
-        col.appendChild(addBtn);
-
-        grid.appendChild(col);
     }
 }
 
+// ── RENDER STAFF LIST ──
+function renderStaffList(filter='') {
+  const list = document.getElementById('staff-list');
+  list.innerHTML = '';
+  const q = filter.toLowerCase();
+
+  state.staff.forEach(w => {
+    const name = `${w.firstName} ${w.lastName}`.toLowerCase();
+    if (q && !name.includes(q) && !(w.matricule||'').toLowerCase().includes(q)) return;
+
+    const dateToday = fmtISO(addDays(state.weekStart, 0));
+    const absCode = state.absences[w.id]?.[dateToday] || w.absCode;
+
+    const el = document.createElement('div');
+    el.className = 'staff-item' + (absCode ? ' absent' : '');
+    el.draggable = true;
+    el.dataset.workerId = w.id;
+    el.innerHTML = `
+      ${avatar(w)}
+      <div class="staff-info">
+        <div class="staff-name">${w.firstName} ${w.lastName}</div>
+        <div class="staff-matric">${w.matricule||'—'}</div>
+      </div>
+      ${absCode ? `<div class="absence-badge">${absCode}</div>` : ''}
+    `;
+    el.addEventListener('dragstart', e => {
+      state.dragWorker = w.id;
+      el.classList.add('dragging');
+    });
+    el.addEventListener('dragend', () => el.classList.remove('dragging'));
+    list.appendChild(el);
+  });
+}
+
+// ── RENDER WEEK VIEW ──
+function renderWeekHeader() {
+  const header = document.getElementById('days-header');
+  header.innerHTML = '';
+  const today = new Date(); today.setHours(0,0,0,0);
+  DAYS.forEach((name, i) => {
+    const d = addDays(state.weekStart, i);
+    const isToday = d.getTime() === today.getTime();
+    const isWE = i >= 5;
+    const cell = document.createElement('div');
+    cell.className = `day-header-cell${isToday?' today':''}${isWE?' weekend':''}`;
+    cell.innerHTML = `<div class="day-name">${name}</div><div class="day-num">${fmtFR(d)}</div>`;
+    cell.addEventListener('click', () => switchToDay(i));
+    header.appendChild(cell);
+  });
+}
+
+function renderWeekGrid() {
+  const grid = document.getElementById('week-grid');
+  grid.innerHTML = '';
+  DAYS.forEach((_, dayIdx) => {
+    const isWE = dayIdx >= 5;
+    const col = document.createElement('div');
+    col.className = `day-col${isWE?' weekend':''}`;
+
+    SECTIONS.forEach(sec => {
+      const label = document.createElement('div');
+      label.className = 'section-label';
+      label.style.color = sec.color;
+      label.textContent = sec.name;
+      col.appendChild(label);
+
+      if (sec.hours) {
+        const hours = document.createElement('div');
+        hours.className = 'section-hours';
+        hours.textContent = sec.hours;
+        col.appendChild(hours);
+      }
+
+      // Render Slots
+      const daySlots = state.slots[dayIdx]?.[sec.id] || [];
+      daySlots.forEach((slot, slotIdx) => {
+        const slotDiv = document.createElement('div');
+        slotDiv.className = 'slot-container';
+
+        const workerId = state.planning[`${dayIdx}_${sec.id}_${slot.id}`];
+        const w = getWorker(workerId);
+
+        slotDiv.innerHTML = `
+            <div class="slot-info">
+                <span>${slot.label}</span>
+                <span class="slot-remove" onclick="removeSlot(${dayIdx}, '${sec.id}', ${slotIdx})">✕</span>
+            </div>
+            <div class="drop-zone" data-day="${dayIdx}" data-sec="${sec.id}" data-slot="${slot.id}">
+                ${w ? `
+                    <div class="assigned-chip">
+                        <div class="chip-avatar" style="background:${w.color}22;color:${w.color}">${initials(w).toUpperCase()}</div>
+                        <div class="chip-name">${w.lastName}</div>
+                        <div class="chip-remove" onclick="removeFromSlot(${dayIdx},'${sec.id}','${slot.id}')">✕</div>
+                    </div>
+                ` : 'Glisser ici'}
+            </div>
+        `;
+
+        const dz = slotDiv.querySelector('.drop-zone');
+        dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('active'); });
+        dz.addEventListener('dragleave', () => dz.classList.remove('active'));
+        dz.addEventListener('drop', e => {
+            e.preventDefault();
+            dz.classList.remove('active');
+            if (!state.dragWorker) return;
+            addToSlot(dayIdx, sec.id, slot.id, state.dragWorker);
+            state.dragWorker = null;
+        });
+        col.appendChild(slotDiv);
+      });
+
+      const addBtn = document.createElement('div');
+      addBtn.className = 'btn-add-slot';
+      addBtn.textContent = '+ Ajouter un poste';
+      addBtn.onclick = () => {
+          const label = prompt("Nom du poste (ex: PN, CI, etc.)");
+          if(label) {
+              state.slots[dayIdx][sec.id].push({id: 's'+Date.now(), label});
+              saveState(); renderWeekGrid();
+          }
+      };
+      col.appendChild(addBtn);
+    });
+
+    grid.appendChild(col);
+  });
+}
+
+function addToSlot(dayIdx, secId, slotId, workerId) {
+  const worker = getWorker(workerId);
+  const dateISO = fmtISO(addDays(state.weekStart, dayIdx));
+  const absCode = state.absences[workerId]?.[dateISO] || (worker && worker.absCode);
+
+  if (absCode) {
+    if (!confirm(`⚠️ ${worker.firstName} ${worker.lastName} est absent (${absCode}). Forcer l'affectation ?`)) return;
+  }
+
+  state.planning[`${dayIdx}_${secId}_${slotId}`] = workerId;
+  saveState();
+  renderWeekGrid();
+  renderDayView();
+  toast('Affecté ✓');
+}
+
+function removeFromSlot(dayIdx, secId, slotId) {
+    delete state.planning[`${dayIdx}_${secId}_${slotId}`];
+    saveState();
+    renderWeekGrid();
+    renderDayView();
+}
+
+function removeSlot(dayIdx, secId, slotIdx) {
+    const slot = state.slots[dayIdx][secId][slotIdx];
+    delete state.planning[`${dayIdx}_${secId}_${slot.id}`];
+    state.slots[dayIdx][secId].splice(slotIdx, 1);
+    saveState();
+    renderWeekGrid();
+}
+
+// ── DAILY VIEW ──
+function switchToDay(dayIdx) {
+  state.view = 'day';
+  state.activeDay = dayIdx;
+  document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t.dataset.view === 'day'));
+  document.getElementById('view-week').style.display = 'none';
+  document.getElementById('view-day').style.display = 'flex';
+  document.getElementById('view-absences').style.display = 'none';
+  renderDayView();
+}
+
+function renderDayView() {
+  const sel = document.getElementById('day-selector');
+  sel.innerHTML = '';
+  DAYS.forEach((name, i) => {
+    const tab = document.createElement('div');
+    tab.className = 'day-tab' + (i === state.activeDay ? ' active' : '');
+    tab.textContent = DAY_SHORT[i];
+    tab.addEventListener('click', () => { state.activeDay = i; renderDayView(); });
+    sel.appendChild(tab);
+  });
+
+  const dayIdx = state.activeDay;
+  const content = document.getElementById('day-content');
+  content.innerHTML = '';
+
+  SECTIONS.forEach(sec => {
+    const slots = state.slots[dayIdx]?.[sec.id] || [];
+    const card = document.createElement('div');
+    card.className = 'section-card';
+    card.innerHTML = `
+      <div class="section-card-header">
+        <div style="width:10px;height:10px;border-radius:50%;background:${sec.color}"></div>
+        <div class="section-card-name">${sec.name}</div>
+        <div class="section-card-count">${slots.length} postes</div>
+        ${sec.hours ? `<div class="section-card-time">${sec.hours}</div>` : ''}
+      </div>
+      <div class="section-card-body" id="body_${sec.id}"></div>
+    `;
+    content.appendChild(card);
+    const body = card.querySelector(`#body_${sec.id}`);
+
+    slots.forEach(slot => {
+        const workerId = state.planning[`${dayIdx}_${sec.id}_${slot.id}`];
+        const w = getWorker(workerId);
+        const row = document.createElement('div');
+        row.className = 'daily-row';
+        row.innerHTML = `
+            <div class="daily-qual" style="color:var(--accent)">${slot.label}</div>
+            ${w ? avatar(w, 28) : '<div class="staff-avatar" style="background:#333;color:#777">?</div>'}
+            <div class="daily-name">${w ? w.lastName + ' ' + w.firstName : 'Non affecté'}</div>
+            <div class="daily-matric">${w ? w.matricule : '—'}</div>
+            <div style="margin-left:auto;cursor:pointer;color:var(--red);font-size:0.7rem" onclick="removeFromSlot(${dayIdx},'${sec.id}','${slot.id}')">✕</div>
+        `;
+        body.appendChild(row);
+    });
+  });
+}
+
+// ── ABSENCES VIEW ──
 function renderAbsences() {
     const container = document.getElementById('absences-container');
     let html = `<table class="abs-table"><thead><tr><th>Personnel</th>`;
     for(let i=0; i<7; i++) {
-        const d = new Date(state.weekStart); d.setDate(d.getDate()+i);
-        html += `<th>${d.toLocaleDateString('fr-FR')}</th>`;
+        const d = addDays(state.weekStart, i);
+        html += `<th>${fmtFR(d)}</th>`;
     }
     html += `</tr></thead><tbody>`;
 
-    state.workers.forEach(w => {
+    state.staff.forEach(w => {
         html += `<tr><td>${w.lastName} ${w.firstName}</td>`;
         for(let i=0; i<7; i++) {
-            const d = new Date(state.weekStart); d.setDate(d.getDate()+i);
-            const code = state.absences[w.id]?.[fmtISO(d)] || '-';
-            html += `<td><span class="abs-code ${code.toLowerCase()}">${code}</span></td>`;
+            const dateISO = fmtISO(addDays(state.weekStart, i));
+            const code = state.absences[w.id]?.[dateISO] || (i===0 ? w.absCode : '');
+            html += `<td>${code ? `<span class="abs-code">${code}</span>` : '—'}</td>`;
         }
         html += `</tr>`;
     });
@@ -295,61 +675,167 @@ function renderAbsences() {
     container.innerHTML = html;
 }
 
-// ── ACTIONS ──
-function createSlot(dayIdx) {
-    const name = prompt("Nom du poste (ex: Réception Matin, Chauffeur A...)");
-    if (!name) return;
-    state.slots[dayIdx].push({ id: 's' + Date.now(), name: name });
-    render();
+// ── CONFIG & EMAIL (Original logic restored) ──
+function showConfigModal() {
+  showModal(`
+    <h2>⚙ Configuration</h2>
+    <div class="modal-label">Email destinataires (Planning Semaine)</div>
+    <input class="modal-input" id="cfg-email-week" value="${state.config.emailWeek}">
+    <div class="modal-label">Copie (CC) Semaine</div>
+    <input class="modal-input" id="cfg-cc-week" value="${state.config.emailCcWeek}">
+    <div class="modal-label">Email destinataires (Planning Journalier)</div>
+    <input class="modal-input" id="cfg-email-day" value="${state.config.emailDay}">
+    <div class="modal-label">Copie (CC) Journalier</div>
+    <input class="modal-input" id="cfg-cc-day" value="${state.config.emailCcDay}">
+    <div class="modal-label">Nom expéditeur</div>
+    <input class="modal-input" id="cfg-sender" value="${state.config.emailSenderName}">
+    <div class="modal-actions">
+      <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Annuler</button>
+      <button class="modal-btn modal-btn-ok" onclick="saveConfig()">Enregistrer</button>
+    </div>
+  `);
+}
+window.saveConfig = function() {
+  state.config.emailWeek = document.getElementById('cfg-email-week').value;
+  state.config.emailCcWeek = document.getElementById('cfg-cc-week').value;
+  state.config.emailDay = document.getElementById('cfg-email-day').value;
+  state.config.emailCcDay = document.getElementById('cfg-cc-day').value;
+  state.config.emailSenderName = document.getElementById('cfg-sender').value;
+  saveState(); closeModal(); toast('Configuration sauvegardée');
+};
+
+function buildWeekEmail() {
+  const wn = getWeekNum(state.weekStart);
+  const dFrom = fmtFR(state.weekStart);
+  const dTo = fmtFR(addDays(state.weekStart, 6));
+  let html = `<div style="font-family:Arial,sans-serif;font-size:12px;color:#000">
+    <h2 style="color:#1a3a5c;font-size:16px;margin-bottom:4px">Effectif Parc Roulier — Semaine N° ${wn}</h2>
+    <p style="color:#666;margin-bottom:16px">Du ${dFrom} au ${dTo}</p>
+    <table border="0" cellpadding="4" cellspacing="0" style="border-collapse:collapse;width:100%">
+      <tr style="background:#1a3a5c;color:#fff">`;
+  DAYS.forEach((name, i) => {
+    const d = addDays(state.weekStart, i);
+    html += `<th style="padding:8px;border:1px solid #ccc">${name}<br>${fmtFR(d)}</th>`;
+  });
+  html += '</tr>';
+
+  // Simplification: On liste les postes et affectations par jour
+  const maxRows = 20;
+  for(let r=0; r<maxRows; r++) {
+      html += '<tr>';
+      for(let d=0; d<7; d++) {
+          let cell = '';
+          SECTIONS.forEach(sec => {
+              const slots = state.slots[d]?.[sec.id] || [];
+              if(slots[r]) {
+                  const wId = state.planning[`${d}_${sec.id}_${slots[r].id}`];
+                  const w = getWorker(wId);
+                  cell = `<div style="font-size:10px;border-bottom:1px solid #eee"><b>${slots[r].label}</b>: ${w ? w.lastName : '—'}</div>`;
+              }
+          });
+          html += `<td style="border:1px solid #eee;padding:4px">${cell}</td>`;
+      }
+      html += '</tr>';
+  }
+  html += '</table></div>';
+  return { html, subject: `Planning Semaine ${wn} — Réception Roulier` };
 }
 
-function removeSlot(dayIdx, slotIdx) {
-    const slot = state.slots[dayIdx][slotIdx];
-    delete state.planning[`${dayIdx}_${slot.id}`];
-    state.slots[dayIdx].splice(slotIdx, 1);
-    render();
+function showEmailWeekModal() {
+  const { html, subject } = buildWeekEmail();
+  showModal(`
+    <h2>✉ Envoi Planning Semaine</h2>
+    <div class="modal-label">À</div>
+    <input class="modal-input" id="mail-to" value="${state.config.emailWeek}">
+    <div class="modal-label">CC</div>
+    <input class="modal-input" id="mail-cc" value="${state.config.emailCcWeek}">
+    <div class="modal-label">Aperçu</div>
+    <div class="email-preview">${html}</div>
+    <div class="modal-actions">
+      <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Annuler</button>
+      <button class="modal-btn modal-btn-send" onclick="sendEmail('week')">Ouvrir messagerie</button>
+    </div>
+  `);
 }
 
-function assignWorker(dayIdx, slotId, workerId) {
-    const dateStr = fmtISO(new Date(state.weekStart)); // Simplifié pour l'exemple
-    const absCode = state.absences[workerId]?.[dateStr];
+window.sendEmail = function(type) {
+    const to = document.getElementById('mail-to').value;
+    const cc = document.getElementById('mail-cc').value;
+    const subject = `Planning Semaine`;
+    const body = "Veuillez consulter le planning joint.";
+    window.open(`mailto:${to}?cc=${cc}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+    closeModal();
+};
 
-    if (absCode) {
-        if (!confirm(`⚠️ ${absCode} : Cette personne est marquée absente. Forcer l'affectation ?`)) {
-            return;
+// ── MODAL UTILS ──
+function showModal(content) {
+  document.getElementById('modal-content').innerHTML = content;
+  document.getElementById('modal-overlay').classList.add('show');
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('show'); }
+window.closeModal = closeModal;
+
+// ── INIT & UPDATE ──
+async function refreshData() {
+    const dateISO = fmtISO(state.weekStart);
+    state.staff = await fetchStaffForDate(dateISO);
+    // On récupère les codes d'absence de l'API pour le jour J
+    state.staff.forEach(w => {
+        if(w.absCode) {
+            if(!state.absences[w.id]) state.absences[w.id] = {};
+            state.absences[w.id][dateISO] = w.absCode;
         }
-    }
-
-    state.planning[`${dayIdx}_${slotId}`] = workerId;
-    render();
-}
-
-function removeFromSlot(dayIdx, slotId) {
-    delete state.planning[`${dayIdx}_${slotId}`];
+    });
     render();
 }
 
 function updateWeekLabel() {
-    const d = state.weekStart;
-    document.getElementById('week-label').textContent = `Semaine du ${d.toLocaleDateString('fr-FR')}`;
+  const wn = getWeekNum(state.weekStart);
+  const from = fmtFR(state.weekStart);
+  const to = fmtFR(addDays(state.weekStart, 6));
+  document.getElementById('week-label').textContent = `Semaine ${wn} · ${from} – ${to}`;
 }
 
-// ── NAVIGATION ──
-document.querySelectorAll('.view-tab').forEach(tab => {
-    tab.onclick = () => {
-        state.view = tab.dataset.view;
-        document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        document.getElementById('view-planning').style.display = state.view === 'planning' ? 'flex' : 'none';
-        document.getElementById('view-absences').style.display = state.view === 'absences' ? 'flex' : 'block';
-        render();
-    };
+function render() {
+  updateWeekLabel();
+  renderStaffList(document.getElementById('staff-search').value);
+  if (state.view === 'week') {
+    renderWeekHeader();
+    renderWeekGrid();
+  } else if (state.view === 'day') {
+    renderDayView();
+  } else if (state.view === 'absences') {
+    renderAbsences();
+  }
+}
+
+// Event bindings
+document.getElementById('prev-week').addEventListener('click', async () => {
+  state.weekStart = addDays(state.weekStart, -7);
+  await refreshData();
 });
+document.getElementById('next-week').addEventListener('click', async () => {
+  state.weekStart = addDays(state.weekStart, 7);
+  await refreshData();
+});
+document.querySelectorAll('.view-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    state.view = tab.dataset.view;
+    document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t === tab));
+    document.getElementById('view-week').style.display = state.view === 'week' ? 'flex' : 'none';
+    document.getElementById('view-day').style.display = state.view === 'day' ? 'flex' : 'none';
+    document.getElementById('view-absences').style.display = state.view === 'absences' ? 'block' : 'none';
+    render();
+  });
+});
+document.getElementById('btn-settings').addEventListener('click', showConfigModal);
+document.getElementById('btn-email-week').addEventListener('click', showEmailWeekModal);
+document.getElementById('staff-search').addEventListener('input', e => renderStaffList(e.target.value));
 
-document.getElementById('prev-week').onclick = () => { state.weekStart.setDate(state.weekStart.getDate() - 7); initApp(); };
-document.getElementById('next-week').onclick = () => { state.weekStart.setDate(state.weekStart.getDate() + 7); initApp(); };
-
-initApp();
+// Start
+loadState();
+initSlots();
+refreshData();
 </script>
 </body>
 </html>
