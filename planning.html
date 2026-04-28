@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planning Réception Roulier - Connecté</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0e14; --surface: #111722; --surface2: #1a2130;
+  --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.12);
+  --accent: #00d4aa; --accent2: #0096ff; --warn: #ff6b35;
+  --text: #e8edf5; --text2: #7a8fa8; --text3: #4a5a6e;
+  --red: #ff4d6d; --blue: #3b8fff;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Syne', sans-serif; height: 100vh; overflow: hidden; }
+
+#app { display: flex; flex-direction: column; height: 100vh; }
+
+/* Header */
+header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: var(--surface); border-bottom: 1px solid var(--border2); }
+.logo { font-size: 1.1rem; font-weight: 800; color: var(--accent); }
+.view-tabs { display: flex; gap: 4px; background: var(--surface2); padding: 3px; border-radius: 8px; }
+.view-tab { padding: 4px 12px; border-radius: 5px; font-size: 0.73rem; cursor: pointer; color: var(--text3); }
+.view-tab.active { background: var(--accent); color: #000; }
+
+main { display: flex; flex: 1; overflow: hidden; }
+
+/* Personnel Panel */
+#panel-staff { width: 240px; background: var(--surface); border-right: 1px solid var(--border2); display: flex; flex-direction: column; }
+.panel-title { font-size: 0.65rem; font-weight: 700; padding: 12px; color: var(--text3); text-transform: uppercase; }
+#staff-list { flex: 1; overflow-y: auto; padding: 10px; }
+.staff-item {
+    display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 6px;
+    cursor: grab; margin-bottom: 4px; background: var(--surface2); border: 1px solid var(--border);
+}
+.staff-item.absent { opacity: 0.5; border-left: 3px solid var(--red); }
+
+/* Planning View */
+#view-planning { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+.days-header { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; padding: 10px; }
+.day-cell-head { text-align: center; padding: 8px; background: var(--surface2); border-radius: 6px; font-weight: 700; font-size: 0.8rem; }
+
+.week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; padding: 0 10px 10px; flex: 1; overflow-y: auto; }
+.day-col { background: var(--surface); border: 1px solid var(--border2); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 10px; }
+
+/* Dynamic Slots (Postes) */
+.slot-container {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+    padding: 8px; display: flex; flex-direction: column; gap: 5px;
+}
+.slot-header {
+    font-size: 0.65rem; font-weight: 700; color: var(--accent);
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 5px;
+}
+.slot-remove { cursor: pointer; color: var(--red); }
+
+.drop-zone-worker {
+    border: 1px dashed var(--border2); border-radius: 4px;
+    padding: 6px; font-size: 0.7rem; text-align: center; color: var(--text3);
+    min-height: 30px; transition: 0.2s;
+}
+.drop-zone-worker.active { border-color: var(--accent); background: rgba(0,212,170,0.05); }
+.worker-assigned {
+    background: var(--bg); padding: 4px 8px; border-radius: 4px;
+    font-size: 0.7rem; display: flex; justify-content: space-between; align-items: center;
+}
+
+.btn-add-slot {
+    font-size: 0.6rem; padding: 5px; border: 1px dashed var(--text3);
+    color: var(--text3); cursor: pointer; text-align: center; border-radius: 4px;
+}
+.btn-add-slot:hover { color: var(--accent); border-color: var(--accent); }
+
+/* Absences Grid View */
+#view-absences { display: none; flex: 1; padding: 20px; overflow-y: auto; }
+.abs-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+.abs-table th, .abs-table td { border: 1px solid var(--border2); padding: 8px; text-align: center; }
+.abs-table th { background: var(--surface2); }
+.abs-code { font-weight: bold; padding: 2px 4px; border-radius: 3px; }
+.abs-code.cp { background: #ff4d6d33; color: #ff4d6d; }
+.abs-code.rr { background: #3b8fff33; color: #3b8fff; }
+
+/* Modal */
+#modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 1000; }
+#modal-overlay.show { display: flex; }
+.modal { background: var(--surface); padding: 20px; border-radius: 12px; width: 300px; border: 1px solid var(--border2); }
+.modal-input { width: 100%; padding: 8px; margin: 10px 0; background: var(--surface2); color: white; border: 1px solid var(--border2); }
+
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header>
+    <div class="logo">RÉCEPTION ROULIER</div>
+    <div class="view-tabs">
+      <div class="view-tab active" data-view="planning">📅 Planning</div>
+      <div class="view-tab" data-view="absences">📋 Absences</div>
+    </div>
+    <div style="margin-left: auto; display: flex; gap: 10px;">
+        <button id="prev-week" style="cursor:pointer">‹</button>
+        <span id="week-label">Chargement...</span>
+        <button id="next-week" style="cursor:pointer">›</button>
+    </div>
+  </header>
+
+  <main>
+    <div id="panel-staff">
+      <div class="panel-title">Personnel</div>
+      <div id="staff-list"></div>
+    </div>
+
+    <div id="view-planning">
+      <div class="days-header" id="days-header"></div>
+      <div class="week-grid" id="week-grid"></div>
+    </div>
+
+    <div id="view-absences">
+        <h2 style="margin-bottom: 20px;">Suivi des Absences</h2>
+        <div id="absences-container"></div>
+    </div>
+  </main>
+</div>
+
+<div id="modal-overlay">
+    <div class="modal" id="modal-content"></div>
+</div>
+
+<script>
+// ── CONFIG ──
+const PROXY_URL = "https://shgt-proxy.receptionroulier.workers.dev";
+const API_PATH = "/api/shgtdocker/getworkerscalendarsforuser";
+
+let state = {
+    workers: [],
+    absences: {}, // { workerId: { '2026-04-28': 'CP' } }
+    planning: {}, // { 'dayIdx_slotId': workerId }
+    slots: {},    // { dayIdx: [ {id, name} ] }
+    weekStart: getMonday(new Date()),
+    view: 'planning'
+};
+
+// ── API SERVICES ──
+async function fetchWorkers(date) {
+    const url = `${PROXY_URL}${API_PATH}?pageNumber=0&pageSize=200&date=${date}&familyId=0&workerGroupId=0&searchValue=`;
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+        // On adapte les données de l'API vers notre format interne
+        return data.items.map(w => ({
+            id: w.workerId,
+            firstName: w.firstName,
+            lastName: w.lastName,
+            absCode: w.absenceCode || null, // On récupère l'absence pour le jour précis
+            color: w.color || '#00d4aa'
+        }));
+    } catch (e) {
+        console.error("Erreur API:", e);
+        return [];
+    }
+}
+
+// ── CORE LOGIC ──
+function getMonday(d) {
+    const r = new Date(d);
+    r.setDate(r.getDate() + (r.getDay() === 0 ? -6 : 1 - r.getDay()));
+    r.setHours(0,0,0,0); return r;
+}
+
+function fmtISO(d) { return d.toISOString().split('T')[0]; }
+
+async function initApp() {
+    const dateStr = fmtISO(state.weekStart);
+    state.workers = await fetchWorkers(dateStr);
+
+    // On simule le remplissage des absences pour la semaine via l'API
+    // Dans la réalité, il faudrait boucler sur les 7 jours de la semaine
+    state.workers.forEach(w => {
+        if(w.absCode) state.absences[w.id] = { [dateStr]: w.absCode };
+    });
+
+    render();
+}
+
+// ── UI RENDERING ──
+function render() {
+    updateWeekLabel();
+    renderStaffList();
+    if (state.view === 'planning') {
+        renderPlanning();
+    } else {
+        renderAbsences();
+    }
+}
+
+function renderStaffList() {
+    const list = document.getElementById('staff-list');
+    list.innerHTML = '';
+    state.workers.forEach(w => {
+        const isAbsent = state.absences[w.id]?.[fmtISO(state.weekStart)] || false;
+        const el = document.createElement('div');
+        el.className = `staff-item ${isAbsent ? 'absent' : ''}`;
+        el.draggable = true;
+        el.innerHTML = `<span>${w.firstName} ${w.lastName}</span> ${isAbsent ? `<small style="color:var(--red)">${isAbsent}</small>` : ''}`;
+        el.ondragstart = (e) => e.dataTransfer.setData('workerId', w.id);
+        list.appendChild(el);
+    });
+}
+
+function renderPlanning() {
+    const header = document.getElementById('days-header');
+    const grid = document.getElementById('week-grid');
+    header.innerHTML = ''; grid.innerHTML = '';
+
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(state.weekStart); d.setDate(d.getDate() + i);
+
+        // Header
+        const h = document.createElement('div');
+        h.className = 'day-cell-head';
+        h.textContent = `${d.toLocaleDateString('fr-FR', {weekday:'short'})} ${d.getDate()}/${d.getMonth()+1}`;
+        header.appendChild(h);
+
+        // Column
+        const col = document.createElement('div');
+        col.className = 'day-col';
+
+        // Render Slots
+        if (!state.slots[i]) state.slots[i] = [];
+        state.slots[i].forEach((slot, slotIdx) => {
+            const slotDiv = document.createElement('div');
+            slotDiv.className = 'slot-container';
+
+            const workerId = state.planning[`${i}_${slot.id}`];
+            const worker = state.workers.find(w => w.id === workerId);
+
+            slotDiv.innerHTML = `
+                <div class="slot-header">
+                    <span>${slot.name}</span>
+                    <span class="slot-remove" onclick="removeSlot(${i}, ${slotIdx})">✕</span>
+                </div>
+                <div class="drop-zone-worker" data-day="${i}" data-slot="${slot.id}">
+                    ${worker ? `<div class="worker-assigned">${worker.firstName} ${worker.lastName} <span class="slot-remove" onclick="removeFromSlot(${i},'${slot.id}')">✕</span></div>` : 'Glisser personne ici'}
+                </div>
+            `;
+
+            const dz = slotDiv.querySelector('.drop-zone-worker');
+            dz.ondragover = (e) => { e.preventDefault(); dz.classList.add('active'); };
+            dz.ondragleave = () => dz.classList.remove('active');
+            dz.ondrop = (e) => {
+                e.preventDefault();
+                dz.classList.remove('active');
+                const wId = e.dataTransfer.getData('workerId');
+                assignWorker(i, slot.id, wId);
+            };
+
+            col.appendChild(slotDiv);
+        });
+
+        // Add Slot Button
+        const addBtn = document.createElement('div');
+        addBtn.className = 'btn-add-slot';
+        addBtn.textContent = '+ Créer un poste';
+        addBtn.onclick = () => createSlot(i);
+        col.appendChild(addBtn);
+
+        grid.appendChild(col);
+    }
+}
+
+function renderAbsences() {
+    const container = document.getElementById('absences-container');
+    let html = `<table class="abs-table"><thead><tr><th>Personnel</th>`;
+    for(let i=0; i<7; i++) {
+        const d = new Date(state.weekStart); d.setDate(d.getDate()+i);
+        html += `<th>${d.toLocaleDateString('fr-FR')}</th>`;
+    }
+    html += `</tr></thead><tbody>`;
+
+    state.workers.forEach(w => {
+        html += `<tr><td>${w.lastName} ${w.firstName}</td>`;
+        for(let i=0; i<7; i++) {
+            const d = new Date(state.weekStart); d.setDate(d.getDate()+i);
+            const code = state.absences[w.id]?.[fmtISO(d)] || '-';
+            html += `<td><span class="abs-code ${code.toLowerCase()}">${code}</span></td>`;
+        }
+        html += `</tr>`;
+    });
+
+    html += `</tbody></table>`;
+    container.innerHTML = html;
+}
+
+// ── ACTIONS ──
+function createSlot(dayIdx) {
+    const name = prompt("Nom du poste (ex: Réception Matin, Chauffeur A...)");
+    if (!name) return;
+    state.slots[dayIdx].push({ id: 's' + Date.now(), name: name });
+    render();
+}
+
+function removeSlot(dayIdx, slotIdx) {
+    const slot = state.slots[dayIdx][slotIdx];
+    delete state.planning[`${dayIdx}_${slot.id}`];
+    state.slots[dayIdx].splice(slotIdx, 1);
+    render();
+}
+
+function assignWorker(dayIdx, slotId, workerId) {
+    const dateStr = fmtISO(new Date(state.weekStart)); // Simplifié pour l'exemple
+    const absCode = state.absences[workerId]?.[dateStr];
+
+    if (absCode) {
+        if (!confirm(`⚠️ ${absCode} : Cette personne est marquée absente. Forcer l'affectation ?`)) {
+            return;
+        }
+    }
+
+    state.planning[`${dayIdx}_${slotId}`] = workerId;
+    render();
+}
+
+function removeFromSlot(dayIdx, slotId) {
+    delete state.planning[`${dayIdx}_${slotId}`];
+    render();
+}
+
+function updateWeekLabel() {
+    const d = state.weekStart;
+    document.getElementById('week-label').textContent = `Semaine du ${d.toLocaleDateString('fr-FR')}`;
+}
+
+// ── NAVIGATION ──
+document.querySelectorAll('.view-tab').forEach(tab => {
+    tab.onclick = () => {
+        state.view = tab.dataset.view;
+        document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('view-planning').style.display = state.view === 'planning' ? 'flex' : 'none';
+        document.getElementById('view-absences').style.display = state.view === 'absences' ? 'flex' : 'block';
+        render();
+    };
+});
+
+document.getElementById('prev-week').onclick = () => { state.weekStart.setDate(state.weekStart.getDate() - 7); initApp(); };
+document.getElementById('next-week').onclick = () => { state.weekStart.setDate(state.weekStart.getDate() + 7); initApp(); };
+
+initApp();
+</script>
+</body>
+</html>
