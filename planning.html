@@ -166,10 +166,10 @@ const PLAN_PROXY = "https://planning-proxy.receptionroulier.workers.dev";
 const NAV_PROXY = "https://shgt-proxy.receptionroulier.workers.dev";
 
 const SECTIONS_MAP = {
-  '0817': { id: 'prepа', name: 'FCQ/CC/Montage/Prépa', hours: '8h30 / 12h00  14h00 / 17h30', color: '#a78bfa' },
+  '0817': { id: 'prepa', name: 'FCQ/CC/Montage/Prépa', hours: '8h30 / 12h00  14h00 / 17h30', color: '#a78bfa' },
   '0714': { id: 'matin', name: 'Réception Matin',       hours: '7h00 / 14h00',                color: '#00c896' },
   '1320': { id: 'aprem', name: 'Réception Après-Midi',  hours: '13h00 / 20h00',               color: '#3b8fff' },
-  'default': { id: 'autre', name: 'Autre / Parc',           hours: '',                            color: '#ffd060' },
+  'default': { id: 'autre', name: 'Autre / Parc',       hours: '',                            color: '#ffd060' },
 };
 
 const DAYS = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
@@ -208,6 +208,16 @@ async function fetchNavires(dateFrom, dateTo) {
         const response = await fetch(NAV_PROXY, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ dateFrom, dateTo })
+        });
+        return await response.json();
+    } catch(e) { return []; }
+}
+
+async function fetchStaffAndAbsences(dateFrom, dateTo) {
+    try {
+        const response = await fetch(PLAN_PROXY, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dateFrom, dateTo, type: 'absences' })
         });
         return await response.json();
     } catch(e) { return []; }
@@ -345,10 +355,15 @@ function renderWeekGrid() {
                 slotDiv.className = 'slot-container';
                 const workerId = state.planning[`${dayIdx}_${sec.id}_${slot.id}`];
                 const w = getWorker(workerId);
+
+                // CORRECTION : Échappement des quotes pour slot.id et sec.id
+                const safeSecId = sec.id.replace(/'/g, "\\'");
+                const safeSlotId = slot.id.replace(/'/g, "\\'");
+
                 slotDiv.innerHTML = `
-                    <div class="slot-info"><span>${slot.label}</span><span class="slot-remove" onclick="removeSlot(${dayIdx}, '${sec.id}', ${slotIdx})">✕</span></div>
+                    <div class="slot-info"><span>${slot.label}</span><span class="slot-remove" onclick="removeSlot(${dayIdx}, '${safeSecId}', ${slotIdx})">✕</span></div>
                     <div class="drop-zone" data-day="${dayIdx}" data-sec="${sec.id}" data-slot="${slot.id}">
-                        ${w ? `<div class="assigned-chip"><div class="chip-avatar" style="background:${w.color}22;color:${w.color}">${initials(w).toUpperCase()}</div><div class="chip-name">${w.lastName}</div><div class="chip-remove" onclick="removeFromSlot(${dayIdx},'${sec.id}','${slot.id}')">✕</div></div>` : 'Glisser ici'}
+                        ${w ? `<div class="assigned-chip"><div class="chip-avatar" style="background:${w.color}22;color:${w.color}">${initials(w).toUpperCase()}</div><div class="chip-name">${w.lastName}</div><div class="chip-remove" onclick="removeFromSlot(${dayIdx},'${safeSecId}','${safeSlotId}')">✕</div></div>` : 'Glisser ici'}
                     </div>
                 `;
                 const dz = slotDiv.querySelector('.drop-zone');
@@ -360,7 +375,7 @@ function renderWeekGrid() {
                 });
                 col.appendChild(slotDiv);
             });
-        }
+        });
     }
     grid.appendChild(col);
   });
@@ -434,7 +449,7 @@ async function generatePDF(dayIdx = null) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     const wn = getWeekNum(state.weekStart);
-    const dFrom = fmtFR(state.eStart || state.weekStart);
+    const dFrom = fmtFR(state.weekStart);
     const dTo = fmtFR(addDays(state.weekStart, 6));
     let title = "", fileName = "", rows = [];
 
