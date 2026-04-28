@@ -26,6 +26,7 @@ header {
   padding: 12px 20px; background: var(--surface);
   border-bottom: 1px solid var(--border2); flex-shrink: 0;
 }
+.header-left-action { display: flex; align-items: center; }
 .logo { font-size: 1.1rem; font-weight: 800; color: var(--accent); white-space: nowrap; }
 .logo span { color: var(--text2); font-weight: 400; }
 .week-nav { display: flex; align-items: center; gap: 8px; margin: 0 auto; }
@@ -161,7 +162,8 @@ main { display: flex; flex: 1; min-height: 0; }
 <div id="toast"></div>
 
 <script>
-const PROXY_URL = "https://planning-proxy.receptionroulier.workers.dev";
+const PLAN_PROXY = "https://planning-proxy.receptionroulier.workers.dev";
+const NAV_PROXY = "https://shgt-proxy.receptionroulier.workers.dev";
 
 const SECTIONS_MAP = {
   '0817': { id: 'prepа', name: 'FCQ/CC/Montage/Prépa', hours: '8h30 / 12h00  14h00 / 17h30', color: '#a78bfa' },
@@ -192,9 +194,8 @@ let state = {
 // ── API ──
 async function fetchPersonnel(date) {
     try {
-        const response = await fetch(PROXY_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+        const response = await fetch(PLAN_PROXY, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ date })
         });
         const data = await response.json();
@@ -204,9 +205,8 @@ async function fetchPersonnel(date) {
 
 async function fetchNavires(dateFrom, dateTo) {
     try {
-        const response = await fetch(PROXY_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+        const response = await fetch(NAV_PROXY, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ dateFrom, dateTo })
         });
         return await response.json();
@@ -243,7 +243,7 @@ function toast(msg) {
 // ── STATE MANAGEMENT ──
 function loadState() {
   try {
-    const s = localStorage.getItem('planningRoulier_v10');
+    const s = localStorage.getItem('planningRoulier_v11');
     if (s) {
       const saved = JSON.parse(s);
       state.planning = saved.planning || {};
@@ -254,18 +254,17 @@ function loadState() {
 }
 function saveState() {
   try {
-    localStorage.setItem('planningRoulier_v10', JSON.stringify({
+    localStorage.setItem('planningRoulier_v11', JSON.stringify({
       planning: state.planning, slots: state.slots, config: state.config,
     }));
   } catch(e) {}
 }
 
-// ── CORE LOGIC ──
+// ── DYNAMIQUE SLOTS ──
 async function buildDynamicSlots() {
     const dateStart = fmtISO(state.weekStart);
     const dateEnd = fmtISO(addDays(state.weekStart, 6));
     const naviresData = await fetchNavires(dateStart, dateEnd);
-
     for(let i=0; i<7; i++) { state.slots[i] = {}; }
 
     naviresData.forEach(dayData => {
@@ -277,53 +276,19 @@ async function buildDynamicSlots() {
         dayData.postes.forEach(p => {
             const parcAssignments = p.projectAssignments.filter(pa => pa.sectorId === 25);
             if (parcAssignments.length === 0) return;
-
             const sectionCfg = SECTIONS_MAP[p.poste.code] || SECTIONS_MAP['default'];
             const secId = sectionCfg.id;
             if (!state.slots[dayIdx][secId]) state.slots[dayIdx][secId] = [];
-
             parcAssignments.forEach(pa => {
                 pa.projectAssignmentWorkers.forEach(w => {
-                    const label = w.job?.code || 'PN';
-                    state.slots[dayIdx][secId].push({ id: `slot_${pa.id}_${w.id}`, label: label });
+                    state.slots[dayIdx][secId].push({ id: `slot_${pa.id}_${w.id}`, label: w.job?.code || 'PN' });
                 });
             });
         });
     });
 }
 
-async function refreshStaffAndAbsences() {
-    const startOfMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth(), 1);
-    const endOfMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth() + 1, 0);
-
-    // Pour le personnel, on fait un fetch sur le premier jour du mois pour avoir la liste
-    const staffRaw = await fetchPersonnel(fmtISO(startOfMonth));
-    const staffMap = new Map();
-
-    staffRaw.forEach(w => {
-        staffMap.set(w.workerId, {
-            id: w.workerId, firstName: w.firstName, lastName: (w.lastName||'').toUpperCase(),
-            matricule: w.matricule, color: w.color || '#00d4aa'
-        });
-    });
-    state.staff = Array.from(staffMap.values());
-
-    // On récupère les absences pour chaque jour du mois via la boucle Navire (puisqu'elle renvoie les postes et on peut en déduire les absences si on adapte le worker, mais ici on utilise la logique la plus simple : on boucle sur les jours)
-    // Note: Pour optimiser, on pourrait créer un endpoint spécifique "all-absences" dans le worker.
-    for(let i=1; i <= new Date(state.absMonth.getFullYear(), state.absMonth.getMonth()+1, 0).getDate(); i++) {
-        const d = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), i);
-        const dayStaff = await fetchPersonnel(fmtISO(d));
-        dayStaff.forEach(w => {
-            if(w.absenceCode) {
-                if(!state.absences[w.workerId]) state.absences[w.workerId] = {};
-                state.absences[w.workerId][fmtISO(d)] = w.absenceCode;
-            }
-        });
-    }
-    render();
-}
-
-// ── RENDERING ──
+// ── RENDER STAFF ──
 function renderStaffList(filter='') {
   const list = document.getElementById('staff-list');
   list.innerHTML = '';
@@ -423,6 +388,24 @@ function removeSlot(dayIdx, secId, slotIdx) {
     saveState(); renderWeekGrid();
 }
 
+async function refreshAbsencesMonth() {
+    const startOfMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth(), 1);
+    const endOfMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth() + 1, 0);
+    document.getElementById('abs-month-label').textContent = startOfMonth.toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
+    const data = await fetchStaffAndAbsences(fmtISO(startOfMonth), fmtISO(endOfMonth));
+    const staffMap = new Map();
+    data.forEach(w => {
+        if(!staffMap.has(w.workerId)) staffMap.set(w.workerId, { id: w.workerId, firstName: w.firstName, lastName: (w.lastName||'').toUpperCase(), matricule: w.matricule, color: w.color || '#00d4aa' });
+        if(w.absenceCode) {
+            if(!state.absences[w.workerId]) state.absences[w.workerId] = {};
+            state.absences[w.workerId][w.date] = w.absenceCode;
+        }
+    });
+    state.staff = Array.from(staffMap.values());
+    renderAbsences();
+    renderStaffList(document.getElementById('staff-search').value);
+}
+
 function renderAbsences() {
     const container = document.getElementById('absences-container');
     const startOfMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth(), 1);
@@ -446,18 +429,18 @@ function renderAbsences() {
     container.innerHTML = html;
 }
 
-// ── PDF & MAILS ──
+// ── PDF & EMAILS ──
 async function generatePDF(dayIdx = null) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     const wn = getWeekNum(state.weekStart);
-    const dFrom = fmtFR(state.weekStart);
+    const dFrom = fmtFR(state.eStart || state.weekStart);
     const dTo = fmtFR(addDays(state.weekStart, 6));
     let title = "", fileName = "", rows = [];
 
     if (dayIdx === null) {
-        title = `Effectif Parc Roulier - Semaine ${wn} (${dFrom} au ${dTo})`;
-        fileName = `Planning_Réception_Semaine${wn}_du_${dFrom}_au_${dTo}.pdf`;
+        title = `Effectif Parc Roulier - Semaine ${wn}`;
+        fileName = `Planning_Réception_Semaine${wn}.pdf`;
         for(let i=0; i<7; i++) {
             rows.push([`${DAYS[i]} ${fmtFR(addDays(state.weekStart, i))}`, '']);
             Object.values(SECTIONS_MAP).forEach(sec => {
@@ -538,24 +521,6 @@ async function initApp() {
     await refreshAbsencesMonth();
     await refreshPlanningData();
     render();
-}
-
-async function refreshAbsencesMonth() {
-    const startOfMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth(), 1);
-    const endOfMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth() + 1, 0);
-    document.getElementById('abs-month-label').textContent = startOfMonth.toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
-    const data = await fetchStaffAndAbsences(fmtISO(startOfMonth), fmtISO(endOfMonth));
-    const staffMap = new Map();
-    data.forEach(w => {
-        if(!staffMap.has(w.workerId)) staffMap.set(w.workerId, { id: w.workerId, firstName: w.firstName, lastName: (w.lastName||'').toUpperCase(), matricule: w.matricule, color: w.color || '#00d4aa' });
-        if(w.absenceCode) {
-            if(!state.absences[w.workerId]) state.absences[w.workerId] = {};
-            state.absences[w.workerId][w.date] = w.absenceCode;
-        }
-    });
-    state.staff = Array.from(staffMap.values());
-    renderAbsences();
-    renderStaffList(document.getElementById('staff-search').value);
 }
 
 async function refreshPlanningData() {
