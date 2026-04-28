@@ -102,8 +102,8 @@ main { display: flex; flex: 1; min-height: 0; }
 .daily-matric { font-size: 0.65rem; color: var(--text3); font-family: 'DM Mono', monospace; }
 
 #view-absences { display: none; flex: 1; padding: 20px; overflow-y: auto; }
-.abs-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; background: var(--surface); }
-.abs-table th, .abs-table td { border: 1px solid var(--border2); padding: 8px; text-align: center; }
+.abs-table { width: 100%; border-collapse: collapse; font-size: 0.65rem; background: var(--surface); }
+.abs-table th, .abs-table td { border: 1px solid var(--border2); padding: 4px; text-align: center; }
 .abs-table th { background: var(--surface2); color: var(--text2); }
 .abs-code { font-weight: bold; padding: 2px 4px; border-radius: 3px; background: rgba(255,107,53,0.2); color: var(--warn); }
 
@@ -159,7 +159,14 @@ main { display: flex; flex: 1; min-height: 0; }
         <div class="day-content" id="day-content"></div>
       </div>
       <div id="view-absences" style="display:none">
-          <div class="panel-title" style="padding: 20px">Suivi Global des Absences</div>
+          <div class="panel-title" style="padding: 20px; display:flex; justify-content:space-between; align-items:center">
+              <span>Suivi Mensuel des Absences</span>
+              <div id="month-nav" style="display:flex; gap:10px; align-items:center">
+                  <button class="btn btn-ghost" style="padding:2px 8px" id="abs-prev">‹</button>
+                  <span id="abs-month-label" style="font-size:0.8rem">Chargement...</span>
+                  <button class="btn btn-ghost" style="padding:2px 8px" id="abs-next">›</button>
+              </div>
+          </div>
           <div id="absences-container" style="padding: 0 20px 20px"></div>
       </div>
     </div>
@@ -172,7 +179,6 @@ main { display: flex; flex: 1; min-height: 0; }
 <div id="toast"></div>
 
 <script>
-// ── CONFIG ──
 const PROXY_URL = "https://shgt-proxy.receptionroulier.workers.dev";
 
 const SECTIONS = [
@@ -185,14 +191,14 @@ const SECTIONS = [
 const DAYS = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
 const DAY_SHORT = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
 
-// ── STATE ──
 let state = {
   weekStart: getMonday(new Date()),
+  absMonth: new Date(), // Date pour la vue absences (début du mois)
   view: 'week',
   activeDay: 0,
   planning: {},
   slots: {},
-  absences: {},
+  absences: {}, // [workerId][dateISO] = code
   config: {
     emailWeek: 'chefmanutention.tmt@shgt.fr',
     emailCcWeek: 'smaillard@smr-france.com',
@@ -204,34 +210,24 @@ let state = {
   dragWorker: null,
 };
 
-// ── API (POST JSON based on caln.html) ──
-async function fetchStaffForDate(dateISO) {
+// ── API ──
+async function fetchStaffAndAbsences(dateFrom, dateTo) {
     try {
         const response = await fetch(PROXY_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                date: dateISO,
+                dateFrom: dateFrom,
+                dateTo: dateTo,
                 pageNumber: 0,
-                pageSize: 200,
-                familyId: 0,
-                workerGroupId: 0,
-                searchValue: ''
+                pageSize: 200
             })
         });
-        if (!response.ok) throw new Error('Proxy error');
+        if (!response.ok) throw new Error('Proxy Error');
         const data = await response.json();
-        return (data.items || []).map(w => ({
-            id: w.workerId,
-            firstName: w.firstName,
-            lastName: (w.lastName || '').toUpperCase(),
-            matricule: w.matricule,
-            color: w.color || '#00d4aa',
-            absCode: w.absenceCode || null
-        }));
+        return (data.items || []);
     } catch(e) {
         console.error("API Error:", e);
-        toast("Erreur de connexion au Proxy");
         return [];
     }
 }
@@ -266,7 +262,7 @@ function toast(msg) {
 // ── STATE MANAGEMENT ──
 function loadState() {
   try {
-    const s = localStorage.getItem('planningRoulier_v4');
+    const s = localStorage.getItem('planningRoulier_v5');
     if (s) {
       const saved = JSON.parse(s);
       state.planning = saved.planning || {};
@@ -277,7 +273,7 @@ function loadState() {
 }
 function saveState() {
   try {
-    localStorage.setItem('planningRoulier_v4', JSON.stringify({
+    localStorage.setItem('planningRoulier_v5', JSON.stringify({
       planning: state.planning,
       slots: state.slots,
       config: state.config,
@@ -308,8 +304,9 @@ function renderStaffList(filter='') {
   state.staff.forEach(w => {
     const name = `${w.firstName} ${w.lastName}`.toLowerCase();
     if (q && !name.includes(q) && !(w.matricule||'').toLowerCase().includes(q)) return;
+
     const dateToday = fmtISO(addDays(state.weekStart, 0));
-    const absCode = state.absences[w.id]?.[dateToday] || w.absCode;
+    const absCode = state.absences[w.id]?.[dateToday] || '';
 
     const el = document.createElement('div');
     el.className = 'staff-item' + (absCode ? ' absent' : '');
@@ -425,10 +422,10 @@ function renderWeekGrid() {
 function addToSlot(dayIdx, secId, slotId, workerId) {
   const worker = getWorker(workerId);
   const dateISO = fmtISO(addDays(state.weekStart, dayIdx));
-  const absCode = state.absences[workerId]?.[dateISO] || (worker && worker.absCode);
+  const absCode = state.absences[workerId]?.[dateISO] || '';
 
   if (absCode) {
-    if (!confirm(`⚠️ ${worker.firstName} ${worker.lastName} est absent (${absCode}). Forcer l'affectation ?`)) return;
+    if (!confirm(`⚠️ ${worker.firstName} ${worker.lastName} est absent (${absCode}) le ${dateISO}. Forcer l'affectation ?`)) return;
   }
   state.planning[`${dayIdx}_${secId}_${slotId}`] = workerId;
   saveState(); renderWeekGrid(); renderDayView();
@@ -506,21 +503,53 @@ function renderDayView() {
   });
 }
 
-// ── ABSENCES VIEW ──
+// ── ABSENCES VIEW (MENSUEL) ──
+async function refreshAbsencesMonth() {
+    const startOfMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth(), 1);
+    const endOfMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth() + 1, 0);
+
+    document.getElementById('abs-month-label').textContent = startOfMonth.toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
+
+    const data = await fetchStaffAndAbsences(fmtISO(startOfMonth), fmtISO(endOfMonth));
+
+    // On met à jour state.absences avec les données du mois
+    const staffMap = new Map();
+    data.forEach(w => {
+        if(!staffMap.has(w.workerId)) {
+            staffMap.set(w.workerId, {
+                id: w.workerId, firstName: w.firstName, lastName: (w.lastName||'').toUpperCase(),
+                matricule: w.matricule, color: w.color || '#00d4aa'
+            });
+        }
+        if(w.absenceCode) {
+            if(!state.absences[w.workerId]) state.absences[w.workerId] = {};
+            state.absences[w.workerId][w.date] = w.absenceCode;
+        }
+    });
+
+    // Mise à jour de la liste du personnel (si nouveaux arrivants)
+    state.staff = Array.from(staffMap.values());
+    renderAbsences();
+    renderStaffList(document.getElementById('staff-search').value);
+}
+
 function renderAbsences() {
     const container = document.getElementById('absences-container');
-    let html = `<table class="abs-table"><thead><tr><th>Personnel</th>`;
-    for(let i=0; i<7; i++) {
-        const d = addDays(state.weekStart, i);
-        html += `<th>${fmtFR(d)}</th>`;
+    const startOfMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth(), 1);
+    const daysInMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth() + 1, 0).getDate();
+
+    let html = `<table class="abs-table"><thead><tr><th style="position:sticky; left:0; background:var(--surface2); z-index:1">Personnel</th>`;
+    for(let i=1; i<=daysInMonth; i++) {
+        const d = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), i);
+        html += `<th>${i}<br>${d.toLocaleDateString('fr-FR',{weekday:'short'}).substring(0,3)}</th>`;
     }
     html += `</tr></thead><tbody>`;
 
     state.staff.forEach(w => {
-        html += `<tr><td>${w.lastName} ${w.firstName}</td>`;
-        for(let i=0; i<7; i++) {
-            const dateISO = fmtISO(addDays(state.weekStart, i));
-            const code = state.absences[w.id]?.[dateISO] || (i===0 ? w.absCode : '');
+        html += `<tr><td style="position:sticky; left:0; background:var(--surface); border-right:1px solid var(--border2)">${w.lastName} ${w.firstName}</td>`;
+        for(let i=1; i<=daysInMonth; i++) {
+            const dateISO = fmtISO(new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), i));
+            const code = state.absences[w.id]?.[dateISO] || '';
             html += `<td>${code ? `<span class="abs-code">${code}</span>` : '—'}</td>`;
         }
         html += `</tr>`;
@@ -530,7 +559,7 @@ function renderAbsences() {
     container.innerHTML = html;
 }
 
-// ── CONFIG & EMAIL ──
+// ── CONFIG & EMAIL (Original logic restored) ──
 function showConfigModal() {
   showModal(`
     <h2>⚙ Configuration</h2>
@@ -621,7 +650,6 @@ window.sendEmail = function(type) {
     closeModal();
 };
 
-// ── MODAL UTILS ──
 function showModal(content) {
   document.getElementById('modal-content').innerHTML = content;
   document.getElementById('modal-overlay').classList.add('show');
@@ -630,16 +658,15 @@ function closeModal() { document.getElementById('modal-overlay').classList.remov
 window.closeModal = closeModal;
 
 // ── INIT & UPDATE ──
-async function refreshData() {
-    const dateISO = fmtISO(state.weekStart);
-    const staff = await fetchStaffForDate(dateISO);
-    state.staff = staff;
-    staff.forEach(w => {
-        if(w.absCode) {
-            if(!state.absences[w.id]) state.absences[w.id] = {};
-            state.absences[w.id][dateISO] = w.absCode;
-        }
-    });
+async function initApp() {
+    // 1. Charger le personnel et les absences du mois en cours
+    state.absMonth = new Date();
+    await refreshAbsencesMonth();
+
+    // 2. Initialiser les slots
+    initSlots();
+
+    // 3. Rendre l'interface
     render();
 }
 
@@ -664,13 +691,13 @@ function render() {
 }
 
 // Event bindings
-document.getElementById('prev-week').addEventListener('click', async () => {
+document.getElementById('prev-week').addEventListener('click', () => {
   state.weekStart = addDays(state.weekStart, -7);
-  await refreshData();
+  render();
 });
-document.getElementById('next-week').addEventListener('click', async () => {
+document.getElementById('next-week').addEventListener('click', () => {
   state.weekStart = addDays(state.weekStart, 7);
-  await refreshData();
+  render();
 });
 document.querySelectorAll('.view-tab').forEach(tab => {
   tab.addEventListener('click', () => {
@@ -686,9 +713,18 @@ document.getElementById('btn-settings').addEventListener('click', showConfigModa
 document.getElementById('btn-email-week').addEventListener('click', showEmailWeekModal);
 document.getElementById('staff-search').addEventListener('input', e => renderStaffList(e.target.value));
 
+// Nav absences
+document.getElementById('abs-prev').addEventListener('click', () => {
+    state.absMonth.setMonth(state.absMonth.getMonth() - 1);
+    refreshAbsencesMonth();
+});
+document.getElementById('abs-next').addEventListener('click', () => {
+    state.absMonth.setMonth(state.absMonth.getMonth() + 1);
+    refreshAbsencesMonth();
+});
+
 loadState();
-initSlots();
-refreshData();
+initApp();
 </script>
 </body>
 </html>
