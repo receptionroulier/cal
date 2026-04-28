@@ -30,7 +30,8 @@ header {
 .logo { font-size: 1.1rem; font-weight: 800; color: var(--accent); white-space: nowrap; }
 .logo span { color: var(--text2); font-weight: 400; }
 .week-nav { display: flex; align-items: center; gap: 8px; margin: 0 auto; }
-.week-nav button { background: var(--surface2); border: 1px solid var(--border2); color: var(--text); width: 28px; height: 28px; border-radius: 6px; cursor: pointer; font-family: inherit; }
+.week-nav button { background: var(--surface2); border: 1px solid var(--border2); color: var(--text); width: 28px; height: 28px; border-radius: 6px; cursor: pointer; }
+#btn-today { width: auto; height: 28px; padding: 0 12px; font-size: 0.72rem; font-weight: 700; font-family: inherit; white-space: nowrap; }
 #week-label { font-size: 0.82rem; font-weight: 700; background: var(--surface2); padding: 5px 14px; border-radius: 20px; border: 1px solid var(--border2); }
 .header-actions { display: flex; gap: 8px; }
 .btn { padding: 7px 14px; border-radius: 7px; cursor: pointer; font-size: 0.75rem; font-weight: 700; border: none; transition: all .15s; white-space: nowrap; }
@@ -154,47 +155,10 @@ main { display: flex; flex: 1; min-height: 0; }
   background: rgba(59,143,255,0.35);
 }
 
-#view-absences { display: none; flex: 1; flex-direction: column; min-height: 0; overflow: hidden; }
-
-/* Barre de contrôle absences en haut */
-#abs-topbar {
-  flex-shrink: 0;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 20px; gap: 16px;
-  background: var(--surface); border-bottom: 1px solid var(--border2);
-}
-#abs-month-nav { display: flex; align-items: center; gap: 8px; }
-#abs-month-label { font-size: 0.82rem; font-weight: 700; background: var(--surface2); padding: 5px 14px; border-radius: 20px; border: 1px solid var(--border2); min-width: 140px; text-align: center; }
-#abs-search-wrap { flex: 1; display: flex; justify-content: center; }
-#abs-search {
-  padding: 6px 14px; background: var(--surface2); border: 1px solid var(--border2);
-  border-radius: 20px; color: var(--text); font-size: 0.75rem; outline: none;
-  width: 260px; font-family: inherit;
-}
-#abs-search:focus { border-color: var(--accent); }
-
-/* Contenu scrollable */
-#abs-scroll { flex: 1; overflow: auto; padding: 16px 20px 20px; }
-
-.abs-table { border-collapse: collapse; font-size: 0.65rem; background: var(--surface); }
-.abs-table th, .abs-table td { border: 1px solid var(--border2); padding: 4px 6px; text-align: center; white-space: nowrap; }
-.abs-table th { background: var(--surface2); color: var(--text2); font-weight: 700; }
-.abs-table th.day-ferie { color: var(--red); background: rgba(255,77,109,0.08); }
-.abs-table td.day-ferie { background: rgba(255,77,109,0.05); }
-.abs-table td.day-today { background: rgba(59,143,255,0.08); }
-.abs-table th.day-today { color: var(--accent); background: rgba(59,143,255,0.12); }
-
-/* Cellule nom — style liste personnel sans bulle */
-.abs-name-cell {
-  position: sticky; left: 0; z-index: 2;
-  background: var(--surface); border-right: 1px solid var(--border2);
-  text-align: left !important; padding: 6px 10px !important;
-  min-width: 160px;
-}
-.abs-name-cell .abs-staff-name { font-size: 0.73rem; font-weight: 600; color: var(--text); white-space: nowrap; }
-.abs-name-cell .abs-staff-matric { font-size: 0.62rem; color: var(--text3); font-family: 'DM Mono', monospace; }
-.abs-table thead th:first-child { position: sticky; left: 0; z-index: 3; background: var(--surface2); }
-
+#view-absences { display: none; flex: 1; padding: 20px; overflow-y: auto; }
+.abs-table { width: 100%; border-collapse: collapse; font-size: 0.65rem; background: var(--surface); }
+.abs-table th, .abs-table td { border: 1px solid var(--border2); padding: 4px; text-align: center; }
+.abs-table th { background: var(--surface2); color: var(--text2); }
 .abs-code { font-weight: bold; padding: 2px 4px; border-radius: 3px; background: rgba(255,107,53,0.2); color: var(--warn); }
 
 #modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); }
@@ -218,13 +182,11 @@ main { display: flex; flex: 1; min-height: 0; }
         <button class="btn btn-ghost" id="btn-settings" style="padding: 6px; border-radius: 50%;">⚙️</button>
     </div>
     <div class="logo">RÉCEPTION<span> ROULIER</span></div>
-    <div id="week-nav-area" style="display:flex;align-items:center;gap:8px;">
-      <button id="btn-today" class="btn btn-ghost" style="height:28px;padding:0 12px;font-size:0.72rem;font-weight:700;font-family:inherit;white-space:nowrap;">Aujourd'hui</button>
-      <div class="week-nav">
-        <button id="prev-week">‹</button>
-        <div id="week-label">Chargement...</div>
-        <button id="next-week">›</button>
-      </div>
+    <div class="week-nav">
+      <button id="btn-today">Aujourd'hui</button>
+      <button id="prev-week">‹</button>
+      <div id="week-label">Chargement...</div>
+      <button id="next-week">›</button>
     </div>
     <div class="view-tabs">
       <div class="view-tab active" data-view="week">Planning</div>
@@ -252,20 +214,15 @@ main { display: flex; flex: 1; min-height: 0; }
         </div>
       </div>
       <div id="view-absences" style="display:none">
-        <div id="abs-topbar">
-          <div id="abs-month-nav">
-            <button class="btn btn-ghost" style="padding:2px 8px" id="abs-prev">‹</button>
-            <span id="abs-month-label">Chargement...</span>
-            <button class="btn btn-ghost" style="padding:2px 8px" id="abs-next">›</button>
+          <div class="panel-title" style="padding: 20px; display:flex; justify-content:space-between; align-items:center">
+              <span>Suivi Mensuel des Absences</span>
+              <div id="month-nav" style="display:flex; gap:10px; align-items:center">
+                  <button class="btn btn-ghost" style="padding:2px 8px" id="abs-prev">‹</button>
+                  <span id="abs-month-label" style="font-size:0.8rem">Chargement...</span>
+                  <button class="btn btn-ghost" style="padding:2px 8px" id="abs-next">›</button>
+              </div>
           </div>
-          <div id="abs-search-wrap">
-            <input type="text" id="abs-search" placeholder="🔍 Rechercher un agent…">
-          </div>
-          <div style="min-width:160px"></div><!-- équilibre visuel -->
-        </div>
-        <div id="abs-scroll">
-          <div id="absences-container"></div>
-        </div>
+          <div id="absences-container" style="padding: 0 20px 20px"></div>
       </div>
     </div>
   </main>
@@ -438,30 +395,53 @@ function findSectionForWorker(jobCode, posteCode, projectName) {
 }
 
 // ── STATE MANAGEMENT ──
+// Les clés de state.planning sont préfixées par le lundi ISO de la semaine :
+//   "{weekMonday}_{dayIdx}_{secId}_{slotId}"  ex: "2026-04-28_0_pn_slot_123_456"
+// Ceci évite toute collision entre semaines différentes.
+
+function weekKey() {
+  return fmtISO(state.weekStart);
+}
+
+function planKey(dayIdx, secId, slotId) {
+  return `${weekKey()}_${dayIdx}_${secId}_${slotId}`;
+}
+
 function loadState() {
   try {
     const s = localStorage.getItem('planningRoulier_v20');
     if (s) {
       const saved = JSON.parse(s);
-      state.planning = saved.planning || {};
-      // Les slots sauvegardés sont restaurés puis fusionnés avec les données dynamiques
-      state._savedSlots = saved.slots || {};
+      const rawPlanning = saved.planning || {};
+      // Migration : purger les anciennes clés sans préfixe de date (format "dayIdx_secId_slotId")
+      // qui causaient des collisions entre semaines
+      const cleanPlanning = {};
+      let purged = 0;
+      Object.entries(rawPlanning).forEach(([k, v]) => {
+        if (/^\d{4}-\d{2}-\d{2}_/.test(k)) {
+          cleanPlanning[k] = v;
+        } else {
+          purged++;
+        }
+      });
+      if (purged > 0) console.log(`[migration] ${purged} clé(s) sans date purgées du planning local`);
+      state.planning = cleanPlanning;
+      // NE PAS restaurer les slots — ils sont toujours reconstruits depuis NAV
       state.config = { ...state.config, ...saved.config };
     }
-    // Restaurer les largeurs de colonnes
     const cw = localStorage.getItem('planningRoulier_colWidths');
     if (cw) state.colWidths = JSON.parse(cw);
     else state.colWidths = Array(7).fill(null);
   } catch(e) { console.error('[loadState]', e); state.colWidths = Array(7).fill(null); }
 }
+
 function saveState() {
-  // Sauvegarde locale immédiate
   try {
+    // On ne sauvegarde JAMAIS les slots (reconstruits depuis NAV)
     localStorage.setItem('planningRoulier_v20', JSON.stringify({
-      planning: state.planning, slots: state.slots, config: state.config,
+      planning: state.planning, config: state.config,
     }));
   } catch(e) {}
-  // Sauvegarde distante (cross-PC) en arrière-plan
   savePlanningRemote();
 }
 
@@ -500,9 +480,20 @@ async function loadPlanningRemote() {
     const data = await r.json();
     if (data.ok && data.planning) {
       _remoteSupported = true;
-      state.planning = { ...state.planning, ...data.planning };
+      // Fusionner seulement les clés distantes qui ont un préfixe de date (format sécurisé)
+      // On ignore les anciennes clés sans date (ex: "0_pn_slot_xxx") pour ne pas corrompre
+      const remotePlanning = data.planning || {};
+      const merged = { ...state.planning };
+      Object.entries(remotePlanning).forEach(([k, v]) => {
+        // Clé valide = commence par une date ISO "YYYY-MM-DD_"
+        if (/^\d{4}-\d{2}-\d{2}_/.test(k)) {
+          merged[k] = v;
+        }
+        // Clé ancienne sans date → on l'ignore silencieusement
+      });
+      state.planning = merged;
       if (data.config) state.config = { ...state.config, ...data.config };
-      try { localStorage.setItem('planningRoulier_v20', JSON.stringify({ planning: state.planning, slots: state.slots, config: state.config })); } catch(e) {}
+      try { localStorage.setItem('planningRoulier_v20', JSON.stringify({ planning: state.planning, config: state.config })); } catch(e) {}
       showSyncStatus('loaded');
     } else {
       _remoteSupported = false;
@@ -580,16 +571,13 @@ async function buildDynamicSlots() {
     const dateEnd = fmtISO(addDays(state.weekStart, 6));
     const naviresData = await fetchNavires(dateStart, dateEnd);
 
-    // Initialiser les slots vides
+    // Réinitialiser les slots de la semaine courante uniquement
     for(let i=0; i<7; i++) {
         state.slots[i] = {};
         SECTIONS_ORDER.forEach(secId => {
             state.slots[i][secId] = [];
         });
     }
-
-    // Suivre les IDs de slots construits dynamiquement (pour éviter doublons)
-    const builtSlotIds = new Set();
 
     naviresData.forEach(dayData => {
         if (!dayData || !dayData.postes) return;
@@ -617,7 +605,9 @@ async function buildDynamicSlots() {
                     const secId = findSectionForWorker(jobCode, posteCode, projectName);
                     const slotId = `slot_${pa.id}_${w.id}`;
 
-                    builtSlotIds.add(slotId);
+                    // Vérifier que ce slot n'est pas déjà présent (éviter les doublons NAV)
+                    const alreadyExists = state.slots[dayIdx][secId].some(s => s.id === slotId);
+                    if (alreadyExists) return;
 
                     state.slots[dayIdx][secId].push({
                         id: slotId,
@@ -626,33 +616,14 @@ async function buildDynamicSlots() {
                         posteCode: posteCode,
                         projectName: projectName,
                         assignmentId: pa.id,
-                        workerAssignmentId: String(w.id)
+                        workerAssignmentId: String(w.id),
+                        navWorkerId: state.workerAssignmentMap[String(w.id)] || null
                     });
                 });
             });
         });
     });
-
-    // Fusionner les slots sauvegardés qui ne sont plus dans les données dynamiques
-    // (slots ajoutés manuellement ou slots d'une semaine dont les données ne sont plus disponibles)
-    const savedSlots = state._savedSlots || {};
-    for(let i=0; i<7; i++) {
-        if (!savedSlots[i]) continue;
-        SECTIONS_ORDER.forEach(secId => {
-            const saved = savedSlots[i][secId] || [];
-            saved.forEach(savedSlot => {
-                if (!builtSlotIds.has(savedSlot.id)) {
-                    // Ce slot n'existe plus dans les données dynamiques, on le conserve quand même
-                    // s'il a une affectation de planning associée
-                    const planKey = `${i}_${secId}_${savedSlot.id}`;
-                    if (state.planning[planKey]) {
-                        if (!state.slots[i][secId]) state.slots[i][secId] = [];
-                        state.slots[i][secId].push(savedSlot);
-                    }
-                }
-            });
-        });
-    }
+    // Les slots ne sont JAMAIS sauvegardés — ils sont toujours issus de NAV
 }
 
 // ── LOAD ALL DATA ──
@@ -746,7 +717,7 @@ function computeAutoWidths() {
     const daySlots = state.slots[i] || {};
     SECTIONS_ORDER.forEach(secId => {
       (daySlots[secId] || []).forEach(slot => {
-        const workerId = state.planning[`${i}_${secId}_${slot.id}`];
+        const workerId = state.planning[planKey(i, secId, slot.id)];
         const w = getWorker(workerId);
         if (!w) return;
         const name = w.lastName + ' ' + w.firstName;
@@ -905,7 +876,7 @@ function renderWeekGrid() {
             slots.forEach((slot, slotIdx) => {
                 const slotDiv = document.createElement('div');
                 slotDiv.className = 'slot-container';
-                const workerId = state.planning[`${dayIdx}_${secId}_${slot.id}`];
+                const workerId = state.planning[planKey(dayIdx, secId, slot.id)];
                 const w = getWorker(workerId);
 
                 const safeSecId = secId.replace(/'/g, "\\'");
@@ -941,7 +912,6 @@ function renderWeekGrid() {
 }
 
 function duplicateDayToNext(dayIdx) {
-  // Strictement jour+1 uniquement
   const nextIdx = dayIdx + 1;
   if (nextIdx > 6) return;
 
@@ -953,18 +923,14 @@ function duplicateDayToNext(dayIdx) {
     const srcSlots = daySlots[secId] || [];
     const dstSlots = nextDaySlots[secId] || [];
 
-    // File de slots disponibles au lendemain, groupés par signature (jobCode+posteCode)
-    // On consomme chaque slot destination au fur et à mesure pour gérer les doublons (ex: 3x PN)
     const dstAvailable = {};
     dstSlots.forEach(dstSlot => {
       const sig = `${dstSlot.jobCode}__${dstSlot.posteCode}`;
       if (!dstAvailable[sig]) dstAvailable[sig] = [];
       dstAvailable[sig].push(dstSlot);
     });
-    // Retirer de la file les slots déjà affectés au lendemain
     dstSlots.forEach(dstSlot => {
-      const dstKey = `${nextIdx}_${secId}_${dstSlot.id}`;
-      if (state.planning[dstKey]) {
+      if (state.planning[planKey(nextIdx, secId, dstSlot.id)]) {
         const sig = `${dstSlot.jobCode}__${dstSlot.posteCode}`;
         const idx = (dstAvailable[sig] || []).findIndex(s => s.id === dstSlot.id);
         if (idx !== -1) dstAvailable[sig].splice(idx, 1);
@@ -972,18 +938,15 @@ function duplicateDayToNext(dayIdx) {
     });
 
     srcSlots.forEach(srcSlot => {
-      const srcKey = `${dayIdx}_${secId}_${srcSlot.id}`;
-      const workerId = state.planning[srcKey];
+      const workerId = state.planning[planKey(dayIdx, secId, srcSlot.id)];
       if (!workerId) return;
 
       const sig = `${srcSlot.jobCode}__${srcSlot.posteCode}`;
       const available = dstAvailable[sig];
       if (!available || available.length === 0) return;
 
-      // Prendre le premier slot disponible et le consommer de la file
       const matchingDstSlot = available.shift();
-      const dstKey = `${nextIdx}_${secId}_${matchingDstSlot.id}`;
-      state.planning[dstKey] = workerId;
+      state.planning[planKey(nextIdx, secId, matchingDstSlot.id)] = workerId;
       count++;
     });
   });
@@ -1002,20 +965,20 @@ function addToSlot(dayIdx, secId, slotId, workerId) {
 
   if (absCode && !confirm(`⚠️ ${worker.firstName} ${worker.lastName} est absent (${absCode}) le ${dateISO}. Forcer ?`)) return;
 
-  state.planning[`${dayIdx}_${secId}_${slotId}`] = workerId;
+  state.planning[planKey(dayIdx, secId, slotId)] = workerId;
   saveState(); renderWeekGrid();
   toast('Affecté ✓');
 }
 
 function removeFromSlot(dayIdx, secId, slotId) {
-    delete state.planning[`${dayIdx}_${secId}_${slotId}`];
+    delete state.planning[planKey(dayIdx, secId, slotId)];
     saveState(); renderWeekGrid();
 }
 
 function removeSlot(dayIdx, secId, slotIdx) {
     const slot = state.slots[dayIdx][secId][slotIdx];
     if (!slot) return;
-    delete state.planning[`${dayIdx}_${secId}_${slot.id}`];
+    delete state.planning[planKey(dayIdx, secId, slot.id)];
     state.slots[dayIdx][secId].splice(slotIdx, 1);
     saveState(); renderWeekGrid();
 }
@@ -1024,58 +987,29 @@ function renderAbsences() {
     const container = document.getElementById('absences-container');
     const startOfMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth(), 1);
     const daysInMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth() + 1, 0).getDate();
-    const today = new Date(); today.setHours(0,0,0,0);
 
-    document.getElementById('abs-month-label').textContent =
-        state.absMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    document.getElementById('abs-month-label').textContent = state.absMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
 
-    // Filtre recherche
-    const q = (document.getElementById('abs-search')?.value || '').toLowerCase().trim();
-    const staff = q
-        ? state.staff.filter(w => `${w.firstName} ${w.lastName}`.toLowerCase().includes(q) || (w.matricule||'').toLowerCase().includes(q))
-        : state.staff;
-
-    if (staff.length === 0) {
-        container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3)">Aucun résultat</div>';
+    if (state.staff.length === 0) {
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3)">Aucune donnée</div>';
         return;
     }
 
-    // Pré-calculer infos par jour (ferie, today)
-    const dayInfos = [];
-    for (let i = 1; i <= daysInMonth; i++) {
+    let html = `<table class="abs-table"><thead><tr><th style="position:sticky; left:0; background:var(--surface2); z-index:1">Personnel</th>`;
+    for(let i=1; i<=daysInMonth; i++) {
         const d = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), i);
-        const iso = fmtISO(d);
-        dayInfos.push({
-            iso,
-            dayNum: i,
-            dayShort: d.toLocaleDateString('fr-FR', { weekday: 'short' }).substring(0, 3),
-            isFerie: !!state.holidays?.[iso],
-            isToday: d.getTime() === today.getTime(),
-        });
+        html += `<th>${i}<br>${d.toLocaleDateString('fr-FR',{weekday:'short'}).substring(0,3)}</th>`;
     }
-
-    let html = `<table class="abs-table"><thead><tr>
-        <th class="abs-name-cell" style="position:sticky;left:0;z-index:3;background:var(--surface2);">Personnel</th>`;
-    dayInfos.forEach(di => {
-        const cls = [di.isFerie ? 'day-ferie' : '', di.isToday ? 'day-today' : ''].filter(Boolean).join(' ');
-        html += `<th class="${cls}">${di.dayNum}<br>${di.dayShort}</th>`;
-    });
     html += `</tr></thead><tbody>`;
-
-    staff.forEach(w => {
-        html += `<tr>
-            <td class="abs-name-cell">
-                <div class="abs-staff-name">${w.lastName} ${w.firstName}</div>
-                <div class="abs-staff-matric">${w.matricule || '—'}</div>
-            </td>`;
-        dayInfos.forEach(di => {
-            const code = state.absences[w.id]?.[di.iso] || '';
-            const cls = [di.isFerie ? 'day-ferie' : '', di.isToday ? 'day-today' : ''].filter(Boolean).join(' ');
-            html += `<td class="${cls}">${code ? `<span class="abs-code">${code}</span>` : '—'}</td>`;
-        });
+    state.staff.forEach(w => {
+        html += `<tr><td style="position:sticky; left:0; background:var(--surface); border-right:1px solid var(--border2)">${w.lastName} ${w.firstName}</td>`;
+        for(let i=1; i<=daysInMonth; i++) {
+            const dateISO = fmtISO(new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), i));
+            const code = state.absences[w.id]?.[dateISO] || '';
+            html += `<td>${code ? `<span class="abs-code">${code}</span>` : '—'}</td>`;
+        }
         html += `</tr>`;
     });
-
     html += `</tbody></table>`;
     container.innerHTML = html;
 }
@@ -1203,14 +1137,8 @@ document.querySelectorAll('.view-tab').forEach(tab => {
   tab.addEventListener('click', () => {
     state.view = tab.dataset.view;
     document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t === tab));
-    const isAbsences = state.view === 'absences';
-    document.getElementById('view-week').style.display = isAbsences ? 'none' : 'flex';
-    document.getElementById('view-absences').style.display = isAbsences ? 'flex' : 'none';
-    // Cacher le panel personnel + nav semaine en vue absences
-    document.getElementById('panel-staff').style.display = isAbsences ? 'none' : '';
-    document.getElementById('week-nav-area').style.display = isAbsences ? 'none' : '';
-    document.getElementById('btn-today').style.display = isAbsences ? 'none' : '';
-    document.getElementById('btn-email-week').style.display = isAbsences ? 'none' : '';
+    document.getElementById('view-week').style.display = state.view === 'week' ? 'flex' : 'none';
+    document.getElementById('view-absences').style.display = state.view === 'absences' ? 'block' : 'none';
     render();
   });
 });
@@ -1222,7 +1150,6 @@ document.getElementById('btn-today').addEventListener('click', async () => {
     render();
 });
 document.getElementById('staff-search').addEventListener('input', e => renderStaffList(e.target.value));
-document.getElementById('abs-search').addEventListener('input', () => renderAbsences());
 document.getElementById('abs-prev').addEventListener('click', async () => {
     state.absMonth.setMonth(state.absMonth.getMonth() - 1);
     await loadAllData();
