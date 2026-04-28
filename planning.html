@@ -164,16 +164,54 @@ main { display: flex; flex: 1; min-height: 0; }
 const PLAN_PROXY = "https://planning-proxy.receptionroulier.workers.dev";
 const NAV_PROXY = "https://shgt-proxy.receptionroulier.workers.dev";
 
-// ── 5 CHANTIERS FIXES DANS L'ORDRE ──
+// ── 5 CHANTIERS FIXES + AUTRES (ORDRE DEFINITIF) ──
 const SECTIONS_ORDER = ['cm', 'fcq', 'pn', 'matin', 'aprem', 'autre'];
 
 const SECTIONS_MAP = {
-  'cm': { id: 'cm', name: 'Chef de Manutention', hours: '', color: '#ff4d6d', codes: ['CM'] },
-  'fcq': { id: 'fcq', name: 'Chef de quai', hours: '8h30-12h00 / 14h00-17h30', color: '#a78bfa', codes: ['FCQ', '0817'] },
-  'pn': { id: 'pn', name: 'Montage / Prépa', hours: '8h30-12h00 / 14h00-17h30', color: '#00c896', codes: ['PN'] },
-  'matin': { id: 'matin', name: 'Réception Matin', hours: '7h00 / 14h00', color: '#3b8fff', codes: ['0714', 'CI', 'CO'] },
-  'aprem': { id: 'aprem', name: 'Réception Après-Midi', hours: '13h00 / 20h00', color: '#ffd060', codes: ['1320'] },
-  'autre': { id: 'autre', name: 'Autres', hours: '', color: '#94a3b8', codes: [] }
+  'cm': {
+    id: 'cm',
+    name: 'Chef de Manutention',
+    hours: '',
+    color: '#ff4d6d',
+    jobCodes: ['CM']
+  },
+  'fcq': {
+    id: 'fcq',
+    name: 'Chef de quai',
+    hours: '8h30-12h00 / 14h00-17h30',
+    color: '#a78bfa',
+    jobCodes: ['FCQ']
+  },
+  'pn': {
+    id: 'pn',
+    name: 'Montage / Prépa',
+    hours: '8h30-12h00 / 14h00-17h30',
+    color: '#00c896',
+    jobCodes: ['PN']
+  },
+  'matin': {
+    id: 'matin',
+    name: 'Réception Matin',
+    hours: '7h00 / 14h00',
+    color: '#3b8fff',
+    jobCodes: ['CI', 'CO'],
+    posteCodes: ['0714']
+  },
+  'aprem': {
+    id: 'aprem',
+    name: 'Réception Après-Midi',
+    hours: '13h00 / 20h00',
+    color: '#ffd060',
+    jobCodes: ['CI', 'CO'],
+    posteCodes: ['1320']
+  },
+  'autre': {
+    id: 'autre',
+    name: 'Autres',
+    hours: '',
+    color: '#94a3b8',
+    jobCodes: []
+  }
 };
 
 const DAYS = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
@@ -197,14 +235,12 @@ let state = {
 // ── API ──
 async function fetchNavires(dateFrom, dateTo) {
     try {
-        console.log('[API] Fetch navires de:', dateFrom, 'à', dateTo);
         const response = await fetch(NAV_PROXY, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ dateFrom, dateTo })
         });
         const data = await response.json();
-        console.log('[API] Navires response:', data);
         return Array.isArray(data) ? data : [];
     } catch(e) {
         console.error('[API] Error navires:', e);
@@ -214,14 +250,12 @@ async function fetchNavires(dateFrom, dateTo) {
 
 async function fetchPersonnel(dateFrom, dateTo) {
     try {
-        console.log('[API] Fetch personnel de:', dateFrom, 'à', dateTo);
         const response = await fetch(PLAN_PROXY, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ type: 'workers', dateFrom, dateTo })
         });
         const data = await response.json();
-        console.log('[API] Personnel response:', data);
         return data;
     } catch(e) {
         console.error('[API] Error personnel:', e);
@@ -263,21 +297,31 @@ function getRandomColor(id) {
     return colors[Math.abs(hash) % colors.length];
 }
 
-// ── Trouver la section pour un code poste ──
-function findSectionForCode(code) {
-    for (const secId of SECTIONS_ORDER) {
-        const sec = SECTIONS_MAP[secId];
-        if (sec.codes.includes(code)) {
-            return secId;
-        }
-    }
-    return 'autre'; // Default to Autres
+// ── TROUVER LA SECTION SELON JOB CODE ET POSTE CODE ──
+function findSectionForWorker(jobCode, posteCode) {
+    // Chef de Manutention
+    if (jobCode === 'CM') return 'cm';
+
+    // Chef de quai
+    if (jobCode === 'FCQ') return 'fcq';
+
+    // Montage / Prépa
+    if (jobCode === 'PN') return 'pn';
+
+    // Réception Matin (CI/CO avec poste 0714)
+    if ((jobCode === 'CI' || jobCode === 'CO') && posteCode === '0714') return 'matin';
+
+    // Réception Après-Midi (CI/CO avec poste 1320)
+    if ((jobCode === 'CI' || jobCode === 'CO') && posteCode === '1320') return 'aprem';
+
+    // Autres
+    return 'autre';
 }
 
 // ── STATE MANAGEMENT ──
 function loadState() {
   try {
-    const s = localStorage.getItem('planningRoulier_v14');
+    const s = localStorage.getItem('planningRoulier_v15');
     if (s) {
       const saved = JSON.parse(s);
       state.planning = saved.planning || {};
@@ -288,7 +332,7 @@ function loadState() {
 }
 function saveState() {
   try {
-    localStorage.setItem('planningRoulier_v14', JSON.stringify({
+    localStorage.setItem('planningRoulier_v15', JSON.stringify({
       planning: state.planning, slots: state.slots, config: state.config,
     }));
   } catch(e) {}
@@ -301,7 +345,6 @@ function parsePersonnelData(personnelData, dateFrom, dateTo) {
     const workerAssignmentMap = {};
 
     if (!personnelData || !personnelData.workerCalendars) {
-        console.log('[PARSE] No personnel data');
         return { staff: [], absences: {}, workerAssignmentMap: {} };
     }
 
@@ -335,7 +378,6 @@ function parsePersonnelData(personnelData, dateFrom, dateTo) {
         }
     });
 
-    console.log('[PARSE] Staff:', staffMap.size, 'workers');
     return {
         staff: Array.from(staffMap.values()),
         absences: absencesMap,
@@ -349,8 +391,6 @@ async function buildDynamicSlots() {
     const dateEnd = fmtISO(addDays(state.weekStart, 6));
     const naviresData = await fetchNavires(dateStart, dateEnd);
 
-    console.log('[SLOTS] Navires data length:', naviresData.length);
-
     // Initialize slots for 7 days with all sections
     for(let i=0; i<7; i++) {
         state.slots[i] = {};
@@ -360,25 +400,15 @@ async function buildDynamicSlots() {
     }
 
     naviresData.forEach(dayData => {
-        if (!dayData || !dayData.postes) {
-            console.log('[SLOTS] Day without postes:', dayData?.date);
-            return;
-        }
+        if (!dayData || !dayData.postes) return;
 
         const dateObj = new Date(dayData.date);
         const dayIdx = Math.floor((dateObj - state.weekStart) / (1000 * 60 * 60 * 24));
-        if (dayIdx < 0 || dayIdx > 6) {
-            console.log('[SLOTS] Day out of range:', dayIdx, dayData.date);
-            return;
-        }
-
-        console.log('[SLOTS] Processing day:', dayIdx, dayData.date, 'postes:', dayData.postes.length);
+        if (dayIdx < 0 || dayIdx > 6) return;
 
         dayData.postes.forEach(p => {
             if (!p.poste || !p.poste.code) return;
-
             const posteCode = p.poste.code;
-            const secId = findSectionForCode(posteCode);
 
             if (!p.projectAssignments || p.projectAssignments.length === 0) return;
 
@@ -389,24 +419,22 @@ async function buildDynamicSlots() {
                 if (!pa.projectAssignmentWorkers) return;
 
                 pa.projectAssignmentWorkers.forEach(w => {
-                    const jobCode = w.job?.code || posteCode;
+                    const jobCode = w.job?.code || 'UNK';
+                    const secId = findSectionForWorker(jobCode, posteCode);
                     const slotId = `slot_${pa.id}_${w.id}`;
 
                     state.slots[dayIdx][secId].push({
                         id: slotId,
                         label: jobCode,
+                        jobCode: jobCode,
                         posteCode: posteCode,
                         assignmentId: pa.id,
                         workerAssignmentId: String(w.id)
                     });
-
-                    console.log('[SLOTS] Slot created:', secId, jobCode, 'workerAssignmentId:', w.id);
                 });
             });
         });
     });
-
-    console.log('[SLOTS] Final slots:', state.slots);
 }
 
 // ── LOAD ALL DATA ──
@@ -421,27 +449,7 @@ async function loadAllData() {
     state.absences = parsed.absences;
     state.workerAssignmentMap = parsed.workerAssignmentMap;
 
-    console.log('[LOAD] Worker assignment map:', state.workerAssignmentMap);
-
     await buildDynamicSlots();
-}
-
-function matchExistingAssignments() {
-    Object.keys(state.slots).forEach(dayIdx => {
-        Object.keys(state.slots[dayIdx]).forEach(secId => {
-            state.slots[dayIdx][secId].forEach(slot => {
-                const workerAssignmentId = slot.workerAssignmentId;
-                if (workerAssignmentId && state.workerAssignmentMap[workerAssignmentId]) {
-                    const workerId = state.workerAssignmentMap[workerAssignmentId];
-                    const key = `${dayIdx}_${secId}_${slot.id}`;
-                    if (!state.planning[key]) {
-                        state.planning[key] = workerId;
-                        console.log('[MATCH] Auto-assigned:', workerId, 'to slot', slot.id);
-                    }
-                }
-            });
-        });
-    });
 }
 
 // ── RENDER STAFF ──
@@ -492,37 +500,10 @@ function renderWeekGrid() {
     col.className = 'day-col';
     const daySlots = state.slots[dayIdx] || {};
 
-    // Toujours afficher les 5 sections + Autres dans l'ordre
+    // TOUJOURS afficher les 5 sections + Autres dans l'ordre
     SECTIONS_ORDER.forEach(secId => {
         const sec = SECTIONS_MAP[secId];
         const slots = daySlots[secId] || [];
-
-        // On affiche toujours la section, même vide (sauf si vraiment aucun slot et pas d'affectation manuelle)
-        const hasAssignments = slots.some(s => state.planning[`${dayIdx}_${secId}_${s.id}`]);
-
-        if (slots.length === 0 && !hasAssignments && secId !== 'autre') {
-            // Section vide sans affectations - on affiche quand même le titre
-            const label = document.createElement('div');
-            label.className = 'section-label';
-            label.style.color = sec.color;
-            label.textContent = sec.name;
-            col.appendChild(label);
-
-            if (sec.hours) {
-                const hours = document.createElement('div');
-                hours.className = 'section-hours';
-                hours.textContent = sec.hours;
-                col.appendChild(hours);
-            }
-
-            const emptyDiv = document.createElement('div');
-            emptyDiv.style.fontSize = '0.6rem';
-            emptyDiv.style.color = 'var(--text3)';
-            emptyDiv.style.padding = '4px 0';
-            emptyDiv.textContent = '—';
-            col.appendChild(emptyDiv);
-            return;
-        }
 
         const label = document.createElement('div');
         label.className = 'section-label';
@@ -537,31 +518,40 @@ function renderWeekGrid() {
             col.appendChild(hours);
         }
 
-        slots.forEach((slot, slotIdx) => {
-            const slotDiv = document.createElement('div');
-            slotDiv.className = 'slot-container';
-            const workerId = state.planning[`${dayIdx}_${secId}_${slot.id}`];
-            const w = getWorker(workerId);
+        if (slots.length === 0) {
+            const emptyDiv = document.createElement('div');
+            emptyDiv.style.fontSize = '0.6rem';
+            emptyDiv.style.color = 'var(--text3)';
+            emptyDiv.style.padding = '4px 0';
+            emptyDiv.textContent = '—';
+            col.appendChild(emptyDiv);
+        } else {
+            slots.forEach((slot, slotIdx) => {
+                const slotDiv = document.createElement('div');
+                slotDiv.className = 'slot-container';
+                const workerId = state.planning[`${dayIdx}_${secId}_${slot.id}`];
+                const w = getWorker(workerId);
 
-            const safeSecId = secId.replace(/'/g, "\\'");
-            const safeSlotId = slot.id.replace(/'/g, "\\'");
+                const safeSecId = secId.replace(/'/g, "\\'");
+                const safeSlotId = slot.id.replace(/'/g, "\\'");
 
-            slotDiv.innerHTML = `
-                <div class="slot-info"><span>${slot.label}</span><span class="slot-remove" onclick="removeSlot(${dayIdx}, '${safeSecId}', ${slotIdx})">✕</span></div>
-                <div class="drop-zone" data-day="${dayIdx}" data-sec="${secId}" data-slot="${slot.id}">
-                    ${w ? `<div class="assigned-chip"><div class="chip-name"><span style="font-family:'DM Mono',monospace;color:var(--text3);font-size:0.6rem">${w.matricule||'—'}</span> ${w.lastName} ${w.firstName}</div><div class="chip-remove" onclick="removeFromSlot(${dayIdx},'${safeSecId}','${safeSlotId}')">✕</div></div>` : 'Glisser ici'}
-                </div>
-            `;
+                slotDiv.innerHTML = `
+                    <div class="slot-info"><span>${slot.label}</span><span class="slot-remove" onclick="removeSlot(${dayIdx}, '${safeSecId}', ${slotIdx})">✕</span></div>
+                    <div class="drop-zone" data-day="${dayIdx}" data-sec="${secId}" data-slot="${slot.id}">
+                        ${w ? `<div class="assigned-chip"><div class="chip-name"><span style="font-family:'DM Mono',monospace;color:var(--text3);font-size:0.6rem">${w.matricule||'—'}</span> ${w.lastName} ${w.firstName}</div><div class="chip-remove" onclick="removeFromSlot(${dayIdx},'${safeSecId}','${safeSlotId}')">✕</div></div>` : 'Glisser ici'}
+                    </div>
+                `;
 
-            const dz = slotDiv.querySelector('.drop-zone');
-            dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('active'); });
-            dz.addEventListener('dragleave', () => dz.classList.remove('active'));
-            dz.addEventListener('drop', e => {
-                e.preventDefault(); dz.classList.remove('active');
-                if (state.dragWorker) { addToSlot(dayIdx, secId, slot.id, state.dragWorker); state.dragWorker = null; }
+                const dz = slotDiv.querySelector('.drop-zone');
+                dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('active'); });
+                dz.addEventListener('dragleave', () => dz.classList.remove('active'));
+                dz.addEventListener('drop', e => {
+                    e.preventDefault(); dz.classList.remove('active');
+                    if (state.dragWorker) { addToSlot(dayIdx, secId, slot.id, state.dragWorker); state.dragWorker = null; }
+                });
+                col.appendChild(slotDiv);
             });
-            col.appendChild(slotDiv);
-        });
+        }
     });
 
     grid.appendChild(col);
