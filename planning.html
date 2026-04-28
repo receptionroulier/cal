@@ -13,7 +13,7 @@
   --bg: #0a0e14; --surface: #111722; --surface2: #1a2130;
   --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.12);
   --accent: #00d4aa; --text: #e8edf5; --text2: #7a8fa8; --text3: #4a5a6e;
-  --red: #ff4d6d; --blue: #3b8fff;
+  --red: #ff4d6d; --blue: #3b8fff; --warn: #ff6b35;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -58,7 +58,7 @@ main { display: flex; flex: 1; min-height: 0; }
 .staff-name { font-size: 0.73rem; font-weight: 600; }
 .staff-matric { font-size: 0.62rem; color: var(--text3); font-family: 'DM Mono', monospace; }
 .staff-item.absent { opacity: 0.45; }
-.absence-badge { font-size: 0.58rem; padding: 1px 4px; border-radius: 3px; background: rgba(255,107,53,0.2); color: #ff6b35; margin-left: auto; }
+.absence-badge { font-size: 0.58rem; padding: 1px 4px; border-radius: 3px; background: rgba(255,107,53,0.2); color: var(--warn); margin-left: auto; }
 
 #content { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
 
@@ -93,7 +93,7 @@ main { display: flex; flex: 1; min-height: 0; }
 .abs-table { width: 100%; border-collapse: collapse; font-size: 0.65rem; background: var(--surface); }
 .abs-table th, .abs-table td { border: 1px solid var(--border2); padding: 4px; text-align: center; }
 .abs-table th { background: var(--surface2); color: var(--text2); }
-.abs-code { font-weight: bold; padding: 2px 4px; border-radius: 3px; background: rgba(255,107,53,0.2); color: #ff6b35; }
+.abs-code { font-weight: bold; padding: 2px 4px; border-radius: 3px; background: rgba(255,107,53,0.2); color: var(--warn); }
 
 #modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); }
 #modal-overlay.show { display: flex; }
@@ -173,7 +173,6 @@ const SECTIONS_MAP = {
 };
 
 const DAYS = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
-const DAY_SHORT = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
 
 let state = {
   weekStart: getMonday(new Date()),
@@ -185,51 +184,13 @@ let state = {
   config: {
     emailWeek: 'chefmanutention.tmt@shgt.fr',
     emailCcWeek: 'smaillard@smr-france.com',
-    emailSenderName: 'Planning Réception',
   },
   staff: [],
+  workerAssignmentMap: {}, // projectAssignmentWorkerId -> workerId
   dragWorker: null,
 };
 
 // ── API ──
-async function fetchPersonnel(date) {
-    try {
-        console.log('[API] Fetch personnel pour:', date);
-        const response = await fetch(PLAN_PROXY, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ date, type: 'personnel' })
-        });
-        console.log('[API] Response status:', response.status);
-        const data = await response.json();
-        console.log('[API] Response data:', data);
-        // Supporte plusieurs formats de réponse
-        return (data.items || data.data || data.personnel || []);
-    } catch(e) {
-        console.error('[API] Error fetch personnel:', e);
-        return [];
-    }
-}
-
-async function fetchAbsences(dateFrom, dateTo) {
-    try {
-        console.log('[API] Fetch absences de:', dateFrom, 'à', dateTo);
-        const response = await fetch(PLAN_PROXY, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ dateFrom, dateTo, type: 'absences' })
-        });
-        console.log('[API] Response status:', response.status);
-        const data = await response.json();
-        console.log('[API] Response data:', data);
-        // Supporte plusieurs formats de réponse
-        return (data.items || data.data || data.absences || []);
-    } catch(e) {
-        console.error('[API] Error fetch absences:', e);
-        return [];
-    }
-}
-
 async function fetchNavires(dateFrom, dateTo) {
     try {
         console.log('[API] Fetch navires de:', dateFrom, 'à', dateTo);
@@ -238,13 +199,29 @@ async function fetchNavires(dateFrom, dateTo) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ dateFrom, dateTo })
         });
-        console.log('[API] Response status:', response.status);
         const data = await response.json();
-        console.log('[API] Response data:', data);
-        return (data.items || data.data || data.navires || []);
+        console.log('[API] Navires response:', data);
+        return Array.isArray(data) ? data : [];
     } catch(e) {
-        console.error('[API] Error fetch navires:', e);
+        console.error('[API] Error navires:', e);
         return [];
+    }
+}
+
+async function fetchPersonnel(dateFrom, dateTo) {
+    try {
+        console.log('[API] Fetch personnel de:', dateFrom, 'à', dateTo);
+        const response = await fetch(PLAN_PROXY, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dateFrom, dateTo })
+        });
+        const data = await response.json();
+        console.log('[API] Personnel response:', data);
+        return data;
+    } catch(e) {
+        console.error('[API] Error personnel:', e);
+        return { totalWorkers: 0, workerCalendars: [] };
     }
 }
 
@@ -275,11 +252,17 @@ function toast(msg) {
   t.textContent = msg; t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2400);
 }
+function getRandomColor(id) {
+    const colors = ['#00d4aa', '#3b8fff', '#a78bfa', '#00c896', '#ffd060', '#ff6b6b'];
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
+    return colors[Math.abs(hash) % colors.length];
+}
 
 // ── STATE MANAGEMENT ──
 function loadState() {
   try {
-    const s = localStorage.getItem('planningRoulier_v11');
+    const s = localStorage.getItem('planningRoulier_v13');
     if (s) {
       const saved = JSON.parse(s);
       state.planning = saved.planning || {};
@@ -290,35 +273,168 @@ function loadState() {
 }
 function saveState() {
   try {
-    localStorage.setItem('planningRoulier_v11', JSON.stringify({
+    localStorage.setItem('planningRoulier_v13', JSON.stringify({
       planning: state.planning, slots: state.slots, config: state.config,
     }));
   } catch(e) {}
 }
 
-// ── DYNAMIQUE SLOTS ──
+// ── PARSE PERSONNEL DATA ──
+function parsePersonnelData(personnelData, dateFrom, dateTo) {
+    const staffMap = new Map();
+    const absencesMap = {};
+    const workerAssignmentMap = {};
+
+    if (!personnelData || !personnelData.workerCalendars) {
+        console.log('[PARSE] No personnel data');
+        return { staff: [], absences: {}, workerAssignmentMap: {} };
+    }
+
+    personnelData.workerCalendars.forEach(wc => {
+        const workerId = String(wc.workerId);
+
+        // Create worker entry
+        if (!staffMap.has(workerId)) {
+            staffMap.set(workerId, {
+                id: workerId,
+                firstName: wc.firstName || '',
+                lastName: (wc.lastName || '').toUpperCase(),
+                matricule: wc.dockerMatricule || '',
+                color: getRandomColor(workerId),
+                isChief: wc.isChief || false
+            });
+        }
+
+        // Parse days for absences and assignments
+        if (wc.days) {
+            wc.days.forEach(day => {
+                if (!day.date) return;
+
+                // Check for absence
+                if (day.isAbsence && day.code) {
+                    if (!absencesMap[workerId]) absencesMap[workerId] = {};
+                    absencesMap[workerId][day.date] = day.code;
+                }
+
+                // Map projectAssignmentWorkerId to workerId
+                if (day.projectAssignmentWorkerId) {
+                    workerAssignmentMap[String(day.projectAssignmentWorkerId)] = workerId;
+                }
+            });
+        }
+    });
+
+    console.log('[PARSE] Staff:', staffMap.size, 'workers');
+    console.log('[PARSE] Assignment map:', Object.keys(workerAssignmentMap).length, 'mappings');
+
+    return {
+        staff: Array.from(staffMap.values()),
+        absences: absencesMap,
+        workerAssignmentMap: workerAssignmentMap
+    };
+}
+
+// ── BUILD SLOTS FROM NAVIRES ──
 async function buildDynamicSlots() {
     const dateStart = fmtISO(state.weekStart);
     const dateEnd = fmtISO(addDays(state.weekStart, 6));
     const naviresData = await fetchNavires(dateStart, dateEnd);
+
+    console.log('[SLOTS] Navires data length:', naviresData.length);
+
+    // Initialize slots for 7 days
     for(let i=0; i<7; i++) { state.slots[i] = {}; }
 
     naviresData.forEach(dayData => {
-        if (!dayData || !dayData.postes) return;
+        if (!dayData || !dayData.postes) {
+            console.log('[SLOTS] Day without postes:', dayData?.date);
+            return;
+        }
+
         const dateObj = new Date(dayData.date);
         const dayIdx = Math.floor((dateObj - state.weekStart) / (1000 * 60 * 60 * 24));
-        if (dayIdx < 0 || dayIdx > 6) return;
+        if (dayIdx < 0 || dayIdx > 6) {
+            console.log('[SLOTS] Day out of range:', dayIdx, dayData.date);
+            return;
+        }
+
+        console.log('[SLOTS] Processing day:', dayIdx, dayData.date, 'postes:', dayData.postes.length);
 
         dayData.postes.forEach(p => {
-            const parcAssignments = p.projectAssignments.filter(pa => pa.sectorId === 25);
-            if (parcAssignments.length === 0) return;
+            if (!p.poste || !p.poste.code) return;
+
             const sectionCfg = SECTIONS_MAP[p.poste.code] || SECTIONS_MAP['default'];
             const secId = sectionCfg.id;
+
+            if (!p.projectAssignments || p.projectAssignments.length === 0) return;
+
+            // Filter for sector 25 (Parcs)
+            const parcAssignments = p.projectAssignments.filter(pa => pa.sectorId === 25);
+            if (parcAssignments.length === 0) return;
+
             if (!state.slots[dayIdx][secId]) state.slots[dayIdx][secId] = [];
+
             parcAssignments.forEach(pa => {
+                if (!pa.projectAssignmentWorkers) return;
+
                 pa.projectAssignmentWorkers.forEach(w => {
-                    state.slots[dayIdx][secId].push({ id: `slot_${pa.id}_${w.id}`, label: w.job?.code || 'PN' });
+                    const jobCode = w.job?.code || 'PN';
+                    const slotId = `slot_${pa.id}_${w.id}`;
+
+                    state.slots[dayIdx][secId].push({
+                        id: slotId,
+                        label: jobCode,
+                        assignmentId: pa.id,
+                        workerAssignmentId: String(w.id) // Store as string for matching
+                    });
+
+                    console.log('[SLOTS] Slot created:', secId, jobCode, 'workerAssignmentId:', w.id);
                 });
+            });
+        });
+    });
+
+    console.log('[SLOTS] Final slots:', state.slots);
+}
+
+// ── LOAD ALL DATA ──
+async function loadAllData() {
+    const dateStart = fmtISO(state.weekStart);
+    const dateEnd = fmtISO(addDays(state.weekStart, 6));
+
+    // Fetch personnel data (contains workers + absences + assignment mappings)
+    const personnelData = await fetchPersonnel(dateStart, dateEnd);
+    const parsed = parsePersonnelData(personnelData, dateStart, dateEnd);
+
+    state.staff = parsed.staff;
+    state.absences = parsed.absences;
+    state.workerAssignmentMap = parsed.workerAssignmentMap;
+
+    console.log('[LOAD] Worker assignment map:', state.workerAssignmentMap);
+
+    // Build slots from navires
+    await buildDynamicSlots();
+
+    // Match existing assignments from workerAssignmentMap
+    matchExistingAssignments();
+}
+
+function matchExistingAssignments() {
+    // For each slot, check if we have a workerAssignmentId that maps to a worker
+    Object.keys(state.slots).forEach(dayIdx => {
+        Object.keys(state.slots[dayIdx]).forEach(secId => {
+            state.slots[dayIdx][secId].forEach(slot => {
+                const workerAssignmentId = slot.workerAssignmentId;
+                if (workerAssignmentId && state.workerAssignmentMap[workerAssignmentId]) {
+                    const workerId = state.workerAssignmentMap[workerAssignmentId];
+                    const key = `${dayIdx}_${secId}_${slot.id}`;
+
+                    // Only set if not already manually assigned
+                    if (!state.planning[key]) {
+                        state.planning[key] = workerId;
+                        console.log('[MATCH] Auto-assigned:', workerId, 'to slot', slot.id);
+                    }
+                }
             });
         });
     });
@@ -331,7 +447,7 @@ function renderStaffList(filter='') {
   const q = filter.toLowerCase();
 
   if (state.staff.length === 0) {
-    list.innerHTML = '<div style="padding:10px;font-size:0.65rem;color:var(--text3);text-align:center">Aucun personnel chargé</div>';
+    list.innerHTML = '<div style="padding:10px;font-size:0.65rem;color:var(--text3);text-align:center">Aucun personnel</div>';
     return;
   }
 
@@ -366,29 +482,33 @@ function renderWeekHeader() {
 function renderWeekGrid() {
   const grid = document.getElementById('week-grid');
   grid.innerHTML = '';
+
   DAYS.forEach((_, dayIdx) => {
     const col = document.createElement('div');
     col.className = 'day-col';
     const daySlots = state.slots[dayIdx] || {};
+
     if (Object.keys(daySlots).length === 0) {
       col.innerHTML = `<div style="font-size:0.6rem; color:var(--text3); text-align:center; margin-top:20px">Aucune activité Parc</div>`;
     } else {
         Object.values(SECTIONS_MAP).forEach(sec => {
             const slots = daySlots[sec.id] || [];
             if (slots.length === 0) return;
+
             const label = document.createElement('div');
             label.className = 'section-label'; label.style.color = sec.color; label.textContent = sec.name;
             col.appendChild(label);
+
             if (sec.hours) {
                 const hours = document.createElement('div'); hours.className = 'section-hours'; hours.textContent = sec.hours; col.appendChild(hours);
             }
+
             slots.forEach((slot, slotIdx) => {
                 const slotDiv = document.createElement('div');
                 slotDiv.className = 'slot-container';
                 const workerId = state.planning[`${dayIdx}_${sec.id}_${slot.id}`];
                 const w = getWorker(workerId);
 
-                // CORRECTION : Échappement des quotes pour slot.id et sec.id
                 const safeSecId = sec.id.replace(/'/g, "\\'");
                 const safeSlotId = slot.id.replace(/'/g, "\\'");
 
@@ -398,6 +518,7 @@ function renderWeekGrid() {
                         ${w ? `<div class="assigned-chip"><div class="chip-avatar" style="background:${w.color}22;color:${w.color}">${initials(w).toUpperCase()}</div><div class="chip-name">${w.lastName}</div><div class="chip-remove" onclick="removeFromSlot(${dayIdx},'${safeSecId}','${safeSlotId}')">✕</div></div>` : 'Glisser ici'}
                     </div>
                 `;
+
                 const dz = slotDiv.querySelector('.drop-zone');
                 dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('active'); });
                 dz.addEventListener('dragleave', () => dz.classList.remove('active'));
@@ -415,9 +536,13 @@ function renderWeekGrid() {
 
 function addToSlot(dayIdx, secId, slotId, workerId) {
   const worker = getWorker(workerId);
+  if (!worker) { toast('Travailleur non trouvé'); return; }
+
   const dateISO = fmtISO(addDays(state.weekStart, dayIdx));
   const absCode = state.absences[workerId]?.[dateISO] || '';
-  if (absCode && !confirm(`⚠️ ${worker.firstName} ${worker.lastName} est absent (${absCode}) le ${dateISO}. Forcer l'affectation ?`)) return;
+
+  if (absCode && !confirm(`⚠️ ${worker.firstName} ${worker.lastName} est absent (${absCode}) le ${dateISO}. Forcer ?`)) return;
+
   state.planning[`${dayIdx}_${secId}_${slotId}`] = workerId;
   saveState(); renderWeekGrid();
   toast('Affecté ✓');
@@ -430,71 +555,10 @@ function removeFromSlot(dayIdx, secId, slotId) {
 
 function removeSlot(dayIdx, secId, slotIdx) {
     const slot = state.slots[dayIdx][secId][slotIdx];
+    if (!slot) return;
     delete state.planning[`${dayIdx}_${secId}_${slot.id}`];
     state.slots[dayIdx][secId].splice(slotIdx, 1);
     saveState(); renderWeekGrid();
-}
-
-async function loadStaffAndAbsences() {
-    const startOfMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth(), 1);
-    const endOfMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth() + 1, 0);
-
-    // Charger le personnel
-    const today = fmtISO(new Date());
-    const personnelData = await fetchPersonnel(today);
-    console.log('[DEBUG] Personnel reçu:', personnelData);
-
-    // Charger les absences
-    const absencesData = await fetchAbsences(fmtISO(startOfMonth), fmtISO(endOfMonth));
-    console.log('[DEBUG] Absences reçues:', absencesData);
-
-    // Construire la map du personnel
-    const staffMap = new Map();
-
-    // Traiter le personnel
-    personnelData.forEach(w => {
-        const workerId = w.id || w.workerId || w.matricule;
-        if (!workerId) return;
-        if (!staffMap.has(workerId)) {
-            staffMap.set(workerId, {
-                id: workerId,
-                firstName: w.firstName || w.prenom || '',
-                lastName: (w.lastName || w.nom || '').toUpperCase(),
-                matricule: w.matricule || '',
-                color: w.color || getRandomColor(workerId)
-            });
-        }
-    });
-
-    // Traiter les absences
-    absencesData.forEach(a => {
-        const workerId = a.id || a.workerId || a.matricule;
-        if (workerId && a.absenceCode && a.date) {
-            if (!state.absences[workerId]) state.absences[workerId] = {};
-            state.absences[workerId][a.date] = a.absenceCode;
-
-            // Ajouter le personnel si pas déjà dans la map
-            if (!staffMap.has(workerId)) {
-                staffMap.set(workerId, {
-                    id: workerId,
-                    firstName: a.firstName || a.prenom || '',
-                    lastName: (a.lastName || a.nom || '').toUpperCase(),
-                    matricule: a.matricule || '',
-                    color: getRandomColor(workerId)
-                });
-            }
-        }
-    });
-
-    state.staff = Array.from(staffMap.values());
-    console.log('[DEBUG] Staff final:', state.staff);
-}
-
-function getRandomColor(id) {
-    const colors = ['#00d4aa', '#3b8fff', '#a78bfa', '#00c896', '#ffd060', '#ff6b6b'];
-    let hash = 0;
-    for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
-    return colors[Math.abs(hash) % colors.length];
 }
 
 function renderAbsences() {
@@ -503,7 +567,7 @@ function renderAbsences() {
     const daysInMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth() + 1, 0).getDate();
 
     if (state.staff.length === 0) {
-        container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3)">Aucune donnée disponible</div>';
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3)">Aucune donnée</div>';
         return;
     }
 
@@ -531,8 +595,6 @@ async function generatePDF(dayIdx = null) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     const wn = getWeekNum(state.weekStart);
-    const dFrom = fmtFR(state.weekStart);
-    const dTo = fmtFR(addDays(state.weekStart, 6));
     let title = "", fileName = "", rows = [];
 
     if (dayIdx === null) {
@@ -566,32 +628,29 @@ async function generatePDF(dayIdx = null) {
     doc.text(title, 14, 15);
     doc.autoTable({ startY: 20, head: [['Poste / Section', 'Personnel']], body: rows, theme: 'grid' });
     doc.save(fileName);
-    return fileName;
 }
 
 async function sendDailyMail(dayIdx) {
     const d = addDays(state.weekStart, dayIdx);
     const dateStr = d.toLocaleDateString('fr-FR', {weekday:'long', day:'2-digit', month:'long', year:'numeric'});
     await generatePDF(dayIdx);
-    const body = `Bonjour,\n\nCi-joint l'effectif Parc Roulier Réception et Prépa-Navire pour le ${dateStr}.`;
+    const body = `Bonjour,\n\nCi-joint l'effectif Parc Roulier pour le ${dateStr}.`;
     window.open(`mailto:${state.config.emailWeek}?cc=${state.config.emailCcWeek}&subject=${encodeURIComponent('Planning Réception du ' + fmtFR(d))}&body=${encodeURIComponent(body)}`);
 }
 
 async function sendWeeklyMail() {
     const wn = getWeekNum(state.weekStart);
-    const dFrom = fmtFR(state.weekStart);
-    const dTo = fmtFR(addDays(state.weekStart, 6));
     await generatePDF();
-    const body = `Bonjour,\n\nCi-joint l'effectif Parc Roulier Réception et Prépa-Navire pour la Semaine ${wn} du ${dFrom} au ${dTo}.`;
+    const body = `Bonjour,\n\nCi-joint l'effectif Parc Roulier pour la Semaine ${wn}.`;
     window.open(`mailto:${state.config.emailWeek}?cc=${state.config.emailCcWeek}&subject=${encodeURIComponent('Planning Hebdo Semaine ' + wn)}&body=${encodeURIComponent(body)}`);
 }
 
 function showConfigModal() {
   showModal(`
     <h2>⚙ Configuration</h2>
-    <div class="modal-label">Email destinataires (Hebdo)</div>
+    <div class="modal-label">Email destinataires</div>
     <input class="modal-input" id="cfg-email-week" value="${state.config.emailWeek}">
-    <div class="modal-label">Copie (CC) Hebdo</div>
+    <div class="modal-label">Copie (CC)</div>
     <input class="modal-input" id="cfg-cc-week" value="${state.config.emailCcWeek}">
     <div class="modal-actions">
       <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Annuler</button>
@@ -615,13 +674,7 @@ window.closeModal = closeModal;
 // ── INIT ──
 async function initApp() {
     state.absMonth = new Date();
-    await loadStaffAndAbsences();
-    await refreshPlanningData();
-    render();
-}
-
-async function refreshPlanningData() {
-    await buildDynamicSlots();
+    await loadAllData();
     render();
 }
 
@@ -641,8 +694,16 @@ function updateWeekLabel() {
   document.getElementById('week-label').textContent = `Semaine ${wn} · ${fmtFR(state.weekStart)} – ${fmtFR(addDays(state.weekStart, 6))}`;
 }
 
-document.getElementById('prev-week').addEventListener('click', async () => { state.weekStart = addDays(state.weekStart, -7); await refreshPlanningData(); });
-document.getElementById('next-week').addEventListener('click', async () => { state.weekStart = addDays(state.weekStart, 7); await refreshPlanningData(); });
+document.getElementById('prev-week').addEventListener('click', async () => {
+    state.weekStart = addDays(state.weekStart, -7);
+    await loadAllData();
+    render();
+});
+document.getElementById('next-week').addEventListener('click', async () => {
+    state.weekStart = addDays(state.weekStart, 7);
+    await loadAllData();
+    render();
+});
 document.querySelectorAll('.view-tab').forEach(tab => {
   tab.addEventListener('click', () => {
     state.view = tab.dataset.view;
@@ -655,8 +716,16 @@ document.querySelectorAll('.view-tab').forEach(tab => {
 document.getElementById('btn-settings').addEventListener('click', showConfigModal);
 document.getElementById('btn-email-week').addEventListener('click', sendWeeklyMail);
 document.getElementById('staff-search').addEventListener('input', e => renderStaffList(e.target.value));
-document.getElementById('abs-prev').addEventListener('click', async () => { state.absMonth.setMonth(state.absMonth.getMonth() - 1); await loadStaffAndAbsences(); renderAbsences(); });
-document.getElementById('abs-next').addEventListener('click', async () => { state.absMonth.setMonth(state.absMonth.getMonth() + 1); await loadStaffAndAbsences(); renderAbsences(); });
+document.getElementById('abs-prev').addEventListener('click', async () => {
+    state.absMonth.setMonth(state.absMonth.getMonth() - 1);
+    await loadAllData();
+    renderAbsences();
+});
+document.getElementById('abs-next').addEventListener('click', async () => {
+    state.absMonth.setMonth(state.absMonth.getMonth() + 1);
+    await loadAllData();
+    renderAbsences();
+});
 
 loadState();
 initApp();
