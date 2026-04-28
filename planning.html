@@ -33,7 +33,7 @@ header {
 .week-nav button { background: var(--surface2); border: 1px solid var(--border2); color: var(--text); width: 28px; height: 28px; border-radius: 6px; cursor: pointer; }
 #btn-today { width: auto; height: 28px; padding: 0 12px; font-size: 0.72rem; font-weight: 700; font-family: inherit; white-space: nowrap; }
 #week-label { font-size: 0.82rem; font-weight: 700; background: var(--surface2); padding: 5px 14px; border-radius: 20px; border: 1px solid var(--border2); }
-.header-actions { display: flex; gap: 8px; align-items: center; }
+.header-actions { display: flex; gap: 8px; }
 .btn { padding: 7px 14px; border-radius: 7px; cursor: pointer; font-size: 0.75rem; font-weight: 700; border: none; transition: all .15s; white-space: nowrap; }
 .btn-ghost { background: var(--surface2); color: var(--text2); border: 1px solid var(--border2); }
 .btn-ghost:hover { color: var(--text); background: var(--surface); border-color: var(--accent); }
@@ -109,47 +109,21 @@ main { display: flex; flex: 1; min-height: 0; }
   margin-bottom: 3px; text-align: center;
 }
 
-/* Zone de drop pour ajouter un poste manuel */
-.section-drop-zone {
-    border: 1px dashed var(--border); border-radius: 6px;
-    padding: 10px; text-align: center; color: var(--text3); font-size: 0.65rem;
-    cursor: pointer; transition: all 0.2s; margin-top: 4px;
-}
-.section-drop-zone:hover, .section-drop-zone.active {
-    border-color: var(--accent); background: rgba(59,143,255,0.05); color: var(--accent);
-}
-
-.slot-container { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; margin-bottom: 4px; position: relative; }
+.slot-container { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; margin-bottom: 4px; }
 .slot-info { display: flex; justify-content: space-between; align-items: flex-start; font-size: 0.6rem; font-weight: 700; color: var(--text3); margin-bottom: 4px; gap: 4px; }
 .slot-remove { color: var(--red); cursor: pointer; }
 
 .assigned-chip {
   display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; border-radius: 5px;
   background: var(--bg); border: 1px solid var(--border); cursor: pointer; position: relative; width: 100%;
-  /* Suppression du tronquage pour permettre l'expansion */
-  white-space: normal;
-  overflow: visible;
 }
-.chip-name {
-    font-size: 0.68rem; font-weight: 600; flex: 1;
-    /* white-space: nowrap; overflow: hidden; text-overflow: ellipsis;  <-- REMOVED */
-    color: var(--text);
-    line-height: 1.2;
-}
+.chip-name { font-size: 0.68rem; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
 .chip-matric { font-size: 0.58rem; color: var(--text3); font-family: 'DM Mono', monospace; }
 .chip-remove {
   position: absolute; right: 4px; top: 4px; font-size: 0.65rem; color: var(--red);
   display: none; background: var(--surface); border-radius: 3px; padding: 0 2px;
 }
 .assigned-chip:hover .chip-remove { display: block; }
-
-/* Badge Modifié */
-.modified-badge {
-    position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
-    background: var(--warn); color: #000; font-size: 0.55rem; font-weight: 800;
-    padding: 1px 6px; border-radius: 4px; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-    white-space: nowrap;
-}
 
 .drop-zone {
   border: 1px dashed var(--border); border-radius: 5px; padding: 4px; min-height: 32px;
@@ -219,9 +193,8 @@ main { display: flex; flex: 1; min-height: 0; }
       <div class="view-tab" data-view="absences">Absences</div>
     </div>
     <div class="header-actions">
+      <span id="sync-status" style="display:flex;align-items:center;padding:0 6px;"></span>
       <button class="btn btn-ghost" id="btn-email-week">✉ Mail Hebdo</button>
-      <!-- Span avec margin-left auto pour pousser à droite -->
-      <span id="sync-status" style="display:flex;align-items:center;padding:0 6px;margin-left:auto;"></span>
     </div>
   </header>
 
@@ -353,6 +326,7 @@ async function fetchHolidays() {
 
         results.forEach((yearData, idx) => {
             const year = yearsToFetch[idx];
+            // L'API retourne un objet { "2025-01-01": "Jour de l'an", ... }
             if (yearData && typeof yearData === 'object' && !Array.isArray(yearData)) {
                 Object.entries(yearData).forEach(([date, nom]) => {
                     holidays[date] = nom;
@@ -367,6 +341,7 @@ async function fetchHolidays() {
 
         state.holidays = holidays;
         console.log('[HOLIDAYS] Total:', Object.keys(holidays).length, 'holidays');
+        console.log('[HOLIDAYS] Sample:', Object.entries(holidays).slice(0, 5));
     } catch(e) {
         console.error('[HOLIDAYS] Error:', e);
         state.holidays = {};
@@ -426,26 +401,32 @@ function loadState() {
     if (s) {
       const saved = JSON.parse(s);
       state.planning = saved.planning || {};
+      // Les slots sauvegardés sont restaurés puis fusionnés avec les données dynamiques
       state._savedSlots = saved.slots || {};
       state.config = { ...state.config, ...saved.config };
     }
+    // Restaurer les largeurs de colonnes
     const cw = localStorage.getItem('planningRoulier_colWidths');
     if (cw) state.colWidths = JSON.parse(cw);
     else state.colWidths = Array(7).fill(null);
   } catch(e) { console.error('[loadState]', e); state.colWidths = Array(7).fill(null); }
 }
 function saveState() {
+  // Sauvegarde locale immédiate
   try {
     localStorage.setItem('planningRoulier_v20', JSON.stringify({
       planning: state.planning, slots: state.slots, config: state.config,
     }));
   } catch(e) {}
+  // Sauvegarde distante (cross-PC) en arrière-plan
   savePlanningRemote();
 }
 
 // ── SYNC DISTANTE ──
+// Le Worker Cloudflare doit supporter type:'savePlanning' et 'loadPlanning'
+// Tant que ce n'est pas le cas, la sync reste silencieusement en mode local.
 let _saveTimer = null;
-let _remoteSupported = null;
+let _remoteSupported = null; // null=inconnu, true=OK, false=non supporté
 
 function savePlanningRemote() {
   clearTimeout(_saveTimer);
@@ -459,6 +440,7 @@ function savePlanningRemote() {
         _remoteSupported = true;
         showSyncStatus('saved');
       } else {
+        // Worker répond mais ne connaît pas ce type → mode local silencieux
         _remoteSupported = false;
         showSyncStatus('offline');
       }
@@ -554,7 +536,6 @@ async function buildDynamicSlots() {
     const dateStart = fmtISO(state.weekStart);
     const dateEnd = fmtISO(addDays(state.weekStart, 6));
     const naviresData = await fetchNavires(dateStart, dateEnd);
-    const todayISO = fmtISO(new Date());
 
     // Initialiser les slots vides
     for(let i=0; i<7; i++) {
@@ -564,6 +545,7 @@ async function buildDynamicSlots() {
         });
     }
 
+    // Suivre les IDs de slots construits dynamiquement (pour éviter doublons)
     const builtSlotIds = new Set();
 
     naviresData.forEach(dayData => {
@@ -572,7 +554,6 @@ async function buildDynamicSlots() {
         const dateObj = new Date(dayData.date);
         const dayIdx = Math.floor((dateObj - state.weekStart) / (1000 * 60 * 60 * 24));
         if (dayIdx < 0 || dayIdx > 6) return;
-        const dateISO = fmtISO(dateObj);
 
         dayData.postes.forEach(p => {
             if (!p.poste || !p.poste.code) return;
@@ -585,6 +566,7 @@ async function buildDynamicSlots() {
 
             parcAssignments.forEach(pa => {
                 if (!pa.projectAssignmentWorkers) return;
+
                 const projectName = pa.project?.name || '';
 
                 pa.projectAssignmentWorkers.forEach(w => {
@@ -594,28 +576,6 @@ async function buildDynamicSlots() {
 
                     builtSlotIds.add(slotId);
 
-                    // LOGIQUE DE SYNCHRO API
-                    const planKey = `${dayIdx}_${secId}_${slotId}`;
-                    const existingWorkerId = state.planning[planKey];
-                    const apiWorkerId = String(w.id);
-
-                    // 1. Si le planning est vide, on remplit (Passé, Présent, Futur)
-                    if (!existingWorkerId) {
-                        state.planning[planKey] = apiWorkerId;
-                    }
-                    // 2. Si le planning a un nom DIFFÉRENT de l'API
-                    else if (existingWorkerId !== apiWorkerId) {
-                        // Uniquement pour Jour Actuel et Futur
-                        if (dateISO >= todayISO) {
-                            state.planning[planKey] = apiWorkerId; // On écrase avec l'API
-                            // On marque le slot comme modifié pour l'affichage
-                            // Note: le slot n'est pas encore dans state.slots, on le fera après la boucle
-                            // On stocke l'info dans un objet temporaire ou on la traite au rendu
-                            // Ici, on va ajouter une propriété au slot quand on le crée
-                        }
-                        // Pour les jours passés, on garde ce que l'utilisateur a mis (existingWorkerId)
-                    }
-
                     state.slots[dayIdx][secId].push({
                         id: slotId,
                         label: jobCode,
@@ -623,15 +583,15 @@ async function buildDynamicSlots() {
                         posteCode: posteCode,
                         projectName: projectName,
                         assignmentId: pa.id,
-                        workerAssignmentId: String(w.id),
-                        isModified: (!existingWorkerId && apiWorkerId) ? false : (dateISO >= todayISO && existingWorkerId !== apiWorkerId)
+                        workerAssignmentId: String(w.id)
                     });
                 });
             });
         });
     });
 
-    // Fusionner les slots sauvegardés manuellement
+    // Fusionner les slots sauvegardés qui ne sont plus dans les données dynamiques
+    // (slots ajoutés manuellement ou slots d'une semaine dont les données ne sont plus disponibles)
     const savedSlots = state._savedSlots || {};
     for(let i=0; i<7; i++) {
         if (!savedSlots[i]) continue;
@@ -639,6 +599,8 @@ async function buildDynamicSlots() {
             const saved = savedSlots[i][secId] || [];
             saved.forEach(savedSlot => {
                 if (!builtSlotIds.has(savedSlot.id)) {
+                    // Ce slot n'existe plus dans les données dynamiques, on le conserve quand même
+                    // s'il a une affectation de planning associée
                     const planKey = `${i}_${secId}_${savedSlot.id}`;
                     if (state.planning[planKey]) {
                         if (!state.slots[i][secId]) state.slots[i][secId] = [];
@@ -692,6 +654,10 @@ function renderStaffList(filter='') {
 }
 
 // ── COLUMN WIDTHS ──
+// Stocke les largeurs en px pour chaque colonne (7 jours)
+if (!state.colWidths) state.colWidths = Array(7).fill(null); // null = auto (1fr)
+
+// Canvas offscreen pour mesurer le texte sans rendu DOM
 let _measureCanvas = null;
 function measureText(text, font) {
   if (!_measureCanvas) _measureCanvas = document.createElement('canvas');
@@ -701,13 +667,14 @@ function measureText(text, font) {
 }
 
 function computeAutoWidths() {
-  const MIN_COL = 110;
-  const H_PAD = 24;
-  const CHIP_PAD = 40; // Marge plus large pour éviter le collage
+  // Largeur minimale par colonne basée sur le contenu textuel réel
+  const MIN_COL = 110; // px minimum absolu
+  const H_PAD = 24;    // padding horizontal dans les cellules (2x12px)
+  const CHIP_PAD = 32; // padding chip + marge + scrollbar éventuelle
 
   const widths = Array(7).fill(MIN_COL);
 
-  // 1. Noms de jours
+  // 1. Noms de jours dans l'en-tête (ex: "Jeudi 08 mai")
   for (let i = 0; i < 7; i++) {
     const d = addDays(state.weekStart, i);
     const label = DAYS[i] + ' ' + fmtFR(d);
@@ -715,7 +682,7 @@ function computeAutoWidths() {
     widths[i] = Math.max(widths[i], w);
   }
 
-  // 2. Section labels
+  // 2. Section labels (ex: "Chef de Manutention")
   for (let i = 0; i < 7; i++) {
     const daySlots = state.slots[i] || {};
     SECTIONS_ORDER.forEach(secId => {
@@ -723,6 +690,7 @@ function computeAutoWidths() {
       const sec = SECTIONS_MAP[secId];
       const w = Math.ceil(measureText(sec.name.toUpperCase(), '700 0.58rem Syne, sans-serif')) + H_PAD;
       widths[i] = Math.max(widths[i], w);
+      // Heures
       if (sec.hours) {
         const wh = Math.ceil(measureText(sec.hours, '400 0.55rem DM Mono, monospace')) + H_PAD;
         widths[i] = Math.max(widths[i], wh);
@@ -730,7 +698,7 @@ function computeAutoWidths() {
     });
   }
 
-  // 3. Noms des agents (CRUCIAL POUR LA DEMANDE)
+  // 3. Noms des agents affectés (chip-name) — c'est souvent le texte le plus long
   for (let i = 0; i < 7; i++) {
     const daySlots = state.slots[i] || {};
     SECTIONS_ORDER.forEach(secId => {
@@ -738,7 +706,6 @@ function computeAutoWidths() {
         const workerId = state.planning[`${i}_${secId}_${slot.id}`];
         const w = getWorker(workerId);
         if (!w) return;
-        // On mesure le nom complet sans ellipsis
         const name = w.lastName + ' ' + w.firstName;
         const nameW = Math.ceil(measureText(name, '600 0.68rem Syne, sans-serif')) + CHIP_PAD;
         widths[i] = Math.max(widths[i], nameW);
@@ -757,6 +724,7 @@ function applyGridColumns(autoFit = false) {
   const cols = state.colWidths.map((manualW, i) => {
     if (manualW) return manualW + 'px';
     if (autoFit && state._autoWidths) return state._autoWidths[i] + 'px';
+    // Conserver la valeur courante si déjà calculée
     return (state._autoWidths ? state._autoWidths[i] : 120) + 'px';
   }).join(' ');
 
@@ -765,6 +733,7 @@ function applyGridColumns(autoFit = false) {
 }
 
 function applyGridColumnsAuto() {
+  // Calculer les largeurs automatiques puis appliquer
   state._autoWidths = computeAutoWidths();
   applyGridColumns(true);
 }
@@ -791,6 +760,7 @@ function renderWeekHeader() {
       <div class="day-mail-btn" onclick="event.stopPropagation(); sendDailyMail(${i})">💬</div>
     `;
 
+    // Poignée de redimensionnement (bord droit)
     const handle = document.createElement('div');
     handle.className = 'col-resize-handle';
     handle.addEventListener('mousedown', e => {
@@ -812,6 +782,7 @@ function renderWeekHeader() {
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
     });
+    // Double-clic = reset auto (max-content)
     handle.addEventListener('dblclick', e => {
       e.stopPropagation();
       state.colWidths[i] = null;
@@ -819,6 +790,7 @@ function renderWeekHeader() {
       try { localStorage.setItem('planningRoulier_colWidths', JSON.stringify(state.colWidths)); } catch(e) {}
     });
 
+    // Bouton dupliquer (sur la carte jour, pas sur les chantiers) - sauf dimanche
     if (i < 6) {
       const btnDup = document.createElement('button');
       btnDup.className = 'btn-dup';
@@ -842,6 +814,7 @@ function renderWeekGrid() {
   const grid = document.getElementById('week-grid');
   grid.innerHTML = '';
   const today = new Date(); today.setHours(0,0,0,0);
+  // Recalculer les largeurs après rendu des chips (noms agents)
   setTimeout(() => applyGridColumnsAuto(), 0);
 
   DAYS.forEach((_, dayIdx) => {
@@ -895,11 +868,7 @@ function renderWeekGrid() {
                 const safeSecId = secId.replace(/'/g, "\\'");
                 const safeSlotId = slot.id.replace(/'/g, "\\'");
 
-                // Badge Modifié
-                const modBadge = slot.isModified ? `<div class="modified-badge">modifié</div>` : '';
-
                 slotDiv.innerHTML = `
-                    ${modBadge}
                     <div class="slot-info"><span>${slot.label}</span><span class="slot-remove" onclick="removeSlot(${dayIdx}, '${safeSecId}', ${slotIdx})">✕</span></div>
                     <div class="drop-zone" data-day="${dayIdx}" data-sec="${secId}" data-slot="${slot.id}">
                         ${w ? `
@@ -921,22 +890,6 @@ function renderWeekGrid() {
                 });
                 col.appendChild(slotDiv);
             });
-
-            // Zone de drop pour AJOUTER un poste manuel dans cette section
-            const addZone = document.createElement('div');
-            addZone.className = 'section-drop-zone';
-            addZone.textContent = '+ Ajouter un poste';
-            addZone.addEventListener('dragover', e => { e.preventDefault(); addZone.classList.add('active'); });
-            addZone.addEventListener('dragleave', () => addZone.classList.remove('active'));
-            addZone.addEventListener('drop', e => {
-                e.preventDefault(); addZone.classList.remove('active');
-                if (state.dragWorker) {
-                    openAddPostModal(dayIdx, secId, state.dragWorker);
-                    state.dragWorker = null;
-                }
-            });
-            col.appendChild(addZone);
-
         });
     }
 
@@ -944,54 +897,8 @@ function renderWeekGrid() {
   });
 }
 
-// ── AJOUT MANUEL DE POSTE ──
-function openAddPostModal(dayIdx, secId, workerId) {
-    const sec = SECTIONS_MAP[secId];
-    const options = Object.keys(SECTIONS_MAP).map(k =>
-        `<option value="${k}" ${k===secId?'selected':''}>${SECTIONS_MAP[k].name}</option>`
-    ).join('');
-
-    showModal(`
-        <h2>Ajouter un poste manuel</h2>
-        <div class="modal-label">Type de poste</div>
-        <select class="modal-input" id="new-post-type">${options}</select>
-        <div class="modal-label">Libellé (optionnel)</div>
-        <input class="modal-input" id="new-post-label" placeholder="Ex: PN Supplémentaire">
-        <div class="modal-actions">
-          <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Annuler</button>
-          <button class="modal-btn modal-btn-ok" onclick="confirmAddPost(${dayIdx}, '${secId}', '${workerId}')">Ajouter</button>
-        </div>
-    `);
-}
-
-window.confirmAddPost = function(dayIdx, secId, workerId) {
-    const type = document.getElementById('new-post-type').value;
-    const label = document.getElementById('new-post-label').value || 'Manuel';
-
-    const newSlot = {
-        id: 'manual_' + Date.now(),
-        label: label,
-        jobCode: type.toUpperCase(),
-        posteCode: 'MANUAL',
-        projectName: 'Manuel',
-        isModified: false
-    };
-
-    if (!state.slots[dayIdx][type]) state.slots[dayIdx][type] = [];
-    state.slots[dayIdx][type].push(newSlot);
-
-    // Affecter immédiatement si un worker était dragué
-    if (workerId) {
-        state.planning[`${dayIdx}_${type}_${newSlot.id}`] = workerId;
-    }
-
-    saveState();
-    closeModal();
-    renderWeekGrid();
-    toast('Poste ajouté ✓');
-};
-
 function duplicateDayToNext(dayIdx) {
+  // Strictement jour+1 uniquement
   const nextIdx = dayIdx + 1;
   if (nextIdx > 6) return;
 
@@ -1003,12 +910,15 @@ function duplicateDayToNext(dayIdx) {
     const srcSlots = daySlots[secId] || [];
     const dstSlots = nextDaySlots[secId] || [];
 
+    // File de slots disponibles au lendemain, groupés par signature (jobCode+posteCode)
+    // On consomme chaque slot destination au fur et à mesure pour gérer les doublons (ex: 3x PN)
     const dstAvailable = {};
     dstSlots.forEach(dstSlot => {
       const sig = `${dstSlot.jobCode}__${dstSlot.posteCode}`;
       if (!dstAvailable[sig]) dstAvailable[sig] = [];
       dstAvailable[sig].push(dstSlot);
     });
+    // Retirer de la file les slots déjà affectés au lendemain
     dstSlots.forEach(dstSlot => {
       const dstKey = `${nextIdx}_${secId}_${dstSlot.id}`;
       if (state.planning[dstKey]) {
@@ -1027,6 +937,7 @@ function duplicateDayToNext(dayIdx) {
       const available = dstAvailable[sig];
       if (!available || available.length === 0) return;
 
+      // Prendre le premier slot disponible et le consommer de la file
       const matchingDstSlot = available.shift();
       const dstKey = `${nextIdx}_${secId}_${matchingDstSlot.id}`;
       state.planning[dstKey] = workerId;
@@ -1185,6 +1096,7 @@ async function initApp() {
     state.absMonth = new Date();
     await fetchHolidays();
     await loadAllData();
+    // Charger les affectations depuis le serveur (écrase le local si plus récent)
     await loadPlanningRemote();
     render();
 }
