@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -164,11 +165,14 @@ main { display: flex; flex: 1; min-height: 0; }
 const PLAN_PROXY = "https://planning-proxy.receptionroulier.workers.dev";
 const NAV_PROXY = "https://shgt-proxy.receptionroulier.workers.dev";
 
+// ── MODIFICATION ICI : ORDRE ET HORAIRES ──
 const SECTIONS_MAP = {
-  '0817': { id: 'prepa', name: 'FCQ/CC/Montage/Prépa', hours: '8h30 / 12h00  14h00 / 17h30', color: '#a78bfa' },
-  '0714': { id: 'matin', name: 'Réception Matin',       hours: '7h00 / 14h00',                color: '#00c896' },
-  '1320': { id: 'aprem', name: 'Réception Après-Midi',  hours: '13h00 / 20h00',               color: '#3b8fff' },
-  'default': { id: 'autre', name: 'Autre / Parc',       hours: '',                            color: '#ffd060' },
+  'CM': { id: 'cm', name: 'Chef de Manutention', hours: '', color: '#ff4d6d' }, // Pas de tranche horaire
+  '0817': { id: 'fcq', name: 'Chef de quai (FCQ)', hours: '8h30-12h00 / 14h00-17h30', color: '#a78bfa' },
+  'PN': { id: 'pn', name: 'Montage/Prépa Journée', hours: '8h30-12h00 / 14h00-17h30', color: '#00c896' },
+  '0714': { id: 'matin', name: 'Réception Matin (CI CO...)', hours: '7h00 / 14h00', color: '#3b8fff' },
+  '1320': { id: 'aprem', name: 'Réception Après-Midi (CI CO...)', hours: '13h00 / 20h00', color: '#ffd060' },
+  'default': { id: 'autre', name: 'Autre / Parc', hours: '', color: '#94a3b8' },
 };
 
 const DAYS = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
@@ -364,6 +368,7 @@ async function buildDynamicSlots() {
         dayData.postes.forEach(p => {
             if (!p.poste || !p.poste.code) return;
 
+            // Mapping des codes postes vers les nouvelles sections
             const sectionCfg = SECTIONS_MAP[p.poste.code] || SECTIONS_MAP['default'];
             const secId = sectionCfg.id;
 
@@ -489,6 +494,7 @@ function renderWeekGrid() {
     if (Object.keys(daySlots).length === 0) {
       col.innerHTML = `<div style="font-size:0.6rem; color:var(--text3); text-align:center; margin-top:20px">Aucune activité Parc</div>`;
     } else {
+        // On itère sur les valeurs de SECTIONS_MAP pour garantir l'ordre
         Object.values(SECTIONS_MAP).forEach(sec => {
             const slots = daySlots[sec.id] || [];
             if (slots.length === 0) return;
@@ -730,3 +736,4 @@ initApp();
 </script>
 </body>
 </html>
+```
