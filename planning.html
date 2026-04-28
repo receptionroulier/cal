@@ -58,7 +58,7 @@ main { display: flex; flex: 1; min-height: 0; }
 .staff-name { font-size: 0.73rem; font-weight: 600; }
 .staff-matric { font-size: 0.62rem; color: var(--text3); font-family: 'DM Mono', monospace; }
 .staff-item.absent { opacity: 0.45; }
-.absence-badge { font-size: 0.58rem; padding: 1px 4px; border-radius: 3px; background: rgba(255,107,53,0.2); color: var(--warn); margin-left: auto; }
+.absence-badge { font-size: 0.58rem; padding: 1px 4px; border-radius: 3px; background: rgba(255,107,53,0.2); color: #ff6b35; margin-left: auto; }
 
 #content { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
 
@@ -93,7 +93,7 @@ main { display: flex; flex: 1; min-height: 0; }
 .abs-table { width: 100%; border-collapse: collapse; font-size: 0.65rem; background: var(--surface); }
 .abs-table th, .abs-table td { border: 1px solid var(--border2); padding: 4px; text-align: center; }
 .abs-table th { background: var(--surface2); color: var(--text2); }
-.abs-code { font-weight: bold; padding: 2px 4px; border-radius: 3px; background: rgba(255,107,53,0.2); color: var(--warn); }
+.abs-code { font-weight: bold; padding: 2px 4px; border-radius: 3px; background: rgba(255,107,53,0.2); color: #ff6b35; }
 
 #modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); }
 #modal-overlay.show { display: flex; }
@@ -194,33 +194,58 @@ let state = {
 // ── API ──
 async function fetchPersonnel(date) {
     try {
+        console.log('[API] Fetch personnel pour:', date);
         const response = await fetch(PLAN_PROXY, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ date })
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ date, type: 'personnel' })
         });
+        console.log('[API] Response status:', response.status);
         const data = await response.json();
-        return (data.items || []);
-    } catch(e) { return []; }
+        console.log('[API] Response data:', data);
+        // Supporte plusieurs formats de réponse
+        return (data.items || data.data || data.personnel || []);
+    } catch(e) {
+        console.error('[API] Error fetch personnel:', e);
+        return [];
+    }
+}
+
+async function fetchAbsences(dateFrom, dateTo) {
+    try {
+        console.log('[API] Fetch absences de:', dateFrom, 'à', dateTo);
+        const response = await fetch(PLAN_PROXY, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dateFrom, dateTo, type: 'absences' })
+        });
+        console.log('[API] Response status:', response.status);
+        const data = await response.json();
+        console.log('[API] Response data:', data);
+        // Supporte plusieurs formats de réponse
+        return (data.items || data.data || data.absences || []);
+    } catch(e) {
+        console.error('[API] Error fetch absences:', e);
+        return [];
+    }
 }
 
 async function fetchNavires(dateFrom, dateTo) {
     try {
+        console.log('[API] Fetch navires de:', dateFrom, 'à', dateTo);
         const response = await fetch(NAV_PROXY, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ dateFrom, dateTo })
         });
-        return await response.json();
-    } catch(e) { return []; }
-}
-
-async function fetchStaffAndAbsences(dateFrom, dateTo) {
-    try {
-        const response = await fetch(PLAN_PROXY, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ dateFrom, dateTo, type: 'absences' })
-        });
-        return await response.json();
-    } catch(e) { return []; }
+        console.log('[API] Response status:', response.status);
+        const data = await response.json();
+        console.log('[API] Response data:', data);
+        return (data.items || data.data || data.navires || []);
+    } catch(e) {
+        console.error('[API] Error fetch navires:', e);
+        return [];
+    }
 }
 
 // ── HELPERS ──
@@ -242,7 +267,8 @@ function getWeekNum(d) {
 function getWorker(id) { return state.staff.find(w => w.id === id); }
 function initials(w) { return ((w.firstName||'')[0]||'') + ((w.lastName||'')[0]||''); }
 function avatar(w, size=26) {
-  return `<div class="staff-avatar" style="width:${size}px;height:${size}px;background:${w.color}22;color:${w.color};border:1px solid ${w.color}44">${initials(w).toUpperCase()}</div>`;
+  const color = w.color || '#00d4aa';
+  return `<div class="staff-avatar" style="width:${size}px;height:${size}px;background:${color}22;color:${color};border:1px solid ${color}44">${initials(w).toUpperCase()}</div>`;
 }
 function toast(msg) {
   const t = document.getElementById('toast');
@@ -303,6 +329,12 @@ function renderStaffList(filter='') {
   const list = document.getElementById('staff-list');
   list.innerHTML = '';
   const q = filter.toLowerCase();
+
+  if (state.staff.length === 0) {
+    list.innerHTML = '<div style="padding:10px;font-size:0.65rem;color:var(--text3);text-align:center">Aucun personnel chargé</div>';
+    return;
+  }
+
   state.staff.forEach(w => {
     const name = `${w.firstName} ${w.lastName}`.toLowerCase();
     if (q && !name.includes(q) && !(w.matricule||'').toLowerCase().includes(q)) return;
@@ -403,28 +435,78 @@ function removeSlot(dayIdx, secId, slotIdx) {
     saveState(); renderWeekGrid();
 }
 
-async function refreshAbsencesMonth() {
+async function loadStaffAndAbsences() {
     const startOfMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth(), 1);
     const endOfMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth() + 1, 0);
-    document.getElementById('abs-month-label').textContent = startOfMonth.toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
-    const data = await fetchStaffAndAbsences(fmtISO(startOfMonth), fmtISO(endOfMonth));
+
+    // Charger le personnel
+    const today = fmtISO(new Date());
+    const personnelData = await fetchPersonnel(today);
+    console.log('[DEBUG] Personnel reçu:', personnelData);
+
+    // Charger les absences
+    const absencesData = await fetchAbsences(fmtISO(startOfMonth), fmtISO(endOfMonth));
+    console.log('[DEBUG] Absences reçues:', absencesData);
+
+    // Construire la map du personnel
     const staffMap = new Map();
-    data.forEach(w => {
-        if(!staffMap.has(w.workerId)) staffMap.set(w.workerId, { id: w.workerId, firstName: w.firstName, lastName: (w.lastName||'').toUpperCase(), matricule: w.matricule, color: w.color || '#00d4aa' });
-        if(w.absenceCode) {
-            if(!state.absences[w.workerId]) state.absences[w.workerId] = {};
-            state.absences[w.workerId][w.date] = w.absenceCode;
+
+    // Traiter le personnel
+    personnelData.forEach(w => {
+        const workerId = w.id || w.workerId || w.matricule;
+        if (!workerId) return;
+        if (!staffMap.has(workerId)) {
+            staffMap.set(workerId, {
+                id: workerId,
+                firstName: w.firstName || w.prenom || '',
+                lastName: (w.lastName || w.nom || '').toUpperCase(),
+                matricule: w.matricule || '',
+                color: w.color || getRandomColor(workerId)
+            });
         }
     });
+
+    // Traiter les absences
+    absencesData.forEach(a => {
+        const workerId = a.id || a.workerId || a.matricule;
+        if (workerId && a.absenceCode && a.date) {
+            if (!state.absences[workerId]) state.absences[workerId] = {};
+            state.absences[workerId][a.date] = a.absenceCode;
+
+            // Ajouter le personnel si pas déjà dans la map
+            if (!staffMap.has(workerId)) {
+                staffMap.set(workerId, {
+                    id: workerId,
+                    firstName: a.firstName || a.prenom || '',
+                    lastName: (a.lastName || a.nom || '').toUpperCase(),
+                    matricule: a.matricule || '',
+                    color: getRandomColor(workerId)
+                });
+            }
+        }
+    });
+
     state.staff = Array.from(staffMap.values());
-    renderAbsences();
-    renderStaffList(document.getElementById('staff-search').value);
+    console.log('[DEBUG] Staff final:', state.staff);
+}
+
+function getRandomColor(id) {
+    const colors = ['#00d4aa', '#3b8fff', '#a78bfa', '#00c896', '#ffd060', '#ff6b6b'];
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
+    return colors[Math.abs(hash) % colors.length];
 }
 
 function renderAbsences() {
     const container = document.getElementById('absences-container');
     const startOfMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth(), 1);
     const daysInMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth() + 1, 0).getDate();
+
+    if (state.staff.length === 0) {
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3)">Aucune donnée disponible</div>';
+        return;
+    }
+
     let html = `<table class="abs-table"><thead><tr><th style="position:sticky; left:0; background:var(--surface2); z-index:1">Personnel</th>`;
     for(let i=1; i<=daysInMonth; i++) {
         const d = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), i);
@@ -533,14 +615,12 @@ window.closeModal = closeModal;
 // ── INIT ──
 async function initApp() {
     state.absMonth = new Date();
-    await refreshAbsencesMonth();
+    await loadStaffAndAbsences();
     await refreshPlanningData();
     render();
 }
 
 async function refreshPlanningData() {
-    const dateStart = fmtISO(state.weekStart);
-    const dateEnd = fmtISO(addDays(state.weekStart, 6));
     await buildDynamicSlots();
     render();
 }
@@ -575,8 +655,8 @@ document.querySelectorAll('.view-tab').forEach(tab => {
 document.getElementById('btn-settings').addEventListener('click', showConfigModal);
 document.getElementById('btn-email-week').addEventListener('click', sendWeeklyMail);
 document.getElementById('staff-search').addEventListener('input', e => renderStaffList(e.target.value));
-document.getElementById('abs-prev').addEventListener('click', async () => { state.absMonth.setMonth(state.absMonth.getMonth() - 1); await refreshAbsencesMonth(); });
-document.getElementById('abs-next').addEventListener('click', async () => { state.absMonth.setMonth(state.absMonth.getMonth() + 1); await refreshAbsencesMonth(); });
+document.getElementById('abs-prev').addEventListener('click', async () => { state.absMonth.setMonth(state.absMonth.getMonth() - 1); await loadStaffAndAbsences(); renderAbsences(); });
+document.getElementById('abs-next').addEventListener('click', async () => { state.absMonth.setMonth(state.absMonth.getMonth() + 1); await loadStaffAndAbsences(); renderAbsences(); });
 
 loadState();
 initApp();
