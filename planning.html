@@ -214,7 +214,7 @@ async function fetchPersonnel(dateFrom, dateTo) {
         const response = await fetch(PLAN_PROXY, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ dateFrom, dateTo })
+            body: JSON.stringify({ type: 'workers', dateFrom, dateTo })
         });
         const data = await response.json();
         console.log('[API] Personnel response:', data);
