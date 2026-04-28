@@ -79,9 +79,8 @@ main { display: flex; flex: 1; min-height: 0; }
 .slot-info { display: flex; justify-content: space-between; font-size: 0.6rem; font-weight: 700; color: var(--text3); margin-bottom: 4px; }
 .slot-remove { color: var(--red); cursor: pointer; }
 
-.assigned-chip { display: flex; align-items: center; gap: 5px; padding: 4px 6px; border-radius: 5px; background: var(--bg); border: 1px solid var(--border); cursor: pointer; position: relative; }
-.chip-avatar { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.52rem; font-weight: 700; }
-.chip-name { font-size: 0.68rem; font-weight: 600; }
+.assigned-chip { display: flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 5px; background: var(--bg); border: 1px solid var(--border); cursor: pointer; position: relative; width: 100%; }
+.chip-name { font-size: 0.68rem; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chip-remove { font-size: 0.65rem; color: var(--red); margin-left: auto; display: none; }
 .assigned-chip:hover .chip-remove { display: block; }
 
@@ -295,9 +294,11 @@ function parsePersonnelData(personnelData, dateFrom, dateTo) {
 
         // Create worker entry
         if (!staffMap.has(workerId)) {
+            const rawFirst = wc.firstName || '';
+            const capitalFirst = rawFirst.charAt(0).toUpperCase() + rawFirst.slice(1).toLowerCase();
             staffMap.set(workerId, {
                 id: workerId,
-                firstName: wc.firstName || '',
+                firstName: capitalFirst,
                 lastName: (wc.lastName || '').toUpperCase(),
                 matricule: wc.dockerMatricule || '',
                 color: getRandomColor(workerId),
@@ -412,11 +413,8 @@ async function loadAllData() {
 
     console.log('[LOAD] Worker assignment map:', state.workerAssignmentMap);
 
-    // Build slots from navires
+    // Build slots from navires (chantiers seulement, sans pré-affectation)
     await buildDynamicSlots();
-
-    // Match existing assignments from workerAssignmentMap
-    matchExistingAssignments();
 }
 
 function matchExistingAssignments() {
@@ -515,7 +513,7 @@ function renderWeekGrid() {
                 slotDiv.innerHTML = `
                     <div class="slot-info"><span>${slot.label}</span><span class="slot-remove" onclick="removeSlot(${dayIdx}, '${safeSecId}', ${slotIdx})">✕</span></div>
                     <div class="drop-zone" data-day="${dayIdx}" data-sec="${sec.id}" data-slot="${slot.id}">
-                        ${w ? `<div class="assigned-chip"><div class="chip-avatar" style="background:${w.color}22;color:${w.color}">${initials(w).toUpperCase()}</div><div class="chip-name">${w.lastName}</div><div class="chip-remove" onclick="removeFromSlot(${dayIdx},'${safeSecId}','${safeSlotId}')">✕</div></div>` : 'Glisser ici'}
+                        ${w ? `<div class="assigned-chip"><div class="chip-name"><span style="font-family:'DM Mono',monospace;color:var(--text3);font-size:0.6rem">${w.matricule||'—'}</span> ${w.lastName} ${w.firstName}</div><div class="chip-remove" onclick="removeFromSlot(${dayIdx},'${safeSecId}','${safeSlotId}')">✕</div></div>` : 'Glisser ici'}
                     </div>
                 `;
 
