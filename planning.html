@@ -63,11 +63,11 @@ main { display: flex; flex: 1; min-height: 0; }
 #content { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
 
 #view-week { display: flex; flex-direction: column; height: 100%; }
-.days-header { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; padding: 8px 10px 4px; }
+.days-header { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; padding: 8px 10px 4px; box-sizing: border-box; }
 .day-header-cell {
   text-align: center; padding: 8px 4px; border-radius: 7px; font-size: 0.72rem; font-weight: 700;
   background: var(--surface); border: 2px solid var(--border); cursor: pointer; position: relative;
-  min-height: 60px;
+  min-height: 60px; box-sizing: border-box;
 }
 .day-header-cell.today { border-color: var(--accent); }
 .day-header-cell.ferie { border-color: var(--red); }
@@ -83,11 +83,11 @@ main { display: flex; flex: 1; min-height: 0; }
 }
 .day-mail-btn:hover { opacity: 1; color: var(--accent); background: var(--accent); color: #000; }
 
-.week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; padding: 4px 10px 10px; flex: 1; overflow-y: auto; align-content: start; }
+.week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; padding: 4px 10px 10px; flex: 1; overflow-y: auto; align-content: start; box-sizing: border-box; }
 .day-col {
   background: var(--surface); border: 2px solid var(--border); border-radius: 10px; padding: 8px;
   display: flex; flex-direction: column; gap: 8px; align-items: stretch;
-  min-height: 200px;
+  min-height: 200px; overflow: hidden; box-sizing: border-box;
 }
 .day-col.today { border-color: var(--accent); }
 .day-col.ferie { border-color: var(--red); }
@@ -293,13 +293,16 @@ async function fetchHolidays() {
 
         results.forEach((yearData, idx) => {
             const year = yearsToFetch[idx];
-            if (Array.isArray(yearData)) {
-                yearData.forEach(h => {
-                    if (h.date) {
-                        holidays[h.date] = h.nom;
-                    }
+            // L'API retourne un objet { "2025-01-01": "Jour de l'an", ... }
+            if (yearData && typeof yearData === 'object' && !Array.isArray(yearData)) {
+                Object.entries(yearData).forEach(([date, nom]) => {
+                    holidays[date] = nom;
                 });
-                console.log(`[HOLIDAYS] ${year}: ${yearData.length} jours fériés`);
+                console.log(`[HOLIDAYS] ${year}: ${Object.keys(yearData).length} jours fériés`);
+            } else if (Array.isArray(yearData)) {
+                yearData.forEach(h => {
+                    if (h.date) holidays[h.date] = h.nom;
+                });
             }
         });
 
@@ -365,17 +368,21 @@ function loadState() {
     if (s) {
       const saved = JSON.parse(s);
       state.planning = saved.planning || {};
-      state.slots = saved.slots || {};
+      // Les slots sauvegardés sont restaurés puis fusionnés avec les données dynamiques
+      state._savedSlots = saved.slots || {};
       state.config = { ...state.config, ...saved.config };
     }
-  } catch(e) {}
+  } catch(e) { console.error('[loadState]', e); }
 }
 function saveState() {
   try {
     localStorage.setItem('planningRoulier_v20', JSON.stringify({
-      planning: state.planning, slots: state.slots, config: state.config,
+      planning: state.planning,
+      slots: state.slots,
+      config: state.config,
     }));
-  } catch(e) {}
+    console.log('[saveState] Affectations sauvegardées', Object.keys(state.planning).length, 'entrées');
+  } catch(e) { console.error('[saveState]', e); }
 }
 
 // ── PARSE PERSONNEL DATA ──
@@ -431,12 +438,16 @@ async function buildDynamicSlots() {
     const dateEnd = fmtISO(addDays(state.weekStart, 6));
     const naviresData = await fetchNavires(dateStart, dateEnd);
 
+    // Initialiser les slots vides
     for(let i=0; i<7; i++) {
         state.slots[i] = {};
         SECTIONS_ORDER.forEach(secId => {
             state.slots[i][secId] = [];
         });
     }
+
+    // Suivre les IDs de slots construits dynamiquement (pour éviter doublons)
+    const builtSlotIds = new Set();
 
     naviresData.forEach(dayData => {
         if (!dayData || !dayData.postes) return;
@@ -464,6 +475,8 @@ async function buildDynamicSlots() {
                     const secId = findSectionForWorker(jobCode, posteCode, projectName);
                     const slotId = `slot_${pa.id}_${w.id}`;
 
+                    builtSlotIds.add(slotId);
+
                     state.slots[dayIdx][secId].push({
                         id: slotId,
                         label: jobCode,
@@ -477,6 +490,27 @@ async function buildDynamicSlots() {
             });
         });
     });
+
+    // Fusionner les slots sauvegardés qui ne sont plus dans les données dynamiques
+    // (slots ajoutés manuellement ou slots d'une semaine dont les données ne sont plus disponibles)
+    const savedSlots = state._savedSlots || {};
+    for(let i=0; i<7; i++) {
+        if (!savedSlots[i]) continue;
+        SECTIONS_ORDER.forEach(secId => {
+            const saved = savedSlots[i][secId] || [];
+            saved.forEach(savedSlot => {
+                if (!builtSlotIds.has(savedSlot.id)) {
+                    // Ce slot n'existe plus dans les données dynamiques, on le conserve quand même
+                    // s'il a une affectation de planning associée
+                    const planKey = `${i}_${secId}_${savedSlot.id}`;
+                    if (state.planning[planKey]) {
+                        if (!state.slots[i][secId]) state.slots[i][secId] = [];
+                        state.slots[i][secId].push(savedSlot);
+                    }
+                }
+            });
+        });
+    }
 }
 
 // ── LOAD ALL DATA ──
