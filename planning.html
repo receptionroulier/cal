@@ -1083,45 +1083,120 @@ function duplicateDayToNext(dayIdx) {
   const nextDateISO = fmtISO(addDays(state.weekStart, nextIdx));
   const daySlots = state.slots[dayIdx] || {};
   const nextDaySlots = state.slots[nextIdx] || {};
-  let count = 0;
+
+  // ── Construire la liste des transferts possibles ──
+  // Pour chaque slot source affecté, on cherche un slot destination par sig (jobCode__posteCode)
+  // On ne skippe plus sur !srcWorker pour gérer "hors groupe", mais on skippe isTbd
+  const transfers = []; // { srcSlot, srcWorkerId, dstSlot, secId, dstKey, srcLabel }
 
   SECTIONS_ORDER.forEach(secId => {
     const srcSlots = daySlots[secId] || [];
     const dstSlots = nextDaySlots[secId] || [];
-    const dstAvailable = {};
+
+    // Index des slots destination par sig, tous disponibles
+    const dstBySig = {};
     dstSlots.forEach(dstSlot => {
       const sig = `${dstSlot.jobCode}__${dstSlot.posteCode}`;
-      if (!dstAvailable[sig]) dstAvailable[sig] = [];
-      dstAvailable[sig].push(dstSlot);
+      if (!dstBySig[sig]) dstBySig[sig] = [];
+      dstBySig[sig].push(dstSlot);
     });
-    dstSlots.forEach(dstSlot => {
-      const dstKey = gkey(`${nextIdx}_${secId}_${dstSlot.id}`);
-      if (state.planning[dstKey]) {
-        const sig = `${dstSlot.jobCode}__${dstSlot.posteCode}`;
-        const idx = (dstAvailable[sig] || []).findIndex(s => s.id === dstSlot.id);
-        if (idx !== -1) dstAvailable[sig].splice(idx, 1);
-      }
-    });
+
+    // Pointer pour consommation
+    const dstPointer = {};
+    Object.keys(dstBySig).forEach(sig => { dstPointer[sig] = 0; });
+
     srcSlots.forEach(srcSlot => {
       const srcKey = gkey(`${dayIdx}_${secId}_${srcSlot.id}`);
       const workerId = state.planning[srcKey];
       if (!workerId) return;
       const srcWorker = getWorker(workerId);
-      if (!srcWorker || srcWorker.isTbd) return;
-      if (state.absences[workerId] && state.absences[workerId][nextDateISO]) return;
+      if (srcWorker && srcWorker.isTbd) return;
+
       const sig = `${srcSlot.jobCode}__${srcSlot.posteCode}`;
-      const available = dstAvailable[sig];
-      if (!available || available.length === 0) return;
-      const matchingDstSlot = available.shift();
-      const dstKey = gkey(`${nextIdx}_${secId}_${matchingDstSlot.id}`);
-      state.planning[dstKey] = workerId;
-      count++;
+      const candidates = dstBySig[sig] || [];
+      const ptr = dstPointer[sig] || 0;
+      if (ptr >= candidates.length) return; // pas de slot dispo
+
+      const dstSlot = candidates[ptr];
+      dstPointer[sig] = ptr + 1;
+      const dstKey = gkey(`${nextIdx}_${secId}_${dstSlot.id}`);
+
+      transfers.push({
+        srcSlot, srcWorkerId: workerId, dstSlot, dstKey, secId,
+        srcLabel: srcSlot.label || sig,
+        absent: !!(state.absences[workerId] && state.absences[workerId][nextDateISO])
+      });
     });
   });
 
-  saveState();
-  render();
-  toast(count > 0 ? `${count} affectation(s) dupliquée(s) vers demain ✓` : 'Aucun chantier identique trouvé demain');
+  if (transfers.length === 0) {
+    toast('Aucun poste commun entre ces deux jours', 'error');
+    return;
+  }
+
+  // ── Analyser l'état des destinations ──
+  const alreadySame   = [];  // dst rempli avec le même worker
+  const different     = [];  // dst rempli avec un worker différent
+  const empty         = [];  // dst vide → à remplir
+  const skippedAbsent = [];  // absent demain
+
+  transfers.forEach(t => {
+    if (t.absent) { skippedAbsent.push(t); return; }
+    const dstWorkerId = state.planning[t.dstKey];
+    if (!dstWorkerId) {
+      empty.push(t);
+    } else if (dstWorkerId === t.srcWorkerId) {
+      alreadySame.push(t);
+    } else {
+      different.push(t);
+    }
+  });
+
+  // ── Cas 1 : tout déjà identique ──
+  if (empty.length === 0 && different.length === 0) {
+    toast('Les affectations de demain ont déjà été effectuées');
+    return;
+  }
+
+  // ── Cas 2 : des postes sont différents → confirmation ──
+  function applyTransfers(list) {
+    list.forEach(t => {
+      state.planning[t.dstKey] = t.srcWorkerId;
+      delete state.planningModified[t.dstKey];
+    });
+    saveState();
+    render();
+  }
+
+  if (different.length > 0) {
+    const diffLabels = [...new Set(different.map(t => t.srcLabel))].join(', ');
+    const toApply = [...empty, ...different];
+    showModal(`
+      <h2 style="margin-bottom:12px">Confirmer la duplication</h2>
+      <p style="font-size:0.8rem;color:var(--text2);margin-bottom:16px">
+        Le(s) poste(s) <strong style="color:var(--warn)">${diffLabels}</strong> sont différents demain.<br>
+        ${skippedAbsent.length > 0 ? `<span style="color:var(--red);font-size:0.75rem">${skippedAbsent.length} agent(s) absent(s) demain seront ignorés.</span>` : ''}
+      </p>
+      <div class="modal-actions">
+        <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Annuler</button>
+        <button class="modal-btn modal-btn-ok" onclick="_confirmDup()">Confirmer</button>
+      </div>
+    `);
+    window._confirmDup = function() {
+      applyTransfers(toApply);
+      closeModal();
+      const n = toApply.length;
+      toast(`${n} affectation(s) dupliquée(s) ✓`);
+      delete window._confirmDup;
+    };
+    return;
+  }
+
+  // ── Cas 3 : que des postes vides → on remplit directement ──
+  applyTransfers(empty);
+  const n = empty.length;
+  const absMsg = skippedAbsent.length > 0 ? ` (${skippedAbsent.length} absent(s) ignoré(s))` : '';
+  toast(`${n} affectation(s) dupliquée(s) vers demain ✓${absMsg}`);
 }
 
 function isWorkerAssignedToDay(dayIdx, workerId, excludeSlotId) {
