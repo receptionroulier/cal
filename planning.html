@@ -501,6 +501,7 @@ async function loadPlanningRemote() {
     if (data.ok && data.planning) {
       _remoteSupported = true;
       const prefix = weekKey() + '__';
+      // Restaure planning (semaine courante uniquement, sans écraser ce qui est déjà en mémoire)
       Object.keys(data.planning).forEach(k => {
         if (k.startsWith(prefix)) {
           if (!(k in state.planning)) {
@@ -508,8 +509,19 @@ async function loadPlanningRemote() {
           }
         }
       });
+      // Restaure planningModified : les badges ⚠ persistés (divergences KV/API déjà connues)
+      // On merge sans écraser ce qui aurait été calculé en mémoire pour cette session
+      if (data.planningModified) {
+        Object.keys(data.planningModified).forEach(k => {
+          if (k.startsWith(prefix)) {
+            if (!(k in state.planningModified)) {
+              state.planningModified[k] = data.planningModified[k];
+            }
+          }
+        });
+      }
       if (data.config) state.config = { ...state.config, ...data.config };
-      try { localStorage.setItem('planningRoulier_v20', JSON.stringify({ planning: state.planning, slots: state.slots, config: state.config })); } catch(e) {}
+      try { localStorage.setItem('planningRoulier_v20', JSON.stringify({ planning: state.planning, planningModified: state.planningModified, config: state.config })); } catch(e) {}
       showSyncStatus('loaded');
       return data;
     } else {
@@ -666,8 +678,13 @@ function applyAPIMergeRules() {
                         state.planningModified[key] = kvWorkerId;
                         state.planning[key] = apiWorkerId;
                     } else {
-                        // KV vide ou KV=API → affiche Y, pas de badge
-                        delete state.planningModified[key];
+                        // KV vide ou KV=API :
+                        // Si planningModified[key] existe déjà (badge persisté d'un chargement précédent),
+                        // on le conserve — la divergence d'origine doit rester visible.
+                        // On ne le supprime que s'il n'y en avait pas (cas propre sans historique).
+                        if (!(key in state.planningModified)) {
+                            delete state.planningModified[key];
+                        }
                         state.planning[key] = apiWorkerId;
                     }
 
@@ -680,7 +697,10 @@ function applyAPIMergeRules() {
                         state.planningModified[key] = kvWorkerId;
                         state.planning[key] = rawApiId;
                     } else {
-                        delete state.planningModified[key];
+                        // Même logique : conserve le planningModified persisté si présent
+                        if (!(key in state.planningModified)) {
+                            delete state.planningModified[key];
+                        }
                         state.planning[key] = rawApiId;
                     }
 
