@@ -493,7 +493,7 @@ function savePlanningRemote() {
   _saveTimer = setTimeout(async () => {
     if (_remoteSupported === false) { showSyncStatus('offline'); return; }
     try {
-      const payload = { type: 'savePlanning', planning: state.planning, config: state.config };
+      const payload = { type: 'savePlanning', planning: state.planning, planningModified: state.planningModified, config: state.config };
       const r = await fetch(PLAN_PROXY, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await r.json();
       if (data.ok) {
@@ -667,10 +667,13 @@ async function buildDynamicSlots() {
                             state.planning[planKey] = apiWorkerId;
                             delete state.planningModified[planKey];
                         } else if (state.planning[planKey] !== apiWorkerId) {
-                            // L'API indique quelqu'un de différent :
-                            // on mémorise l'ANCIEN nom (le nôtre) et on remplace par celui de l'API
-                            state.planningModified[planKey] = state.planning[planKey]; // ancien workerId
-                            state.planning[planKey] = apiWorkerId; // nouveau = celui de l'API
+                            // L'API indique quelqu'un de différent → l'API a toujours raison
+                            // On mémorise l'ancien nom de prévision SEULEMENT s'il n'est pas déjà mémorisé
+                            // (pour ne pas écraser le survol après rechargement)
+                            if (!(planKey in state.planningModified)) {
+                                state.planningModified[planKey] = state.planning[planKey]; // première prévision uniquement
+                            }
+                            state.planning[planKey] = apiWorkerId; // l'API a toujours raison
                         } else {
                             // Même worker → aucun changement, pas de badge
                             delete state.planningModified[planKey];
