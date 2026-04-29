@@ -22,24 +22,31 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 #app { display: flex; flex-direction: column; height: 100vh; }
 
 header {
-  display: flex; align-items: center; gap: 16px;
-  padding: 12px 20px; background: var(--surface);
-  border-bottom: 1px solid var(--border2); flex-shrink: 0;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border2);
+  flex-shrink: 0;
 }
-.header-left-action { display: flex; align-items: center; }
+.header-left { display: flex; align-items: center; gap: 10px; }
+.header-center { display: flex; align-items: center; gap: 12px; justify-content: center; }
+.header-right { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+
 .logo { font-size: 1.1rem; font-weight: 800; color: var(--accent); white-space: nowrap; }
 .logo span { color: var(--text2); font-weight: 400; }
-.week-nav { display: flex; align-items: center; gap: 8px; margin: 0 auto; }
-.week-nav button { background: var(--surface2); border: 1px solid var(--border2); color: var(--text); width: 28px; height: 28px; border-radius: 6px; cursor: pointer; }
-#btn-today { width: auto; height: 28px; padding: 0 12px; font-size: 0.72rem; font-weight: 700; font-family: inherit; white-space: nowrap; }
-#week-label { font-size: 0.82rem; font-weight: 700; background: var(--surface2); padding: 5px 14px; border-radius: 20px; border: 1px solid var(--border2); }
-.header-actions { display: flex; gap: 8px; }
-.btn { padding: 7px 14px; border-radius: 7px; cursor: pointer; font-size: 0.75rem; font-weight: 700; border: none; transition: all .15s; white-space: nowrap; }
-.btn-ghost { background: var(--surface2); color: var(--text2); border: 1px solid var(--border2); }
-.btn-ghost:hover { color: var(--text); background: var(--surface); border-color: var(--accent); }
+.week-nav { display: flex; align-items: center; gap: 6px; }
+.week-nav button { background: var(--surface2); border: 1px solid var(--border2); color: var(--text); width: 28px; height: 28px; border-radius: 6px; cursor: pointer; font-family: inherit; }
+#btn-today { width: auto; padding: 0 12px; font-size: 0.72rem; font-weight: 700; white-space: nowrap; }
+#week-label { font-size: 0.82rem; font-weight: 700; background: var(--surface2); padding: 5px 14px; border-radius: 20px; border: 1px solid var(--border2); white-space: nowrap; }
+.header-actions { display: flex; gap: 8px; align-items: center; }
 .view-tabs { display: flex; gap: 4px; background: var(--surface2); border-radius: 8px; padding: 3px; border: 1px solid var(--border); }
-.view-tab { padding: 4px 12px; border-radius: 5px; font-size: 0.73rem; font-weight: 700; cursor: pointer; color: var(--text3); }
-.view-tab.active { background: var(--accent); color: #000; }
+.view-tab { padding: 4px 12px; border-radius: 5px; font-size: 0.73rem; font-weight: 700; cursor: pointer; color: var(--text3); transition: all .15s; }
+.view-tab:hover { color: var(--text); border: 1px solid var(--border2); }
+.view-tab.active { background: var(--accent); color: #000; border: 1px solid transparent; }
+#sync-status { white-space: nowrap; }
 
 main { display: flex; flex: 1; min-height: 0; }
 
@@ -89,7 +96,7 @@ main { display: flex; flex: 1; min-height: 0; }
 .day-col {
   background: var(--surface); border: 2px solid var(--border); border-radius: 10px; padding: 8px;
   display: flex; flex-direction: column; gap: 8px; align-items: stretch;
-  height: fit-content; overflow: hidden; box-sizing: border-box;
+  height: fit-content; box-sizing: border-box;
 }
 .day-col.today { border-color: var(--accent); }
 .day-col.ferie { border-color: var(--red); }
@@ -102,11 +109,11 @@ main { display: flex; flex: 1; min-height: 0; }
 .section-label {
   font-size: 0.58rem; font-weight: 700; color: var(--text3); padding: 6px 0 2px;
   border-top: 1px solid var(--border); text-transform: uppercase; text-align: center;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .section-hours {
   font-size: 0.55rem; color: var(--text3); font-family: 'DM Mono', monospace;
-  margin-bottom: 3px; text-align: center;
+  margin-bottom: 3px; text-align: center; white-space: nowrap;
 }
 
 .slot-container { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; margin-bottom: 4px; }
@@ -117,8 +124,14 @@ main { display: flex; flex: 1; min-height: 0; }
   display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; border-radius: 5px;
   background: var(--bg); border: 1px solid var(--border); cursor: pointer; position: relative; width: 100%;
 }
-.chip-name { font-size: 0.68rem; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+.chip-name { font-size: 0.68rem; font-weight: 600; white-space: nowrap; color: var(--text); }
 .chip-matric { font-size: 0.58rem; color: var(--text3); font-family: 'DM Mono', monospace; }
+.chip-modified {
+  font-size: 0.52rem; font-weight: 700; color: var(--warn);
+  background: rgba(255,107,53,0.15); border-radius: 3px;
+  padding: 1px 5px; text-align: center; text-transform: uppercase;
+  letter-spacing: 0.04em; width: fit-content; margin-bottom: 1px;
+}
 .chip-remove {
   position: absolute; right: 4px; top: 4px; font-size: 0.65rem; color: var(--red);
   display: none; background: var(--surface); border-radius: 3px; padding: 0 2px;
@@ -178,23 +191,30 @@ main { display: flex; flex: 1; min-height: 0; }
 <body>
 <div id="app">
   <header>
-    <div class="header-left-action">
-        <button class="btn btn-ghost" id="btn-settings" style="padding: 6px; border-radius: 50%;">⚙️</button>
+    <!-- GAUCHE : réglages + logo -->
+    <div class="header-left">
+      <button class="btn btn-ghost" id="btn-settings" style="padding:6px;border-radius:50%;flex-shrink:0;">⚙️</button>
+      <div class="logo">RÉCEPTION<span> ROULIER</span></div>
     </div>
-    <div class="logo">RÉCEPTION<span> ROULIER</span></div>
-    <div class="week-nav">
-      <button id="btn-today">Aujourd'hui</button>
-      <button id="prev-week">‹</button>
-      <div id="week-label">Chargement...</div>
-      <button id="next-week">›</button>
+
+    <!-- CENTRE : nav semaine + onglets (toujours centré, taille fixe) -->
+    <div class="header-center">
+      <div class="week-nav" id="week-nav-area">
+        <button id="btn-today">Aujourd'hui</button>
+        <button id="prev-week">‹</button>
+        <div id="week-label">Chargement...</div>
+        <button id="next-week">›</button>
+      </div>
+      <div class="view-tabs">
+        <div class="view-tab active" data-view="week">Planning</div>
+        <div class="view-tab" data-view="absences">Absences</div>
+      </div>
     </div>
-    <div class="view-tabs">
-      <div class="view-tab active" data-view="week">Planning</div>
-      <div class="view-tab" data-view="absences">Absences</div>
-    </div>
-    <div class="header-actions">
-      <span id="sync-status" style="display:flex;align-items:center;padding:0 6px;"></span>
+
+    <!-- DROITE : mail hebdo + sync status -->
+    <div class="header-right">
       <button class="btn btn-ghost" id="btn-email-week">✉ Mail Hebdo</button>
+      <span id="sync-status"></span>
     </div>
   </header>
 
@@ -395,38 +415,24 @@ function findSectionForWorker(jobCode, posteCode, projectName) {
 }
 
 // ── STATE MANAGEMENT ──
-// Les clés de state.planning sont préfixées par le lundi ISO de la semaine :
-//   "{weekMonday}_{dayIdx}_{secId}_{slotId}"  ex: "2026-04-28_0_pn_slot_123_456"
-// Ceci évite toute collision entre semaines différentes.
-
-function weekKey() {
-  return fmtISO(state.weekStart);
-}
-
-function planKey(dayIdx, secId, slotId) {
-  return `${weekKey()}_${dayIdx}_${secId}_${slotId}`;
-}
+// Les clés de state.planning incluent le lundi ISO de la semaine :
+// "{YYYY-MM-DD}_{dayIdx}_{secId}_{slotId}" — évite toute collision entre semaines.
+function weekKey() { return fmtISO(state.weekStart); }
+function planKey(dayIdx, secId, slotId) { return `${weekKey()}_${dayIdx}_${secId}_${slotId}`; }
 
 function loadState() {
   try {
     const s = localStorage.getItem('planningRoulier_v20');
     if (s) {
       const saved = JSON.parse(s);
-      const rawPlanning = saved.planning || {};
-      // Migration : purger les anciennes clés sans préfixe de date (format "dayIdx_secId_slotId")
-      // qui causaient des collisions entre semaines
-      const cleanPlanning = {};
-      let purged = 0;
-      Object.entries(rawPlanning).forEach(([k, v]) => {
-        if (/^\d{4}-\d{2}-\d{2}_/.test(k)) {
-          cleanPlanning[k] = v;
-        } else {
-          purged++;
-        }
+      const raw = saved.planning || {};
+      // Migration : purger les anciennes clés sans préfixe de date
+      const clean = {};
+      Object.entries(raw).forEach(([k, v]) => {
+        if (/^\d{4}-\d{2}-\d{2}_/.test(k)) clean[k] = v;
       });
-      if (purged > 0) console.log(`[migration] ${purged} clé(s) sans date purgées du planning local`);
-      state.planning = cleanPlanning;
-      // NE PAS restaurer les slots — ils sont toujours reconstruits depuis NAV
+      state.planning = clean;
+      // Ne jamais restaurer les slots — toujours reconstruits depuis NAV
       state.config = { ...state.config, ...saved.config };
     }
     const cw = localStorage.getItem('planningRoulier_colWidths');
@@ -437,7 +443,7 @@ function loadState() {
 
 function saveState() {
   try {
-    // On ne sauvegarde JAMAIS les slots (reconstruits depuis NAV)
+    // Ne jamais sauvegarder les slots (reconstruits depuis NAV)
     localStorage.setItem('planningRoulier_v20', JSON.stringify({
       planning: state.planning, config: state.config,
     }));
@@ -480,16 +486,10 @@ async function loadPlanningRemote() {
     const data = await r.json();
     if (data.ok && data.planning) {
       _remoteSupported = true;
-      // Fusionner seulement les clés distantes qui ont un préfixe de date (format sécurisé)
-      // On ignore les anciennes clés sans date (ex: "0_pn_slot_xxx") pour ne pas corrompre
-      const remotePlanning = data.planning || {};
+      // N'accepter que les clés avec préfixe de date — ignorer les anciennes clés corrompues
       const merged = { ...state.planning };
-      Object.entries(remotePlanning).forEach(([k, v]) => {
-        // Clé valide = commence par une date ISO "YYYY-MM-DD_"
-        if (/^\d{4}-\d{2}-\d{2}_/.test(k)) {
-          merged[k] = v;
-        }
-        // Clé ancienne sans date → on l'ignore silencieusement
+      Object.entries(data.planning).forEach(([k, v]) => {
+        if (/^\d{4}-\d{2}-\d{2}_/.test(k)) merged[k] = v;
       });
       state.planning = merged;
       if (data.config) state.config = { ...state.config, ...data.config };
@@ -571,13 +571,16 @@ async function buildDynamicSlots() {
     const dateEnd = fmtISO(addDays(state.weekStart, 6));
     const naviresData = await fetchNavires(dateStart, dateEnd);
 
-    // Réinitialiser les slots de la semaine courante uniquement
+    // Initialiser les slots vides
     for(let i=0; i<7; i++) {
         state.slots[i] = {};
         SECTIONS_ORDER.forEach(secId => {
             state.slots[i][secId] = [];
         });
     }
+
+    // Suivre les IDs de slots construits dynamiquement (pour éviter doublons)
+    const builtSlotIds = new Set();
 
     naviresData.forEach(dayData => {
         if (!dayData || !dayData.postes) return;
@@ -605,9 +608,9 @@ async function buildDynamicSlots() {
                     const secId = findSectionForWorker(jobCode, posteCode, projectName);
                     const slotId = `slot_${pa.id}_${w.id}`;
 
-                    // Vérifier que ce slot n'est pas déjà présent (éviter les doublons NAV)
-                    const alreadyExists = state.slots[dayIdx][secId].some(s => s.id === slotId);
-                    if (alreadyExists) return;
+                    builtSlotIds.add(slotId);
+
+                    const navWorkerId = state.workerAssignmentMap[String(w.id)] || null;
 
                     state.slots[dayIdx][secId].push({
                         id: slotId,
@@ -617,13 +620,13 @@ async function buildDynamicSlots() {
                         projectName: projectName,
                         assignmentId: pa.id,
                         workerAssignmentId: String(w.id),
-                        navWorkerId: state.workerAssignmentMap[String(w.id)] || null
+                        navWorkerId: navWorkerId
                     });
                 });
             });
         });
     });
-    // Les slots ne sont JAMAIS sauvegardés — ils sont toujours issus de NAV
+    // Les slots ne sont jamais persistés — toujours reconstruits depuis NAV
 }
 
 // ── LOAD ALL DATA ──
@@ -639,6 +642,7 @@ async function loadAllData() {
     state.workerAssignmentMap = parsed.workerAssignmentMap;
 
     await buildDynamicSlots();
+    applyNavSuggestions();
 }
 
 // ── RENDER STAFF ──
@@ -668,51 +672,67 @@ function renderStaffList(filter='') {
 }
 
 // ── COLUMN WIDTHS ──
-// Stocke les largeurs en px pour chaque colonne (7 jours)
-if (!state.colWidths) state.colWidths = Array(7).fill(null); // null = auto (1fr)
+if (!state.colWidths) state.colWidths = Array(7).fill(null);
+if (!state.navModified) state.navModified = {};
 
-// Canvas offscreen pour mesurer le texte sans rendu DOM
-let _measureCanvas = null;
-function measureText(text, font) {
-  if (!_measureCanvas) _measureCanvas = document.createElement('canvas');
-  const ctx = _measureCanvas.getContext('2d');
-  ctx.font = font;
-  return ctx.measureText(text).width;
+// Élément DOM invisible pour mesurer le texte avec la vraie police rendue
+let _ruler = null;
+function rulerWidth(text, cls, extraCss = '') {
+  if (!_ruler) {
+    _ruler = document.createElement('span');
+    _ruler.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;pointer-events:none;top:-9999px;left:-9999px;';
+    document.body.appendChild(_ruler);
+  }
+  _ruler.className = cls;
+  if (extraCss) _ruler.style.cssText += ';' + extraCss;
+  _ruler.textContent = text;
+  return _ruler.getBoundingClientRect().width;
 }
 
 function computeAutoWidths() {
-  // Largeur minimale par colonne basée sur le contenu textuel réel
-  const MIN_COL = 110; // px minimum absolu
-  const H_PAD = 24;    // padding horizontal dans les cellules (2x12px)
-  const CHIP_PAD = 32; // padding chip + marge + scrollbar éventuelle
+  // Surcoût horizontal total : day-col padding(8×2=16) + slot-container padding(6×2=12) + borders(~4) + marge(8)
+  const CHROME = 42;
+  // Surcoût supplémentaire pour les chips (padding assigned-chip 8×2=16 + btn ✕ 20)
+  const CHIP_EXTRA = 36;
+  const MIN_COL = 120;
 
   const widths = Array(7).fill(MIN_COL);
 
-  // 1. Noms de jours dans l'en-tête (ex: "Jeudi 08 mai")
+  // 1. Entête de jour ex: "Mercredi 29 avr."
   for (let i = 0; i < 7; i++) {
     const d = addDays(state.weekStart, i);
     const label = DAYS[i] + ' ' + fmtFR(d);
-    const w = Math.ceil(measureText(label, '700 0.72rem Syne, sans-serif')) + H_PAD + 30;
+    const w = Math.ceil(rulerWidth(label, 'day-name', 'font-size:0.72rem;font-weight:700;font-family:Syne,sans-serif')) + 16 + 44;
     widths[i] = Math.max(widths[i], w);
   }
 
-  // 2. Section labels (ex: "Chef de Manutention")
+  // 2. Titres de section ex: "CHEF DE MANUTENTION" + heures
   for (let i = 0; i < 7; i++) {
     const daySlots = state.slots[i] || {};
     SECTIONS_ORDER.forEach(secId => {
-      if (!daySlots[secId] || daySlots[secId].length === 0) return;
+      if (!(daySlots[secId] || []).length) return;
       const sec = SECTIONS_MAP[secId];
-      const w = Math.ceil(measureText(sec.name.toUpperCase(), '700 0.58rem Syne, sans-serif')) + H_PAD;
-      widths[i] = Math.max(widths[i], w);
-      // Heures
+      const wSec = Math.ceil(rulerWidth(sec.name.toUpperCase(), 'section-label')) + CHROME;
+      widths[i] = Math.max(widths[i], wSec);
       if (sec.hours) {
-        const wh = Math.ceil(measureText(sec.hours, '400 0.55rem DM Mono, monospace')) + H_PAD;
-        widths[i] = Math.max(widths[i], wh);
+        const wH = Math.ceil(rulerWidth(sec.hours, 'section-hours')) + CHROME;
+        widths[i] = Math.max(widths[i], wH);
       }
     });
   }
 
-  // 3. Noms des agents affectés (chip-name) — c'est souvent le texte le plus long
+  // 3. Labels de slot ex: "PN", "CM", "FCQ" dans .slot-info
+  for (let i = 0; i < 7; i++) {
+    const daySlots = state.slots[i] || {};
+    SECTIONS_ORDER.forEach(secId => {
+      (daySlots[secId] || []).forEach(slot => {
+        const wL = Math.ceil(rulerWidth(slot.label, 'slot-info', 'font-size:0.6rem;font-weight:700')) + CHROME;
+        widths[i] = Math.max(widths[i], wL);
+      });
+    });
+  }
+
+  // 4. Noms des agents affectés
   for (let i = 0; i < 7; i++) {
     const daySlots = state.slots[i] || {};
     SECTIONS_ORDER.forEach(secId => {
@@ -721,13 +741,35 @@ function computeAutoWidths() {
         const w = getWorker(workerId);
         if (!w) return;
         const name = w.lastName + ' ' + w.firstName;
-        const nameW = Math.ceil(measureText(name, '600 0.68rem Syne, sans-serif')) + CHIP_PAD;
-        widths[i] = Math.max(widths[i], nameW);
+        const wN = Math.ceil(rulerWidth(name, 'chip-name')) + CHROME + CHIP_EXTRA;
+        widths[i] = Math.max(widths[i], wN);
       });
     });
   }
 
   return widths;
+}
+
+// ── NAV SUGGESTIONS ──
+function applyNavSuggestions() {
+  state.navModified = {};
+  for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
+    const daySlots = state.slots[dayIdx] || {};
+    SECTIONS_ORDER.forEach(secId => {
+      (daySlots[secId] || []).forEach(slot => {
+        if (!slot.navWorkerId) return;
+        const key = `${dayIdx}_${secId}_${slot.id}`;
+        const current = state.planning[key];
+        if (!current) {
+          // Slot vide → remplir avec la suggestion NAV
+          state.planning[key] = slot.navWorkerId;
+        } else if (current !== slot.navWorkerId) {
+          // Nom différent → marquer modifié, ne pas écraser
+          state.navModified[key] = true;
+        }
+      });
+    });
+  }
 }
 
 function applyGridColumns(autoFit = false) {
@@ -828,8 +870,13 @@ function renderWeekGrid() {
   const grid = document.getElementById('week-grid');
   grid.innerHTML = '';
   const today = new Date(); today.setHours(0,0,0,0);
-  // Recalculer les largeurs après rendu des chips (noms agents)
-  setTimeout(() => applyGridColumnsAuto(), 0);
+  // Recalculer les largeurs après que les polices soient disponibles
+  const doMeasure = () => applyGridColumnsAuto();
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(doMeasure);
+  } else {
+    setTimeout(doMeasure, 200);
+  }
 
   DAYS.forEach((_, dayIdx) => {
     const col = document.createElement('div');
@@ -876,8 +923,10 @@ function renderWeekGrid() {
             slots.forEach((slot, slotIdx) => {
                 const slotDiv = document.createElement('div');
                 slotDiv.className = 'slot-container';
-                const workerId = state.planning[planKey(dayIdx, secId, slot.id)];
+                const navKey = planKey(dayIdx, secId, slot.id);
+                const workerId = state.planning[navKey];
                 const w = getWorker(workerId);
+                const isModified = !!(state.navModified && state.navModified[navKey]);
 
                 const safeSecId = secId.replace(/'/g, "\\'");
                 const safeSlotId = slot.id.replace(/'/g, "\\'");
@@ -887,6 +936,7 @@ function renderWeekGrid() {
                     <div class="drop-zone" data-day="${dayIdx}" data-sec="${secId}" data-slot="${slot.id}">
                         ${w ? `
                           <div class="assigned-chip">
+                            ${isModified ? `<div class="chip-modified">modifié</div>` : ''}
                             <div class="chip-name">${w.lastName} ${w.firstName}</div>
                             <div class="chip-matric">${w.matricule||'—'}</div>
                             <div class="chip-remove" onclick="removeFromSlot(${dayIdx},'${safeSecId}','${safeSlotId}')">✕</div>
@@ -1137,8 +1187,13 @@ document.querySelectorAll('.view-tab').forEach(tab => {
   tab.addEventListener('click', () => {
     state.view = tab.dataset.view;
     document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t === tab));
-    document.getElementById('view-week').style.display = state.view === 'week' ? 'flex' : 'none';
-    document.getElementById('view-absences').style.display = state.view === 'absences' ? 'block' : 'none';
+    const isAbsences = state.view === 'absences';
+    document.getElementById('view-week').style.display = isAbsences ? 'none' : 'flex';
+    document.getElementById('view-absences').style.display = isAbsences ? 'flex' : 'none';
+    document.getElementById('panel-staff').style.display = isAbsences ? 'none' : '';
+    // On masque la nav semaine mais on garde sa place (visibility au lieu de display)
+    document.getElementById('week-nav-area').style.visibility = isAbsences ? 'hidden' : 'visible';
+    document.getElementById('btn-email-week').style.visibility = isAbsences ? 'hidden' : 'visible';
     render();
   });
 });
