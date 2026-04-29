@@ -154,13 +154,6 @@ main { display: flex; flex: 1; min-height: 0; }
 }
 .assigned-chip:hover .chip-remove { display: block; }
 
-.chip-modified { border-color: var(--warn) !important; }
-.chip-modified-badge {
-  font-size: 0.54rem; font-weight: 700; color: var(--warn);
-  background: rgba(255,107,53,0.15); padding: 1px 5px; border-radius: 3px;
-  margin-top: 2px; display: inline-block; cursor: help;
-}
-
 .drop-zone {
   border: 1px dashed var(--border); border-radius: 5px; padding: 4px; min-height: 32px;
   font-size: 0.62rem; color: var(--text3); display: flex; align-items: center; justify-content: center;
@@ -188,6 +181,41 @@ main { display: flex; flex: 1; min-height: 0; }
 .col-resize-handle:hover, .col-resize-handle.active {
   background: rgba(59,143,255,0.35);
 }
+
+/* ── Couleurs personnel ── */
+.wcolor-rouge  { --wc: #ff4d6d; }
+.wcolor-violet { --wc: #a78bfa; }
+.wcolor-vert   { --wc: #00c896; }
+.wcolor-bleu   { --wc: #3b8fff; }
+.wcolor-jaune  { --wc: #ffd060; }
+
+.assigned-chip.has-wcolor  { border-color: var(--wc) !important; box-shadow: inset 0 0 0 1px var(--wc); }
+.staff-item.has-wcolor     { border-color: var(--wc) !important; border-style: solid !important; }
+
+/* chip-modified déclaré APRÈS has-wcolor → orange prévaut toujours */
+.chip-modified { border-color: var(--warn) !important; box-shadow: inset 0 0 0 1px var(--warn) !important; }
+
+.cfg-tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 1px solid var(--border2); }
+.cfg-tab  { padding: 6px 16px; font-size: 0.75rem; font-weight: 700; cursor: pointer; color: var(--text3);
+            border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .15s; background: none; border-top: none; border-left: none; border-right: none; font-family: inherit; }
+.cfg-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.cfg-panel { display: none; }
+.cfg-panel.active { display: block; }
+
+.cfg-staff-list { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.cfg-staff-row  { display: flex; align-items: center; gap: 8px; padding: 5px 4px; border-radius: 6px; }
+.cfg-staff-row:hover { background: var(--surface2); }
+.cfg-staff-name { font-size: 0.73rem; font-weight: 600; flex: 1; }
+.cfg-colors     { display: flex; gap: 4px; align-items: center; }
+.cfg-swatch     { width: 18px; height: 18px; border-radius: 50%; cursor: pointer; border: 2px solid transparent;
+                  transition: transform .12s, border-color .12s; flex-shrink: 0; }
+.cfg-swatch:hover    { transform: scale(1.2); }
+.cfg-swatch.selected { border-color: #fff; }
+.cfg-swatch-reset    { width: 18px; height: 18px; border-radius: 50%; cursor: pointer; background: var(--surface2);
+                       border: 1px solid var(--border2); font-size: 0.6rem; display: flex; align-items: center;
+                       justify-content: center; color: var(--text3); transition: all .12s; flex-shrink: 0; }
+.cfg-swatch-reset:hover { color: var(--red); border-color: var(--red); }
 
 #view-absences { display: none; flex: 1; padding: 20px; overflow-y: auto; }
 .abs-table { width: 100%; border-collapse: collapse; font-size: 0.65rem; background: var(--surface); }
@@ -327,6 +355,7 @@ let state = {
   config: {
     emailWeek: 'chefmanutention.tmt@shgt.fr',
     emailCcWeek: 'smaillard@smr-france.com',
+    workerColors: {},
   },
   staff: [],
   workerAssignmentMap: {},
@@ -412,6 +441,10 @@ function getWeekNum(d) {
 function weekKey() { return fmtISO(state.weekStart); }
 function gkey(localKey) { return `${weekKey()}__${localKey}`; }
 function getWorker(id) { if (id === '_tbd_') return TBD_WORKER; return state.staff.find(w => w.id === id); }
+function getWorkerColorClass(workerId) {
+  const c = state.config.workerColors?.[workerId];
+  return c ? `has-wcolor wcolor-${c}` : '';
+}
 function toast(msg, type='ok') {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -438,7 +471,7 @@ function loadState() {
       const saved = JSON.parse(s);
       state.planning = saved.planning || {};
       state.planningModified = saved.planningModified || {};
-      state.config = { ...state.config, ...saved.config };
+      state.config = { ...state.config, ...saved.config, workerColors: { ...(saved.config?.workerColors || {}) } };
     }
     const cw = localStorage.getItem('planningRoulier_colWidths');
     if (cw) state.colWidths = JSON.parse(cw);
@@ -779,7 +812,7 @@ function renderStaffList(filter='') {
     if (q && !name.includes(q) && !(w.matricule||'').toLowerCase().includes(q)) return;
 
     const el = document.createElement('div');
-    el.className = 'staff-item';
+    el.className = `staff-item ${getWorkerColorClass(w.id)}`;
     el.draggable = true;
     el.innerHTML = `
         <div class="staff-name">${w.lastName} ${w.firstName}</div>
@@ -1028,7 +1061,7 @@ function renderWeekGrid() {
                     <div class="slot-info"><span>${slot.label}</span><span class="slot-remove" onclick="removeSlot(${dayIdx}, '${safeSecId}', ${slotIdx})">✕</span></div>
                     <div class="drop-zone" data-day="${dayIdx}" data-sec="${secId}" data-slot="${slot.id}">
                         ${workerId ? `
-                          <div class="assigned-chip${isModified ? ' chip-modified' : ''}" ${isModified ? `title="${modifiedTooltip}"` : ''}>
+                          <div class="assigned-chip${isModified ? ' chip-modified' : ''} ${getWorkerColorClass(workerId)}" ${isModified ? `title="${modifiedTooltip}"` : ''}>
                             <div class="chip-name">${displayName}</div>
                             <div class="chip-matric">${displayMatric}</div>
                             <div class="chip-remove" onclick="removeFromSlot(${dayIdx},'${safeSecId}','${safeSlotId}')">✕</div>
@@ -1327,19 +1360,87 @@ async function sendWeeklyMail() {
     window.open(`mailto:${state.config.emailWeek}?cc=${state.config.emailCcWeek}&subject=${encodeURIComponent('Planning Hebdo Semaine ' + wn)}&body=${encodeURIComponent(body)}`);
 }
 
-function showConfigModal() {
+const WORKER_COLORS = [
+  { key: 'rouge',  hex: '#ff4d6d' },
+  { key: 'violet', hex: '#a78bfa' },
+  { key: 'vert',   hex: '#00c896' },
+  { key: 'bleu',   hex: '#3b8fff' },
+  { key: 'jaune',  hex: '#ffd060' },
+];
+
+function showConfigModal(tab = 'mail') {
+  const staffRows = state.staff.map(w => {
+    const current = state.config.workerColors?.[w.id] || '';
+    const swatches = WORKER_COLORS.map(c => `
+      <div class="cfg-swatch${current === c.key ? ' selected' : ''}"
+           style="background:${c.hex}"
+           title="${c.key}"
+           onclick="setWorkerColor('${w.id}','${c.key}',this)"></div>
+    `).join('');
+    return `
+      <div class="cfg-staff-row">
+        <div class="cfg-staff-name">${w.lastName} ${w.firstName}</div>
+        <div class="cfg-colors">
+          ${swatches}
+          <div class="cfg-swatch-reset" title="Effacer" onclick="setWorkerColor('${w.id}','',this)">✕</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
   showModal(`
-    <h2>⚙ Configuration</h2>
-    <div class="modal-label">Email destinataires</div>
-    <input class="modal-input" id="cfg-email-week" value="${state.config.emailWeek}">
-    <div class="modal-label">Copie (CC)</div>
-    <input class="modal-input" id="cfg-cc-week" value="${state.config.emailCcWeek}">
-    <div class="modal-actions">
-      <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Annuler</button>
-      <button class="modal-btn modal-btn-ok" onclick="saveConfig()">Enregistrer</button>
+    <h2 style="margin-bottom:12px">⚙ Configuration</h2>
+    <div class="cfg-tabs">
+      <button class="cfg-tab${tab === 'mail' ? ' active' : ''}" onclick="switchCfgTab('mail')">Mail</button>
+      <button class="cfg-tab${tab === 'personnel' ? ' active' : ''}" onclick="switchCfgTab('personnel')">Personnel</button>
+    </div>
+
+    <div class="cfg-panel${tab === 'mail' ? ' active' : ''}" id="cfg-panel-mail">
+      <div class="modal-label">Email destinataires</div>
+      <input class="modal-input" id="cfg-email-week" value="${state.config.emailWeek}">
+      <div class="modal-label">Copie (CC)</div>
+      <input class="modal-input" id="cfg-cc-week" value="${state.config.emailCcWeek}">
+      <div class="modal-actions">
+        <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Annuler</button>
+        <button class="modal-btn modal-btn-ok" onclick="saveConfig()">Enregistrer</button>
+      </div>
+    </div>
+
+    <div class="cfg-panel${tab === 'personnel' ? ' active' : ''}" id="cfg-panel-personnel">
+      <div class="cfg-staff-list">${staffRows || '<div style="color:var(--text3);font-size:0.75rem;padding:10px 0">Aucun personnel chargé</div>'}</div>
+      <div class="modal-actions" style="margin-top:12px">
+        <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Fermer</button>
+      </div>
     </div>
   `);
 }
+
+window.switchCfgTab = function(tab) {
+  document.querySelectorAll('.cfg-tab').forEach((t, i) => {
+    const names = ['mail', 'personnel'];
+    t.classList.toggle('active', names[i] === tab);
+  });
+  document.querySelectorAll('.cfg-panel').forEach((p, i) => {
+    const names = ['cfg-panel-mail', 'cfg-panel-personnel'];
+    p.classList.toggle('active', p.id === `cfg-panel-${tab}`);
+  });
+};
+
+window.setWorkerColor = function(workerId, colorKey, el) {
+  if (!state.config.workerColors) state.config.workerColors = {};
+  if (colorKey) {
+    state.config.workerColors[workerId] = colorKey;
+  } else {
+    delete state.config.workerColors[workerId];
+  }
+  saveState();
+  renderWeekGrid();
+  renderStaffList(document.getElementById('staff-search').value);
+  // Mettre à jour l'UI des swatches dans la modal
+  const row = el.closest('.cfg-staff-row');
+  row.querySelectorAll('.cfg-swatch').forEach(s => s.classList.remove('selected'));
+  if (colorKey) el.classList.add('selected');
+};
 window.saveConfig = function() {
   state.config.emailWeek = document.getElementById('cfg-email-week').value;
   state.config.emailCcWeek = document.getElementById('cfg-cc-week').value;
