@@ -256,7 +256,9 @@ main { display: flex; flex: 1; min-height: 0; }
       <div class="header-spacer"></div>
       <div class="week-nav" id="header-week-nav">
         <button id="btn-today">Aujourd'hui</button>
+        <button id="btn-week-prev" class="btn btn-ghost" style="padding:4px 10px;font-size:1rem;">‹</button>
         <div id="week-label">Chargement...</div>
+        <button id="btn-week-next" class="btn btn-ghost" style="padding:4px 10px;font-size:1rem;">›</button>
         <button id="btn-cal-pick" title="Choisir une semaine">📅</button>
         <div id="cal-popup"></div>
       </div>
@@ -1391,10 +1393,10 @@ function renderAbsences() {
         const borderColor = colorKey ? colorMap[colorKey] : 'var(--border2)';
 
         const memberCell = `
-          <td style="position:sticky;left:0;background:var(--surface);z-index:1;padding:4px 6px;min-width:140px;">
-            <div style="display:flex;flex-direction:column;padding:5px 8px;border-radius:7px;background:var(--bg);border:1px solid ${borderColor};${colorKey ? `box-shadow:inset 0 0 0 1px ${borderColor};` : ''}">
-              <div style="font-size:0.73rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${w.lastName} ${w.firstName}</div>
-              <div style="font-size:0.62rem;color:var(--text3);font-family:'DM Mono',monospace;">${w.matricule || '—'}</div>
+          <td style="position:sticky;left:0;background:var(--surface);z-index:1;padding:2px 4px;min-width:130px;">
+            <div style="display:flex;flex-direction:column;padding:4px 7px;border-radius:6px;background:var(--bg);border:1px solid ${borderColor};${colorKey ? `box-shadow:inset 0 0 0 1px ${borderColor};` : ''}text-align:left;">
+              <div style="font-size:0.71rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${w.lastName} ${w.firstName}</div>
+              <div style="font-size:0.6rem;color:var(--text3);font-family:'DM Mono',monospace;">${w.matricule || '—'}</div>
             </div>
           </td>`;
 
@@ -1679,6 +1681,16 @@ document.getElementById('btn-view-week').addEventListener('click', () => switchV
 document.getElementById('btn-view-absences').addEventListener('click', () => switchView('absences'));
 document.getElementById('btn-settings').addEventListener('click', showConfigModal);
 document.getElementById('btn-email-week').addEventListener('click', sendWeeklyMail);
+document.getElementById('btn-week-prev').addEventListener('click', async () => {
+    state.weekStart = addDays(state.weekStart, -7);
+    await loadAllData();
+    render();
+});
+document.getElementById('btn-week-next').addEventListener('click', async () => {
+    state.weekStart = addDays(state.weekStart, 7);
+    await loadAllData();
+    render();
+});
 document.getElementById('btn-today').addEventListener('click', async () => {
     state.weekStart = getMonday(new Date());
     await loadAllData();
