@@ -625,15 +625,16 @@ async function buildDynamicSlots() {
 
                     if (apiWorkerId) {
                         if (!state.planning[planKey]) {
-                            // Slot vide localement → on pré-remplit depuis l'API
+                            // Slot vide localement → on pré-remplit depuis l'API, pas de badge
                             state.planning[planKey] = apiWorkerId;
-                            delete state.planningModified[planKey]; // pas de conflit
+                            delete state.planningModified[planKey];
                         } else if (state.planning[planKey] !== apiWorkerId) {
-                            // Conflit : l'API veut quelqu'un de différent de ce qu'on a affecté
-                            // On garde notre affectation mais on signale la divergence avec l'API
-                            state.planningModified[planKey] = apiWorkerId; // qui voulait l'API
+                            // L'API indique quelqu'un de différent :
+                            // on mémorise l'ANCIEN nom (le nôtre) et on remplace par celui de l'API
+                            state.planningModified[planKey] = state.planning[planKey]; // ancien workerId
+                            state.planning[planKey] = apiWorkerId; // nouveau = celui de l'API
                         } else {
-                            // Même worker → pas de conflit
+                            // Même worker → aucun changement, pas de badge
                             delete state.planningModified[planKey];
                         }
                     } else {
@@ -918,8 +919,14 @@ function renderWeekGrid() {
                 slotDiv.className = 'slot-container';
                 const workerId = state.planning[gkey(`${dayIdx}_${secId}_${slot.id}`)];
                 const w = getWorker(workerId);
-                const isModified = !!state.planningModified[gkey(`${dayIdx}_${secId}_${slot.id}`)];
-                const apiWorker = isModified ? getWorker(state.planningModified[gkey(`${dayIdx}_${secId}_${slot.id}`)]) : null;
+                const modifiedKey = gkey(`${dayIdx}_${secId}_${slot.id}`);
+                const oldWorkerId = state.planningModified[modifiedKey]; // ancien workerId (avant remplacement API)
+                const isModified = oldWorkerId !== undefined;
+                const oldWorker = isModified ? getWorker(oldWorkerId) : null;
+                // Si l'ancien workerId n'est pas dans le personnel → "Externe"
+                const oldWorkerLabel = isModified
+                    ? (oldWorker ? `${oldWorker.lastName} ${oldWorker.firstName}` : `Externe #${oldWorkerId}`)
+                    : null;
 
                 const safeSecId = secId.replace(/'/g, "\\'");
                 const safeSlotId = slot.id.replace(/'/g, "\\'");
@@ -928,10 +935,10 @@ function renderWeekGrid() {
                     <div class="slot-info"><span>${slot.label}</span><span class="slot-remove" onclick="removeSlot(${dayIdx}, '${safeSecId}', ${slotIdx})">✕</span></div>
                     <div class="drop-zone" data-day="${dayIdx}" data-sec="${secId}" data-slot="${slot.id}">
                         ${w ? `
-                          <div class="assigned-chip${isModified ? ' chip-modified' : ''}">
-                            <div class="chip-name">${w.lastName} ${w.firstName}</div>
-                            <div class="chip-matric">${w.matricule||'—'}</div>
-                            ${isModified ? `<div class="chip-modified-badge" title="L'API avait affecté : ${apiWorker ? apiWorker.lastName+' '+apiWorker.firstName : '?'}">⚠ modifié</div>` : ''}
+                          <div class="assigned-chip${isModified ? ' chip-modified' : ''}" ${isModified ? `title="Remplacé par l'API — ancienne affectation : ${oldWorkerLabel}"` : ''}>
+                            <div class="chip-name">${w ? w.lastName+' '+w.firstName : `Externe #${workerId}`}</div>
+                            <div class="chip-matric">${w ? (w.matricule||'—') : '—'}</div>
+                            ${isModified ? `<div class="chip-modified-badge">⚠ modifié</div>` : ''}
                             <div class="chip-remove" onclick="removeFromSlot(${dayIdx},'${safeSecId}','${safeSlotId}')">✕</div>
                           </div>
                         ` : 'Glisser ici'}
