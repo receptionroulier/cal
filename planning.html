@@ -92,7 +92,14 @@ main { display: flex; flex: 1; min-height: 0; }
 .staff-name { font-size: 0.73rem; font-weight: 600; }
 .staff-matric { font-size: 0.62rem; color: var(--text3); font-family: 'DM Mono', monospace; }
 .staff-item.absent { opacity: 0.45; }
-.absence-badge { font-size: 0.58rem; padding: 1px 4px; border-radius: 3px; background: rgba(255,107,53,0.2); color: var(--warn); margin-left: auto; }
+.absence-pill {
+  margin-left: auto; flex-shrink: 0;
+  font-size: 0.58rem; font-weight: 700; font-family: 'DM Mono', monospace;
+  padding: 3px 8px; border-radius: 20px;
+  background: rgba(255,107,53,0.12); color: var(--warn);
+  border: 1px solid rgba(255,107,53,0.3);
+  letter-spacing: 0.03em;
+}
 
 #content { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
 
@@ -712,7 +719,7 @@ function renderStaffList(filter='') {
     const el = document.createElement('div');
     el.className = 'staff-item' + (absCode ? ' absent' : '');
     el.draggable = true;
-    el.innerHTML = `${avatar(w)}<div class="staff-info"><div class="staff-name">${w.firstName} ${w.lastName}</div><div class="staff-matric">${w.matricule||'—'}</div></div>${absCode ? `<div class="absence-badge">${absCode}</div>` : ''}`;
+    el.innerHTML = `${avatar(w)}<div class="staff-info"><div class="staff-name">${w.firstName} ${w.lastName}</div><div class="staff-matric">${w.matricule||'—'}</div></div>${absCode ? `<div class="absence-pill">${absCode}</div>` : ''}`;
     el.addEventListener('dragstart', e => { state.dragWorker = w.id; el.classList.add('dragging'); });
     el.addEventListener('dragend', () => el.classList.remove('dragging'));
     list.appendChild(el);
