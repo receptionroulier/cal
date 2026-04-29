@@ -225,7 +225,7 @@ main { display: flex; flex: 1; min-height: 0; }
                        justify-content: center; color: var(--text3); transition: all .12s; flex-shrink: 0; }
 .cfg-swatch-reset:hover { color: var(--red); border-color: var(--red); }
 
-#view-absences { display: none; flex: 1; padding: 20px; overflow-y: auto; }
+#view-absences { display: none; flex-direction: column; flex: 1; padding: 0; overflow-y: auto; }
 .abs-table { width: 100%; border-collapse: collapse; font-size: 0.65rem; background: var(--surface); }
 .abs-table th, .abs-table td { border: 1px solid var(--border2); padding: 4px; text-align: center; }
 .abs-table th { background: var(--surface2); color: var(--text2); }
@@ -254,11 +254,16 @@ main { display: flex; flex: 1; min-height: 0; }
       <button class="btn-view active" id="btn-view-week">Planning</button>
       <button class="btn-view" id="btn-view-absences">Absences</button>
       <div class="header-spacer"></div>
-      <div class="week-nav">
+      <div class="week-nav" id="header-week-nav">
         <button id="btn-today">Aujourd'hui</button>
         <div id="week-label">Chargement...</div>
         <button id="btn-cal-pick" title="Choisir une semaine">📅</button>
         <div id="cal-popup"></div>
+      </div>
+      <div class="week-nav" id="header-month-nav" style="display:none;">
+        <button id="btn-abs-prev" class="btn btn-ghost" style="padding:4px 10px;font-size:1rem;">‹</button>
+        <div id="header-month-label" style="font-size:0.8rem;font-weight:700;background:var(--surface2);padding:5px 14px;border-radius:20px;border:1px solid var(--border2);white-space:nowrap;min-width:140px;text-align:center;">—</div>
+        <button id="btn-abs-next" class="btn btn-ghost" style="padding:4px 10px;font-size:1rem;">›</button>
       </div>
       <div class="header-spacer"></div>
       <button class="btn btn-ghost" id="btn-email-week">✉ Mail Hebdo</button>
@@ -286,15 +291,7 @@ main { display: flex; flex: 1; min-height: 0; }
         </div>
       </div>
       <div id="view-absences">
-          <div class="panel-title" style="padding: 20px; display:flex; justify-content:space-between; align-items:center">
-              <span>Suivi Mensuel des Absences</span>
-              <div id="month-nav" style="display:flex; gap:10px; align-items:center">
-                  <button class="btn btn-ghost" style="padding:2px 8px" id="abs-prev">‹</button>
-                  <span id="abs-month-label" style="font-size:0.8rem">Chargement...</span>
-                  <button class="btn btn-ghost" style="padding:2px 8px" id="abs-next">›</button>
-              </div>
-          </div>
-          <div id="absences-container" style="padding: 0 20px 20px"></div>
+          <div id="absences-container" style="padding: 10px 20px 20px"></div>
       </div>
     </div>
   </main>
@@ -1366,28 +1363,60 @@ function renderAbsences() {
     const container = document.getElementById('absences-container');
     const startOfMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth(), 1);
     const daysInMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth() + 1, 0).getDate();
-    document.getElementById('abs-month-label').textContent = state.absMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    const monthLabel = state.absMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    // Mettre à jour le label dans le header
+    const headerLabel = document.getElementById('header-month-label');
+    if (headerLabel) headerLabel.textContent = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
+
     if (state.staff.length === 0) {
         container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3)">Aucune donnée</div>';
         return;
     }
-    let html = `<table class="abs-table"><thead><tr><th style="position:sticky; left:0; background:var(--surface2); z-index:1">Personnel</th>`;
-    for(let i=1; i<=daysInMonth; i++) {
+
+    // Construire les jours en-tête
+    let dayHeaders = '';
+    for (let i = 1; i <= daysInMonth; i++) {
         const d = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), i);
-        html += `<th>${i}<br>${d.toLocaleDateString('fr-FR',{weekday:'short'}).substring(0,3)}</th>`;
+        const dow = d.toLocaleDateString('fr-FR', { weekday: 'short' }).substring(0, 3);
+        const isWE = d.getDay() === 0 || d.getDay() === 6;
+        dayHeaders += `<th style="${isWE ? 'opacity:0.45;' : ''}">${i}<br><span style="font-weight:400;font-size:0.55rem">${dow}</span></th>`;
     }
-    html += `</tr></thead><tbody>`;
+
+    let rows = '';
     state.staff.forEach(w => {
-        html += `<tr><td style="position:sticky; left:0; background:var(--surface); border-right:1px solid var(--border2)">${w.lastName} ${w.firstName}</td>`;
-        for(let i=1; i<=daysInMonth; i++) {
+        const colorClass = getWorkerColorClass(w.id);
+        // Extraire la couleur CSS du liseré depuis la classe
+        const colorKey = state.config.workerColors?.[w.id];
+        const colorMap = { rouge:'#ff4d6d', violet:'#a78bfa', vert:'#00c896', bleu:'#3b8fff', jaune:'#ffd060' };
+        const borderColor = colorKey ? colorMap[colorKey] : 'var(--border2)';
+
+        const memberCell = `
+          <td style="position:sticky;left:0;background:var(--surface);z-index:1;padding:4px 6px;min-width:140px;">
+            <div style="display:flex;flex-direction:column;padding:5px 8px;border-radius:7px;background:var(--bg);border:1px solid ${borderColor};${colorKey ? `box-shadow:inset 0 0 0 1px ${borderColor};` : ''}">
+              <div style="font-size:0.73rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${w.lastName} ${w.firstName}</div>
+              <div style="font-size:0.62rem;color:var(--text3);font-family:'DM Mono',monospace;">${w.matricule || '—'}</div>
+            </div>
+          </td>`;
+
+        let dayCells = '';
+        for (let i = 1; i <= daysInMonth; i++) {
             const dateISO = fmtISO(new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), i));
             const code = state.absences[w.id]?.[dateISO] || '';
-            html += `<td>${code ? `<span class="abs-code">${code}</span>` : '—'}</td>`;
+            const d = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), i);
+            const isWE = d.getDay() === 0 || d.getDay() === 6;
+            dayCells += `<td style="${isWE ? 'opacity:0.45;' : ''}">${code ? `<span class="abs-code">${code}</span>` : '—'}</td>`;
         }
-        html += `</tr>`;
+        rows += `<tr>${memberCell}${dayCells}</tr>`;
     });
-    html += `</tbody></table>`;
-    container.innerHTML = html;
+
+    container.innerHTML = `
+      <table class="abs-table">
+        <thead><tr>
+          <th style="position:sticky;left:0;background:var(--surface2);z-index:2;min-width:140px;">Personnel</th>
+          ${dayHeaders}
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
 }
 
 // ── PDF & EMAILS ──
@@ -1639,7 +1668,11 @@ function switchView(v) {
   document.getElementById('btn-view-week').classList.toggle('active', v === 'week');
   document.getElementById('btn-view-absences').classList.toggle('active', v === 'absences');
   document.getElementById('view-week').style.display = v === 'week' ? 'flex' : 'none';
-  document.getElementById('view-absences').style.display = v === 'absences' ? 'block' : 'none';
+  document.getElementById('view-absences').style.display = v === 'absences' ? 'flex' : 'none';
+  document.getElementById('panel-staff').style.display = v === 'week' ? 'flex' : 'none';
+  document.getElementById('header-week-nav').style.display = v === 'week' ? 'flex' : 'none';
+  document.getElementById('header-month-nav').style.display = v === 'absences' ? 'flex' : 'none';
+  document.getElementById('btn-email-week').style.display = v === 'week' ? '' : 'none';
   render();
 }
 document.getElementById('btn-view-week').addEventListener('click', () => switchView('week'));
@@ -1652,12 +1685,12 @@ document.getElementById('btn-today').addEventListener('click', async () => {
     render();
 });
 document.getElementById('staff-search').addEventListener('input', e => renderStaffList(e.target.value));
-document.getElementById('abs-prev').addEventListener('click', async () => {
+document.getElementById('btn-abs-prev').addEventListener('click', async () => {
     state.absMonth.setMonth(state.absMonth.getMonth() - 1);
     await loadAllData();
     renderAbsences();
 });
-document.getElementById('abs-next').addEventListener('click', async () => {
+document.getElementById('btn-abs-next').addEventListener('click', async () => {
     state.absMonth.setMonth(state.absMonth.getMonth() + 1);
     await loadAllData();
     renderAbsences();
