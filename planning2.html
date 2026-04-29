@@ -14,7 +14,7 @@
   --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.12);
   --accent: #3b8fff; --text: #e8edf5; --text2: #7a8fa8; --text3: #4a5a6e;
   --red: #ff4d6d; --blue: #3b8fff; --warn: #ff6b35;
-  --green: #00c896; /* Ajouté pour les badges présents */
+  --green: #00c896;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -41,7 +41,6 @@ header {
 #btn-cal-pick { background: var(--surface2); border: 1px solid var(--border2); color: var(--text2); width: 28px; height: 28px; border-radius: 6px; cursor: pointer; font-family: inherit; transition: all .15s; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; }
 #btn-cal-pick:hover { color: var(--text); background: var(--surface); border-color: var(--accent); }
 
-/* Calendrier popup */
 #cal-popup {
   display: none; position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%);
   background: var(--surface); border: 1px solid var(--border2); border-radius: 12px;
@@ -71,7 +70,6 @@ header {
 .btn-view { background: var(--surface2); color: var(--text2); border: 1px solid var(--border2); padding: 6px 14px; border-radius: 7px; cursor: pointer; font-size: 0.74rem; font-weight: 700; transition: all .15s; white-space: nowrap; font-family: inherit; }
 .btn-view:hover { color: var(--text); background: var(--surface); border-color: var(--accent); }
 .btn-view.active { background: var(--accent); color: #000; border-color: var(--accent); }
-/* legacy — keep for compat but no longer used for view switching */
 .view-tabs { display: none; }
 .view-tab { display: none; }
 
@@ -95,7 +93,6 @@ main { display: flex; flex: 1; min-height: 0; }
 .staff-matric { font-size: 0.62rem; color: var(--text3); font-family: 'DM Mono', monospace; }
 .staff-item.absent { opacity: 0.45; }
 
-/* Badges 7 jours */
 .staff-badges {
   display: flex; gap: 2px; margin-top: 2px; flex-wrap: wrap; justify-content: flex-end;
 }
@@ -188,7 +185,6 @@ main { display: flex; flex: 1; min-height: 0; }
 }
 .drop-zone.active { border-color: var(--accent); background: rgba(59,143,255,0.08); }
 
-/* Bouton dupliquer - bulle style mail sur la carte jour */
 .btn-dup {
   position: absolute; bottom: -9px; right: 28px;
   width: 20px; height: 20px; border-radius: 50%;
@@ -202,7 +198,6 @@ main { display: flex; flex: 1; min-height: 0; }
 .day-header-cell:hover .btn-dup { opacity: 1; }
 .btn-dup:hover { background: var(--accent); color: #000; border-color: var(--accent); transform: scale(1.15); }
 
-/* Poignée resize : indicateur visuel discret */
 .col-resize-handle {
   position: absolute; right: -3px; top: 0; bottom: 0; width: 6px;
   cursor: col-resize; z-index: 10;
@@ -311,7 +306,7 @@ let state = {
   absMonth: new Date(),
   view: 'week',
   planning: {},
-  planningModified: {}, // Clés en conflit avec l'API : planningModified[key] = workerId voulu par l'API (ou ancien)
+  planningModified: {},
   slots: {},
   absences: {},
   holidays: {},
@@ -322,6 +317,7 @@ let state = {
   staff: [],
   workerAssignmentMap: {},
   dragWorker: null,
+  slotApiMap: {}, // Map slot key → apiWorkerId (for tracking which slots have API assignments)
 };
 
 // ── API ──
@@ -386,7 +382,6 @@ async function fetchHolidays() {
                 Object.entries(yearData).forEach(([date, nom]) => {
                     holidays[date] = nom;
                 });
-                console.log(`[HOLIDAYS] ${year}: ${Object.keys(yearData).length} jours fériés`);
             } else if (Array.isArray(yearData)) {
                 yearData.forEach(h => {
                     if (h.date) holidays[h.date] = h.nom;
@@ -395,7 +390,6 @@ async function fetchHolidays() {
         });
 
         state.holidays = holidays;
-        console.log('[HOLIDAYS] Total:', Object.keys(holidays).length, 'holidays');
     } catch(e) {
         console.error('[HOLIDAYS] Error:', e);
         state.holidays = {};
@@ -458,7 +452,6 @@ function loadState() {
       const saved = JSON.parse(s);
       state.planning = saved.planning || {};
       state.planningModified = saved.planningModified || {};
-      state._savedSlots = {};
       state.config = { ...state.config, ...saved.config };
     }
     const cw = localStorage.getItem('planningRoulier_colWidths');
@@ -593,7 +586,6 @@ function parsePersonnelData(personnelData, dateFrom, dateTo) {
 
 // ── BUILD SLOTS FROM NAVIRES ──
 function buildSlotsFromNavires(naviresData) {
-    // Initialiser les slots vides
     for(let i=0; i<7; i++) {
         state.slots[i] = {};
         SECTIONS_ORDER.forEach(secId => {
@@ -644,32 +636,44 @@ function buildSlotsFromNavires(naviresData) {
 
 // ── MERGE PLANNING WITH API ──
 function applyAPIMergeRules() {
-    // Iterate all days and slots
+    state.slotApiMap = {}; // Reset
+
     for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
         const daySlots = state.slots[dayIdx] || {};
         SECTIONS_ORDER.forEach(secId => {
             (daySlots[secId] || []).forEach(slot => {
                 const key = gkey(`${dayIdx}_${secId}_${slot.id}`);
                 const apiWorkerId = state.workerAssignmentMap[String(slot.workerAssignmentId)];
-                const kvWorkerId = state.planning[key]; // From KV (loaded in loadPlanningRemote)
+                const kvWorkerId = state.planning[key];
+
+                // Track which slots have API assignments
+                if (apiWorkerId) {
+                    state.slotApiMap[key] = apiWorkerId;
+                }
 
                 if (apiWorkerId) {
                     if (kvWorkerId && kvWorkerId !== apiWorkerId) {
-                        // Conflict: KV != API. API wins. KV goes to Modified.
+                        // KV=X, API=Y différent → on prend Y, planningModified[key]=X
                         state.planningModified[key] = kvWorkerId;
                         state.planning[key] = apiWorkerId;
                     } else if (kvWorkerId && kvWorkerId === apiWorkerId) {
-                        // Match: No conflict.
+                        // KV=X, API=X → pas de badge
                         delete state.planningModified[key];
                         state.planning[key] = apiWorkerId;
                     } else if (!kvWorkerId) {
-                        // KV Empty, API has value.
+                        // KV vide, API=Y → on prend Y, pas de badge
                         delete state.planningModified[key];
                         state.planning[key] = apiWorkerId;
                     }
                 } else {
-                    // No API assignment. Keep KV. Clear badge.
-                    delete state.planningModified[key];
+                    // API rien pour ce slot
+                    if (kvWorkerId) {
+                        // KV=X, API rien → garde X, badge modifié (survol = ancien KV)
+                        state.planningModified[key] = kvWorkerId;
+                    } else {
+                        // KV vide, API rien → rien à faire
+                        delete state.planningModified[key];
+                    }
                 }
             });
         });
@@ -681,23 +685,19 @@ async function loadAllData() {
     const dateStart = fmtISO(state.weekStart);
     const dateEnd = fmtISO(addDays(state.weekStart, 6));
 
-    // 1. Fetch Navires (Slots)
     const naviresData = await fetchNavires(dateStart, dateEnd);
     buildSlotsFromNavires(naviresData);
 
-    // 2. Parallel Load KV + Personnel
     const [kvResult, personnelData] = await Promise.all([
         loadPlanningRemote(),
         fetchPersonnel(dateStart, dateEnd)
     ]);
 
-    // 3. Parse Personnel
     const parsed = parsePersonnelData(personnelData, dateStart, dateEnd);
     state.staff = parsed.staff;
     state.absences = parsed.absences;
     state.workerAssignmentMap = parsed.workerAssignmentMap;
 
-    // 4. Merge Planning (KV vs API)
     applyAPIMergeRules();
 
     render();
@@ -718,7 +718,6 @@ function renderStaffList(filter='') {
     const name = `${w.firstName} ${w.lastName}`.toLowerCase();
     if (q && !name.includes(q) && !(w.matricule||'').toLowerCase().includes(q)) return;
 
-    // Generate 7 badges (Mon-Sun)
     let badgesHtml = '<div class="staff-badges">';
     for(let i=0; i<7; i++) {
         const d = addDays(state.weekStart, i);
@@ -964,15 +963,34 @@ function renderWeekGrid() {
             slots.forEach((slot, slotIdx) => {
                 const slotDiv = document.createElement('div');
                 slotDiv.className = 'slot-container';
-                const workerId = state.planning[gkey(`${dayIdx}_${secId}_${slot.id}`)];
+                const key = gkey(`${dayIdx}_${secId}_${slot.id}`);
+                const workerId = state.planning[key];
                 const w = getWorker(workerId);
-                const modifiedKey = gkey(`${dayIdx}_${secId}_${slot.id}`);
-                const oldWorkerId = state.planningModified[modifiedKey];
+                const oldWorkerId = state.planningModified[key];
                 const isModified = oldWorkerId !== undefined;
-                const oldWorker = isModified ? getWorker(oldWorkerId) : null;
-                const oldWorkerLabel = isModified
-                    ? (oldWorker ? `${oldWorker.lastName} ${oldWorker.firstName}` : `Externe #${oldWorkerId}`)
-                    : null;
+
+                // Determine display name
+                let displayName, displayMatric;
+                if (w) {
+                    displayName = `${w.lastName} ${w.firstName}`;
+                    displayMatric = w.matricule || '—';
+                } else if (workerId) {
+                    // Worker not in staff list → Externe
+                    displayName = `Externe #${workerId}`;
+                    displayMatric = '—';
+                } else {
+                    displayName = '';
+                    displayMatric = '';
+                }
+
+                // Old worker label for tooltip
+                let oldWorkerLabel = null;
+                if (isModified) {
+                    const oldWorker = getWorker(oldWorkerId);
+                    oldWorkerLabel = oldWorker
+                        ? `${oldWorker.lastName} ${oldWorker.firstName}`
+                        : `Externe #${oldWorkerId}`;
+                }
 
                 const safeSecId = secId.replace(/'/g, "\\'");
                 const safeSlotId = slot.id.replace(/'/g, "\\'");
@@ -980,10 +998,10 @@ function renderWeekGrid() {
                 slotDiv.innerHTML = `
                     <div class="slot-info"><span>${slot.label}</span><span class="slot-remove" onclick="removeSlot(${dayIdx}, '${safeSecId}', ${slotIdx})">✕</span></div>
                     <div class="drop-zone" data-day="${dayIdx}" data-sec="${secId}" data-slot="${slot.id}">
-                        ${w ? `
-                          <div class="assigned-chip${isModified ? ' chip-modified' : ''}" ${isModified ? `title="Remplacé par l'API — ancienne affectation : ${oldWorkerLabel}"` : ''}>
-                            <div class="chip-name">${w ? w.lastName+' '+w.firstName : `Externe #${workerId}`}</div>
-                            <div class="chip-matric">${w ? (w.matricule||'—') : '—'}</div>
+                        ${workerId ? `
+                          <div class="assigned-chip${isModified ? ' chip-modified' : ''}" ${isModified ? `title="Ancienne affectation : ${oldWorkerLabel}"` : ''}>
+                            <div class="chip-name">${displayName}</div>
+                            <div class="chip-matric">${displayMatric}</div>
                             ${isModified ? `<div class="chip-modified-badge">⚠ modifié</div>` : ''}
                             <div class="chip-remove" onclick="removeFromSlot(${dayIdx},'${safeSecId}','${safeSlotId}')">✕</div>
                           </div>
@@ -1041,9 +1059,8 @@ function duplicateDayToNext(dayIdx) {
       const workerId = state.planning[srcKey];
       if (!workerId) return;
 
-      // CHECK ABSENCE ON TARGET DAY
       if (state.absences[workerId] && state.absences[workerId][nextDateISO]) {
-          return; // Skip if absent
+          return;
       }
 
       const sig = `${srcSlot.jobCode}__${srcSlot.posteCode}`;
@@ -1066,21 +1083,19 @@ function addToSlot(dayIdx, secId, slotId, workerId) {
     const key = gkey(`${dayIdx}_${secId}_${slotId}`);
     const currentWorkerId = state.planning[key];
 
-    // Check if current worker was from API
     const slot = state.slots[dayIdx][secId].find(s => s.id === slotId);
     const apiWorkerId = slot ? state.workerAssignmentMap[String(slot.workerAssignmentId)] : null;
 
     if (currentWorkerId) {
-        // Slot occupied
         if (currentWorkerId === apiWorkerId) {
-            // Replacing an API assignment -> Store old in Modified, Show Badge
+            // Replacing an API assignment → Store old in Modified, Show Badge
             state.planningModified[key] = currentWorkerId;
         } else {
-            // Replacing a manual assignment -> No Badge
+            // Replacing a manual/external assignment → No Badge
             delete state.planningModified[key];
         }
     } else {
-        // Slot empty -> No Badge
+        // Slot empty → No Badge
         delete state.planningModified[key];
     }
 
@@ -1312,15 +1327,6 @@ document.getElementById('btn-cal-pick').addEventListener('click', e => {
   else openCalPopup();
 });
 document.addEventListener('click', () => closeCalPopup());
-document.querySelectorAll('.view-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    state.view = tab.dataset.view;
-    document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t === tab));
-    document.getElementById('view-week').style.display = state.view === 'week' ? 'flex' : 'none';
-    document.getElementById('view-absences').style.display = state.view === 'absences' ? 'block' : 'none';
-    render();
-  });
-});
 
 function switchView(v) {
   state.view = v;
