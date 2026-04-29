@@ -130,7 +130,7 @@ main { display: flex; flex: 1; min-height: 0; }
   background: var(--surface2); border-radius: 50%; width: 18px; height: 18px;
   display: flex; align-items: center; justify-content: center;
 }
-.day-mail-btn:hover { opacity: 1; color: var(--accent); background: var(--accent); color: #000; }
+.day-mail-btn:hover { opacity: 1; background: var(--accent); color: #000; }
 
 .week-grid { display: grid; gap: 4px; padding: 4px 0 10px; align-content: start; box-sizing: border-box; }
 .day-col {
@@ -263,7 +263,7 @@ main { display: flex; flex: 1; min-height: 0; }
           </div>
         </div>
       </div>
-      <div id="view-absences" style="display:none">
+      <div id="view-absences">
           <div class="panel-title" style="padding: 20px; display:flex; justify-content:space-between; align-items:center">
               <span>Suivi Mensuel des Absences</span>
               <div id="month-nav" style="display:flex; gap:10px; align-items:center">
@@ -301,6 +301,17 @@ const SECTIONS_MAP = {
 
 const DAYS = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
 
+// Membre fictif permanent "À définir"
+const TBD_WORKER = {
+  id: '_tbd_',
+  firstName: 'À',
+  lastName: 'DÉFINIR',
+  matricule: '—',
+  color: '#94a3b8',
+  isChief: false,
+  isTbd: true,
+};
+
 let state = {
   weekStart: getMonday(new Date()),
   absMonth: new Date(),
@@ -317,7 +328,7 @@ let state = {
   staff: [],
   workerAssignmentMap: {},
   dragWorker: null,
-  slotApiMap: {}, // Map slot key → apiWorkerId (for tracking which slots have API assignments)
+  slotApiMap: {},
 };
 
 // ── API ──
@@ -356,39 +367,22 @@ async function fetchHolidays() {
     try {
         const currentYear = new Date().getFullYear();
         const yearsToFetch = [currentYear - 2, currentYear - 1, currentYear, currentYear + 1, currentYear + 2];
-
         const holidays = {};
-
         const results = await Promise.all(
             yearsToFetch.map(year =>
                 fetch(`${HOLIDAYS_BASE}/${year}.json`)
-                    .then(r => {
-                        if (!r.ok) {
-                            console.log(`[HOLIDAYS] ${year}: HTTP ${r.status}`);
-                            return [];
-                        }
-                        return r.json();
-                    })
-                    .catch(err => {
-                        console.error(`[HOLIDAYS] ${year}:`, err);
-                        return [];
-                    })
+                    .then(r => r.ok ? r.json() : [])
+                    .catch(() => [])
             )
         );
-
         results.forEach((yearData, idx) => {
             const year = yearsToFetch[idx];
             if (yearData && typeof yearData === 'object' && !Array.isArray(yearData)) {
-                Object.entries(yearData).forEach(([date, nom]) => {
-                    holidays[date] = nom;
-                });
+                Object.entries(yearData).forEach(([date, nom]) => { holidays[date] = nom; });
             } else if (Array.isArray(yearData)) {
-                yearData.forEach(h => {
-                    if (h.date) holidays[h.date] = h.nom;
-                });
+                yearData.forEach(h => { if (h.date) holidays[h.date] = h.nom; });
             }
         });
-
         state.holidays = holidays;
     } catch(e) {
         console.error('[HOLIDAYS] Error:', e);
@@ -414,16 +408,19 @@ function getWeekNum(d) {
 }
 function weekKey() { return fmtISO(state.weekStart); }
 function gkey(localKey) { return `${weekKey()}__${localKey}`; }
-function getWorker(id) { return state.staff.find(w => w.id === id); }
+function getWorker(id) { if (id === '_tbd_') return TBD_WORKER; return state.staff.find(w => w.id === id); }
 function initials(w) { return ((w.firstName||'')[0]||'') + ((w.lastName||'')[0]||''); }
 function avatar(w, size=26) {
   const color = w.color || '#3b8fff';
   return `<div class="staff-avatar" style="width:${size}px;height:${size}px;background:${color}22;color:${color};border:1px solid ${color}44">${initials(w).toUpperCase()}</div>`;
 }
-function toast(msg) {
+function toast(msg, type='ok') {
   const t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2400);
+  t.textContent = msg;
+  t.style.background = type === 'error' ? 'var(--red)' : 'var(--accent)';
+  t.style.color = '#fff';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
 }
 function getRandomColor(id) {
     const colors = ['#3b8fff', '#a78bfa', '#00c896', '#ffd060', '#ff6b6b', '#ff4d6d'];
@@ -434,13 +431,11 @@ function getRandomColor(id) {
 
 function findSectionForWorker(jobCode, posteCode, projectName) {
     const isParcProject = projectName && (projectName.includes('Parc SMR') || projectName.includes('Parc Manucar'));
-
     if (jobCode === 'CM' && posteCode === '0817') return 'cm';
     if (jobCode === 'FCQ' && posteCode === '0817') return 'fcq';
     if (jobCode === 'PN' && posteCode === '0817') return 'pn';
     if ((jobCode === 'CI' || jobCode === 'CO') && posteCode === '0714' && isParcProject) return 'matin';
     if ((jobCode === 'CI' || jobCode === 'CO') && posteCode === '1320' && isParcProject) return 'aprem';
-
     return 'autre';
 }
 
@@ -501,7 +496,6 @@ async function loadPlanningRemote() {
     if (data.ok && data.planning) {
       _remoteSupported = true;
       const prefix = weekKey() + '__';
-      // Restaure planning (semaine courante uniquement, sans écraser ce qui est déjà en mémoire)
       Object.keys(data.planning).forEach(k => {
         if (k.startsWith(prefix)) {
           if (!(k in state.planning)) {
@@ -509,8 +503,6 @@ async function loadPlanningRemote() {
           }
         }
       });
-      // Restaure planningModified : les badges ⚠ persistés (divergences KV/API déjà connues)
-      // On merge sans écraser ce qui aurait été calculé en mémoire pour cette session
       if (data.planningModified) {
         Object.keys(data.planningModified).forEach(k => {
           if (k.startsWith(prefix)) {
@@ -561,7 +553,6 @@ function parsePersonnelData(personnelData, dateFrom, dateTo) {
 
     personnelData.workerCalendars.forEach(wc => {
         const workerId = String(wc.workerId);
-
         if (!staffMap.has(workerId)) {
             const rawFirst = wc.firstName || '';
             const capitalFirst = rawFirst.charAt(0).toUpperCase() + rawFirst.slice(1).toLowerCase();
@@ -574,7 +565,6 @@ function parsePersonnelData(personnelData, dateFrom, dateTo) {
                 isChief: wc.isChief || false
             });
         }
-
         if (wc.days) {
             wc.days.forEach(day => {
                 if (!day.date) return;
@@ -589,48 +579,33 @@ function parsePersonnelData(personnelData, dateFrom, dateTo) {
         }
     });
 
-    return {
-        staff: Array.from(staffMap.values()),
-        absences: absencesMap,
-        workerAssignmentMap: workerAssignmentMap
-    };
+    return { staff: Array.from(staffMap.values()), absences: absencesMap, workerAssignmentMap: workerAssignmentMap };
 }
 
 // ── BUILD SLOTS FROM NAVIRES ──
 function buildSlotsFromNavires(naviresData) {
     for(let i=0; i<7; i++) {
         state.slots[i] = {};
-        SECTIONS_ORDER.forEach(secId => {
-            state.slots[i][secId] = [];
-        });
+        SECTIONS_ORDER.forEach(secId => { state.slots[i][secId] = []; });
     }
-
     naviresData.forEach(dayData => {
         if (!dayData || !dayData.postes) return;
-
         const dateObj = new Date(dayData.date);
         const dayIdx = Math.floor((dateObj - state.weekStart) / (1000 * 60 * 60 * 24));
         if (dayIdx < 0 || dayIdx > 6) return;
-
         dayData.postes.forEach(p => {
             if (!p.poste || !p.poste.code) return;
             const posteCode = p.poste.code;
-
             if (!p.projectAssignments || p.projectAssignments.length === 0) return;
-
             const parcAssignments = p.projectAssignments.filter(pa => pa.sectorId === 25);
             if (parcAssignments.length === 0) return;
-
             parcAssignments.forEach(pa => {
                 if (!pa.projectAssignmentWorkers) return;
-
                 const projectName = pa.project?.name || '';
-
                 pa.projectAssignmentWorkers.forEach(w => {
                     const jobCode = w.job?.code || 'UNK';
                     const secId = findSectionForWorker(jobCode, posteCode, projectName);
                     const slotId = `slot_${pa.id}_${w.id}`;
-
                     state.slots[dayIdx][secId].push({
                         id: slotId,
                         label: jobCode,
@@ -647,45 +622,39 @@ function buildSlotsFromNavires(naviresData) {
 }
 
 // ── MERGE PLANNING WITH API ──
-// Sémantique planningModified[key] :
-//   - merge init/nav  : ancienne valeur KV (avant écrasement par l'API) → tooltip "ce qui était avant"
-//   - addToSlot       : id du worker droppé (proposition en survol)
-// Le chip affiche toujours planning[key].
-//
-// Règle permutation : si pour un groupe (dayIdx, secId) le multiset des worker ids KV
-// est identique au multiset API (même personnes, ordre différent) → aucune modification,
-// aucun badge. Ex : KV={W,X,Y} API={X,W,Y} → permutation pure, on ne touche pas.
-//
-// Règle survol inutile : si planningModified[key] === planning[key], on le supprime.
-
 function _multisetEqual(a, b) {
-    // Compare deux tableaux comme multisets (ordre ignoré)
     if (a.length !== b.length) return false;
     const sa = [...a].sort(), sb = [...b].sort();
     return sa.every((v, i) => v === sb[i]);
 }
 
 function applyAPIMergeRules() {
-    state.slotApiMap = {}; // Reset : slotApiMap[key] marque ce slot comme géré par l'API
+    state.slotApiMap = {};
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = addDays(today, 1);
 
     for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
         const daySlots = state.slots[dayIdx] || {};
+        const dayDate = addDays(state.weekStart, dayIdx);
+
+        // ── CORRECTION 1 : API remplit jours passés + aujourd'hui + demain uniquement ──
+        const isBeyondTomorrow = dayDate > tomorrow;
+
         SECTIONS_ORDER.forEach(secId => {
             const slots = daySlots[secId] || [];
             if (slots.length === 0) return;
 
-            // ── Détection de permutation pure pour ce groupe (dayIdx, secId) ──
-            // On collecte les ids KV et API résolus pour tous les slots du groupe.
-            // Un slot sans apiWorkerId (API rien ou inconnu) sort du périmètre permutation.
+            // Détection permutation pure (seulement si jour <= demain)
             const groupKv  = [];
             const groupApi = [];
-            let groupAllResolved = true; // faux si un slot a API=inconnu ou API=rien
+            let groupAllResolved = true;
 
             slots.forEach(slot => {
-                const key         = gkey(`${dayIdx}_${secId}_${slot.id}`);
-                const rawApiId    = slot.workerAssignmentId ? String(slot.workerAssignmentId) : null;
+                const key = gkey(`${dayIdx}_${secId}_${slot.id}`);
+                const rawApiId = slot.workerAssignmentId ? String(slot.workerAssignmentId) : null;
                 const apiWorkerId = rawApiId ? (state.workerAssignmentMap[rawApiId] || null) : null;
-                const kvWorkerId  = state.planning[key];
+                const kvWorkerId = state.planning[key];
                 if (apiWorkerId) {
                     groupKv.push(kvWorkerId || '');
                     groupApi.push(apiWorkerId);
@@ -694,53 +663,43 @@ function applyAPIMergeRules() {
                 }
             });
 
-            // Permutation pure : tous les slots ont un apiWorkerId résolu ET les multisets sont égaux
-            // ET le KV était entièrement renseigné (pas de slots vides dans le groupe)
-            const isPurePermutation = groupAllResolved
+            const isPurePermutation = !isBeyondTomorrow && groupAllResolved
                 && slots.length === groupApi.length
                 && groupKv.every(id => id !== '')
                 && _multisetEqual(groupKv, groupApi);
 
-            // ── Traitement slot par slot ──
             slots.forEach(slot => {
-                const key         = gkey(`${dayIdx}_${secId}_${slot.id}`);
-                const rawApiId    = slot.workerAssignmentId ? String(slot.workerAssignmentId) : null;
+                const key = gkey(`${dayIdx}_${secId}_${slot.id}`);
+                const rawApiId = slot.workerAssignmentId ? String(slot.workerAssignmentId) : null;
                 const apiWorkerId = rawApiId ? (state.workerAssignmentMap[rawApiId] || null) : null;
-                const apiHasId    = rawApiId && rawApiId !== 'undefined' && rawApiId !== '0';
-                const kvWorkerId  = state.planning[key];
+                const apiHasId = rawApiId && rawApiId !== 'undefined' && rawApiId !== '0';
+                const kvWorkerId = state.planning[key];
 
                 if (isPurePermutation) {
-                    // Permutation pure → aucune modification, aucun badge, on ne touche pas planning
-                    state.slotApiMap[key] = apiWorkerId; // marque quand même pour addToSlot
-                    // Nettoyage : si un badge résiduel existe d'une session précédente on le retire
-                    // (la permutation est considérée comme "en ordre" par l'API)
+                    state.slotApiMap[key] = apiWorkerId;
                     delete state.planningModified[key];
                     return;
                 }
 
-                if (apiWorkerId) {
-                    // ── API=Y connu du staff ──
+                if (!isBeyondTomorrow && apiWorkerId) {
+                    // ── API=Y connu du staff (jour <= demain) ──
                     state.slotApiMap[key] = apiWorkerId;
 
                     if (kvWorkerId && kvWorkerId !== apiWorkerId) {
-                        // KV=X, API=Y différent → affiche Y, survol = X (ancien KV)
                         state.planningModified[key] = kvWorkerId;
                         state.planning[key] = apiWorkerId;
                     } else {
-                        // KV vide ou KV=API → affiche Y
-                        // Conserve planningModified persisté si présent (badge d'une session précédente)
                         if (!(key in state.planningModified)) {
                             delete state.planningModified[key];
                         }
                         state.planning[key] = apiWorkerId;
                     }
 
-                } else if (apiHasId) {
-                    // ── API=inconnu (id présent mais absent du staff) → Externe #id ──
+                } else if (!isBeyondTomorrow && apiHasId) {
+                    // ── API=inconnu (jour <= demain) → Hors groupe ──
                     state.slotApiMap[key] = rawApiId;
 
                     if (kvWorkerId && kvWorkerId !== rawApiId) {
-                        // KV=X, API=inconnu → affiche Externe #rawApiId, survol = X (ancien KV)
                         state.planningModified[key] = kvWorkerId;
                         state.planning[key] = rawApiId;
                     } else {
@@ -751,18 +710,20 @@ function applyAPIMergeRules() {
                     }
 
                 } else {
-                    // ── API rien pour ce slot → Externe sans id ──
+                    // ── API rien ou jour > demain → on ne touche pas ──
                     if (kvWorkerId) {
-                        // KV=X, API rien → affiche Externe (sans id), badge, survol = ancien KV
+                        // KV=X, API rien → garde X, badge, survol = ancien KV
                         state.planningModified[key] = kvWorkerId;
-                        // planning[key] reste kvWorkerId
                     } else {
                         delete state.planningModified[key];
+                        if (key in state.planning) {
+                            delete state.planning[key];
+                        }
                     }
                 }
             });
 
-            // ── Règle survol inutile : planningModified[key] === planning[key] → supprime badge ──
+            // Règle survol inutile
             slots.forEach(slot => {
                 const key = gkey(`${dayIdx}_${secId}_${slot.id}`);
                 if (state.planningModified[key] !== undefined
@@ -775,16 +736,13 @@ function applyAPIMergeRules() {
 }
 
 // ── LOAD ALL DATA ──
-// Flux unifié : init / navigation semaine / aujourd'hui
 async function loadAllData() {
     const dateStart = fmtISO(state.weekStart);
     const dateEnd = fmtISO(addDays(state.weekStart, 6));
 
-    // 1. Navires → construit state.slots (structure des postes)
     const naviresData = await fetchNavires(dateStart, dateEnd);
     buildSlotsFromNavires(naviresData);
 
-    // 2. En parallèle : KV remote + personnel API (5 jours)
     const [kvResult, personnelData] = await Promise.all([
         loadPlanningRemote(),
         fetchPersonnel(dateStart, dateEnd)
@@ -795,12 +753,8 @@ async function loadAllData() {
     state.absences = parsed.absences;
     state.workerAssignmentMap = parsed.workerAssignmentMap;
 
-    // 3. Merge KV × API → met à jour planning + planningModified
     applyAPIMergeRules();
-
-    // 4. Repersiste le résultat du merge (planningModified à jour)
     savePlanningRemote();
-
     render();
 }
 
@@ -810,8 +764,29 @@ function renderStaffList(filter='') {
   list.innerHTML = '';
   const q = filter.toLowerCase();
 
+  // ── Membre "À définir" toujours présent ──
+  const tbdName = 'à définir';
+  if (!q || tbdName.includes(q)) {
+    const tbdEl = document.createElement('div');
+    tbdEl.className = 'staff-item';
+    tbdEl.draggable = true;
+    tbdEl.style.borderStyle = 'dashed';
+    tbdEl.innerHTML = `
+        <div class="staff-info">
+            ${avatar(TBD_WORKER, 26)}
+            <div>
+                <div class="staff-name" style="color:var(--text2);font-style:italic">À définir</div>
+                <div class="staff-matric">—</div>
+            </div>
+        </div>
+    `;
+    tbdEl.addEventListener('dragstart', () => { state.dragWorker = TBD_WORKER.id; tbdEl.classList.add('dragging'); });
+    tbdEl.addEventListener('dragend', () => tbdEl.classList.remove('dragging'));
+    list.appendChild(tbdEl);
+  }
+
   if (state.staff.length === 0) {
-    list.innerHTML = '<div style="padding:10px;font-size:0.65rem;color:var(--text3);text-align:center">Aucun personnel</div>';
+    if (!q) list.insertAdjacentHTML('beforeend', '<div style="padding:10px;font-size:0.65rem;color:var(--text3);text-align:center">Aucun personnel</div>');
     return;
   }
 
@@ -854,14 +829,6 @@ function renderStaffList(filter='') {
 // ── COLUMN WIDTHS ──
 if (!state.colWidths) state.colWidths = Array(7).fill(null);
 
-let _measureCanvas = null;
-function measureText(text, font) {
-  if (!_measureCanvas) _measureCanvas = document.createElement('canvas');
-  const ctx = _measureCanvas.getContext('2d');
-  ctx.font = font;
-  return ctx.measureText(text).width;
-}
-
 let _measureEl = null;
 function measureTextDOM(text, className, extraStyle = '') {
   if (!_measureEl) {
@@ -892,8 +859,7 @@ function computeAutoWidths() {
     SECTIONS_ORDER.forEach(secId => {
       if (!daySlots[secId] || daySlots[secId].length === 0) return;
       const sec = SECTIONS_MAP[secId];
-      const labelText = sec.name.toUpperCase();
-      const w = Math.ceil(measureTextDOM(labelText, 'section-label', '')) + COL_CHROME;
+      const w = Math.ceil(measureTextDOM(sec.name.toUpperCase(), 'section-label', '')) + COL_CHROME;
       widths[i] = Math.max(widths[i], w);
       if (sec.hours) {
         const wh = Math.ceil(measureTextDOM(sec.hours, 'section-hours', '')) + COL_CHROME;
@@ -923,13 +889,11 @@ function applyGridColumns(autoFit = false) {
   const header = document.getElementById('days-header');
   const grid = document.getElementById('week-grid');
   if (!header || !grid) return;
-
   const cols = state.colWidths.map((manualW, i) => {
     if (manualW) return manualW + 'px';
     if (autoFit && state._autoWidths) return state._autoWidths[i] + 'px';
     return (state._autoWidths ? state._autoWidths[i] : 120) + 'px';
   }).join(' ');
-
   header.style.gridTemplateColumns = cols;
   grid.style.gridTemplateColumns = cols;
 }
@@ -994,10 +958,7 @@ function renderWeekHeader() {
       btnDup.className = 'btn-dup';
       btnDup.title = 'Dupliquer les affectations vers le jour suivant';
       btnDup.textContent = '»';
-      btnDup.addEventListener('click', e => {
-        e.stopPropagation();
-        duplicateDayToNext(i);
-      });
+      btnDup.addEventListener('click', e => { e.stopPropagation(); duplicateDayToNext(i); });
       cell.appendChild(btnDup);
     }
 
@@ -1013,30 +974,22 @@ function renderWeekGrid() {
   grid.innerHTML = '';
   const today = new Date(); today.setHours(0,0,0,0);
   const doMeasure = () => applyGridColumnsAuto();
-  if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(doMeasure);
-  } else {
-    setTimeout(doMeasure, 200);
-  }
+  if (document.fonts && document.fonts.ready) { document.fonts.ready.then(doMeasure); }
+  else { setTimeout(doMeasure, 200); }
 
   DAYS.forEach((_, dayIdx) => {
     const col = document.createElement('div');
     col.className = 'day-col';
-
     const d = addDays(state.weekStart, dayIdx);
     const dateISO = fmtISO(d);
     const isToday = d.getTime() === today.getTime();
     const isFerie = !!state.holidays[dateISO];
-
     if (isToday) col.classList.add('today');
     if (isFerie) col.classList.add('ferie');
 
     const daySlots = state.slots[dayIdx] || {};
-
     let hasAnySlots = false;
-    SECTIONS_ORDER.forEach(secId => {
-        if (daySlots[secId] && daySlots[secId].length > 0) hasAnySlots = true;
-    });
+    SECTIONS_ORDER.forEach(secId => { if (daySlots[secId] && daySlots[secId].length > 0) hasAnySlots = true; });
 
     if (!hasAnySlots) {
         col.classList.add('no-activity');
@@ -1045,7 +998,6 @@ function renderWeekGrid() {
         SECTIONS_ORDER.forEach(secId => {
             const sec = SECTIONS_MAP[secId];
             const slots = daySlots[secId] || [];
-
             if (slots.length === 0) return;
 
             const label = document.createElement('div');
@@ -1068,43 +1020,30 @@ function renderWeekGrid() {
                 const workerId = state.planning[key];
                 const w = getWorker(workerId);
 
-                // Determine display name
-                // Cas 1 : worker connu du staff
-                // Cas 2 : workerId vient d'une affectation API mais inconnu du staff → Externe #id
-                // Cas 3 : workerId présent sans affectation API connue (KV=X, API=rien) → Externe (sans id)
+                // ── CORRECTION 2 : "Hors groupe" au lieu de "Externe" ──
                 const isApiSlot = !!state.slotApiMap[key];
                 let displayName, displayMatric;
                 if (w) {
                     displayName = `${w.lastName} ${w.firstName}`;
                     displayMatric = w.matricule || '—';
-                } else if (workerId && isApiSlot) {
-                    // L'API a affecté un id que le staff ne connaît pas
-                    displayName = `Externe #${workerId}`;
-                    displayMatric = '—';
                 } else if (workerId) {
-                    // KV=X, API=rien : on ne peut pas identifier l'id
-                    displayName = 'Externe';
+                    // Worker ID présent mais pas dans staff → Hors groupe
+                    displayName = 'Hors groupe';
                     displayMatric = '—';
                 } else {
                     displayName = '';
                     displayMatric = '';
                 }
 
-                // planningModified[key] sémantique duale :
-                //   - merge init/nav : ancien KV (avant écrasement API) → "ce qui était avant"
-                //   - addToSlot      : nouveau worker droppé → "proposition en attente"
                 const pendingWorkerId = state.planningModified[key];
                 const isModified = pendingWorkerId !== undefined;
-                let pendingWorkerLabel = null;
+                let modifiedTooltip = null;
                 if (isModified) {
                     const pendingWorker = getWorker(pendingWorkerId);
-                    if (pendingWorker) {
-                        pendingWorkerLabel = `${pendingWorker.lastName} ${pendingWorker.firstName}`;
-                    } else if (pendingWorkerId) {
-                        pendingWorkerLabel = `Externe #${pendingWorkerId}`;
-                    } else {
-                        pendingWorkerLabel = 'Externe';
-                    }
+                    const pendingName = pendingWorker
+                        ? `${pendingWorker.lastName} ${pendingWorker.firstName}`
+                        : 'Hors groupe';
+                    modifiedTooltip = `L'API a remplacé ${pendingName}`;
                 }
 
                 const safeSecId = secId.replace(/'/g, "\\'");
@@ -1114,10 +1053,9 @@ function renderWeekGrid() {
                     <div class="slot-info"><span>${slot.label}</span><span class="slot-remove" onclick="removeSlot(${dayIdx}, '${safeSecId}', ${slotIdx})">✕</span></div>
                     <div class="drop-zone" data-day="${dayIdx}" data-sec="${secId}" data-slot="${slot.id}">
                         ${workerId ? `
-                          <div class="assigned-chip${isModified ? ' chip-modified' : ''}" ${isModified ? `title="Survol : ${pendingWorkerLabel}"` : ''}>
+                          <div class="assigned-chip${isModified ? ' chip-modified' : ''}" ${isModified ? `title="${modifiedTooltip}"` : ''}>
                             <div class="chip-name">${displayName}</div>
                             <div class="chip-matric">${displayMatric}</div>
-                            ${isModified ? `<div class="chip-modified-badge">⚠ modifié</div>` : ''}
                             <div class="chip-remove" onclick="removeFromSlot(${dayIdx},'${safeSecId}','${safeSlotId}')">✕</div>
                           </div>
                         ` : 'Glisser ici'}
@@ -1135,7 +1073,6 @@ function renderWeekGrid() {
             });
         });
     }
-
     grid.appendChild(col);
   });
 }
@@ -1143,9 +1080,7 @@ function renderWeekGrid() {
 function duplicateDayToNext(dayIdx) {
   const nextIdx = dayIdx + 1;
   if (nextIdx > 6) return;
-
   const nextDateISO = fmtISO(addDays(state.weekStart, nextIdx));
-
   const daySlots = state.slots[dayIdx] || {};
   const nextDaySlots = state.slots[nextIdx] || {};
   let count = 0;
@@ -1153,7 +1088,6 @@ function duplicateDayToNext(dayIdx) {
   SECTIONS_ORDER.forEach(secId => {
     const srcSlots = daySlots[secId] || [];
     const dstSlots = nextDaySlots[secId] || [];
-
     const dstAvailable = {};
     dstSlots.forEach(dstSlot => {
       const sig = `${dstSlot.jobCode}__${dstSlot.posteCode}`;
@@ -1168,20 +1102,16 @@ function duplicateDayToNext(dayIdx) {
         if (idx !== -1) dstAvailable[sig].splice(idx, 1);
       }
     });
-
     srcSlots.forEach(srcSlot => {
       const srcKey = gkey(`${dayIdx}_${secId}_${srcSlot.id}`);
       const workerId = state.planning[srcKey];
       if (!workerId) return;
-
-      if (state.absences[workerId] && state.absences[workerId][nextDateISO]) {
-          return;
-      }
-
+      const srcWorker = getWorker(workerId);
+      if (!srcWorker || srcWorker.isTbd) return;
+      if (state.absences[workerId] && state.absences[workerId][nextDateISO]) return;
       const sig = `${srcSlot.jobCode}__${srcSlot.posteCode}`;
       const available = dstAvailable[sig];
       if (!available || available.length === 0) return;
-
       const matchingDstSlot = available.shift();
       const dstKey = gkey(`${nextIdx}_${secId}_${matchingDstSlot.id}`);
       state.planning[dstKey] = workerId;
@@ -1194,34 +1124,58 @@ function duplicateDayToNext(dayIdx) {
   toast(count > 0 ? `${count} affectation(s) dupliquée(s) vers demain ✓` : 'Aucun chantier identique trouvé demain');
 }
 
+function isWorkerAssignedToDay(dayIdx, workerId, excludeSlotId) {
+    // Vérifie si un worker est déjà affecté sur un autre slot du même jour
+    const prefix = `${weekKey()}__${dayIdx}_`;
+    for (const [k, v] of Object.entries(state.planning)) {
+        if (!k.startsWith(prefix)) continue;
+        // Extraire le slotId de la clé : weekKey__dayIdx_secId_slotId
+        // Format: "YYYY-MM-DD__dayIdx_secId_slotXXX"
+        const localPart = k.slice(weekKey().length + 2); // retire "YYYY-MM-DD__"
+        // localPart = "dayIdx_secId_slotId"
+        const parts = localPart.split('_');
+        // parts[0]=dayIdx, parts[1]=secId, reste=slotId reconstruit
+        const slotIdPart = parts.slice(2).join('_');
+        if (slotIdPart === excludeSlotId) continue;
+        if (v === workerId) return true;
+    }
+    return false;
+}
+
 function addToSlot(dayIdx, secId, slotId, workerId) {
     const key = gkey(`${dayIdx}_${secId}_${slotId}`);
     const currentWorkerId = state.planning[key];
-
-    // slotApiMap[key] : id API mémorisé lors du merge (présent = slot géré par l'API)
     const apiOriginalId = state.slotApiMap[key] || null;
+    const dateISO = fmtISO(addDays(state.weekStart, dayIdx));
+    const worker = getWorker(workerId);
+    const workerName = worker ? `${worker.lastName} ${worker.firstName}` : workerId;
+
+    // ── Vérification absence ──
+    if (workerId !== '_tbd_' && state.absences[workerId] && state.absences[workerId][dateISO]) {
+        const code = state.absences[workerId][dateISO];
+        toast(`⚠ ${workerName} est absent ce jour (${code})`, 'error');
+        return;
+    }
+
+    // ── Vérification doublon sur la journée ──
+    if (workerId !== '_tbd_' && isWorkerAssignedToDay(dayIdx, workerId, slotId)) {
+        toast(`⚠ ${workerName} est déjà affecté ce jour`, 'error');
+        return;
+    }
 
     if (!currentWorkerId) {
-        // ── Poste vide → affecte directement, pas de badge ──
         state.planning[key] = workerId;
         delete state.planningModified[key];
-
     } else if (!apiOriginalId) {
-        // ── Poste occupé, non géré par l'API (KV pur ou drop précédent sans API) ──
-        // → remplace directement, pas de badge
         state.planning[key] = workerId;
         delete state.planningModified[key];
-
     } else {
-        // ── Poste occupé, nom vient de l'API ──
-        // → on garde le nom API affiché (planning[key] = apiOriginalId)
-        // → le nouveau droppé part en survol (planningModified[key] = workerId)
-        // → badge ⚠ modifié (2ème drop sur même slot : remplace simplement le survol)
         state.planning[key] = apiOriginalId;
         state.planningModified[key] = workerId;
     }
 
-    saveState(); renderWeekGrid();
+    saveState();
+    renderWeekGrid();
     toast('Affecté ✓');
 }
 
@@ -1243,14 +1197,11 @@ function renderAbsences() {
     const container = document.getElementById('absences-container');
     const startOfMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth(), 1);
     const daysInMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth() + 1, 0).getDate();
-
     document.getElementById('abs-month-label').textContent = state.absMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
-
     if (state.staff.length === 0) {
         container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3)">Aucune donnée</div>';
         return;
     }
-
     let html = `<table class="abs-table"><thead><tr><th style="position:sticky; left:0; background:var(--surface2); z-index:1">Personnel</th>`;
     for(let i=1; i<=daysInMonth; i++) {
         const d = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), i);
@@ -1276,7 +1227,6 @@ async function generatePDF(dayIdx = null) {
     const doc = new jsPDF();
     const wn = getWeekNum(state.weekStart);
     let title = "", fileName = "", rows = [];
-
     if (dayIdx === null) {
         title = `Effectif Parc Roulier - Semaine ${wn}`;
         fileName = `Planning_Réception_Semaine${wn}.pdf`;
@@ -1387,10 +1337,8 @@ function renderCalPopup() {
   const firstDay = new Date(y, m, 1);
   const lastDay = new Date(y, m + 1, 0);
   let startOffset = (firstDay.getDay() + 6) % 7;
-
   const weekDays = new Set();
   for (let i = 0; i < 7; i++) weekDays.add(fmtISO(addDays(state.weekStart, i)));
-
   let html = `
     <div class="cal-header">
       <button class="cal-nav-btn" id="cal-prev">&#8249;</button>
@@ -1410,7 +1358,6 @@ function renderCalPopup() {
   }
   html += `</div>`;
   popup.innerHTML = html;
-
   document.getElementById('cal-prev').addEventListener('click', e => {
     e.stopPropagation();
     _calDate = new Date(_calDate.getFullYear(), _calDate.getMonth() - 1, 1);
