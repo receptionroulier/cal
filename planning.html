@@ -22,31 +22,24 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 #app { display: flex; flex-direction: column; height: 100vh; }
 
 header {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 20px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border2);
-  flex-shrink: 0;
+  display: flex; align-items: center; gap: 16px;
+  padding: 12px 20px; background: var(--surface);
+  border-bottom: 1px solid var(--border2); flex-shrink: 0;
 }
-.header-left { display: flex; align-items: center; gap: 10px; }
-.header-center { display: flex; align-items: center; gap: 12px; justify-content: center; }
-.header-right { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
-
+.header-left-action { display: flex; align-items: center; }
 .logo { font-size: 1.1rem; font-weight: 800; color: var(--accent); white-space: nowrap; }
 .logo span { color: var(--text2); font-weight: 400; }
-.week-nav { display: flex; align-items: center; gap: 6px; }
-.week-nav button { background: var(--surface2); border: 1px solid var(--border2); color: var(--text); width: 28px; height: 28px; border-radius: 6px; cursor: pointer; font-family: inherit; }
-#btn-today { width: auto; padding: 0 12px; font-size: 0.72rem; font-weight: 700; white-space: nowrap; }
-#week-label { font-size: 0.82rem; font-weight: 700; background: var(--surface2); padding: 5px 14px; border-radius: 20px; border: 1px solid var(--border2); white-space: nowrap; }
-.header-actions { display: flex; gap: 8px; align-items: center; }
+.week-nav { display: flex; align-items: center; gap: 8px; margin: 0 auto; }
+.week-nav button { background: var(--surface2); border: 1px solid var(--border2); color: var(--text); width: 28px; height: 28px; border-radius: 6px; cursor: pointer; }
+#btn-today { width: auto; height: 28px; padding: 0 12px; font-size: 0.72rem; font-weight: 700; font-family: inherit; white-space: nowrap; }
+#week-label { font-size: 0.82rem; font-weight: 700; background: var(--surface2); padding: 5px 14px; border-radius: 20px; border: 1px solid var(--border2); }
+.header-actions { display: flex; gap: 8px; }
+.btn { padding: 7px 14px; border-radius: 7px; cursor: pointer; font-size: 0.75rem; font-weight: 700; border: none; transition: all .15s; white-space: nowrap; }
+.btn-ghost { background: var(--surface2); color: var(--text2); border: 1px solid var(--border2); }
+.btn-ghost:hover { color: var(--text); background: var(--surface); border-color: var(--accent); }
 .view-tabs { display: flex; gap: 4px; background: var(--surface2); border-radius: 8px; padding: 3px; border: 1px solid var(--border); }
-.view-tab { padding: 4px 12px; border-radius: 5px; font-size: 0.73rem; font-weight: 700; cursor: pointer; color: var(--text3); transition: all .15s; }
-.view-tab:hover { color: var(--text); border: 1px solid var(--border2); }
-.view-tab.active { background: var(--accent); color: #000; border: 1px solid transparent; }
-#sync-status { white-space: nowrap; }
+.view-tab { padding: 4px 12px; border-radius: 5px; font-size: 0.73rem; font-weight: 700; cursor: pointer; color: var(--text3); }
+.view-tab.active { background: var(--accent); color: #000; }
 
 main { display: flex; flex: 1; min-height: 0; }
 
@@ -96,7 +89,7 @@ main { display: flex; flex: 1; min-height: 0; }
 .day-col {
   background: var(--surface); border: 2px solid var(--border); border-radius: 10px; padding: 8px;
   display: flex; flex-direction: column; gap: 8px; align-items: stretch;
-  height: fit-content; box-sizing: border-box;
+  height: fit-content; overflow: hidden; box-sizing: border-box;
 }
 .day-col.today { border-color: var(--accent); }
 .day-col.ferie { border-color: var(--red); }
@@ -109,11 +102,11 @@ main { display: flex; flex: 1; min-height: 0; }
 .section-label {
   font-size: 0.58rem; font-weight: 700; color: var(--text3); padding: 6px 0 2px;
   border-top: 1px solid var(--border); text-transform: uppercase; text-align: center;
-  white-space: nowrap;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .section-hours {
   font-size: 0.55rem; color: var(--text3); font-family: 'DM Mono', monospace;
-  margin-bottom: 3px; text-align: center; white-space: nowrap;
+  margin-bottom: 3px; text-align: center;
 }
 
 .slot-container { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; margin-bottom: 4px; }
@@ -124,14 +117,8 @@ main { display: flex; flex: 1; min-height: 0; }
   display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; border-radius: 5px;
   background: var(--bg); border: 1px solid var(--border); cursor: pointer; position: relative; width: 100%;
 }
-.chip-name { font-size: 0.68rem; font-weight: 600; white-space: nowrap; color: var(--text); }
+.chip-name { font-size: 0.68rem; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
 .chip-matric { font-size: 0.58rem; color: var(--text3); font-family: 'DM Mono', monospace; }
-.chip-modified {
-  font-size: 0.52rem; font-weight: 700; color: var(--warn);
-  background: rgba(255,107,53,0.15); border-radius: 3px;
-  padding: 1px 5px; text-align: center; text-transform: uppercase;
-  letter-spacing: 0.04em; width: fit-content; margin-bottom: 1px;
-}
 .chip-remove {
   position: absolute; right: 4px; top: 4px; font-size: 0.65rem; color: var(--red);
   display: none; background: var(--surface); border-radius: 3px; padding: 0 2px;
@@ -191,30 +178,23 @@ main { display: flex; flex: 1; min-height: 0; }
 <body>
 <div id="app">
   <header>
-    <!-- GAUCHE : réglages + logo -->
-    <div class="header-left">
-      <button class="btn btn-ghost" id="btn-settings" style="padding:6px;border-radius:50%;flex-shrink:0;">⚙️</button>
-      <div class="logo">RÉCEPTION<span> ROULIER</span></div>
+    <div class="header-left-action">
+        <button class="btn btn-ghost" id="btn-settings" style="padding: 6px; border-radius: 50%;">⚙️</button>
     </div>
-
-    <!-- CENTRE : nav semaine + onglets (toujours centré, taille fixe) -->
-    <div class="header-center">
-      <div class="week-nav" id="week-nav-area">
-        <button id="btn-today">Aujourd'hui</button>
-        <button id="prev-week">‹</button>
-        <div id="week-label">Chargement...</div>
-        <button id="next-week">›</button>
-      </div>
-      <div class="view-tabs">
-        <div class="view-tab active" data-view="week">Planning</div>
-        <div class="view-tab" data-view="absences">Absences</div>
-      </div>
+    <div class="logo">RÉCEPTION<span> ROULIER</span></div>
+    <div class="week-nav">
+      <button id="btn-today">Aujourd'hui</button>
+      <button id="prev-week">‹</button>
+      <div id="week-label">Chargement...</div>
+      <button id="next-week">›</button>
     </div>
-
-    <!-- DROITE : mail hebdo + sync status -->
-    <div class="header-right">
+    <div class="view-tabs">
+      <div class="view-tab active" data-view="week">Planning</div>
+      <div class="view-tab" data-view="absences">Absences</div>
+    </div>
+    <div class="header-actions">
+      <span id="sync-status" style="display:flex;align-items:center;padding:0 6px;"></span>
       <button class="btn btn-ghost" id="btn-email-week">✉ Mail Hebdo</button>
-      <span id="sync-status"></span>
     </div>
   </header>
 
@@ -415,39 +395,30 @@ function findSectionForWorker(jobCode, posteCode, projectName) {
 }
 
 // ── STATE MANAGEMENT ──
-// Les clés de state.planning incluent le lundi ISO de la semaine :
-// "{YYYY-MM-DD}_{dayIdx}_{secId}_{slotId}" — évite toute collision entre semaines.
-function weekKey() { return fmtISO(state.weekStart); }
-function planKey(dayIdx, secId, slotId) { return `${weekKey()}_${dayIdx}_${secId}_${slotId}`; }
-
 function loadState() {
   try {
     const s = localStorage.getItem('planningRoulier_v20');
     if (s) {
       const saved = JSON.parse(s);
-      const raw = saved.planning || {};
-      // Migration : purger les anciennes clés sans préfixe de date
-      const clean = {};
-      Object.entries(raw).forEach(([k, v]) => {
-        if (/^\d{4}-\d{2}-\d{2}_/.test(k)) clean[k] = v;
-      });
-      state.planning = clean;
-      // Ne jamais restaurer les slots — toujours reconstruits depuis NAV
+      state.planning = saved.planning || {};
+      // Les slots sauvegardés sont restaurés puis fusionnés avec les données dynamiques
+      state._savedSlots = saved.slots || {};
       state.config = { ...state.config, ...saved.config };
     }
+    // Restaurer les largeurs de colonnes
     const cw = localStorage.getItem('planningRoulier_colWidths');
     if (cw) state.colWidths = JSON.parse(cw);
     else state.colWidths = Array(7).fill(null);
   } catch(e) { console.error('[loadState]', e); state.colWidths = Array(7).fill(null); }
 }
-
 function saveState() {
+  // Sauvegarde locale immédiate
   try {
-    // Ne jamais sauvegarder les slots (reconstruits depuis NAV)
     localStorage.setItem('planningRoulier_v20', JSON.stringify({
-      planning: state.planning, config: state.config,
+      planning: state.planning, slots: state.slots, config: state.config,
     }));
   } catch(e) {}
+  // Sauvegarde distante (cross-PC) en arrière-plan
   savePlanningRemote();
 }
 
@@ -486,14 +457,9 @@ async function loadPlanningRemote() {
     const data = await r.json();
     if (data.ok && data.planning) {
       _remoteSupported = true;
-      // N'accepter que les clés avec préfixe de date — ignorer les anciennes clés corrompues
-      const merged = { ...state.planning };
-      Object.entries(data.planning).forEach(([k, v]) => {
-        if (/^\d{4}-\d{2}-\d{2}_/.test(k)) merged[k] = v;
-      });
-      state.planning = merged;
+      state.planning = { ...state.planning, ...data.planning };
       if (data.config) state.config = { ...state.config, ...data.config };
-      try { localStorage.setItem('planningRoulier_v20', JSON.stringify({ planning: state.planning, config: state.config })); } catch(e) {}
+      try { localStorage.setItem('planningRoulier_v20', JSON.stringify({ planning: state.planning, slots: state.slots, config: state.config })); } catch(e) {}
       showSyncStatus('loaded');
     } else {
       _remoteSupported = false;
@@ -610,8 +576,6 @@ async function buildDynamicSlots() {
 
                     builtSlotIds.add(slotId);
 
-                    const navWorkerId = state.workerAssignmentMap[String(w.id)] || null;
-
                     state.slots[dayIdx][secId].push({
                         id: slotId,
                         label: jobCode,
@@ -619,14 +583,33 @@ async function buildDynamicSlots() {
                         posteCode: posteCode,
                         projectName: projectName,
                         assignmentId: pa.id,
-                        workerAssignmentId: String(w.id),
-                        navWorkerId: navWorkerId
+                        workerAssignmentId: String(w.id)
                     });
                 });
             });
         });
     });
-    // Les slots ne sont jamais persistés — toujours reconstruits depuis NAV
+
+    // Fusionner les slots sauvegardés qui ne sont plus dans les données dynamiques
+    // (slots ajoutés manuellement ou slots d'une semaine dont les données ne sont plus disponibles)
+    const savedSlots = state._savedSlots || {};
+    for(let i=0; i<7; i++) {
+        if (!savedSlots[i]) continue;
+        SECTIONS_ORDER.forEach(secId => {
+            const saved = savedSlots[i][secId] || [];
+            saved.forEach(savedSlot => {
+                if (!builtSlotIds.has(savedSlot.id)) {
+                    // Ce slot n'existe plus dans les données dynamiques, on le conserve quand même
+                    // s'il a une affectation de planning associée
+                    const planKey = `${i}_${secId}_${savedSlot.id}`;
+                    if (state.planning[planKey]) {
+                        if (!state.slots[i][secId]) state.slots[i][secId] = [];
+                        state.slots[i][secId].push(savedSlot);
+                    }
+                }
+            });
+        });
+    }
 }
 
 // ── LOAD ALL DATA ──
@@ -642,7 +625,6 @@ async function loadAllData() {
     state.workerAssignmentMap = parsed.workerAssignmentMap;
 
     await buildDynamicSlots();
-    applyNavSuggestions();
 }
 
 // ── RENDER STAFF ──
@@ -672,104 +654,81 @@ function renderStaffList(filter='') {
 }
 
 // ── COLUMN WIDTHS ──
-if (!state.colWidths) state.colWidths = Array(7).fill(null);
-if (!state.navModified) state.navModified = {};
+// Stocke les largeurs en px pour chaque colonne (7 jours)
+if (!state.colWidths) state.colWidths = Array(7).fill(null); // null = auto (1fr)
 
-// Élément DOM invisible pour mesurer le texte avec la vraie police rendue
-let _ruler = null;
-function rulerWidth(text, cls, extraCss = '') {
-  if (!_ruler) {
-    _ruler = document.createElement('span');
-    _ruler.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;pointer-events:none;top:-9999px;left:-9999px;';
-    document.body.appendChild(_ruler);
+// Canvas offscreen pour mesurer le texte sans rendu DOM
+let _measureCanvas = null;
+function measureText(text, font) {
+  if (!_measureCanvas) _measureCanvas = document.createElement('canvas');
+  const ctx = _measureCanvas.getContext('2d');
+  ctx.font = font;
+  return ctx.measureText(text).width;
+}
+
+// Élément de mesure DOM (invisible) pour mesurer avec la vraie police et le vrai rendu
+let _measureEl = null;
+function measureTextDOM(text, className, extraStyle = '') {
+  if (!_measureEl) {
+    _measureEl = document.createElement('span');
+    _measureEl.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;pointer-events:none;top:-9999px;left:-9999px;';
+    document.body.appendChild(_measureEl);
   }
-  _ruler.className = cls;
-  if (extraCss) _ruler.style.cssText += ';' + extraCss;
-  _ruler.textContent = text;
-  return _ruler.getBoundingClientRect().width;
+  _measureEl.className = className;
+  _measureEl.style.cssText += extraStyle;
+  _measureEl.textContent = text;
+  return _measureEl.getBoundingClientRect().width;
 }
 
 function computeAutoWidths() {
-  // Surcoût horizontal total : day-col padding(8×2=16) + slot-container padding(6×2=12) + borders(~4) + marge(8)
-  const CHROME = 42;
-  // Surcoût supplémentaire pour les chips (padding assigned-chip 8×2=16 + btn ✕ 20)
-  const CHIP_EXTRA = 36;
+  // Marges internes cumulées : day-col padding (8px*2=16) + slot-container padding (6px*2=12) + borders + scrollbar margin
+  const COL_CHROME = 16 + 12 + 4 + 8; // 40px total d'habillage horizontal dans une colonne
   const MIN_COL = 120;
 
   const widths = Array(7).fill(MIN_COL);
 
-  // 1. Entête de jour ex: "Mercredi 29 avr."
+  // 1. Noms de jours dans l'en-tête — mesure DOM avec la classe réelle
   for (let i = 0; i < 7; i++) {
     const d = addDays(state.weekStart, i);
     const label = DAYS[i] + ' ' + fmtFR(d);
-    const w = Math.ceil(rulerWidth(label, 'day-name', 'font-size:0.72rem;font-weight:700;font-family:Syne,sans-serif')) + 16 + 44;
+    // day-header-cell a padding 8px*2=16 + bordures + bouton mail 28px
+    const w = Math.ceil(measureTextDOM(label, 'day-name', 'font-size:0.72rem;font-weight:700;font-family:Syne,sans-serif;')) + 16 + 40;
     widths[i] = Math.max(widths[i], w);
   }
 
-  // 2. Titres de section ex: "CHEF DE MANUTENTION" + heures
+  // 2. Section labels (ex: "CHEF DE MANUTENTION") — texte le plus souvent le plus large
   for (let i = 0; i < 7; i++) {
     const daySlots = state.slots[i] || {};
     SECTIONS_ORDER.forEach(secId => {
-      if (!(daySlots[secId] || []).length) return;
+      if (!daySlots[secId] || daySlots[secId].length === 0) return;
       const sec = SECTIONS_MAP[secId];
-      const wSec = Math.ceil(rulerWidth(sec.name.toUpperCase(), 'section-label')) + CHROME;
-      widths[i] = Math.max(widths[i], wSec);
+      const labelText = sec.name.toUpperCase();
+      const w = Math.ceil(measureTextDOM(labelText, 'section-label', '')) + COL_CHROME;
+      widths[i] = Math.max(widths[i], w);
       if (sec.hours) {
-        const wH = Math.ceil(rulerWidth(sec.hours, 'section-hours')) + CHROME;
-        widths[i] = Math.max(widths[i], wH);
+        const wh = Math.ceil(measureTextDOM(sec.hours, 'section-hours', '')) + COL_CHROME;
+        widths[i] = Math.max(widths[i], wh);
       }
     });
   }
 
-  // 3. Labels de slot ex: "PN", "CM", "FCQ" dans .slot-info
+  // 3. Noms des agents affectés (chip-name)
   for (let i = 0; i < 7; i++) {
     const daySlots = state.slots[i] || {};
     SECTIONS_ORDER.forEach(secId => {
       (daySlots[secId] || []).forEach(slot => {
-        const wL = Math.ceil(rulerWidth(slot.label, 'slot-info', 'font-size:0.6rem;font-weight:700')) + CHROME;
-        widths[i] = Math.max(widths[i], wL);
-      });
-    });
-  }
-
-  // 4. Noms des agents affectés
-  for (let i = 0; i < 7; i++) {
-    const daySlots = state.slots[i] || {};
-    SECTIONS_ORDER.forEach(secId => {
-      (daySlots[secId] || []).forEach(slot => {
-        const workerId = state.planning[planKey(i, secId, slot.id)];
+        const workerId = state.planning[`${i}_${secId}_${slot.id}`];
         const w = getWorker(workerId);
         if (!w) return;
         const name = w.lastName + ' ' + w.firstName;
-        const wN = Math.ceil(rulerWidth(name, 'chip-name')) + CHROME + CHIP_EXTRA;
-        widths[i] = Math.max(widths[i], wN);
+        // chip-name + assigned-chip padding (8px*2) + slot-container padding + day-col padding + remove btn
+        const nameW = Math.ceil(measureTextDOM(name, 'chip-name', '')) + COL_CHROME + 28;
+        widths[i] = Math.max(widths[i], nameW);
       });
     });
   }
 
   return widths;
-}
-
-// ── NAV SUGGESTIONS ──
-function applyNavSuggestions() {
-  state.navModified = {};
-  for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
-    const daySlots = state.slots[dayIdx] || {};
-    SECTIONS_ORDER.forEach(secId => {
-      (daySlots[secId] || []).forEach(slot => {
-        if (!slot.navWorkerId) return;
-        const key = `${dayIdx}_${secId}_${slot.id}`;
-        const current = state.planning[key];
-        if (!current) {
-          // Slot vide → remplir avec la suggestion NAV
-          state.planning[key] = slot.navWorkerId;
-        } else if (current !== slot.navWorkerId) {
-          // Nom différent → marquer modifié, ne pas écraser
-          state.navModified[key] = true;
-        }
-      });
-    });
-  }
 }
 
 function applyGridColumns(autoFit = false) {
@@ -870,7 +829,7 @@ function renderWeekGrid() {
   const grid = document.getElementById('week-grid');
   grid.innerHTML = '';
   const today = new Date(); today.setHours(0,0,0,0);
-  // Recalculer les largeurs après que les polices soient disponibles
+  // Recalculer les largeurs après rendu + polices chargées
   const doMeasure = () => applyGridColumnsAuto();
   if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(doMeasure);
@@ -923,10 +882,8 @@ function renderWeekGrid() {
             slots.forEach((slot, slotIdx) => {
                 const slotDiv = document.createElement('div');
                 slotDiv.className = 'slot-container';
-                const navKey = planKey(dayIdx, secId, slot.id);
-                const workerId = state.planning[navKey];
+                const workerId = state.planning[`${dayIdx}_${secId}_${slot.id}`];
                 const w = getWorker(workerId);
-                const isModified = !!(state.navModified && state.navModified[navKey]);
 
                 const safeSecId = secId.replace(/'/g, "\\'");
                 const safeSlotId = slot.id.replace(/'/g, "\\'");
@@ -936,7 +893,6 @@ function renderWeekGrid() {
                     <div class="drop-zone" data-day="${dayIdx}" data-sec="${secId}" data-slot="${slot.id}">
                         ${w ? `
                           <div class="assigned-chip">
-                            ${isModified ? `<div class="chip-modified">modifié</div>` : ''}
                             <div class="chip-name">${w.lastName} ${w.firstName}</div>
                             <div class="chip-matric">${w.matricule||'—'}</div>
                             <div class="chip-remove" onclick="removeFromSlot(${dayIdx},'${safeSecId}','${safeSlotId}')">✕</div>
@@ -962,6 +918,7 @@ function renderWeekGrid() {
 }
 
 function duplicateDayToNext(dayIdx) {
+  // Strictement jour+1 uniquement
   const nextIdx = dayIdx + 1;
   if (nextIdx > 6) return;
 
@@ -973,14 +930,18 @@ function duplicateDayToNext(dayIdx) {
     const srcSlots = daySlots[secId] || [];
     const dstSlots = nextDaySlots[secId] || [];
 
+    // File de slots disponibles au lendemain, groupés par signature (jobCode+posteCode)
+    // On consomme chaque slot destination au fur et à mesure pour gérer les doublons (ex: 3x PN)
     const dstAvailable = {};
     dstSlots.forEach(dstSlot => {
       const sig = `${dstSlot.jobCode}__${dstSlot.posteCode}`;
       if (!dstAvailable[sig]) dstAvailable[sig] = [];
       dstAvailable[sig].push(dstSlot);
     });
+    // Retirer de la file les slots déjà affectés au lendemain
     dstSlots.forEach(dstSlot => {
-      if (state.planning[planKey(nextIdx, secId, dstSlot.id)]) {
+      const dstKey = `${nextIdx}_${secId}_${dstSlot.id}`;
+      if (state.planning[dstKey]) {
         const sig = `${dstSlot.jobCode}__${dstSlot.posteCode}`;
         const idx = (dstAvailable[sig] || []).findIndex(s => s.id === dstSlot.id);
         if (idx !== -1) dstAvailable[sig].splice(idx, 1);
@@ -988,15 +949,18 @@ function duplicateDayToNext(dayIdx) {
     });
 
     srcSlots.forEach(srcSlot => {
-      const workerId = state.planning[planKey(dayIdx, secId, srcSlot.id)];
+      const srcKey = `${dayIdx}_${secId}_${srcSlot.id}`;
+      const workerId = state.planning[srcKey];
       if (!workerId) return;
 
       const sig = `${srcSlot.jobCode}__${srcSlot.posteCode}`;
       const available = dstAvailable[sig];
       if (!available || available.length === 0) return;
 
+      // Prendre le premier slot disponible et le consommer de la file
       const matchingDstSlot = available.shift();
-      state.planning[planKey(nextIdx, secId, matchingDstSlot.id)] = workerId;
+      const dstKey = `${nextIdx}_${secId}_${matchingDstSlot.id}`;
+      state.planning[dstKey] = workerId;
       count++;
     });
   });
@@ -1015,20 +979,20 @@ function addToSlot(dayIdx, secId, slotId, workerId) {
 
   if (absCode && !confirm(`⚠️ ${worker.firstName} ${worker.lastName} est absent (${absCode}) le ${dateISO}. Forcer ?`)) return;
 
-  state.planning[planKey(dayIdx, secId, slotId)] = workerId;
+  state.planning[`${dayIdx}_${secId}_${slotId}`] = workerId;
   saveState(); renderWeekGrid();
   toast('Affecté ✓');
 }
 
 function removeFromSlot(dayIdx, secId, slotId) {
-    delete state.planning[planKey(dayIdx, secId, slotId)];
+    delete state.planning[`${dayIdx}_${secId}_${slotId}`];
     saveState(); renderWeekGrid();
 }
 
 function removeSlot(dayIdx, secId, slotIdx) {
     const slot = state.slots[dayIdx][secId][slotIdx];
     if (!slot) return;
-    delete state.planning[planKey(dayIdx, secId, slot.id)];
+    delete state.planning[`${dayIdx}_${secId}_${slot.id}`];
     state.slots[dayIdx][secId].splice(slotIdx, 1);
     saveState(); renderWeekGrid();
 }
@@ -1187,13 +1151,8 @@ document.querySelectorAll('.view-tab').forEach(tab => {
   tab.addEventListener('click', () => {
     state.view = tab.dataset.view;
     document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t === tab));
-    const isAbsences = state.view === 'absences';
-    document.getElementById('view-week').style.display = isAbsences ? 'none' : 'flex';
-    document.getElementById('view-absences').style.display = isAbsences ? 'flex' : 'none';
-    document.getElementById('panel-staff').style.display = isAbsences ? 'none' : '';
-    // On masque la nav semaine mais on garde sa place (visibility au lieu de display)
-    document.getElementById('week-nav-area').style.visibility = isAbsences ? 'hidden' : 'visible';
-    document.getElementById('btn-email-week').style.visibility = isAbsences ? 'hidden' : 'visible';
+    document.getElementById('view-week').style.display = state.view === 'week' ? 'flex' : 'none';
+    document.getElementById('view-absences').style.display = state.view === 'absences' ? 'block' : 'none';
     render();
   });
 });
