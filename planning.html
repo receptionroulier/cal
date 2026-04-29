@@ -256,9 +256,13 @@ main { display: flex; flex: 1; min-height: 0; }
     </div>
     <div id="content">
       <div id="view-week">
+        <div id="week-header-area" style="overflow:hidden;flex-shrink:0;">
+          <div id="week-header-inner" style="min-width:560px;padding:0 10px 0;">
+            <div class="days-header" id="days-header"></div>
+          </div>
+        </div>
         <div id="week-scroll-area" style="flex:1;overflow:auto;min-height:0;">
           <div id="week-inner" style="min-width:560px;padding:0 10px 10px;">
-            <div class="days-header" id="days-header"></div>
             <div class="week-grid" id="week-grid"></div>
           </div>
         </div>
@@ -896,6 +900,16 @@ function applyGridColumns(autoFit = false) {
   }).join(' ');
   header.style.gridTemplateColumns = cols;
   grid.style.gridTemplateColumns = cols;
+
+  // Synchroniser la largeur minimale des deux inner divs
+  const totalW = state.colWidths.reduce((sum, w, i) => {
+    const col = w || (state._autoWidths ? state._autoWidths[i] : 120);
+    return sum + col + 4; // +4 pour le gap
+  }, 20); // +20 pour le padding
+  const hi = document.getElementById('week-header-inner');
+  const wi = document.getElementById('week-inner');
+  if (hi) hi.style.minWidth = totalW + 'px';
+  if (wi) wi.style.minWidth = totalW + 'px';
 }
 
 function applyGridColumnsAuto() {
@@ -1501,6 +1515,20 @@ document.getElementById('abs-next').addEventListener('click', async () => {
 });
 
 loadState();
+
+// ── SYNC SCROLL HORIZONTAL header ↔ contenu ──
+(function() {
+  const scrollArea = document.getElementById('week-scroll-area');
+  const headerArea = document.getElementById('week-header-area');
+  let _syncing = false;
+  scrollArea.addEventListener('scroll', () => {
+    if (_syncing) return;
+    _syncing = true;
+    headerArea.scrollLeft = scrollArea.scrollLeft;
+    _syncing = false;
+  });
+})();
+
 initApp();
 </script>
 </body>
