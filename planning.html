@@ -90,6 +90,14 @@ main { display: flex; flex: 1; min-height: 0; }
 .staff-name { font-size: 0.73rem; font-weight: 600; }
 .staff-matric { font-size: 0.62rem; color: var(--text3); font-family: 'DM Mono', monospace; }
 
+.staff-badges { display: flex; gap: 2px; margin-top: 3px; flex-wrap: wrap; }
+.staff-badge {
+  font-size: 9px; font-weight: 700; font-family: 'DM Mono', monospace;
+  padding: 1px 3px; border-radius: 3px; border: 1px solid transparent; line-height: 1;
+}
+.staff-badge.absent  { background: rgba(255,77,109,0.15); color: var(--red);   border-color: rgba(255,77,109,0.3); }
+.staff-badge.present { background: rgba(0,200,150,0.15);  color: var(--green); border-color: rgba(0,200,150,0.3); }
+
 #content { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
 
 #view-week { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
@@ -811,12 +819,23 @@ function renderStaffList(filter='') {
     const name = `${w.lastName} ${w.firstName}`.toLowerCase();
     if (q && !name.includes(q) && !(w.matricule||'').toLowerCase().includes(q)) return;
 
+    let badgesHtml = '<div class="staff-badges">';
+    for (let i = 0; i < 7; i++) {
+      const iso = fmtISO(addDays(state.weekStart, i));
+      const code = state.absences[w.id]?.[iso];
+      badgesHtml += code
+        ? `<span class="staff-badge absent" title="${iso}: ${code}">✕</span>`
+        : `<span class="staff-badge present" title="${iso}: Présent">✓</span>`;
+    }
+    badgesHtml += '</div>';
+
     const el = document.createElement('div');
     el.className = `staff-item ${getWorkerColorClass(w.id)}`;
     el.draggable = true;
     el.innerHTML = `
         <div class="staff-name">${w.lastName} ${w.firstName}</div>
         <div class="staff-matric">${w.matricule||'—'}</div>
+        ${badgesHtml}
     `;
     el.addEventListener('dragstart', e => { state.dragWorker = w.id; el.classList.add('dragging'); });
     el.addEventListener('dragend', () => el.classList.remove('dragging'));
