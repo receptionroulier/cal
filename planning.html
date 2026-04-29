@@ -197,16 +197,17 @@ main { display: flex; flex: 1; min-height: 0; }
     <div class="header-title">Gestion personnel parc réception</div>
     <div class="header-row">
       <button class="btn btn-ghost" id="btn-settings" style="padding:5px 9px;">⚙️</button>
+      <button class="btn-view active" id="btn-view-week">Planning</button>
+      <button class="btn-view" id="btn-view-absences">Absences</button>
+      <div class="header-spacer"></div>
       <div class="week-nav">
         <button id="btn-today">Aujourd'hui</button>
         <button id="prev-week">‹</button>
         <div id="week-label">Chargement...</div>
         <button id="next-week">›</button>
       </div>
-      <button class="btn-view active" id="btn-view-week">Planning</button>
-      <button class="btn-view" id="btn-view-absences">Absences</button>
-      <button class="btn btn-ghost" id="btn-email-week">✉ Mail Hebdo</button>
       <div class="header-spacer"></div>
+      <button class="btn btn-ghost" id="btn-email-week">✉ Mail Hebdo</button>
       <span id="sync-status"></span>
     </div>
   </header>
