@@ -22,24 +22,33 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 #app { display: flex; flex-direction: column; height: 100vh; }
 
 header {
-  display: flex; align-items: center; gap: 16px;
-  padding: 12px 20px; background: var(--surface);
-  border-bottom: 1px solid var(--border2); flex-shrink: 0;
+  display: flex; flex-direction: column;
+  padding: 10px 20px 8px; background: var(--surface);
+  border-bottom: 1px solid var(--border2); flex-shrink: 0; gap: 6px;
 }
-.header-left-action { display: flex; align-items: center; }
-.logo { font-size: 1.1rem; font-weight: 800; color: var(--accent); white-space: nowrap; }
-.logo span { color: var(--text2); font-weight: 400; }
-.week-nav { display: flex; align-items: center; gap: 8px; margin: 0 auto; }
-.week-nav button { background: var(--surface2); border: 1px solid var(--border2); color: var(--text); width: 28px; height: 28px; border-radius: 6px; cursor: pointer; }
-#btn-today { width: auto; height: 28px; padding: 0 12px; font-size: 0.72rem; font-weight: 700; font-family: inherit; white-space: nowrap; }
-#week-label { font-size: 0.82rem; font-weight: 700; background: var(--surface2); padding: 5px 14px; border-radius: 20px; border: 1px solid var(--border2); }
-.header-actions { display: flex; gap: 8px; }
-.btn { padding: 7px 14px; border-radius: 7px; cursor: pointer; font-size: 0.75rem; font-weight: 700; border: none; transition: all .15s; white-space: nowrap; }
+.header-title {
+  font-size: 0.7rem; font-weight: 700; color: var(--text3);
+  text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap;
+}
+.header-row {
+  display: flex; align-items: center; gap: 8px;
+}
+.week-nav { display: flex; align-items: center; gap: 6px; }
+.week-nav button { background: var(--surface2); border: 1px solid var(--border2); color: var(--text); width: 28px; height: 28px; border-radius: 6px; cursor: pointer; font-family: inherit; transition: all .15s; }
+.week-nav button:hover { color: var(--text); background: var(--surface); border-color: var(--accent); }
+#btn-today { width: auto !important; padding: 0 12px !important; font-size: 0.72rem; font-weight: 700; }
+#week-label { font-size: 0.8rem; font-weight: 700; background: var(--surface2); padding: 5px 14px; border-radius: 20px; border: 1px solid var(--border2); white-space: nowrap; }
+.header-spacer { flex: 1; }
+#sync-status { display: flex; align-items: center; }
+.btn { padding: 6px 13px; border-radius: 7px; cursor: pointer; font-size: 0.74rem; font-weight: 700; border: none; transition: all .15s; white-space: nowrap; font-family: inherit; }
 .btn-ghost { background: var(--surface2); color: var(--text2); border: 1px solid var(--border2); }
 .btn-ghost:hover { color: var(--text); background: var(--surface); border-color: var(--accent); }
-.view-tabs { display: flex; gap: 4px; background: var(--surface2); border-radius: 8px; padding: 3px; border: 1px solid var(--border); }
-.view-tab { padding: 4px 12px; border-radius: 5px; font-size: 0.73rem; font-weight: 700; cursor: pointer; color: var(--text3); }
-.view-tab.active { background: var(--accent); color: #000; }
+.btn-view { background: var(--surface2); color: var(--text2); border: 1px solid var(--border2); padding: 6px 14px; border-radius: 7px; cursor: pointer; font-size: 0.74rem; font-weight: 700; transition: all .15s; white-space: nowrap; font-family: inherit; }
+.btn-view:hover { color: var(--text); background: var(--surface); border-color: var(--accent); }
+.btn-view.active { background: var(--accent); color: #000; border-color: var(--accent); }
+/* legacy — keep for compat but no longer used for view switching */
+.view-tabs { display: none; }
+.view-tab { display: none; }
 
 main { display: flex; flex: 1; min-height: 0; }
 
@@ -185,23 +194,20 @@ main { display: flex; flex: 1; min-height: 0; }
 <body>
 <div id="app">
   <header>
-    <div class="header-left-action">
-        <button class="btn btn-ghost" id="btn-settings" style="padding: 6px; border-radius: 50%;">⚙️</button>
-    </div>
-    <div class="logo">RÉCEPTION<span> ROULIER</span></div>
-    <div class="week-nav">
-      <button id="btn-today">Aujourd'hui</button>
-      <button id="prev-week">‹</button>
-      <div id="week-label">Chargement...</div>
-      <button id="next-week">›</button>
-    </div>
-    <div class="view-tabs">
-      <div class="view-tab active" data-view="week">Planning</div>
-      <div class="view-tab" data-view="absences">Absences</div>
-    </div>
-    <div class="header-actions">
-      <span id="sync-status" style="display:flex;align-items:center;padding:0 6px;"></span>
+    <div class="header-title">Gestion personnel parc réception</div>
+    <div class="header-row">
+      <button class="btn btn-ghost" id="btn-settings" style="padding:5px 9px;">⚙️</button>
+      <div class="week-nav">
+        <button id="btn-today">Aujourd'hui</button>
+        <button id="prev-week">‹</button>
+        <div id="week-label">Chargement...</div>
+        <button id="next-week">›</button>
+      </div>
+      <button class="btn-view active" id="btn-view-week">Planning</button>
+      <button class="btn-view" id="btn-view-absences">Absences</button>
       <button class="btn btn-ghost" id="btn-email-week">✉ Mail Hebdo</button>
+      <div class="header-spacer"></div>
+      <span id="sync-status"></span>
     </div>
   </header>
 
@@ -1203,6 +1209,17 @@ document.querySelectorAll('.view-tab').forEach(tab => {
     render();
   });
 });
+
+function switchView(v) {
+  state.view = v;
+  document.getElementById('btn-view-week').classList.toggle('active', v === 'week');
+  document.getElementById('btn-view-absences').classList.toggle('active', v === 'absences');
+  document.getElementById('view-week').style.display = v === 'week' ? 'flex' : 'none';
+  document.getElementById('view-absences').style.display = v === 'absences' ? 'block' : 'none';
+  render();
+}
+document.getElementById('btn-view-week').addEventListener('click', () => switchView('week'));
+document.getElementById('btn-view-absences').addEventListener('click', () => switchView('absences'));
 document.getElementById('btn-settings').addEventListener('click', showConfigModal);
 document.getElementById('btn-email-week').addEventListener('click', sendWeeklyMail);
 document.getElementById('btn-today').addEventListener('click', async () => {
