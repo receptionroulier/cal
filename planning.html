@@ -226,10 +226,11 @@ main { display: flex; flex: 1; min-height: 0; }
 .cfg-swatch-reset:hover { color: var(--red); border-color: var(--red); }
 
 #view-absences { display: none; flex-direction: column; flex: 1; padding: 0; overflow-y: auto; }
-.abs-table { width: 100%; border-collapse: collapse; font-size: 0.65rem; background: var(--surface); }
-.abs-table th, .abs-table td { border: 1px solid var(--border2); padding: 4px; text-align: center; }
-.abs-table th { background: var(--surface2); color: var(--text2); }
-.abs-code { font-weight: bold; padding: 2px 4px; border-radius: 3px; background: rgba(255,107,53,0.2); color: var(--warn); }
+.abs-table { border-collapse: collapse; font-size: 0.65rem; background: var(--surface); }
+.abs-table th, .abs-table td { border: 1px solid var(--border2); padding: 0; text-align: center; width: 28px; height: 28px; min-width: 28px; max-width: 28px; box-sizing: border-box; }
+.abs-table th { background: var(--surface2); color: var(--text2); font-size: 0.6rem; }
+.abs-table td.member-cell { width: 100px; min-width: 100px; max-width: 100px; padding: 2px 3px; }
+.abs-code { font-weight: bold; padding: 1px 3px; border-radius: 3px; background: rgba(255,107,53,0.2); color: var(--warn); font-size: 0.6rem; }
 
 #modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); }
 #modal-overlay.show { display: flex; }
@@ -1401,10 +1402,10 @@ function renderAbsences() {
         const borderColor = colorKey ? colorMap[colorKey] : 'var(--border2)';
 
         const memberCell = `
-          <td style="position:sticky;left:0;background:var(--surface);z-index:1;padding:2px 4px;min-width:110px;">
-            <div style="padding:5px 8px;border-radius:7px;border:1px solid ${colorKey ? borderColor : 'transparent'};text-align:left;">
-              <div style="font-size:0.73rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${w.lastName} ${w.firstName}</div>
-              <div style="font-size:0.62rem;color:var(--text3);font-family:'DM Mono',monospace;">${w.matricule || '—'}</div>
+          <td class="member-cell" style="position:sticky;left:0;background:var(--surface);z-index:1;">
+            <div style="padding:4px 6px;border-radius:6px;border:1px solid ${colorKey ? borderColor : 'transparent'};">
+              <div style="font-size:0.68rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${w.lastName} ${w.firstName}</div>
+              <div style="font-size:0.58rem;color:var(--text3);font-family:'DM Mono',monospace;">${w.matricule || '—'}</div>
             </div>
           </td>`;
 
@@ -1422,7 +1423,7 @@ function renderAbsences() {
     container.innerHTML = `
       <table class="abs-table">
         <thead><tr>
-          <th style="position:sticky;left:0;background:var(--surface2);z-index:2;min-width:140px;">Personnel</th>
+          <th class="member-cell" style="position:sticky;left:0;background:var(--surface2);z-index:2;">Personnel</th>
           ${dayHeaders}
         </tr></thead>
         <tbody>${rows}</tbody>
