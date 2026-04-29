@@ -618,19 +618,20 @@ function applyAPIMergeRules() {
     state.slotApiMap = {};
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const tomorrow = addDays(today, 1);
 
     for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
         const daySlots = state.slots[dayIdx] || {};
         const dayDate = addDays(state.weekStart, dayIdx);
 
-        // ── CORRECTION 1 : API ne remplit que jours passés + aujourd'hui ──
-        const isFutureDay = dayDate > today;
+        // ── CORRECTION 1 : API remplit jours passés + aujourd'hui + demain uniquement ──
+        const isBeyondTomorrow = dayDate > tomorrow;
 
         SECTIONS_ORDER.forEach(secId => {
             const slots = daySlots[secId] || [];
             if (slots.length === 0) return;
 
-            // Détection permutation pure (seulement si jour pas futur)
+            // Détection permutation pure (seulement si jour <= demain)
             const groupKv  = [];
             const groupApi = [];
             let groupAllResolved = true;
@@ -648,7 +649,7 @@ function applyAPIMergeRules() {
                 }
             });
 
-            const isPurePermutation = !isFutureDay && groupAllResolved
+            const isPurePermutation = !isBeyondTomorrow && groupAllResolved
                 && slots.length === groupApi.length
                 && groupKv.every(id => id !== '')
                 && _multisetEqual(groupKv, groupApi);
@@ -666,8 +667,8 @@ function applyAPIMergeRules() {
                     return;
                 }
 
-                if (!isFutureDay && apiWorkerId) {
-                    // ── API=Y connu du staff (jour passé ou aujourd'hui seulement) ──
+                if (!isBeyondTomorrow && apiWorkerId) {
+                    // ── API=Y connu du staff (jour <= demain) ──
                     state.slotApiMap[key] = apiWorkerId;
 
                     if (kvWorkerId && kvWorkerId !== apiWorkerId) {
@@ -680,8 +681,8 @@ function applyAPIMergeRules() {
                         state.planning[key] = apiWorkerId;
                     }
 
-                } else if (!isFutureDay && apiHasId) {
-                    // ── API=inconnu (jour passé ou aujourd'hui) → Externe (sans id) ──
+                } else if (!isBeyondTomorrow && apiHasId) {
+                    // ── API=inconnu (jour <= demain) → Hors groupe ──
                     state.slotApiMap[key] = rawApiId;
 
                     if (kvWorkerId && kvWorkerId !== rawApiId) {
@@ -695,7 +696,7 @@ function applyAPIMergeRules() {
                     }
 
                 } else {
-                    // ── API rien ou jour futur → on ne touche pas ──
+                    // ── API rien ou jour > demain → on ne touche pas ──
                     if (kvWorkerId) {
                         // KV=X, API rien → garde X, badge, survol = ancien KV
                         state.planningModified[key] = kvWorkerId;
@@ -984,15 +985,15 @@ function renderWeekGrid() {
                 const workerId = state.planning[key];
                 const w = getWorker(workerId);
 
-                // ── CORRECTION 2 : Externe sans ID ──
+                // ── CORRECTION 2 : "Hors groupe" au lieu de "Externe" ──
                 const isApiSlot = !!state.slotApiMap[key];
                 let displayName, displayMatric;
                 if (w) {
                     displayName = `${w.lastName} ${w.firstName}`;
                     displayMatric = w.matricule || '—';
                 } else if (workerId) {
-                    // Worker ID présent mais pas dans staff → Externe (SANS ID)
-                    displayName = 'Externe';
+                    // Worker ID présent mais pas dans staff → Hors groupe
+                    displayName = 'Hors groupe';
                     displayMatric = '—';
                 } else {
                     displayName = '';
@@ -1007,7 +1008,7 @@ function renderWeekGrid() {
                     if (pendingWorker) {
                         pendingWorkerLabel = `${pendingWorker.lastName} ${pendingWorker.firstName}`;
                     } else {
-                        pendingWorkerLabel = 'Externe';
+                        pendingWorkerLabel = 'Hors groupe';
                     }
                 }
 
