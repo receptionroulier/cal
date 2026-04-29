@@ -83,30 +83,12 @@ main { display: flex; flex: 1; min-height: 0; }
 #staff-search { margin: 8px 10px; padding: 6px 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.75rem; outline: none; }
 #staff-list { flex: 1; overflow-y: auto; padding: 4px 8px 8px; }
 .staff-item {
-  display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; border-radius: 7px;
-  cursor: grab; margin-bottom: 3px; transition: all .12s; border: 1px solid transparent;
+  padding: 5px 8px; border-radius: 7px;
+  cursor: grab; margin-bottom: 2px; transition: all .12s; border: 1px solid transparent;
 }
 .staff-item:hover { background: var(--surface2); border-color: var(--border); }
-.staff-info { display: flex; align-items: center; gap: 8px; width: 100%; }
-.staff-avatar { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.62rem; font-weight: 700; flex-shrink: 0; }
 .staff-name { font-size: 0.73rem; font-weight: 600; }
 .staff-matric { font-size: 0.62rem; color: var(--text3); font-family: 'DM Mono', monospace; }
-.staff-item.absent { opacity: 0.45; }
-
-.staff-badges {
-  display: flex; gap: 2px; margin-top: 2px; flex-wrap: wrap; justify-content: flex-end;
-}
-.staff-badge {
-  font-size: 9px; font-weight: 700; font-family: 'DM Mono', monospace;
-  padding: 1px 3px; border-radius: 3px; border: 1px solid transparent;
-  line-height: 1;
-}
-.staff-badge.absent {
-  background: rgba(255,77,109,0.15); color: var(--red); border-color: rgba(255,77,109,0.3);
-}
-.staff-badge.present {
-  background: rgba(0,200,150,0.15); color: var(--green); border-color: rgba(0,200,150,0.3);
-}
 
 #content { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
 
@@ -294,14 +276,31 @@ const HOLIDAYS_BASE = "https://calendrier.api.gouv.fr/jours-feries/metropole";
 
 const SECTIONS_ORDER = ['cm', 'fcq', 'pn', 'matin', 'aprem', 'autre'];
 
-const SECTIONS_MAP = {
-  'cm': { id: 'cm', name: 'Chef de Manutention', hours: '', color: '#ff4d6d' },
-  'fcq': { id: 'fcq', name: 'Chef de quai', hours: '8h30-12h00 / 14h00-17h30', color: '#a78bfa' },
-  'pn': { id: 'pn', name: 'Montage / Prépa', hours: '8h30-12h00 / 14h00-17h30', color: '#00c896' },
-  'matin': { id: 'matin', name: 'Réception Matin', hours: '7h00 / 14h00', color: '#3b8fff' },
-  'aprem': { id: 'aprem', name: 'Réception Après-Midi', hours: '13h00 / 20h00', color: '#ffd060' },
-  'autre': { id: 'autre', name: 'Autres', hours: '', color: '#94a3b8' }
+const SECTIONS_MAP_BASE = {
+  'cm':    { id: 'cm',    name: 'Chef de Manutention',    hours: '',                          color: '#ff4d6d' },
+  'fcq':   { id: 'fcq',  name: 'Chef de quai',           hours: '8h30-12h00 / 14h00-17h30', color: '#a78bfa' },
+  'pn':    { id: 'pn',   name: 'Montage / Prépa',        hours: '8h30-12h00 / 14h00-17h30', color: '#00c896' },
+  'matin': { id: 'matin',name: 'Réception Matin',        hours: '7h00 / 14h00',              color: '#ffd060' },
+  'aprem': { id: 'aprem',name: 'Réception Après-Midi',   hours: '13h00 / 20h00',             color: '#3b8fff' },
+  'autre': { id: 'autre',name: 'Autres',                 hours: '',                          color: '#94a3b8' }
 };
+
+// Référence fixe : lundi 28 avril 2025 = semaine "impaire" (matin jaune)
+const WEEK_REF = new Date(2025, 3, 28);
+
+function getSectionsMap() {
+  const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+  const elapsed = Math.round((state.weekStart - WEEK_REF) / msPerWeek);
+  const isOdd = elapsed % 2 === 0; // semaine ref = impaire (0 = pair → isOdd true)
+  return {
+    ...SECTIONS_MAP_BASE,
+    matin: { ...SECTIONS_MAP_BASE.matin, color: isOdd ? '#ffd060' : '#3b8fff' },
+    aprem: { ...SECTIONS_MAP_BASE.aprem, color: isOdd ? '#3b8fff' : '#ffd060' },
+  };
+}
+
+// Alias dynamique utilisé partout
+let SECTIONS_MAP = SECTIONS_MAP_BASE;
 
 const DAYS = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
 
@@ -413,11 +412,6 @@ function getWeekNum(d) {
 function weekKey() { return fmtISO(state.weekStart); }
 function gkey(localKey) { return `${weekKey()}__${localKey}`; }
 function getWorker(id) { if (id === '_tbd_') return TBD_WORKER; return state.staff.find(w => w.id === id); }
-function initials(w) { return ((w.firstName||'')[0]||'') + ((w.lastName||'')[0]||''); }
-function avatar(w, size=26) {
-  const color = w.color || '#3b8fff';
-  return `<div class="staff-avatar" style="width:${size}px;height:${size}px;background:${color}22;color:${color};border:1px solid ${color}44">${initials(w).toUpperCase()}</div>`;
-}
 function toast(msg, type='ok') {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -426,13 +420,6 @@ function toast(msg, type='ok') {
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2800);
 }
-function getRandomColor(id) {
-    const colors = ['#3b8fff', '#a78bfa', '#00c896', '#ffd060', '#ff6b6b', '#ff4d6d'];
-    let hash = 0;
-    for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
-    return colors[Math.abs(hash) % colors.length];
-}
-
 function findSectionForWorker(jobCode, posteCode, projectName) {
     const isParcProject = projectName && (projectName.includes('Parc SMR') || projectName.includes('Parc Manucar'));
     if (jobCode === 'CM' && posteCode === '0817') return 'cm';
@@ -565,7 +552,6 @@ function parsePersonnelData(personnelData, dateFrom, dateTo) {
                 firstName: capitalFirst,
                 lastName: (wc.lastName || '').toUpperCase(),
                 matricule: wc.dockerMatricule || '',
-                color: getRandomColor(workerId),
                 isChief: wc.isChief || false
             });
         }
@@ -776,13 +762,7 @@ function renderStaffList(filter='') {
     tbdEl.draggable = true;
     tbdEl.style.borderStyle = 'dashed';
     tbdEl.innerHTML = `
-        <div class="staff-info">
-            ${avatar(TBD_WORKER, 26)}
-            <div>
-                <div class="staff-name" style="color:var(--text2);font-style:italic">À définir</div>
-                <div class="staff-matric">—</div>
-            </div>
-        </div>
+        <div class="staff-name" style="color:var(--text2);font-style:italic">À DÉFINIR</div>
     `;
     tbdEl.addEventListener('dragstart', () => { state.dragWorker = TBD_WORKER.id; tbdEl.classList.add('dragging'); });
     tbdEl.addEventListener('dragend', () => tbdEl.classList.remove('dragging'));
@@ -795,34 +775,15 @@ function renderStaffList(filter='') {
   }
 
   state.staff.forEach(w => {
-    const name = `${w.firstName} ${w.lastName}`.toLowerCase();
+    const name = `${w.lastName} ${w.firstName}`.toLowerCase();
     if (q && !name.includes(q) && !(w.matricule||'').toLowerCase().includes(q)) return;
-
-    let badgesHtml = '<div class="staff-badges">';
-    for(let i=0; i<7; i++) {
-        const d = addDays(state.weekStart, i);
-        const iso = fmtISO(d);
-        const code = state.absences[w.id]?.[iso];
-        if (code) {
-            badgesHtml += `<span class="staff-badge absent" title="${iso}: ${code}">✕</span>`;
-        } else {
-            badgesHtml += `<span class="staff-badge present" title="${iso}: Présent">✓</span>`;
-        }
-    }
-    badgesHtml += '</div>';
 
     const el = document.createElement('div');
     el.className = 'staff-item';
     el.draggable = true;
     el.innerHTML = `
-        <div class="staff-info">
-            ${avatar(w, 26)}
-            <div>
-                <div class="staff-name">${w.firstName} ${w.lastName}</div>
-                <div class="staff-matric">${w.matricule||'—'}</div>
-            </div>
-        </div>
-        ${badgesHtml}
+        <div class="staff-name">${w.lastName} ${w.firstName}</div>
+        <div class="staff-matric">${w.matricule||'—'}</div>
     `;
     el.addEventListener('dragstart', e => { state.dragWorker = w.id; el.classList.add('dragging'); });
     el.addEventListener('dragend', () => el.classList.remove('dragging'));
@@ -1038,7 +999,7 @@ function renderWeekGrid() {
                 const isApiSlot = !!state.slotApiMap[key];
                 let displayName, displayMatric;
                 if (w) {
-                    displayName = `${w.lastName} ${w.firstName}`;
+                    displayName = w.isTbd ? 'À DÉFINIR' : `${w.lastName} ${w.firstName}`;
                     displayMatric = w.matricule || '—';
                 } else if (workerId) {
                     // Worker ID présent mais pas dans staff → Hors groupe
@@ -1122,9 +1083,7 @@ function duplicateDayToNext(dayIdx) {
     srcSlots.forEach(srcSlot => {
       const srcKey = gkey(`${dayIdx}_${secId}_${srcSlot.id}`);
       const workerId = state.planning[srcKey];
-      if (!workerId) return;
-      const srcWorker = getWorker(workerId);
-      if (srcWorker && srcWorker.isTbd) return;
+      if (!workerId) return;  // slot non affecté → rien à dupliquer
 
       const sig = `${srcSlot.jobCode}__${srcSlot.posteCode}`;
       const candidates = dstBySig[sig] || [];
@@ -1135,10 +1094,12 @@ function duplicateDayToNext(dayIdx) {
       dstPointer[sig] = ptr + 1;
       const dstKey = gkey(`${nextIdx}_${secId}_${dstSlot.id}`);
 
+      // "À définir" n'est jamais absent, on le transfère normalement
+      const isTbd = workerId === '_tbd_';
       transfers.push({
         srcSlot, srcWorkerId: workerId, dstSlot, dstKey, secId,
         srcLabel: srcSlot.label || sig,
-        absent: !!(state.absences[workerId] && state.absences[workerId][nextDateISO])
+        absent: !isTbd && !!(state.absences[workerId] && state.absences[workerId][nextDateISO])
       });
     });
   });
@@ -1400,6 +1361,7 @@ async function initApp() {
 }
 
 function render() {
+  SECTIONS_MAP = getSectionsMap();
   updateWeekLabel();
   renderStaffList(document.getElementById('staff-search').value);
   if (state.view === 'week') {
