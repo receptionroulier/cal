@@ -719,7 +719,7 @@ function renderStaffList(filter='') {
     const el = document.createElement('div');
     el.className = 'staff-item' + (absCode ? ' absent' : '');
     el.draggable = true;
-    el.innerHTML = `${avatar(w)}<div class="staff-info"><div class="staff-name">${w.firstName} ${w.lastName}</div><div class="staff-matric">${w.matricule||'—'}</div></div>${absCode ? `<div class="absence-pill">${absCode}</div>` : ''}`;
+    el.innerHTML = `<div class="staff-info"><div class="staff-name">${w.firstName} ${w.lastName}</div><div class="staff-matric">${w.matricule||'—'}</div></div>${absCode ? `<div class="absence-pill">${absCode}</div>` : ''}`;
     el.addEventListener('dragstart', e => { state.dragWorker = w.id; el.classList.add('dragging'); });
     el.addEventListener('dragend', () => el.classList.remove('dragging'));
     list.appendChild(el);
