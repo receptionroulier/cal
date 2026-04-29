@@ -125,6 +125,13 @@ main { display: flex; flex: 1; min-height: 0; }
 }
 .assigned-chip:hover .chip-remove { display: block; }
 
+.chip-modified { border-color: var(--warn) !important; }
+.chip-modified-badge {
+  font-size: 0.54rem; font-weight: 700; color: var(--warn);
+  background: rgba(255,107,53,0.15); padding: 1px 5px; border-radius: 3px;
+  margin-top: 2px; display: inline-block; cursor: help;
+}
+
 .drop-zone {
   border: 1px dashed var(--border); border-radius: 5px; padding: 4px; min-height: 32px;
   font-size: 0.62rem; color: var(--text3); display: flex; align-items: center; justify-content: center;
@@ -256,6 +263,7 @@ let state = {
   absMonth: new Date(),
   view: 'week',
   planning: {},
+  planningModified: {}, // clés en conflit avec l'API : planningModified[key] = workerId voulu par l'API
   slots: {},
   absences: {},
   holidays: {},
@@ -414,6 +422,7 @@ function loadState() {
     if (s) {
       const saved = JSON.parse(s);
       state.planning = saved.planning || {};
+      state.planningModified = saved.planningModified || {};
       // Les slots ne sont plus sauvegardés : ils sont reconstruits depuis l'API à chaque chargement
       state._savedSlots = {};
       state.config = { ...state.config, ...saved.config };
@@ -428,7 +437,7 @@ function saveState() {
   // Sauvegarde locale immédiate — on ne sauvegarde PAS les slots (reconstruits dynamiquement depuis l'API)
   try {
     localStorage.setItem('planningRoulier_v20', JSON.stringify({
-      planning: state.planning, config: state.config,
+      planning: state.planning, planningModified: state.planningModified, config: state.config,
     }));
   } catch(e) {}
   // Sauvegarde distante (cross-PC) en arrière-plan
@@ -568,7 +577,6 @@ async function buildDynamicSlots() {
         });
     }
 
-    // Suivre les IDs de slots construits dynamiquement (pour éviter doublons)
     const builtSlotIds = new Set();
 
     naviresData.forEach(dayData => {
@@ -608,29 +616,34 @@ async function buildDynamicSlots() {
                         assignmentId: pa.id,
                         workerAssignmentId: String(w.id)
                     });
+
+                    // ── MERGE AFFECTATIONS API → planning ──
+                    // workerAssignmentMap relie projectAssignmentWorkerId → workerId réel
+                    // Ce map est construit depuis repabsences (day.projectAssignmentWorkerId)
+                    const apiWorkerId = state.workerAssignmentMap[String(w.id)];
+                    const planKey = gkey(`${dayIdx}_${secId}_${slotId}`);
+
+                    if (apiWorkerId) {
+                        if (!state.planning[planKey]) {
+                            // Slot vide localement → on pré-remplit depuis l'API
+                            state.planning[planKey] = apiWorkerId;
+                            delete state.planningModified[planKey]; // pas de conflit
+                        } else if (state.planning[planKey] !== apiWorkerId) {
+                            // Conflit : l'API veut quelqu'un de différent de ce qu'on a affecté
+                            // On garde notre affectation mais on signale la divergence avec l'API
+                            state.planningModified[planKey] = apiWorkerId; // qui voulait l'API
+                        } else {
+                            // Même worker → pas de conflit
+                            delete state.planningModified[planKey];
+                        }
+                    } else {
+                        // Pas d'affectation API pour ce slot → on ne touche à rien
+                        delete state.planningModified[planKey];
+                    }
                 });
             });
         });
     });
-
-    // Fusionner les slots sauvegardés qui ne sont plus dans les données dynamiques
-    // (slots ajoutés manuellement ou slots d'une semaine dont les données ne sont plus disponibles)
-    const savedSlots = state._savedSlots || {};
-    for(let i=0; i<7; i++) {
-        if (!savedSlots[i]) continue;
-        SECTIONS_ORDER.forEach(secId => {
-            const saved = savedSlots[i][secId] || [];
-            saved.forEach(savedSlot => {
-                if (!builtSlotIds.has(savedSlot.id)) {
-                    const planKey = gkey(`${i}_${secId}_${savedSlot.id}`);
-                    if (state.planning[planKey]) {
-                        if (!state.slots[i][secId]) state.slots[i][secId] = [];
-                        state.slots[i][secId].push(savedSlot);
-                    }
-                }
-            });
-        });
-    }
 }
 
 // ── LOAD ALL DATA ──
@@ -905,6 +918,8 @@ function renderWeekGrid() {
                 slotDiv.className = 'slot-container';
                 const workerId = state.planning[gkey(`${dayIdx}_${secId}_${slot.id}`)];
                 const w = getWorker(workerId);
+                const isModified = !!state.planningModified[gkey(`${dayIdx}_${secId}_${slot.id}`)];
+                const apiWorker = isModified ? getWorker(state.planningModified[gkey(`${dayIdx}_${secId}_${slot.id}`)]) : null;
 
                 const safeSecId = secId.replace(/'/g, "\\'");
                 const safeSlotId = slot.id.replace(/'/g, "\\'");
@@ -913,9 +928,10 @@ function renderWeekGrid() {
                     <div class="slot-info"><span>${slot.label}</span><span class="slot-remove" onclick="removeSlot(${dayIdx}, '${safeSecId}', ${slotIdx})">✕</span></div>
                     <div class="drop-zone" data-day="${dayIdx}" data-sec="${secId}" data-slot="${slot.id}">
                         ${w ? `
-                          <div class="assigned-chip">
+                          <div class="assigned-chip${isModified ? ' chip-modified' : ''}">
                             <div class="chip-name">${w.lastName} ${w.firstName}</div>
                             <div class="chip-matric">${w.matricule||'—'}</div>
+                            ${isModified ? `<div class="chip-modified-badge" title="L'API avait affecté : ${apiWorker ? apiWorker.lastName+' '+apiWorker.firstName : '?'}">⚠ modifié</div>` : ''}
                             <div class="chip-remove" onclick="removeFromSlot(${dayIdx},'${safeSecId}','${safeSlotId}')">✕</div>
                           </div>
                         ` : 'Glisser ici'}
@@ -1001,12 +1017,15 @@ function addToSlot(dayIdx, secId, slotId, workerId) {
   if (absCode && !confirm(`⚠️ ${worker.firstName} ${worker.lastName} est absent (${absCode}) le ${dateISO}. Forcer ?`)) return;
 
   state.planning[gkey(`${dayIdx}_${secId}_${slotId}`)] = workerId;
+  // Si on ré-affecte manuellement, le conflit est résolu intentionnellement
+  delete state.planningModified[gkey(`${dayIdx}_${secId}_${slotId}`)];
   saveState(); renderWeekGrid();
   toast('Affecté ✓');
 }
 
 function removeFromSlot(dayIdx, secId, slotId) {
     delete state.planning[gkey(`${dayIdx}_${secId}_${slotId}`)];
+    delete state.planningModified[gkey(`${dayIdx}_${secId}_${slotId}`)];
     saveState(); renderWeekGrid();
 }
 
