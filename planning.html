@@ -364,6 +364,19 @@ function getWeekNum(d) {
   const j4 = new Date(t.getFullYear(),0,4);
   return 1 + Math.round(((t-j4)/86400000 - 3 + (j4.getDay()+6)%7)/7);
 }
+// Clé unique par semaine (lundi ISO) — évite la contamination entre semaines
+function weekKey() { return fmtISO(state.weekStart); }
+// Convertit une clé locale (ex: "0_cm_slot_123") en clé globale préfixée par la semaine
+function gkey(localKey) { return `${weekKey()}__${localKey}`; }
+// Retourne toutes les clés globales qui appartiennent à la semaine courante
+function planningForWeek() {
+  const prefix = weekKey() + '__';
+  const result = {};
+  Object.keys(state.planning).forEach(k => {
+    if (k.startsWith(prefix)) result[k.slice(prefix.length)] = state.planning[k];
+  });
+  return result;
+}
 function getWorker(id) { return state.staff.find(w => w.id === id); }
 function initials(w) { return ((w.firstName||'')[0]||'') + ((w.lastName||'')[0]||''); }
 function avatar(w, size=26) {
@@ -401,8 +414,8 @@ function loadState() {
     if (s) {
       const saved = JSON.parse(s);
       state.planning = saved.planning || {};
-      // Les slots sauvegardés sont restaurés puis fusionnés avec les données dynamiques
-      state._savedSlots = saved.slots || {};
+      // Les slots ne sont plus sauvegardés : ils sont reconstruits depuis l'API à chaque chargement
+      state._savedSlots = {};
       state.config = { ...state.config, ...saved.config };
     }
     // Restaurer les largeurs de colonnes
@@ -412,10 +425,10 @@ function loadState() {
   } catch(e) { console.error('[loadState]', e); state.colWidths = Array(7).fill(null); }
 }
 function saveState() {
-  // Sauvegarde locale immédiate
+  // Sauvegarde locale immédiate — on ne sauvegarde PAS les slots (reconstruits dynamiquement depuis l'API)
   try {
     localStorage.setItem('planningRoulier_v20', JSON.stringify({
-      planning: state.planning, slots: state.slots, config: state.config,
+      planning: state.planning, config: state.config,
     }));
   } catch(e) {}
   // Sauvegarde distante (cross-PC) en arrière-plan
@@ -457,7 +470,17 @@ async function loadPlanningRemote() {
     const data = await r.json();
     if (data.ok && data.planning) {
       _remoteSupported = true;
-      state.planning = { ...state.planning, ...data.planning };
+      // CORRECTIF : on ne merge que les clés qui commencent par le préfixe de la semaine courante
+      // Les clés d'autres semaines présentes dans data.planning sont ignorées pour ne pas corrompre l'état
+      const prefix = weekKey() + '__';
+      Object.keys(data.planning).forEach(k => {
+        if (k.startsWith(prefix)) {
+          // On ne remplace une clé locale que si elle n'existe pas déjà (priorité au local)
+          if (!(k in state.planning)) {
+            state.planning[k] = data.planning[k];
+          }
+        }
+      });
       if (data.config) state.config = { ...state.config, ...data.config };
       try { localStorage.setItem('planningRoulier_v20', JSON.stringify({ planning: state.planning, slots: state.slots, config: state.config })); } catch(e) {}
       showSyncStatus('loaded');
@@ -599,9 +622,7 @@ async function buildDynamicSlots() {
             const saved = savedSlots[i][secId] || [];
             saved.forEach(savedSlot => {
                 if (!builtSlotIds.has(savedSlot.id)) {
-                    // Ce slot n'existe plus dans les données dynamiques, on le conserve quand même
-                    // s'il a une affectation de planning associée
-                    const planKey = `${i}_${secId}_${savedSlot.id}`;
+                    const planKey = gkey(`${i}_${secId}_${savedSlot.id}`);
                     if (state.planning[planKey]) {
                         if (!state.slots[i][secId]) state.slots[i][secId] = [];
                         state.slots[i][secId].push(savedSlot);
@@ -717,7 +738,7 @@ function computeAutoWidths() {
     const daySlots = state.slots[i] || {};
     SECTIONS_ORDER.forEach(secId => {
       (daySlots[secId] || []).forEach(slot => {
-        const workerId = state.planning[`${i}_${secId}_${slot.id}`];
+        const workerId = state.planning[gkey(`${i}_${secId}_${slot.id}`)];
         const w = getWorker(workerId);
         if (!w) return;
         const name = w.lastName + ' ' + w.firstName;
@@ -882,7 +903,7 @@ function renderWeekGrid() {
             slots.forEach((slot, slotIdx) => {
                 const slotDiv = document.createElement('div');
                 slotDiv.className = 'slot-container';
-                const workerId = state.planning[`${dayIdx}_${secId}_${slot.id}`];
+                const workerId = state.planning[gkey(`${dayIdx}_${secId}_${slot.id}`)];
                 const w = getWorker(workerId);
 
                 const safeSecId = secId.replace(/'/g, "\\'");
@@ -940,7 +961,7 @@ function duplicateDayToNext(dayIdx) {
     });
     // Retirer de la file les slots déjà affectés au lendemain
     dstSlots.forEach(dstSlot => {
-      const dstKey = `${nextIdx}_${secId}_${dstSlot.id}`;
+      const dstKey = gkey(`${nextIdx}_${secId}_${dstSlot.id}`);
       if (state.planning[dstKey]) {
         const sig = `${dstSlot.jobCode}__${dstSlot.posteCode}`;
         const idx = (dstAvailable[sig] || []).findIndex(s => s.id === dstSlot.id);
@@ -949,7 +970,7 @@ function duplicateDayToNext(dayIdx) {
     });
 
     srcSlots.forEach(srcSlot => {
-      const srcKey = `${dayIdx}_${secId}_${srcSlot.id}`;
+      const srcKey = gkey(`${dayIdx}_${secId}_${srcSlot.id}`);
       const workerId = state.planning[srcKey];
       if (!workerId) return;
 
@@ -959,7 +980,7 @@ function duplicateDayToNext(dayIdx) {
 
       // Prendre le premier slot disponible et le consommer de la file
       const matchingDstSlot = available.shift();
-      const dstKey = `${nextIdx}_${secId}_${matchingDstSlot.id}`;
+      const dstKey = gkey(`${nextIdx}_${secId}_${matchingDstSlot.id}`);
       state.planning[dstKey] = workerId;
       count++;
     });
@@ -979,20 +1000,20 @@ function addToSlot(dayIdx, secId, slotId, workerId) {
 
   if (absCode && !confirm(`⚠️ ${worker.firstName} ${worker.lastName} est absent (${absCode}) le ${dateISO}. Forcer ?`)) return;
 
-  state.planning[`${dayIdx}_${secId}_${slotId}`] = workerId;
+  state.planning[gkey(`${dayIdx}_${secId}_${slotId}`)] = workerId;
   saveState(); renderWeekGrid();
   toast('Affecté ✓');
 }
 
 function removeFromSlot(dayIdx, secId, slotId) {
-    delete state.planning[`${dayIdx}_${secId}_${slotId}`];
+    delete state.planning[gkey(`${dayIdx}_${secId}_${slotId}`)];
     saveState(); renderWeekGrid();
 }
 
 function removeSlot(dayIdx, secId, slotIdx) {
     const slot = state.slots[dayIdx][secId][slotIdx];
     if (!slot) return;
-    delete state.planning[`${dayIdx}_${secId}_${slot.id}`];
+    delete state.planning[gkey(`${dayIdx}_${secId}_${slot.id}`)];
     state.slots[dayIdx][secId].splice(slotIdx, 1);
     saveState(); renderWeekGrid();
 }
@@ -1044,7 +1065,7 @@ async function generatePDF(dayIdx = null) {
                 const sec = SECTIONS_MAP[secId];
                 const slots = state.slots[i]?.[secId] || [];
                 slots.forEach(s => {
-                    const w = getWorker(state.planning[`${i}_${secId}_${s.id}`]);
+                    const w = getWorker(state.planning[gkey(`${i}_${secId}_${s.id}`)]);
                     rows.push([`  ${sec.name} (${s.label})`, w ? `${w.lastName} ${w.firstName}` : 'Non affecté']);
                 });
             });
@@ -1060,7 +1081,7 @@ async function generatePDF(dayIdx = null) {
             const slots = state.slots[dayIdx]?.[secId] || [];
             rows.push([sec.name, '']);
             slots.forEach(s => {
-                const w = getWorker(state.planning[`${dayIdx}_${secId}_${s.id}`]);
+                const w = getWorker(state.planning[gkey(`${dayIdx}_${secId}_${s.id}`)]);
                 rows.push([`  ${s.label}`, w ? `${w.lastName} ${w.firstName}` : 'Non affecté']);
             });
         });
