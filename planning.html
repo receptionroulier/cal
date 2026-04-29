@@ -676,8 +676,9 @@ async function buildDynamicSlots() {
                             delete state.planningModified[planKey];
                         }
                     } else {
-                        // Pas d'affectation API pour ce slot → on ne touche à rien
-                        delete state.planningModified[planKey];
+                        // Pas d'affectation API pour ce slot → on ne touche pas au planning
+                        // et surtout on ne supprime PAS un planningModified existant
+                        // (le badge doit rester visible même si l'API ne retourne plus rien)
                     }
                 });
             });
@@ -1200,9 +1201,11 @@ window.closeModal = closeModal;
 async function initApp() {
     state.absMonth = new Date();
     await fetchHolidays();
-    await loadAllData();
-    // Charger les affectations depuis le serveur (écrase le local si plus récent)
+    // 1. Charger le planning sauvegardé depuis le serveur en premier
+    // pour que buildDynamicSlots ait la bonne base locale avant de merger l'API
     await loadPlanningRemote();
+    // 2. Ensuite charger les données API (navires + personnel) et merger
+    await loadAllData();
     render();
 }
 
