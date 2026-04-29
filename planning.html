@@ -262,9 +262,17 @@ main { display: flex; flex: 1; min-height: 0; }
         <button id="btn-cal-pick" title="Choisir une semaine">📅</button>
         <div id="cal-popup"></div>
       </div>
-      <div class="week-nav" id="header-month-nav" style="display:none;">
+      <div class="week-nav" id="header-month-nav" style="display:none;position:relative;">
         <button id="btn-abs-prev" class="btn btn-ghost" style="padding:4px 10px;font-size:1rem;">‹</button>
-        <div id="header-month-label" style="font-size:0.8rem;font-weight:700;background:var(--surface2);padding:5px 14px;border-radius:20px;border:1px solid var(--border2);white-space:nowrap;min-width:140px;text-align:center;">—</div>
+        <div id="header-month-label" style="font-size:0.8rem;font-weight:700;background:var(--surface2);padding:5px 14px;border-radius:20px;border:1px solid var(--border2);white-space:nowrap;min-width:140px;text-align:center;cursor:pointer;transition:border-color .15s;" title="Choisir un mois">—</div>
+        <div id="month-picker-popup" style="display:none;position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:12px;z-index:500;box-shadow:0 8px 32px rgba(0,0,0,0.5);min-width:200px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <button id="mp-prev-year" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:1rem;padding:0 4px;transition:color .12s;">‹</button>
+            <span id="mp-year-label" style="font-size:0.75rem;font-weight:700;color:var(--text);"></span>
+            <button id="mp-next-year" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:1rem;padding:0 4px;transition:color .12s;">›</button>
+          </div>
+          <div id="mp-months-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;"></div>
+        </div>
         <button id="btn-abs-next" class="btn btn-ghost" style="padding:4px 10px;font-size:1rem;">›</button>
       </div>
       <div class="header-spacer"></div>
@@ -1393,10 +1401,10 @@ function renderAbsences() {
         const borderColor = colorKey ? colorMap[colorKey] : 'var(--border2)';
 
         const memberCell = `
-          <td style="position:sticky;left:0;background:var(--surface);z-index:1;padding:2px 4px;min-width:130px;">
-            <div style="display:flex;flex-direction:column;padding:4px 7px;border-radius:6px;background:var(--bg);border:1px solid ${borderColor};${colorKey ? `box-shadow:inset 0 0 0 1px ${borderColor};` : ''}text-align:left;">
-              <div style="font-size:0.71rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${w.lastName} ${w.firstName}</div>
-              <div style="font-size:0.6rem;color:var(--text3);font-family:'DM Mono',monospace;">${w.matricule || '—'}</div>
+          <td style="position:sticky;left:0;background:var(--surface);z-index:1;padding:2px 4px;min-width:110px;">
+            <div style="padding:5px 8px;border-radius:7px;border:1px solid ${colorKey ? borderColor : 'transparent'};text-align:left;">
+              <div style="font-size:0.73rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${w.lastName} ${w.firstName}</div>
+              <div style="font-size:0.62rem;color:var(--text3);font-family:'DM Mono',monospace;">${w.matricule || '—'}</div>
             </div>
           </td>`;
 
@@ -1707,6 +1715,58 @@ document.getElementById('btn-abs-next').addEventListener('click', async () => {
     await loadAllData();
     renderAbsences();
 });
+
+// ── MONTH PICKER ──
+let _mpYear = new Date().getFullYear();
+const MONTHS_FR = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+
+function renderMonthPicker() {
+  document.getElementById('mp-year-label').textContent = _mpYear;
+  const grid = document.getElementById('mp-months-grid');
+  const curM = state.absMonth.getMonth();
+  const curY = state.absMonth.getFullYear();
+  grid.innerHTML = MONTHS_FR.map((name, i) => {
+    const isCurrent = i === curM && _mpYear === curY;
+    return `<div data-m="${i}" style="
+      font-size:0.7rem;font-weight:700;text-align:center;padding:5px 4px;border-radius:6px;
+      cursor:pointer;transition:all .1s;
+      background:${isCurrent ? 'var(--accent)' : 'transparent'};
+      color:${isCurrent ? '#000' : 'var(--text2)'};
+    " onmouseover="if(!${isCurrent})this.style.background='var(--surface2)'" onmouseout="if(!${isCurrent})this.style.background='transparent'">${name}</div>`;
+  }).join('');
+  grid.querySelectorAll('[data-m]').forEach(el => {
+    el.addEventListener('click', async e => {
+      e.stopPropagation();
+      state.absMonth = new Date(_mpYear, parseInt(el.dataset.m), 1);
+      closeMonthPicker();
+      await loadAllData();
+      renderAbsences();
+    });
+  });
+}
+
+function openMonthPicker() {
+  _mpYear = state.absMonth.getFullYear();
+  renderMonthPicker();
+  document.getElementById('month-picker-popup').style.display = 'block';
+}
+function closeMonthPicker() {
+  document.getElementById('month-picker-popup').style.display = 'none';
+}
+
+document.getElementById('header-month-label').addEventListener('click', e => {
+  e.stopPropagation();
+  const popup = document.getElementById('month-picker-popup');
+  if (popup.style.display === 'none') openMonthPicker();
+  else closeMonthPicker();
+});
+document.getElementById('mp-prev-year').addEventListener('click', e => {
+  e.stopPropagation(); _mpYear--; renderMonthPicker();
+});
+document.getElementById('mp-next-year').addEventListener('click', e => {
+  e.stopPropagation(); _mpYear++; renderMonthPicker();
+});
+document.addEventListener('click', () => closeMonthPicker());
 
 loadState();
 
