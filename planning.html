@@ -635,43 +635,64 @@ function buildSlotsFromNavires(naviresData) {
 }
 
 // ── MERGE PLANNING WITH API ──
+// Sémantique planningModified[key] dans ce flux :
+//   = ancienne valeur KV (avant écrasement par l'API) → tooltip "Survol = ancien"
+// Dans addToSlot :
+//   = id du worker droppé (proposition en survol)
+// Le chip affiche toujours planning[key].
 function applyAPIMergeRules() {
-    state.slotApiMap = {}; // Reset
+    state.slotApiMap = {}; // Reset : slotApiMap[key] marque ce slot comme géré par l'API
 
     for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
         const daySlots = state.slots[dayIdx] || {};
         SECTIONS_ORDER.forEach(secId => {
             (daySlots[secId] || []).forEach(slot => {
                 const key = gkey(`${dayIdx}_${secId}_${slot.id}`);
-                const apiWorkerId = state.workerAssignmentMap[String(slot.workerAssignmentId)];
-                const kvWorkerId = state.planning[key];
 
-                // Track which slots have API assignments
+                // rawApiId  : id brut du workerAssignment (issu de buildSlotsFromNavires)
+                // apiWorkerId : id résolu dans le staff via workerAssignmentMap (peut être null)
+                const rawApiId    = slot.workerAssignmentId ? String(slot.workerAssignmentId) : null;
+                const apiWorkerId = rawApiId ? (state.workerAssignmentMap[rawApiId] || null) : null;
+                // apiHasId : l'API a renvoyé un id pour ce slot (résolu ou inconnu du staff)
+                const apiHasId    = rawApiId && rawApiId !== 'undefined' && rawApiId !== '0';
+                const kvWorkerId  = state.planning[key];
+
                 if (apiWorkerId) {
+                    // ── API=Y connu du staff ──
                     state.slotApiMap[key] = apiWorkerId;
-                }
 
-                if (apiWorkerId) {
                     if (kvWorkerId && kvWorkerId !== apiWorkerId) {
-                        // KV=X, API=Y différent → on prend Y, planningModified[key]=X
+                        // KV=X, API=Y différent → affiche Y, survol = X (ancien KV)
                         state.planningModified[key] = kvWorkerId;
                         state.planning[key] = apiWorkerId;
-                    } else if (kvWorkerId && kvWorkerId === apiWorkerId) {
-                        // KV=X, API=X → pas de badge
-                        delete state.planningModified[key];
-                        state.planning[key] = apiWorkerId;
-                    } else if (!kvWorkerId) {
-                        // KV vide, API=Y → on prend Y, pas de badge
+                    } else {
+                        // KV vide ou KV=API → affiche Y, pas de badge
                         delete state.planningModified[key];
                         state.planning[key] = apiWorkerId;
                     }
-                } else {
-                    // API rien pour ce slot
-                    if (kvWorkerId) {
-                        // KV=X, API rien → garde X, badge modifié (survol = ancien KV)
+
+                } else if (apiHasId) {
+                    // ── API=inconnu (id présent mais absent du staff) → Externe #id avec badge ──
+                    state.slotApiMap[key] = rawApiId;
+
+                    if (kvWorkerId && kvWorkerId !== rawApiId) {
+                        // KV=X, API=inconnu → affiche Externe #rawApiId, survol = X (ancien KV)
                         state.planningModified[key] = kvWorkerId;
+                        state.planning[key] = rawApiId;
                     } else {
-                        // KV vide, API rien → rien à faire
+                        delete state.planningModified[key];
+                        state.planning[key] = rawApiId;
+                    }
+
+                } else {
+                    // ── API rien pour ce slot → Externe sans id ──
+                    // Pas de slotApiMap → le rendu affichera « Externe » (absent staff, absent slotApiMap)
+                    if (kvWorkerId) {
+                        // KV=X, API rien → affiche Externe (sans id), badge, survol = ancien KV
+                        state.planningModified[key] = kvWorkerId;
+                        // planning[key] reste kvWorkerId
+                    } else {
+                        // KV vide, API rien → rien
                         delete state.planningModified[key];
                     }
                 }
@@ -681,13 +702,16 @@ function applyAPIMergeRules() {
 }
 
 // ── LOAD ALL DATA ──
+// Flux unifié : init / navigation semaine / aujourd'hui
 async function loadAllData() {
     const dateStart = fmtISO(state.weekStart);
     const dateEnd = fmtISO(addDays(state.weekStart, 6));
 
+    // 1. Navires → construit state.slots (structure des postes)
     const naviresData = await fetchNavires(dateStart, dateEnd);
     buildSlotsFromNavires(naviresData);
 
+    // 2. En parallèle : KV remote + personnel API (5 jours)
     const [kvResult, personnelData] = await Promise.all([
         loadPlanningRemote(),
         fetchPersonnel(dateStart, dateEnd)
@@ -698,7 +722,11 @@ async function loadAllData() {
     state.absences = parsed.absences;
     state.workerAssignmentMap = parsed.workerAssignmentMap;
 
+    // 3. Merge KV × API → met à jour planning + planningModified
     applyAPIMergeRules();
+
+    // 4. Repersiste le résultat du merge (planningModified à jour)
+    savePlanningRemote();
 
     render();
 }
@@ -966,16 +994,22 @@ function renderWeekGrid() {
                 const key = gkey(`${dayIdx}_${secId}_${slot.id}`);
                 const workerId = state.planning[key];
                 const w = getWorker(workerId);
-                const oldWorkerId = state.planningModified[key];
-                const isModified = oldWorkerId !== undefined;
 
                 // Determine display name
+                // Cas 1 : worker connu du staff
+                // Cas 2 : workerId vient d'une affectation API mais inconnu du staff → Externe #id
+                // Cas 3 : workerId présent sans affectation API connue (KV=X, API=rien) → Externe (sans id)
+                const isApiSlot = !!state.slotApiMap[key];
                 let displayName, displayMatric;
                 if (w) {
                     displayName = `${w.lastName} ${w.firstName}`;
                     displayMatric = w.matricule || '—';
+                } else if (workerId && isApiSlot) {
+                    // L'API a affecté un id que le staff ne connaît pas
+                    displayName = `Externe #${workerId}`;
+                    displayMatric = '—';
                 } else if (workerId) {
-                    // Worker not in staff list (id externe, non résolu) → afficher simplement "Externe"
+                    // KV=X, API=rien : on ne peut pas identifier l'id
                     displayName = 'Externe';
                     displayMatric = '—';
                 } else {
@@ -983,13 +1017,21 @@ function renderWeekGrid() {
                     displayMatric = '';
                 }
 
-                // Old worker label for tooltip
-                let oldWorkerLabel = null;
+                // planningModified[key] sémantique duale :
+                //   - merge init/nav : ancien KV (avant écrasement API) → "ce qui était avant"
+                //   - addToSlot      : nouveau worker droppé → "proposition en attente"
+                const pendingWorkerId = state.planningModified[key];
+                const isModified = pendingWorkerId !== undefined;
+                let pendingWorkerLabel = null;
                 if (isModified) {
-                    const oldWorker = getWorker(oldWorkerId);
-                    oldWorkerLabel = oldWorker
-                        ? `${oldWorker.lastName} ${oldWorker.firstName}`
-                        : 'Externe';
+                    const pendingWorker = getWorker(pendingWorkerId);
+                    if (pendingWorker) {
+                        pendingWorkerLabel = `${pendingWorker.lastName} ${pendingWorker.firstName}`;
+                    } else if (pendingWorkerId) {
+                        pendingWorkerLabel = `Externe #${pendingWorkerId}`;
+                    } else {
+                        pendingWorkerLabel = 'Externe';
+                    }
                 }
 
                 const safeSecId = secId.replace(/'/g, "\\'");
@@ -999,7 +1041,7 @@ function renderWeekGrid() {
                     <div class="slot-info"><span>${slot.label}</span><span class="slot-remove" onclick="removeSlot(${dayIdx}, '${safeSecId}', ${slotIdx})">✕</span></div>
                     <div class="drop-zone" data-day="${dayIdx}" data-sec="${secId}" data-slot="${slot.id}">
                         ${workerId ? `
-                          <div class="assigned-chip${isModified ? ' chip-modified' : ''}" ${isModified ? `title="Ancienne affectation : ${oldWorkerLabel}"` : ''}>
+                          <div class="assigned-chip${isModified ? ' chip-modified' : ''}" ${isModified ? `title="Survol : ${pendingWorkerLabel}"` : ''}>
                             <div class="chip-name">${displayName}</div>
                             <div class="chip-matric">${displayMatric}</div>
                             ${isModified ? `<div class="chip-modified-badge">⚠ modifié</div>` : ''}
@@ -1083,25 +1125,29 @@ function addToSlot(dayIdx, secId, slotId, workerId) {
     const key = gkey(`${dayIdx}_${secId}_${slotId}`);
     const currentWorkerId = state.planning[key];
 
-    // apiOriginalId = ce que l'API avait affecté à l'origine à ce slot
-    // (stocké dans slotApiMap lors de applyAPIMergeRules)
+    // slotApiMap[key] : id API mémorisé lors du merge (présent = slot géré par l'API)
     const apiOriginalId = state.slotApiMap[key] || null;
 
-    if (currentWorkerId) {
-        if (apiOriginalId) {
-            // Le slot avait une affectation API → badge ⚠, on conserve la valeur actuelle
-            // (qui peut être l'id API ou un id KV antérieur) comme "ancienne affectation"
-            state.planningModified[key] = currentWorkerId;
-        } else {
-            // Le slot n'était pas suivi par l'API (KV pur ou vide) → pas de badge
-            delete state.planningModified[key];
-        }
-    } else {
-        // Slot vide → pas de badge
+    if (!currentWorkerId) {
+        // ── Poste vide → affecte directement, pas de badge ──
+        state.planning[key] = workerId;
         delete state.planningModified[key];
+
+    } else if (!apiOriginalId) {
+        // ── Poste occupé, non géré par l'API (KV pur ou drop précédent sans API) ──
+        // → remplace directement, pas de badge
+        state.planning[key] = workerId;
+        delete state.planningModified[key];
+
+    } else {
+        // ── Poste occupé, nom vient de l'API ──
+        // → on garde le nom API affiché (planning[key] = apiOriginalId)
+        // → le nouveau droppé part en survol (planningModified[key] = workerId)
+        // → badge ⚠ modifié (2ème drop sur même slot : remplace simplement le survol)
+        state.planning[key] = apiOriginalId;
+        state.planningModified[key] = workerId;
     }
 
-    state.planning[key] = workerId;
     saveState(); renderWeekGrid();
     toast('Affecté ✓');
 }
