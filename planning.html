@@ -33,11 +33,35 @@ header {
 .header-row {
   display: flex; align-items: center; gap: 8px;
 }
-.week-nav { display: flex; align-items: center; gap: 6px; }
-.week-nav button { background: var(--surface2); border: 1px solid var(--border2); color: var(--text); width: 28px; height: 28px; border-radius: 6px; cursor: pointer; font-family: inherit; transition: all .15s; }
-.week-nav button:hover { color: var(--text); background: var(--surface); border-color: var(--accent); }
-#btn-today { width: auto !important; padding: 0 12px !important; font-size: 0.72rem; font-weight: 700; }
+.week-nav { display: flex; align-items: center; gap: 6px; position: relative; }
+#btn-today { background: var(--surface2); border: 1px solid var(--border2); color: var(--text2); font-family: inherit; transition: all .15s; padding: 0 12px; height: 28px; font-size: 0.72rem; font-weight: 700; border-radius: 6px; cursor: pointer; }
+#btn-today:hover { color: var(--text); background: var(--surface); border-color: var(--accent); }
 #week-label { font-size: 0.8rem; font-weight: 700; background: var(--surface2); padding: 5px 14px; border-radius: 20px; border: 1px solid var(--border2); white-space: nowrap; }
+#btn-cal-pick { background: var(--surface2); border: 1px solid var(--border2); color: var(--text2); width: 28px; height: 28px; border-radius: 6px; cursor: pointer; font-family: inherit; transition: all .15s; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; }
+#btn-cal-pick:hover { color: var(--text); background: var(--surface); border-color: var(--accent); }
+
+/* Calendrier popup */
+#cal-popup {
+  display: none; position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+  background: var(--surface); border: 1px solid var(--border2); border-radius: 12px;
+  padding: 12px; z-index: 500; box-shadow: 0 8px 32px rgba(0,0,0,0.5); min-width: 220px;
+}
+#cal-popup.open { display: block; }
+.cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.cal-header span { font-size: 0.75rem; font-weight: 700; color: var(--text); }
+.cal-nav-btn { background: none; border: none; color: var(--text2); cursor: pointer; font-size: 1rem; padding: 0 4px; line-height: 1; transition: color .12s; }
+.cal-nav-btn:hover { color: var(--accent); }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cal-dow { font-size: 0.58rem; font-weight: 700; color: var(--text3); text-align: center; padding: 2px 0 4px; }
+.cal-day {
+  font-size: 0.68rem; font-weight: 600; text-align: center; padding: 4px 2px;
+  border-radius: 5px; cursor: pointer; color: var(--text2); transition: all .1s;
+}
+.cal-day:hover { background: var(--surface2); color: var(--text); }
+.cal-day.in-week { background: rgba(59,143,255,0.15); color: var(--accent); }
+.cal-day.today { color: var(--accent); font-weight: 800; }
+.cal-day.other-month { opacity: 0.3; }
+.cal-day.empty { cursor: default; }
 .header-spacer { flex: 1; }
 #sync-status { display: flex; align-items: center; }
 .btn { padding: 6px 13px; border-radius: 7px; cursor: pointer; font-size: 0.74rem; font-weight: 700; border: none; transition: all .15s; white-space: nowrap; font-family: inherit; }
@@ -202,9 +226,9 @@ main { display: flex; flex: 1; min-height: 0; }
       <div class="header-spacer"></div>
       <div class="week-nav">
         <button id="btn-today">Aujourd'hui</button>
-        <button id="prev-week">‹</button>
         <div id="week-label">Chargement...</div>
-        <button id="next-week">›</button>
+        <button id="btn-cal-pick" title="Choisir une semaine">📅</button>
+        <div id="cal-popup"></div>
       </div>
       <div class="header-spacer"></div>
       <button class="btn btn-ghost" id="btn-email-week">✉ Mail Hebdo</button>
@@ -1191,16 +1215,78 @@ function updateWeekLabel() {
   document.getElementById('week-label').textContent = `Semaine ${wn} · ${fmtFR(state.weekStart)} – ${fmtFR(addDays(state.weekStart, 6))}`;
 }
 
-document.getElementById('prev-week').addEventListener('click', async () => {
-    state.weekStart = addDays(state.weekStart, -7);
-    await loadAllData();
-    render();
+// ── CALENDRIER PICKER ──
+let _calDate = new Date();
+
+function renderCalPopup() {
+  const popup = document.getElementById('cal-popup');
+  const today = new Date(); today.setHours(0,0,0,0);
+  const y = _calDate.getFullYear(), m = _calDate.getMonth();
+  const monthLabel = new Date(y, m, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  const firstDay = new Date(y, m, 1);
+  const lastDay = new Date(y, m + 1, 0);
+  let startOffset = (firstDay.getDay() + 6) % 7;
+
+  const weekDays = new Set();
+  for (let i = 0; i < 7; i++) weekDays.add(fmtISO(addDays(state.weekStart, i)));
+
+  let html = `
+    <div class="cal-header">
+      <button class="cal-nav-btn" id="cal-prev">&#8249;</button>
+      <span>${monthLabel}</span>
+      <button class="cal-nav-btn" id="cal-next">&#8250;</button>
+    </div>
+    <div class="cal-grid">
+      ${['L','M','M','J','V','S','D'].map(d => `<div class="cal-dow">${d}</div>`).join('')}
+  `;
+  for (let i = 0; i < startOffset; i++) html += `<div class="cal-day empty"></div>`;
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    const date = new Date(y, m, d);
+    const iso = fmtISO(date);
+    const isToday = date.getTime() === today.getTime();
+    const inWeek = weekDays.has(iso);
+    html += `<div class="cal-day${inWeek ? ' in-week' : ''}${isToday ? ' today' : ''}" data-iso="${iso}">${d}</div>`;
+  }
+  html += `</div>`;
+  popup.innerHTML = html;
+
+  document.getElementById('cal-prev').addEventListener('click', e => {
+    e.stopPropagation();
+    _calDate = new Date(_calDate.getFullYear(), _calDate.getMonth() - 1, 1);
+    renderCalPopup();
+  });
+  document.getElementById('cal-next').addEventListener('click', e => {
+    e.stopPropagation();
+    _calDate = new Date(_calDate.getFullYear(), _calDate.getMonth() + 1, 1);
+    renderCalPopup();
+  });
+  popup.querySelectorAll('.cal-day[data-iso]').forEach(el => {
+    el.addEventListener('click', async e => {
+      e.stopPropagation();
+      state.weekStart = getMonday(new Date(el.dataset.iso));
+      closeCalPopup();
+      await loadAllData();
+      render();
+    });
+  });
+}
+
+function openCalPopup() {
+  _calDate = new Date(state.weekStart);
+  renderCalPopup();
+  document.getElementById('cal-popup').classList.add('open');
+}
+function closeCalPopup() {
+  document.getElementById('cal-popup').classList.remove('open');
+}
+
+document.getElementById('btn-cal-pick').addEventListener('click', e => {
+  e.stopPropagation();
+  const popup = document.getElementById('cal-popup');
+  if (popup.classList.contains('open')) closeCalPopup();
+  else openCalPopup();
 });
-document.getElementById('next-week').addEventListener('click', async () => {
-    state.weekStart = addDays(state.weekStart, 7);
-    await loadAllData();
-    render();
-});
+document.addEventListener('click', () => closeCalPopup());
 document.querySelectorAll('.view-tab').forEach(tab => {
   tab.addEventListener('click', () => {
     state.view = tab.dataset.view;
