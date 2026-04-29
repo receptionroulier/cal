@@ -305,7 +305,7 @@ let state = {
   weekStart: getMonday(new Date()),
   absMonth: new Date(),
   view: 'week',
-  planning: {},        // planning[key] = workerId (vrai ID personnel) ou projectAssignmentWorkerId (si externe)
+  planning: {},
   planningModified: {},
   slots: {},
   absences: {},
@@ -315,9 +315,9 @@ let state = {
     emailCcWeek: 'smaillard@smr-france.com',
   },
   staff: [],
-  workerAssignmentMap: {},  // projectAssignmentWorkerId → workerId (ou undefined si externe)
+  workerAssignmentMap: {},
   dragWorker: null,
-  slotApiMap: {},           // key → { type: 'known'|'unknown', id: workerId|projectAssignmentWorkerId }
+  slotApiMap: {},
 };
 
 // ── API ──
@@ -539,7 +539,6 @@ function parsePersonnelData(personnelData, dateFrom, dateTo) {
 
     personnelData.workerCalendars.forEach(wc => {
         const workerId = String(wc.workerId);
-
         if (!staffMap.has(workerId)) {
             const rawFirst = wc.firstName || '';
             const capitalFirst = rawFirst.charAt(0).toUpperCase() + rawFirst.slice(1).toLowerCase();
@@ -552,7 +551,6 @@ function parsePersonnelData(personnelData, dateFrom, dateTo) {
                 isChief: wc.isChief || false
             });
         }
-
         if (wc.days) {
             wc.days.forEach(day => {
                 if (!day.date) return;
@@ -560,7 +558,6 @@ function parsePersonnelData(personnelData, dateFrom, dateTo) {
                     if (!absencesMap[workerId]) absencesMap[workerId] = {};
                     absencesMap[workerId][day.date] = day.code;
                 }
-                // projectAssignmentWorkerId → workerId mapping
                 if (day.projectAssignmentWorkerId) {
                     workerAssignmentMap[String(day.projectAssignmentWorkerId)] = workerId;
                 }
@@ -602,8 +599,7 @@ function buildSlotsFromNavires(naviresData) {
                         posteCode: posteCode,
                         projectName: projectName,
                         assignmentId: pa.id,
-                        // w.id = projectAssignmentWorkerId (PAS un workerId !)
-                        projectAssignmentWorkerId: String(w.id)
+                        workerAssignmentId: String(w.id)
                     });
                 });
             });
@@ -620,54 +616,61 @@ function _multisetEqual(a, b) {
 
 function applyAPIMergeRules() {
     state.slotApiMap = {};
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
     for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
         const daySlots = state.slots[dayIdx] || {};
+        const dayDate = addDays(state.weekStart, dayIdx);
+
+        // ── CORRECTION 1 : API ne remplit que jours passés + aujourd'hui ──
+        const isFutureDay = dayDate > today;
+
         SECTIONS_ORDER.forEach(secId => {
             const slots = daySlots[secId] || [];
             if (slots.length === 0) return;
 
-            // Détection permutation pure
+            // Détection permutation pure (seulement si jour pas futur)
             const groupKv  = [];
             const groupApi = [];
             let groupAllResolved = true;
 
             slots.forEach(slot => {
                 const key = gkey(`${dayIdx}_${secId}_${slot.id}`);
-                const pawId = slot.projectAssignmentWorkerId;  // projectAssignmentWorkerId
-                const workerId = state.workerAssignmentMap[pawId];  // vrai workerId ou undefined
+                const rawApiId = slot.workerAssignmentId ? String(slot.workerAssignmentId) : null;
+                const apiWorkerId = rawApiId ? (state.workerAssignmentMap[rawApiId] || null) : null;
                 const kvWorkerId = state.planning[key];
-                if (workerId) {
+                if (apiWorkerId) {
                     groupKv.push(kvWorkerId || '');
-                    groupApi.push(workerId);
+                    groupApi.push(apiWorkerId);
                 } else {
                     groupAllResolved = false;
                 }
             });
 
-            const isPurePermutation = groupAllResolved
+            const isPurePermutation = !isFutureDay && groupAllResolved
                 && slots.length === groupApi.length
                 && groupKv.every(id => id !== '')
                 && _multisetEqual(groupKv, groupApi);
 
             slots.forEach(slot => {
                 const key = gkey(`${dayIdx}_${secId}_${slot.id}`);
-                const pawId = slot.projectAssignmentWorkerId;
-                const apiWorkerId = state.workerAssignmentMap[pawId];  // vrai workerId ou undefined
+                const rawApiId = slot.workerAssignmentId ? String(slot.workerAssignmentId) : null;
+                const apiWorkerId = rawApiId ? (state.workerAssignmentMap[rawApiId] || null) : null;
+                const apiHasId = rawApiId && rawApiId !== 'undefined' && rawApiId !== '0';
                 const kvWorkerId = state.planning[key];
 
                 if (isPurePermutation) {
-                    state.slotApiMap[key] = { type: 'known', id: apiWorkerId };
+                    state.slotApiMap[key] = apiWorkerId;
                     delete state.planningModified[key];
                     return;
                 }
 
-                if (apiWorkerId) {
-                    // ── API a un worker connu ──
-                    state.slotApiMap[key] = { type: 'known', id: apiWorkerId };
+                if (!isFutureDay && apiWorkerId) {
+                    // ── API=Y connu du staff (jour passé ou aujourd'hui seulement) ──
+                    state.slotApiMap[key] = apiWorkerId;
 
                     if (kvWorkerId && kvWorkerId !== apiWorkerId) {
-                        // KV=X, API=Y différent → affiche Y, survol = X
                         state.planningModified[key] = kvWorkerId;
                         state.planning[key] = apiWorkerId;
                     } else {
@@ -677,17 +680,26 @@ function applyAPIMergeRules() {
                         state.planning[key] = apiWorkerId;
                     }
 
-                } else {
-                    // ── API rien ou worker inconnu (pawId sans mapping) ──
-                    // On stocke le projectAssignmentWorkerId dans slotApiMap pour identification
-                    state.slotApiMap[key] = { type: 'unknown', id: pawId };
+                } else if (!isFutureDay && apiHasId) {
+                    // ── API=inconnu (jour passé ou aujourd'hui) → Externe (sans id) ──
+                    state.slotApiMap[key] = rawApiId;
 
+                    if (kvWorkerId && kvWorkerId !== rawApiId) {
+                        state.planningModified[key] = kvWorkerId;
+                        state.planning[key] = rawApiId;
+                    } else {
+                        if (!(key in state.planningModified)) {
+                            delete state.planningModified[key];
+                        }
+                        state.planning[key] = rawApiId;
+                    }
+
+                } else {
+                    // ── API rien ou jour futur → on ne touche pas ──
                     if (kvWorkerId) {
                         // KV=X, API rien → garde X, badge, survol = ancien KV
                         state.planningModified[key] = kvWorkerId;
-                        // planning[key] reste kvWorkerId
                     } else {
-                        // KV=vide, API=vide → on laisse vide
                         delete state.planningModified[key];
                         if (key in state.planning) {
                             delete state.planning[key];
@@ -969,17 +981,17 @@ function renderWeekGrid() {
                 const slotDiv = document.createElement('div');
                 slotDiv.className = 'slot-container';
                 const key = gkey(`${dayIdx}_${secId}_${slot.id}`);
-                const storedId = state.planning[key];  // Peut être workerId ou projectAssignmentWorkerId
-                const w = storedId ? getWorker(storedId) : null;
+                const workerId = state.planning[key];
+                const w = getWorker(workerId);
 
-                // Déterminer l'affichage
+                // ── CORRECTION 2 : Externe sans ID ──
+                const isApiSlot = !!state.slotApiMap[key];
                 let displayName, displayMatric;
                 if (w) {
-                    // Worker connu du personnel
                     displayName = `${w.lastName} ${w.firstName}`;
                     displayMatric = w.matricule || '—';
-                } else if (storedId) {
-                    // ID stocké mais pas dans le staff → Externe
+                } else if (workerId) {
+                    // Worker ID présent mais pas dans staff → Externe (SANS ID)
                     displayName = 'Externe';
                     displayMatric = '—';
                 } else {
@@ -1005,7 +1017,7 @@ function renderWeekGrid() {
                 slotDiv.innerHTML = `
                     <div class="slot-info"><span>${slot.label}</span><span class="slot-remove" onclick="removeSlot(${dayIdx}, '${safeSecId}', ${slotIdx})">✕</span></div>
                     <div class="drop-zone" data-day="${dayIdx}" data-sec="${secId}" data-slot="${slot.id}">
-                        ${storedId ? `
+                        ${workerId ? `
                           <div class="assigned-chip${isModified ? ' chip-modified' : ''}" ${isModified ? `title="Survol : ${pendingWorkerLabel}"` : ''}>
                             <div class="chip-name">${displayName}</div>
                             <div class="chip-matric">${displayMatric}</div>
@@ -1060,7 +1072,6 @@ function duplicateDayToNext(dayIdx) {
       const srcKey = gkey(`${dayIdx}_${secId}_${srcSlot.id}`);
       const workerId = state.planning[srcKey];
       if (!workerId) return;
-      // Skip externes (projectAssignmentWorkerId sont des nombres longs)
       const srcWorker = getWorker(workerId);
       if (!srcWorker) return;
       if (state.absences[workerId] && state.absences[workerId][nextDateISO]) return;
@@ -1081,20 +1092,17 @@ function duplicateDayToNext(dayIdx) {
 
 function addToSlot(dayIdx, secId, slotId, workerId) {
     const key = gkey(`${dayIdx}_${secId}_${slotId}`);
-    const currentStoredId = state.planning[key];
-    const apiInfo = state.slotApiMap[key];
+    const currentWorkerId = state.planning[key];
+    const apiOriginalId = state.slotApiMap[key] || null;
 
-    if (!currentStoredId) {
-        // Poste vide → affecte directement
+    if (!currentWorkerId) {
         state.planning[key] = workerId;
         delete state.planningModified[key];
-    } else if (!apiInfo || apiInfo.type !== 'known') {
-        // Poste occupé par externe ou non géré par API → remplace directement
+    } else if (!apiOriginalId) {
         state.planning[key] = workerId;
         delete state.planningModified[key];
     } else {
-        // Poste occupé par worker API connu → garde API, nouveau en survol
-        state.planning[key] = apiInfo.id;
+        state.planning[key] = apiOriginalId;
         state.planningModified[key] = workerId;
     }
 
