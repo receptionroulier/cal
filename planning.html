@@ -1165,10 +1165,10 @@ function duplicateDayToNext(dayIdx) {
   const alreadySame   = [];  // dst rempli avec le même worker
   const different     = [];  // dst rempli avec un worker différent
   const empty         = [];  // dst vide → à remplir
-  const skippedAbsent = [];  // absent demain
+  const absentList    = [];  // absent demain
 
   transfers.forEach(t => {
-    if (t.absent) { skippedAbsent.push(t); return; }
+    if (t.absent) { absentList.push(t); return; }
     const dstWorkerId = state.planning[t.dstKey];
     if (!dstWorkerId) {
       empty.push(t);
@@ -1179,51 +1179,98 @@ function duplicateDayToNext(dayIdx) {
     }
   });
 
-  // ── Cas 1 : tout déjà identique ──
-  if (empty.length === 0 && different.length === 0) {
+  // ── Cas 1 : tout déjà identique et aucun absent ──
+  if (empty.length === 0 && different.length === 0 && absentList.length === 0) {
     toast('Les affectations de demain ont déjà été effectuées');
     return;
   }
 
-  // ── Cas 2 : des postes sont différents → confirmation ──
+  // ── Appliquer une liste de transferts (workerId peut être forcé) ──
   function applyTransfers(list) {
     list.forEach(t => {
-      state.planning[t.dstKey] = t.srcWorkerId;
+      state.planning[t.dstKey] = t.assignWorkerId !== undefined ? t.assignWorkerId : t.srcWorkerId;
       delete state.planningModified[t.dstKey];
     });
     saveState();
     render();
   }
 
-  if (different.length > 0) {
-    const diffLabels = [...new Set(different.map(t => t.srcLabel))].join(', ');
-    const toApply = [...empty, ...different];
+  // ── Construire et afficher la modale finale avec récap absents ──
+  function showDupModal(normalList, absentDecisions) {
+    // absentDecisions : tableau de { transfer, force: bool }
+    // force=true → affecter srcWorkerId, force=false → affecter _tbd_
+    const hasConflicts = different.length > 0;
+    const diffLabels = hasConflicts ? [...new Set(different.map(t => t.srcLabel))].join(', ') : '';
+
+    let absentHtml = '';
+    if (absentDecisions.length > 0) {
+      absentHtml = `<div style="margin-bottom:12px;padding:10px;background:rgba(255,77,109,0.08);border:1px solid rgba(255,77,109,0.25);border-radius:8px;">
+        <div style="font-size:0.7rem;font-weight:700;color:var(--red);margin-bottom:6px;">Agents absents :</div>`;
+      absentDecisions.forEach((d, idx) => {
+        const w = getWorker(d.transfer.srcWorkerId);
+        const wName = w ? `${w.lastName} ${w.firstName}` : d.transfer.srcWorkerId;
+        const code = state.absences[d.transfer.srcWorkerId]?.[nextDateISO] || '?';
+        absentHtml += `
+          <div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+            <div style="flex:1;font-size:0.75rem;"><strong>${wName}</strong> <span style="color:var(--red);font-size:0.68rem;">(${code})</span><br><span style="color:var(--text3);font-size:0.65rem;">${d.transfer.srcLabel}</span></div>
+            <label style="display:flex;align-items:center;gap:4px;font-size:0.7rem;cursor:pointer;color:var(--warn);">
+              <input type="checkbox" id="force_absent_${idx}" ${d.force ? 'checked' : ''} style="accent-color:var(--warn);"> Forcer
+            </label>
+          </div>`;
+      });
+      absentHtml += `</div>`;
+    }
+
+    let conflictHtml = hasConflicts
+      ? `<p style="font-size:0.78rem;color:var(--text2);margin-bottom:12px">Le(s) poste(s) <strong style="color:var(--warn)">${diffLabels}</strong> seront écrasés.</p>`
+      : '';
+
     showModal(`
       <h2 style="margin-bottom:12px">Confirmer la duplication</h2>
-      <p style="font-size:0.8rem;color:var(--text2);margin-bottom:16px">
-        Le(s) poste(s) <strong style="color:var(--warn)">${diffLabels}</strong> sont différents demain.<br>
-        ${skippedAbsent.length > 0 ? `<span style="color:var(--red);font-size:0.75rem">${skippedAbsent.length} agent(s) absent(s) demain seront ignorés.</span>` : ''}
-      </p>
+      ${conflictHtml}
+      ${absentHtml}
+      <p style="font-size:0.72rem;color:var(--text3);margin-bottom:4px;">Les agents non forcés seront remplacés par <em>À DÉFINIR</em>.</p>
       <div class="modal-actions">
         <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Annuler</button>
         <button class="modal-btn modal-btn-ok" onclick="_confirmDup()">Confirmer</button>
       </div>
     `);
+
     window._confirmDup = function() {
-      applyTransfers(toApply);
+      // Relire les checkboxes
+      absentDecisions.forEach((d, idx) => {
+        const cb = document.getElementById(`force_absent_${idx}`);
+        d.force = cb ? cb.checked : false;
+        d.transfer.assignWorkerId = d.force ? d.transfer.srcWorkerId : '_tbd_';
+      });
+      const allToApply = [
+        ...normalList,
+        ...absentDecisions.map(d => d.transfer)
+      ];
+      applyTransfers(allToApply);
       closeModal();
-      const n = toApply.length;
-      toast(`${n} affectation(s) dupliquée(s) ✓`);
+      const forced = absentDecisions.filter(d => d.force).length;
+      const tbd    = absentDecisions.filter(d => !d.force).length;
+      let msg = `${allToApply.length} affectation(s) dupliquée(s) ✓`;
+      if (forced > 0) msg += ` · ${forced} forcé(s)`;
+      if (tbd > 0)    msg += ` · ${tbd} → À définir`;
+      toast(msg);
       delete window._confirmDup;
     };
+  }
+
+  const normalList = [...empty, ...different];
+  const absentDecisions = absentList.map(t => ({ transfer: t, force: false }));
+
+  // ── Si des absents ou des conflits → toujours afficher la modale ──
+  if (absentList.length > 0 || different.length > 0) {
+    showDupModal(normalList, absentDecisions);
     return;
   }
 
-  // ── Cas 3 : que des postes vides → on remplit directement ──
+  // ── Cas simple : que des postes vides, aucun absent ──
   applyTransfers(empty);
-  const n = empty.length;
-  const absMsg = skippedAbsent.length > 0 ? ` (${skippedAbsent.length} absent(s) ignoré(s))` : '';
-  toast(`${n} affectation(s) dupliquée(s) vers demain ✓${absMsg}`);
+  toast(`${empty.length} affectation(s) dupliquée(s) vers demain ✓`);
 }
 
 function isWorkerAssignedToDay(dayIdx, workerId, excludeSlotId) {
@@ -1255,7 +1302,23 @@ function addToSlot(dayIdx, secId, slotId, workerId) {
     // ── Vérification absence ──
     if (workerId !== '_tbd_' && state.absences[workerId] && state.absences[workerId][dateISO]) {
         const code = state.absences[workerId][dateISO];
-        toast(`⚠ ${workerName} est absent ce jour (${code})`, 'error');
+        showModal(`
+          <h2 style="margin-bottom:12px">⚠ Agent absent</h2>
+          <p style="font-size:0.82rem;color:var(--text2);margin-bottom:16px">
+            <strong style="color:var(--text)">${workerName}</strong> est absent ce jour
+            <span style="color:var(--red);font-weight:700"> (${code})</span>.<br><br>
+            Voulez-vous forcer l'affectation malgré l'absence ?
+          </p>
+          <div class="modal-actions">
+            <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Annuler</button>
+            <button class="modal-btn" style="background:var(--warn);color:#fff;" onclick="_forceAbsentAssign()">Forcer l'affectation</button>
+          </div>
+        `);
+        window._forceAbsentAssign = function() {
+            closeModal();
+            delete window._forceAbsentAssign;
+            _doAssign(dayIdx, secId, slotId, workerId, key, currentWorkerId, apiOriginalId);
+        };
         return;
     }
 
@@ -1265,6 +1328,10 @@ function addToSlot(dayIdx, secId, slotId, workerId) {
         return;
     }
 
+    _doAssign(dayIdx, secId, slotId, workerId, key, currentWorkerId, apiOriginalId);
+}
+
+function _doAssign(dayIdx, secId, slotId, workerId, key, currentWorkerId, apiOriginalId) {
     if (!currentWorkerId) {
         state.planning[key] = workerId;
         delete state.planningModified[key];
