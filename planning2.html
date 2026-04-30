@@ -420,7 +420,6 @@ let state = {
   absences: {},
   holidays: {},
   schoolHolidays: {},
-  schoolHolidaysLoaded: false, // ── NOUVEAU : track si déjà chargé ──
   config: {
     emailWeek: 'chefmanutention.tmt@shgt.fr',
     emailCcWeek: 'smaillard@smr-france.com',
@@ -493,80 +492,110 @@ async function fetchHolidays() {
 }
 
 // ── FETCH VACANCES SCOLAIRES (API v2.1) ──
-// ── CORRECTION : Chargement à la demande + garde l'ancien code qui fonctionnait ──
 const SCHOOL_HOLIDAYS_API = 'https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-calendrier-scolaire/records';
 
-async function fetchSchoolHolidays() {
-  // ── Si déjà chargé, on ne refait pas la requête ──
-  if (state.schoolHolidaysLoaded) {
-    console.log('[SCHOOL_HOLIDAYS] Déjà chargé, skip');
-    return;
-  }
+// Cache des requêtes déjà effectuées : clé "zone_anneeScolaire" → tableau de records bruts
+const _schoolHolidaysCache = new Map();
 
+// Reconstruit state.schoolHolidays depuis tous les records en cache (toutes zones/années).
+function _rebuildSchoolHolidays() {
+  const holidays = {};
+  for (const records of _schoolHolidaysCache.values()) {
+    records.forEach(({ start_date, end_date, description }) => {
+      if (!start_date || !end_date) return;
+      const start = new Date(start_date); start.setHours(0,0,0,0);
+      const end   = new Date(end_date);   end.setHours(0,0,0,0);
+      const desc  = description || 'Vacances scolaires';
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const iso = fmtISO(new Date(d));
+        if (!holidays[iso]) holidays[iso] = [];
+        if (!holidays[iso].includes(desc)) holidays[iso].push(desc);
+      }
+    });
+  }
+  state.schoolHolidays = holidays;
+}
+
+// Charge les vacances scolaires pour le mois passé en paramètre (Date).
+// Ne re-fetche pas si la combinaison zone+année scolaire est déjà en cache.
+async function fetchSchoolHolidays(targetMonth) {
   try {
     const zones = Object.entries(state.config.schoolHolidayZones || {})
       .filter(([, enabled]) => enabled)
       .map(([z]) => z);
+    if (zones.length === 0) { state.schoolHolidays = {}; return; }
 
-    if (zones.length === 0) {
-      state.schoolHolidays = {};
-      state.schoolHolidaysLoaded = true;
-      return;
-    }
+    const month = targetMonth || state.absMonth;
+    const y = month.getFullYear();
+    const m = month.getMonth();
 
-    const currentYear = new Date().getFullYear();
-    // ── CORRECTION : On garde le même format que l'original qui fonctionnait ──
-    const annees = [
-      `${currentYear - 2}-${currentYear - 1}`,
-      `${currentYear - 1}-${currentYear}`,
-      `${currentYear}-${currentYear + 1}`,
-      `${currentYear + 1}-${currentYear + 2}`,
+    // Calcule l'année scolaire couvrant une date donnée
+    const scholYear = (d) => {
+      const yr = d.getFullYear(), mo = d.getMonth();
+      return mo >= 8 ? `${yr}-${yr + 1}` : `${yr - 1}-${yr}`;
+    };
+
+    // On couvre le mois cible + mois précédent et suivant pour les transitions
+    const monthsToCheck = [
+      new Date(y, m - 1, 1),
+      new Date(y, m, 1),
+      new Date(y, m + 1, 1),
     ];
+    const anneesNeeded = [...new Set(monthsToCheck.map(scholYear))];
 
-    const requests = zones.flatMap(zone =>
-      annees.map(annee => {
-        // ── CORRECTION : On garde le filtre population comme l'original ──
-        const url = `${SCHOOL_HOLIDAYS_API}?refine=zones%3A%22Zone%20${zone}%22&refine=annee_scolaire%3A%22${annee}%22&refine=population%3A%22%C3%89l%C3%A8ves%22&limit=100&timezone=Europe%2FParis`;
-        return fetch(url).then(r => r.ok ? r.json() : null).catch(() => null);
-      })
-    );
-
-    const schoolHolidays = {};
-    const results = await Promise.all(requests);
-    results.forEach(data => {
-      if (!data?.results) return;
-      data.results.forEach(({ start_date, end_date, description }) => {
-        if (!start_date || !end_date) return;
-        const start = new Date(start_date); start.setHours(0,0,0,0);
-        const end   = new Date(end_date);   end.setHours(0,0,0,0);
-        const desc  = description || 'Vacances scolaires';
-        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-          const iso = fmtISO(new Date(d));
-          if (!schoolHolidays[iso]) schoolHolidays[iso] = [];
-          if (!schoolHolidays[iso].includes(desc)) schoolHolidays[iso].push(desc);
+    // Lancer uniquement les requêtes pas encore en cache
+    const requestsToMake = [];
+    zones.forEach(zone => {
+      anneesNeeded.forEach(annee => {
+        const cacheKey = `${zone}_${annee}`;
+        if (!_schoolHolidaysCache.has(cacheKey)) {
+          // ── CORRECTION : Suppression du filtre population qui bloquait les vacances hors été ──
+          const url = `${SCHOOL_HOLIDAYS_API}?refine=zones%3A%22Zone%20${zone}%22&refine=annee_scolaire%3A%22${annee}%22&limit=500&timezone=Europe%2FParis`;
+          console.log('[SCHOOL_HOLIDAYS] Requête:', url);
+          requestsToMake.push(
+            fetch(url)
+              .then(r => {
+                console.log('[SCHOOL_HOLIDAYS] Response:', r.status, 'pour', annee);
+                return r.ok ? r.json() : null;
+              })
+              .catch(err => {
+                console.error('[SCHOOL_HOLIDAYS] Erreur:', err);
+                return null;
+              })
+              .then(data => ({ cacheKey, records: data?.results || [] }))
+          );
         }
       });
     });
 
-    state.schoolHolidays = schoolHolidays;
-    state.schoolHolidaysLoaded = true; // ── Mark as loaded ──
-    console.log('[SCHOOL_HOLIDAYS] Chargé :', Object.keys(schoolHolidays).length, 'jours');
+    if (requestsToMake.length === 0) {
+      console.log('[SCHOOL_HOLIDAYS] Tout déjà en cache pour ce mois');
+      _rebuildSchoolHolidays();
+      console.log('[SCHOOL_HOLIDAYS] Reconstruit :', Object.keys(state.schoolHolidays).length, 'jours au total');
+      return;
+    }
 
-    // Persistance locale
-    try {
-      const raw = localStorage.getItem('planningRoulier_v21');
-      const saved = raw ? JSON.parse(raw) : {};
-      saved.schoolHolidays = schoolHolidays;
-      saved.schoolHolidaysLoaded = true;
-      localStorage.setItem('planningRoulier_v21', JSON.stringify(saved));
-    } catch(e) {}
+    const results = await Promise.all(requestsToMake);
+    results.forEach(({ cacheKey, records }) => {
+      _schoolHolidaysCache.set(cacheKey, records);
+    });
+
+    // Reconstruire l'index depuis TOUS les records en cache
+    _rebuildSchoolHolidays();
+    console.log('[SCHOOL_HOLIDAYS] ✓ Chargé :', Object.keys(state.schoolHolidays).length, 'jours au total');
+    console.log('[SCHOOL_HOLIDAYS] Types de vacances:', [...new Set(Object.values(state.schoolHolidays).flat())]);
   } catch(e) {
     console.error('[SCHOOL_HOLIDAYS] Error:', e);
-    state.schoolHolidaysLoaded = true; // ── Even on error, mark as attempted ──
     if (!state.schoolHolidays || Object.keys(state.schoolHolidays).length === 0) {
       state.schoolHolidays = {};
     }
   }
+}
+
+// Réinitialise le cache des vacances (ex: changement de zone)
+function resetSchoolHolidaysCache() {
+  _schoolHolidaysCache.clear();
+  state.schoolHolidays = {};
 }
 
 
@@ -624,14 +653,7 @@ function loadState() {
         workerColors: { ...(saved.config?.workerColors || {}) },
         schoolHolidayZones: { A: false, B: true, C: false, ...(saved.config?.schoolHolidayZones || {}) },
       };
-      // Restaurer le cache des vacances scolaires
-      if (saved.schoolHolidays) {
-        state.schoolHolidays = saved.schoolHolidays;
-      }
-      // ── NOUVEAU : Restaurer le flag loaded ──
-      if (saved.schoolHolidaysLoaded) {
-        state.schoolHolidaysLoaded = saved.schoolHolidaysLoaded;
-      }
+      // schoolHolidays n'est pas persisté : rechargé depuis l'API à chaque session
     }
     const cw = localStorage.getItem('planningRoulier_colWidths');
     if (cw) state.colWidths = JSON.parse(cw);
@@ -642,8 +664,6 @@ function saveState() {
   try {
     localStorage.setItem('planningRoulier_v21', JSON.stringify({
       planning: state.planning, planningModified: state.planningModified, config: state.config,
-      schoolHolidays: state.schoolHolidays,
-      schoolHolidaysLoaded: state.schoolHolidaysLoaded,
     }));
   } catch(e) {}
   savePlanningRemote();
@@ -699,7 +719,7 @@ async function loadPlanningRemote() {
         });
       }
       if (data.config) state.config = { ...state.config, ...data.config };
-      try { localStorage.setItem('planningRoulier_v21', JSON.stringify({ planning: state.planning, planningModified: state.planningModified, config: state.config, schoolHolidays: state.schoolHolidays, schoolHolidaysLoaded: state.schoolHolidaysLoaded })); } catch(e) {}
+      try { localStorage.setItem('planningRoulier_v21', JSON.stringify({ planning: state.planning, planningModified: state.planningModified, config: state.config, schoolHolidays: state.schoolHolidays })); } catch(e) {}
       showSyncStatus('loaded');
       return data;
     } else {
@@ -1519,15 +1539,6 @@ function removeSlot(dayIdx, secId, slotIdx) {
 }
 
 function renderAbsences() {
-    // ── NOUVEAU : Charger les vacances scolaires quand on ouvre la vue Absences ──
-    if (!state.schoolHolidaysLoaded) {
-      console.log('[SCHOOL_HOLIDAYS] Chargement à la demande...');
-      fetchSchoolHolidays().then(() => {
-        renderAbsences(); // Re-render avec les données chargées
-      });
-      // On continue le render même si pas encore chargé (sera mis à jour après)
-    }
-
     const startOfMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth(), 1);
     const daysInMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth() + 1, 0).getDate();
     const monthLabel = state.absMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
@@ -1543,7 +1554,7 @@ function renderAbsences() {
 
     if (state.staff.length === 0) {
         headerTable.innerHTML = '';
-        tbody.innerHTML = '<tr><td colspan="32" style="padding:20px;text-align:center;color:var(--text3)">Aucune donnée</td></tr>';
+        document.getElementById('abs-tbody').innerHTML = '<tr><td colspan="32" style="padding:20px;text-align:center;color:var(--text3)">Aucune donnée</td></tr>';
         return;
     }
 
@@ -1877,11 +1888,11 @@ window.saveVacancesConfig = async function() {
     const cb = document.getElementById(`cfg-zone-${zone}`);
     if (cb) state.config.schoolHolidayZones[zone] = cb.checked;
   });
-  state.schoolHolidaysLoaded = false; // ── Reset pour recharger ──
   saveState();
   closeModal();
   toast('Chargement des vacances scolaires…');
-  await fetchSchoolHolidays();
+  resetSchoolHolidaysCache();
+  await fetchSchoolHolidays(state.absMonth);
   render();
   toast('Vacances scolaires mises à jour ✓');
 };
@@ -1974,8 +1985,6 @@ function printAbsPDF() {
 async function initApp() {
     state.absMonth = new Date();
     await fetchHolidays();
-    // ── CORRECTION : On ne charge PLUS les vacances scolaires à l'init ──
-    // await fetchSchoolHolidays();
     await loadAllData();
 }
 
@@ -2077,7 +2086,11 @@ function switchView(v) {
   document.getElementById('header-month-nav').style.display = v === 'absences' ? 'flex' : 'none';
   document.getElementById('btn-email-week').style.display = v === 'week' ? '' : 'none';
   document.getElementById('btn-print-abs').style.display = v === 'absences' ? '' : 'none';
-  render();
+  if (v === 'absences') {
+    fetchSchoolHolidays(state.absMonth).then(() => renderAbsences());
+  } else {
+    render();
+  }
 }
 document.getElementById('btn-view-week').addEventListener('click', () => switchView('week'));
 document.getElementById('btn-view-absences').addEventListener('click', () => switchView('absences'));
@@ -2101,12 +2114,12 @@ document.getElementById('btn-today').addEventListener('click', async () => {
 document.getElementById('staff-search').addEventListener('input', e => renderStaffList(e.target.value));
 document.getElementById('btn-abs-prev').addEventListener('click', async () => {
     state.absMonth.setMonth(state.absMonth.getMonth() - 1);
-    await loadAllData();
+    await Promise.all([loadAllData(), fetchSchoolHolidays(state.absMonth)]);
     renderAbsences();
 });
 document.getElementById('btn-abs-next').addEventListener('click', async () => {
     state.absMonth.setMonth(state.absMonth.getMonth() + 1);
-    await loadAllData();
+    await Promise.all([loadAllData(), fetchSchoolHolidays(state.absMonth)]);
     renderAbsences();
 });
 
@@ -2133,7 +2146,7 @@ function renderMonthPicker() {
       e.stopPropagation();
       state.absMonth = new Date(_mpYear, parseInt(el.dataset.m), 1);
       closeMonthPicker();
-      await loadAllData();
+      await Promise.all([loadAllData(), fetchSchoolHolidays(state.absMonth)]);
       renderAbsences();
     });
   });
