@@ -1388,9 +1388,17 @@ function renderAbsences() {
     let dayHeaders = '';
     for (let i = 1; i <= daysInMonth; i++) {
         const d = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), i);
+        const dateISO = fmtISO(d);
         const dow = d.toLocaleDateString('fr-FR', { weekday: 'short' }).substring(0, 3);
-        const isWE = d.getDay() === 0 || d.getDay() === 6;
-        dayHeaders += `<th style="${isWE ? 'opacity:0.45;' : ''}">${i}<br><span style="font-weight:400;font-size:0.55rem">${dow}</span></th>`;
+        const isSat = d.getDay() === 6;
+        const isSun = d.getDay() === 0;
+        const isFerie = !!state.holidays[dateISO];
+        const isRed = isSun || isFerie;
+        const borderStyle = isRed
+            ? 'border:2px solid var(--red);'
+            : isSat ? 'border:2px solid var(--accent);' : '';
+        const opacity = (isSat || isSun) ? 'opacity:0.7;' : '';
+        dayHeaders += `<th style="${borderStyle}${opacity}">${i}<br><span style="font-weight:400;font-size:0.55rem">${dow}</span></th>`;
     }
 
     let rows = '';
@@ -1414,8 +1422,15 @@ function renderAbsences() {
             const dateISO = fmtISO(new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), i));
             const code = state.absences[w.id]?.[dateISO] || '';
             const d = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), i);
-            const isWE = d.getDay() === 0 || d.getDay() === 6;
-            dayCells += `<td style="${isWE ? 'opacity:0.45;' : ''}">${code ? `<span class="abs-code">${code}</span>` : '—'}</td>`;
+            const isSat = d.getDay() === 6;
+            const isSun = d.getDay() === 0;
+            const isFerie = !!state.holidays[dateISO];
+            const isRed = isSun || isFerie;
+            const borderStyle = isRed
+                ? 'border:2px solid var(--red);'
+                : isSat ? 'border:2px solid var(--accent);' : '';
+            const opacity = (isSat || isSun) ? 'opacity:0.7;' : '';
+            dayCells += `<td style="${borderStyle}${opacity}">${code ? `<span class="abs-code">${code}</span>` : '—'}</td>`;
         }
         rows += `<tr>${memberCell}${dayCells}</tr>`;
     });
