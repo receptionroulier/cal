@@ -420,6 +420,7 @@ let state = {
   absences: {},
   holidays: {},
   schoolHolidays: {},
+  schoolHolidaysLoaded: false, // ── NOUVEAU : track si déjà chargé ──
   config: {
     emailWeek: 'chefmanutention.tmt@shgt.fr',
     emailCcWeek: 'smaillard@smr-france.com',
@@ -492,20 +493,30 @@ async function fetchHolidays() {
 }
 
 // ── FETCH VACANCES SCOLAIRES (API v2.1) ──
+// ── CORRECTION : Chargement à la demande + garde l'ancien code qui fonctionnait ──
 const SCHOOL_HOLIDAYS_API = 'https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-calendrier-scolaire/records';
 
 async function fetchSchoolHolidays() {
+  // ── Si déjà chargé, on ne refait pas la requête ──
+  if (state.schoolHolidaysLoaded) {
+    console.log('[SCHOOL_HOLIDAYS] Déjà chargé, skip');
+    return;
+  }
+
   try {
     const zones = Object.entries(state.config.schoolHolidayZones || {})
       .filter(([, enabled]) => enabled)
       .map(([z]) => z);
 
-    if (zones.length === 0) { state.schoolHolidays = {}; return; }
+    if (zones.length === 0) {
+      state.schoolHolidays = {};
+      state.schoolHolidaysLoaded = true;
+      return;
+    }
 
     const currentYear = new Date().getFullYear();
-    // Couvre 3 ans passés + 2 ans futurs pour la navigation historique
+    // ── CORRECTION : On garde le même format que l'original qui fonctionnait ──
     const annees = [
-      `${currentYear - 3}-${currentYear - 2}`,
       `${currentYear - 2}-${currentYear - 1}`,
       `${currentYear - 1}-${currentYear}`,
       `${currentYear}-${currentYear + 1}`,
@@ -514,9 +525,8 @@ async function fetchSchoolHolidays() {
 
     const requests = zones.flatMap(zone =>
       annees.map(annee => {
-        // CORRECTION : Suppression du filtre 'population' qui bloquait certaines vacances
-        // et augmentation du limit à 500 pour être large
-        const url = `${SCHOOL_HOLIDAYS_API}?refine=zones%3A%22Zone%20${zone}%22&refine=annee_scolaire%3A%22${annee}%22&limit=500&timezone=Europe%2FParis`;
+        // ── CORRECTION : On garde le filtre population comme l'original ──
+        const url = `${SCHOOL_HOLIDAYS_API}?refine=zones%3A%22Zone%20${zone}%22&refine=annee_scolaire%3A%22${annee}%22&refine=population%3A%22%C3%89l%C3%A8ves%22&limit=100&timezone=Europe%2FParis`;
         return fetch(url).then(r => r.ok ? r.json() : null).catch(() => null);
       })
     );
@@ -539,17 +549,20 @@ async function fetchSchoolHolidays() {
     });
 
     state.schoolHolidays = schoolHolidays;
+    state.schoolHolidaysLoaded = true; // ── Mark as loaded ──
     console.log('[SCHOOL_HOLIDAYS] Chargé :', Object.keys(schoolHolidays).length, 'jours');
-    // Persistance locale pour navigation future hors cache API
+
+    // Persistance locale
     try {
       const raw = localStorage.getItem('planningRoulier_v21');
       const saved = raw ? JSON.parse(raw) : {};
       saved.schoolHolidays = schoolHolidays;
+      saved.schoolHolidaysLoaded = true;
       localStorage.setItem('planningRoulier_v21', JSON.stringify(saved));
     } catch(e) {}
   } catch(e) {
     console.error('[SCHOOL_HOLIDAYS] Error:', e);
-    // On garde le cache déjà chargé (depuis localStorage) en cas d'erreur réseau
+    state.schoolHolidaysLoaded = true; // ── Even on error, mark as attempted ──
     if (!state.schoolHolidays || Object.keys(state.schoolHolidays).length === 0) {
       state.schoolHolidays = {};
     }
@@ -615,6 +628,10 @@ function loadState() {
       if (saved.schoolHolidays) {
         state.schoolHolidays = saved.schoolHolidays;
       }
+      // ── NOUVEAU : Restaurer le flag loaded ──
+      if (saved.schoolHolidaysLoaded) {
+        state.schoolHolidaysLoaded = saved.schoolHolidaysLoaded;
+      }
     }
     const cw = localStorage.getItem('planningRoulier_colWidths');
     if (cw) state.colWidths = JSON.parse(cw);
@@ -626,6 +643,7 @@ function saveState() {
     localStorage.setItem('planningRoulier_v21', JSON.stringify({
       planning: state.planning, planningModified: state.planningModified, config: state.config,
       schoolHolidays: state.schoolHolidays,
+      schoolHolidaysLoaded: state.schoolHolidaysLoaded,
     }));
   } catch(e) {}
   savePlanningRemote();
@@ -681,7 +699,7 @@ async function loadPlanningRemote() {
         });
       }
       if (data.config) state.config = { ...state.config, ...data.config };
-      try { localStorage.setItem('planningRoulier_v21', JSON.stringify({ planning: state.planning, planningModified: state.planningModified, config: state.config, schoolHolidays: state.schoolHolidays })); } catch(e) {}
+      try { localStorage.setItem('planningRoulier_v21', JSON.stringify({ planning: state.planning, planningModified: state.planningModified, config: state.config, schoolHolidays: state.schoolHolidays, schoolHolidaysLoaded: state.schoolHolidaysLoaded })); } catch(e) {}
       showSyncStatus('loaded');
       return data;
     } else {
@@ -1501,6 +1519,15 @@ function removeSlot(dayIdx, secId, slotIdx) {
 }
 
 function renderAbsences() {
+    // ── NOUVEAU : Charger les vacances scolaires quand on ouvre la vue Absences ──
+    if (!state.schoolHolidaysLoaded) {
+      console.log('[SCHOOL_HOLIDAYS] Chargement à la demande...');
+      fetchSchoolHolidays().then(() => {
+        renderAbsences(); // Re-render avec les données chargées
+      });
+      // On continue le render même si pas encore chargé (sera mis à jour après)
+    }
+
     const startOfMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth(), 1);
     const daysInMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth() + 1, 0).getDate();
     const monthLabel = state.absMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
@@ -1850,6 +1877,7 @@ window.saveVacancesConfig = async function() {
     const cb = document.getElementById(`cfg-zone-${zone}`);
     if (cb) state.config.schoolHolidayZones[zone] = cb.checked;
   });
+  state.schoolHolidaysLoaded = false; // ── Reset pour recharger ──
   saveState();
   closeModal();
   toast('Chargement des vacances scolaires…');
@@ -1946,7 +1974,8 @@ function printAbsPDF() {
 async function initApp() {
     state.absMonth = new Date();
     await fetchHolidays();
-    await fetchSchoolHolidays();
+    // ── CORRECTION : On ne charge PLUS les vacances scolaires à l'init ──
+    // await fetchSchoolHolidays();
     await loadAllData();
 }
 
