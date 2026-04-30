@@ -513,7 +513,7 @@ async function fetchSchoolHolidays() {
       annees.forEach(annee => {
         // v2.1 autorise le CORS depuis GitHub Pages (contrairement à v2.0)
         const url = `https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-calendrier-scolaire/records?refine=zones%3A%22Zone%20${zone}%22&refine=annee_scolaire%3A%22${annee}%22&refine=population%3A%22%C3%89l%C3%A8ves%22&limit=100&timezone=Europe%2FParis`;
-        requests.push(fetch(url).then(r => r.ok ? r.json() : null).catch(() => null));
+        requests.push(fetch(url, { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null));
       });
     });
 
