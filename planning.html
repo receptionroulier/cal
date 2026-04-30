@@ -534,9 +534,19 @@ async function fetchSchoolHolidays() {
 
     state.schoolHolidays = schoolHolidays;
     console.log('[SCHOOL_HOLIDAYS] Chargé :', Object.keys(schoolHolidays).length, 'jours');
+    // Persistance locale pour navigation future hors cache API
+    try {
+      const raw = localStorage.getItem('planningRoulier_v21');
+      const saved = raw ? JSON.parse(raw) : {};
+      saved.schoolHolidays = schoolHolidays;
+      localStorage.setItem('planningRoulier_v21', JSON.stringify(saved));
+    } catch(e) {}
   } catch(e) {
     console.error('[SCHOOL_HOLIDAYS] Error:', e);
-    state.schoolHolidays = {};
+    // On garde le cache déjà chargé (depuis localStorage) en cas d'erreur réseau
+    if (!state.schoolHolidays || Object.keys(state.schoolHolidays).length === 0) {
+      state.schoolHolidays = {};
+    }
   }
 }
 
@@ -584,7 +594,7 @@ function findSectionForWorker(jobCode, posteCode, projectName) {
 // ── STATE MANAGEMENT ──
 function loadState() {
   try {
-    const s = localStorage.getItem('planningRoulier_v20');
+    const s = localStorage.getItem('planningRoulier_v21');
     if (s) {
       const saved = JSON.parse(s);
       state.planning = saved.planning || {};
@@ -595,6 +605,10 @@ function loadState() {
         workerColors: { ...(saved.config?.workerColors || {}) },
         schoolHolidayZones: { A: false, B: true, C: false, ...(saved.config?.schoolHolidayZones || {}) },
       };
+      // Restaurer le cache des vacances scolaires
+      if (saved.schoolHolidays) {
+        state.schoolHolidays = saved.schoolHolidays;
+      }
     }
     const cw = localStorage.getItem('planningRoulier_colWidths');
     if (cw) state.colWidths = JSON.parse(cw);
@@ -603,8 +617,9 @@ function loadState() {
 }
 function saveState() {
   try {
-    localStorage.setItem('planningRoulier_v20', JSON.stringify({
+    localStorage.setItem('planningRoulier_v21', JSON.stringify({
       planning: state.planning, planningModified: state.planningModified, config: state.config,
+      schoolHolidays: state.schoolHolidays,
     }));
   } catch(e) {}
   savePlanningRemote();
@@ -660,7 +675,7 @@ async function loadPlanningRemote() {
         });
       }
       if (data.config) state.config = { ...state.config, ...data.config };
-      try { localStorage.setItem('planningRoulier_v20', JSON.stringify({ planning: state.planning, planningModified: state.planningModified, config: state.config })); } catch(e) {}
+      try { localStorage.setItem('planningRoulier_v21', JSON.stringify({ planning: state.planning, planningModified: state.planningModified, config: state.config, schoolHolidays: state.schoolHolidays })); } catch(e) {}
       showSyncStatus('loaded');
       return data;
     } else {
