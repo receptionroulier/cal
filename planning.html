@@ -645,10 +645,7 @@ function loadState() {
         workerColors: { ...(saved.config?.workerColors || {}) },
         schoolHolidayZones: { A: false, B: true, C: false, ...(saved.config?.schoolHolidayZones || {}) },
       };
-      // Restaurer le cache des vacances scolaires — supprimé (chargement à la demande)
-      if (saved.schoolHolidays) {
-        state.schoolHolidays = saved.schoolHolidays;
-      }
+      // schoolHolidays n'est pas persisté : rechargé depuis l'API à chaque session
     }
     const cw = localStorage.getItem('planningRoulier_colWidths');
     if (cw) state.colWidths = JSON.parse(cw);
@@ -659,7 +656,6 @@ function saveState() {
   try {
     localStorage.setItem('planningRoulier_v21', JSON.stringify({
       planning: state.planning, planningModified: state.planningModified, config: state.config,
-      schoolHolidays: state.schoolHolidays,
     }));
   } catch(e) {}
   savePlanningRemote();
