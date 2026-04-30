@@ -1068,7 +1068,12 @@ function renderStaffList(filter='') {
     return;
   }
 
-  state.staff.forEach(w => {
+  // Ordre défini dans config Membres (absOrder), membres inconnus ajoutés en bas
+  const order = state.config.absOrder || [];
+  const staffSorted = [...order].map(id => state.staff.find(w => w.id === id)).filter(Boolean);
+  state.staff.forEach(w => { if (!staffSorted.find(s => s.id === w.id)) staffSorted.push(w); });
+
+  staffSorted.forEach(w => {
     const name = `${w.lastName} ${w.firstName}`.toLowerCase();
     if (q && !name.includes(q) && !(w.matricule||'').toLowerCase().includes(q)) return;
 
