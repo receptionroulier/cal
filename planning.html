@@ -393,19 +393,19 @@ main { display: flex; flex: 1; min-height: 0; }
 <div id="cfg-sidebar">
   <div id="cfg-sidebar-title">⚙ Configuration</div>
   <div id="cfg-modules">
-    <button class="cfg-module-btn" data-module="mail">
-      <span class="cfg-module-icon">✉</span>
-      <span class="cfg-module-label">Emails</span>
+    <button class="cfg-module-btn" data-module="absences">
+      <span class="cfg-module-icon">📋</span>
+      <span class="cfg-module-label">Membres</span>
       <span class="cfg-module-arrow">›</span>
     </button>
     <button class="cfg-module-btn" data-module="personnel">
       <span class="cfg-module-icon">👥</span>
-      <span class="cfg-module-label">Personnel</span>
+      <span class="cfg-module-label">Groupes</span>
       <span class="cfg-module-arrow">›</span>
     </button>
-    <button class="cfg-module-btn" data-module="absences">
-      <span class="cfg-module-icon">📋</span>
-      <span class="cfg-module-label">Absences</span>
+    <button class="cfg-module-btn" data-module="mail">
+      <span class="cfg-module-icon">✉</span>
+      <span class="cfg-module-label">Emails</span>
       <span class="cfg-module-arrow">›</span>
     </button>
     <button class="cfg-module-btn" data-module="vacances">
@@ -1788,7 +1788,7 @@ function openCfgModule(module) {
     b.classList.toggle('active', b.dataset.module === module);
   });
 
-  const titles = { mail: 'Emails', personnel: 'Personnel', absences: 'Absences', vacances: 'Vacances scolaires' };
+  const titles = { mail: 'Emails', personnel: 'Groupes', absences: 'Membres', vacances: 'Vacances scolaires' };
   document.getElementById('cfg-subpanel-title').textContent = titles[module] || module;
 
   const body = document.getElementById('cfg-subpanel-body');
