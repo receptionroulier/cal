@@ -246,7 +246,7 @@ main { display: flex; flex: 1; min-height: 0; }
 .abs-table thead tr th { position: sticky; top: 0; z-index: 2; background: var(--surface); padding: 4px 2px; text-align: center; color: var(--text); font-size: 0.6rem; height: 32px; box-sizing: border-box; font-weight: 700; border-bottom: 2px solid var(--border2); }
 .abs-table thead tr th.member-cell { position: sticky; left: 0; z-index: 3; text-align: left; padding-left: 10px; }
 /* Séparateurs verticaux fins dans le header */
-.abs-table thead tr th.day-th { border-left: 1px solid rgba(255,255,255,0.08); }
+.abs-table thead tr th.day-th { border-left: 1px solid rgba(255,255,255,0.08); background-color: var(--surface); background-blend-mode: normal; }
 /* Body */
 .abs-table tbody tr td { padding: 0; text-align: center; height: 28px; box-sizing: border-box; border: none; }
 .abs-table tbody tr td.member-cell { position: sticky; left: 0; z-index: 1; background: var(--surface); padding: 1px 6px 1px 10px; }
@@ -1593,7 +1593,7 @@ function renderAbsences() {
         const isFerie = !!state.holidays[dateISO];
         const isVacances = !!(state.schoolHolidays && state.schoolHolidays[dateISO]);
         const isRed = isSun || isFerie;
-        const bgStyle = isRed ? 'background:rgba(255,77,109,0.12);' : isSat ? 'background:rgba(59,143,255,0.12);' : '';
+        const bgStyle = isRed ? 'background-image:linear-gradient(rgba(255,77,109,0.18),rgba(255,77,109,0.18));' : isSat ? 'background-image:linear-gradient(rgba(59,143,255,0.18),rgba(59,143,255,0.18));' : '';
         const vacStyle = isVacances ? 'box-shadow:inset 0 3px 0 var(--red);' : '';
         headerRow += `<th class="day-th" style="${bgStyle}${vacStyle}">${i}<br><span style="font-weight:400;font-size:0.55rem">${dow}</span></th>`;
     }
