@@ -667,6 +667,7 @@ function loadState() {
         schoolHolidayZones: { A: false, B: true, C: false, ...(saved.config?.schoolHolidayZones || {}) },
       };
       // schoolHolidays n'est pas persisté : rechargé depuis l'API à chaque session
+      if (saved.view) state.view = saved.view;
     }
     const cw = localStorage.getItem('planningRoulier_colWidths');
     if (cw) state.colWidths = JSON.parse(cw);
@@ -676,7 +677,7 @@ function loadState() {
 function saveState() {
   try {
     localStorage.setItem('planningRoulier_v21', JSON.stringify({
-      planning: state.planning, planningModified: state.planningModified, config: state.config,
+      planning: state.planning, planningModified: state.planningModified, config: state.config, view: state.view,
     }));
   } catch(e) {}
   savePlanningRemote();
@@ -2078,6 +2079,7 @@ document.addEventListener('click', () => closeCalPopup());
 
 function switchView(v) {
   state.view = v;
+  try { localStorage.setItem('planningRoulier_v21', JSON.stringify({ planning: state.planning, planningModified: state.planningModified, config: state.config, view: v })); } catch(e) {}
   document.getElementById('btn-view-week').classList.toggle('active', v === 'week');
   document.getElementById('btn-view-absences').classList.toggle('active', v === 'absences');
   document.getElementById('view-week').style.display = v === 'week' ? 'flex' : 'none';
