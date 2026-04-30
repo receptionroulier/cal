@@ -520,8 +520,9 @@ async function fetchSchoolHolidays() {
     const results = await Promise.all(requests);
     results.forEach(data => {
       if (!data) return;
-      (data.records || []).forEach(item => {
-        const rec = item.record?.fields;
+      (data.results || data.records || []).forEach(item => {
+        // v2.1 : champs directement sur item ; v2.0 : item.record.fields
+        const rec = item.start_date ? item : item.record?.fields;
         if (!rec || !rec.start_date || !rec.end_date) return;
         const start = new Date(rec.start_date); start.setHours(0,0,0,0);
         const end   = new Date(rec.end_date);   end.setHours(0,0,0,0);
