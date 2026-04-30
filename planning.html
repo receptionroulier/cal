@@ -505,7 +505,9 @@ async function fetchSchoolHolidays() {
 
     await Promise.all(zones.map(async zone => {
       await Promise.all(yearsToFetch.map(async year => {
-        const url = `https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-calendrier-scolaire/records?where=zone%3D%22Zone%20${zone}%22%20AND%20annee_scolaire%3D%22${year-1}-${year}%22%20OR%20zone%3D%22Zone%20${zone}%22%20AND%20annee_scolaire%3D%22${year}-${year+1}%22&limit=100&timezone=Europe%2FParis`;
+        const zoneLabel = `Zone ${zone}`;
+        const whereClause = `(zone="${zoneLabel}" AND annee_scolaire="${year-1}-${year}") OR (zone="${zoneLabel}" AND annee_scolaire="${year}-${year+1}")`;
+        const url = `https://data.education.gouv.fr/api/explore/v2.0/catalog/datasets/fr-en-calendrier-scolaire/records?where=${encodeURIComponent(whereClause)}&limit=100&timezone=Europe%2FParis`;
         try {
           const r = await fetch(url);
           if (!r.ok) return;
