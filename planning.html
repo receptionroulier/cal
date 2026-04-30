@@ -499,19 +499,20 @@ async function fetchSchoolHolidays() {
       .map(([z]) => z);
     if (zones.length === 0) { state.schoolHolidays = {}; return; }
 
+    const schoolHolidays = {};
+
     const currentYear = new Date().getFullYear();
-    // Années scolaires à récupérer : on couvre N-1/N, N/N+1, N+1/N+2
     const annees = [
       `${currentYear - 1}-${currentYear}`,
       `${currentYear}-${currentYear + 1}`,
       `${currentYear + 1}-${currentYear + 2}`,
     ];
-    const schoolHolidays = {};
 
     const requests = [];
     zones.forEach(zone => {
       annees.forEach(annee => {
-        const url = `https://data.education.gouv.fr/api/explore/v2.0/catalog/datasets/fr-en-calendrier-scolaire/records?refine=zones%3A%22Zone%20${zone}%22&refine=annee_scolaire%3A%22${annee}%22&refine=population%3A%22%C3%89l%C3%A8ves%22&limit=100&timezone=Europe%2FParis`;
+        // v2.1 autorise le CORS depuis GitHub Pages (contrairement à v2.0)
+        const url = `https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-calendrier-scolaire/records?refine=zones%3A%22Zone%20${zone}%22&refine=annee_scolaire%3A%22${annee}%22&refine=population%3A%22%C3%89l%C3%A8ves%22&limit=100&timezone=Europe%2FParis`;
         requests.push(fetch(url).then(r => r.ok ? r.json() : null).catch(() => null));
       });
     });
@@ -519,7 +520,6 @@ async function fetchSchoolHolidays() {
     const results = await Promise.all(requests);
     results.forEach(data => {
       if (!data) return;
-      // L'API v2.0 retourne data.records[].record.fields (pas data.results)
       (data.records || []).forEach(item => {
         const rec = item.record?.fields;
         if (!rec || !rec.start_date || !rec.end_date) return;
