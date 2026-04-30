@@ -1560,12 +1560,9 @@ function renderAbsences() {
     if (headerLabel) headerLabel.textContent = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
 
     const bodyTable = document.getElementById('abs-body-table');
-    const thead = document.getElementById('abs-thead');
-    const tbody = document.getElementById('abs-tbody');
 
     if (state.staff.length === 0) {
-        thead.innerHTML = '';
-        tbody.innerHTML = '<tr><td colspan="32" style="padding:20px;text-align:center;color:var(--text3)">Aucune donnée</td></tr>';
+        bodyTable.innerHTML = '<thead></thead><tbody><tr><td colspan="32" style="padding:20px;text-align:center;color:var(--text3)">Aucune donnée</td></tr></tbody>';
         return;
     }
 
@@ -1598,7 +1595,6 @@ function renderAbsences() {
         headerRow += `<th class="day-th" style="${bgStyle}${vacStyle}">${i}<br><span style="font-weight:400;font-size:0.55rem">${dow}</span></th>`;
     }
     headerRow += '</tr>';
-    thead.innerHTML = headerRow;
 
     // ── TBODY ──
     let rows = '';
