@@ -1430,7 +1430,7 @@ function renderAbsences() {
                 ? 'border:2px solid var(--red);'
                 : isSat ? 'border:2px solid var(--accent);' : '';
             const opacity = (isSat || isSun) ? 'opacity:0.7;' : '';
-            dayCells += `<td style="${borderStyle}${opacity}">${code ? `<span class="abs-code">${code}</span>` : '—'}</td>`;
+            dayCells += `<td style="${borderStyle}${opacity}">${code ? `<span class="abs-code">${code}</span>` : ''}</td>`;
         }
         rows += `<tr>${memberCell}${dayCells}</tr>`;
     });
