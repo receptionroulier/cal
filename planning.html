@@ -111,8 +111,26 @@ main { display: flex; flex: 1; min-height: 0; }
 .day-header-cell.today { border-color: var(--accent); }
 .day-header-cell.ferie { border-color: var(--red); }
 .day-header-cell.today.ferie { border-color: var(--red); }
-.day-header-cell.vacances { border-top: 4px solid var(--red) !important; }
-.day-col.vacances { border-top: 4px solid var(--red) !important; }
+.day-header-cell.vacances::before {
+  content: '';
+  position: absolute;
+  top: -2px; left: -2px; right: -2px;
+  height: 5px;
+  background: var(--red);
+  border-radius: 7px 7px 0 0;
+  z-index: 2;
+}
+.day-col.vacances::before {
+  content: '';
+  position: absolute;
+  top: -2px; left: -2px; right: -2px;
+  height: 5px;
+  background: var(--red);
+  border-radius: 10px 10px 0 0;
+  z-index: 2;
+}
+.day-col { position: relative; }
+.day-header-cell { position: relative; }
 .vacances-badge {
   position: absolute; left: 4px; bottom: 4px; font-size: 0.48rem; font-weight: 700;
   color: var(--red); background: rgba(255,77,109,0.15); padding: 1px 4px; border-radius: 3px;
@@ -319,13 +337,13 @@ main { display: flex; flex: 1; min-height: 0; }
     </div>
     <div id="content">
       <div id="view-week">
-        <div id="week-header-area" style="overflow:hidden;flex-shrink:0;">
-          <div id="week-header-inner" style="min-width:560px;padding:0 10px 0;">
-            <div class="days-header" id="days-header"></div>
-          </div>
-        </div>
         <div id="week-scroll-area" style="flex:1;overflow:auto;min-height:0;">
           <div id="week-inner" style="min-width:560px;padding:0 10px 10px;">
+            <div id="week-header-area" style="position:sticky;top:0;z-index:10;background:var(--bg);padding-bottom:2px;margin:0 -10px;padding-left:10px;padding-right:10px;">
+              <div id="week-header-inner">
+                <div class="days-header" id="days-header"></div>
+              </div>
+            </div>
             <div class="week-grid" id="week-grid"></div>
           </div>
         </div>
@@ -999,14 +1017,12 @@ function applyGridColumns(autoFit = false) {
   header.style.gridTemplateColumns = cols;
   grid.style.gridTemplateColumns = cols;
 
-  // Synchroniser la largeur minimale des deux inner divs
+  // Synchroniser la largeur minimale du conteneur
   const totalW = state.colWidths.reduce((sum, w, i) => {
     const col = w || (state._autoWidths ? state._autoWidths[i] : 120);
-    return sum + col + 4; // +4 pour le gap
-  }, 20); // +20 pour le padding
-  const hi = document.getElementById('week-header-inner');
+    return sum + col + 4;
+  }, 20);
   const wi = document.getElementById('week-inner');
-  if (hi) hi.style.minWidth = totalW + 'px';
   if (wi) wi.style.minWidth = totalW + 'px';
 }
 
@@ -2072,19 +2088,6 @@ document.getElementById('mp-next-year').addEventListener('click', e => {
 document.addEventListener('click', () => closeMonthPicker());
 
 loadState();
-
-// ── SYNC SCROLL HORIZONTAL header ↔ contenu ──
-(function() {
-  const scrollArea = document.getElementById('week-scroll-area');
-  const headerArea = document.getElementById('week-header-area');
-  let _syncing = false;
-  scrollArea.addEventListener('scroll', () => {
-    if (_syncing) return;
-    _syncing = true;
-    headerArea.scrollLeft = scrollArea.scrollLeft;
-    _syncing = false;
-  });
-})();
 
 initApp();
 </script>
