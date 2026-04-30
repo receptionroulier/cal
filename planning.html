@@ -100,7 +100,9 @@ main { display: flex; flex: 1; min-height: 0; }
 
 #content { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
 
-#view-week { display: flex; flex-direction: column; height: 100%; }
+#view-week { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+#week-header-area { flex-shrink: 0; overflow: hidden; background: var(--bg); border-bottom: 2px solid var(--border2); }
+#week-scroll-area { flex: 1; overflow: auto; min-height: 0; }
 .days-header { display: grid; gap: 4px; padding: 8px 0 4px; box-sizing: border-box; }
 .day-header-cell {
   text-align: center; padding: 8px 4px; border-radius: 7px; font-size: 0.72rem; font-weight: 700;
@@ -326,13 +328,13 @@ main { display: flex; flex: 1; min-height: 0; }
     </div>
     <div id="content">
       <div id="view-week">
-        <div id="week-scroll-area" style="flex:1;overflow:auto;min-height:0;">
-          <div id="week-inner" style="min-width:560px;padding:0 10px 10px;">
-            <div id="week-header-area" style="position:sticky;top:0;z-index:10;background:var(--bg);padding-bottom:2px;margin:0 -10px;padding-left:10px;padding-right:10px;">
-              <div id="week-header-inner">
-                <div class="days-header" id="days-header"></div>
-              </div>
-            </div>
+        <div id="week-header-area">
+          <div id="week-header-inner" style="min-width:560px;padding:0 10px;">
+            <div class="days-header" id="days-header"></div>
+          </div>
+        </div>
+        <div id="week-scroll-area">
+          <div id="week-inner" style="min-width:560px;padding:4px 10px 10px;">
             <div class="week-grid" id="week-grid"></div>
           </div>
         </div>
@@ -1006,12 +1008,13 @@ function applyGridColumns(autoFit = false) {
   header.style.gridTemplateColumns = cols;
   grid.style.gridTemplateColumns = cols;
 
-  // Synchroniser la largeur minimale du conteneur
   const totalW = state.colWidths.reduce((sum, w, i) => {
     const col = w || (state._autoWidths ? state._autoWidths[i] : 120);
     return sum + col + 4;
   }, 20);
+  const hi = document.getElementById('week-header-inner');
   const wi = document.getElementById('week-inner');
+  if (hi) hi.style.minWidth = totalW + 'px';
   if (wi) wi.style.minWidth = totalW + 'px';
 }
 
@@ -1035,9 +1038,9 @@ function renderWeekHeader() {
 
     const cell = document.createElement('div');
     cell.className = `day-header-cell${isToday ? ' today' : ''}${isFerie ? ' ferie' : ''}${isVacances ? ' vacances' : ''}`;
-    cell.style.overflow = 'visible';
 
     cell.innerHTML = `
+      ${isVacances ? `<div style="position:absolute;top:0;left:0;right:0;height:5px;background:var(--red);z-index:3;border-radius:5px 5px 0 0;"></div>` : ''}
       ${isFerie ? `<div class="ferie-badge">Férié</div>` : ''}
       ${isVacances ? `<div class="vacances-badge">🏖 ${vacancesLabel}</div>` : ''}
       <div class="day-name">${name}</div>
@@ -2075,6 +2078,19 @@ document.getElementById('mp-next-year').addEventListener('click', e => {
 document.addEventListener('click', () => closeMonthPicker());
 
 loadState();
+
+// ── SYNC SCROLL HORIZONTAL header ↔ contenu ──
+(function() {
+  const scrollArea = document.getElementById('week-scroll-area');
+  const headerArea = document.getElementById('week-header-area');
+  let _syncing = false;
+  scrollArea.addEventListener('scroll', () => {
+    if (_syncing) return;
+    _syncing = true;
+    headerArea.scrollLeft = scrollArea.scrollLeft;
+    _syncing = false;
+  });
+})();
 
 initApp();
 </script>
