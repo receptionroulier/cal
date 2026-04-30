@@ -494,11 +494,30 @@ async function fetchHolidays() {
 // ── FETCH VACANCES SCOLAIRES (API v2.1) ──
 const SCHOOL_HOLIDAYS_API = 'https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-calendrier-scolaire/records';
 
-// Cache des mois déjà chargés par zone : Set de clés "Zone_YYYY-MM"
-const _schoolHolidaysFetched = new Set();
+// Cache des requêtes déjà effectuées : clé "zone_anneeScolaire" → tableau de records bruts
+const _schoolHolidaysCache = new Map();
+
+// Reconstruit state.schoolHolidays depuis tous les records en cache (toutes zones/années).
+function _rebuildSchoolHolidays() {
+  const holidays = {};
+  for (const records of _schoolHolidaysCache.values()) {
+    records.forEach(({ start_date, end_date, description }) => {
+      if (!start_date || !end_date) return;
+      const start = new Date(start_date); start.setHours(0,0,0,0);
+      const end   = new Date(end_date);   end.setHours(0,0,0,0);
+      const desc  = description || 'Vacances scolaires';
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const iso = fmtISO(new Date(d));
+        if (!holidays[iso]) holidays[iso] = [];
+        if (!holidays[iso].includes(desc)) holidays[iso].push(desc);
+      }
+    });
+  }
+  state.schoolHolidays = holidays;
+}
 
 // Charge les vacances scolaires pour le mois passé en paramètre (Date).
-// Ne re-fetche pas si le mois est déjà en cache pour les zones actives.
+// Ne re-fetche pas si la combinaison zone+année scolaire est déjà en cache.
 async function fetchSchoolHolidays(targetMonth) {
   try {
     const zones = Object.entries(state.config.schoolHolidayZones || {})
@@ -510,16 +529,13 @@ async function fetchSchoolHolidays(targetMonth) {
     const y = month.getFullYear();
     const m = month.getMonth();
 
-    // Années scolaires qui couvrent ce mois (une période peut chevaucher deux années scolaires)
-    // Année scolaire YYYY-YYYY+1 commence en sept, donc :
-    // - si mois >= septembre → annee = y-(y+1)
-    // - si mois < septembre  → annee = (y-1)-y
+    // Calcule l'année scolaire couvrant une date donnée
     const scholYear = (d) => {
       const yr = d.getFullYear(), mo = d.getMonth();
       return mo >= 8 ? `${yr}-${yr + 1}` : `${yr - 1}-${yr}`;
     };
 
-    // On couvre le mois cible + le mois précédent et suivant pour les transitions
+    // On couvre le mois cible + mois précédent et suivant pour les transitions
     const monthsToCheck = [
       new Date(y, m - 1, 1),
       new Date(y, m, 1),
@@ -527,40 +543,38 @@ async function fetchSchoolHolidays(targetMonth) {
     ];
     const anneesNeeded = [...new Set(monthsToCheck.map(scholYear))];
 
-    // Filtrer les requêtes déjà faites (par zone + annee scolaire)
+    // Lancer uniquement les requêtes pas encore en cache
     const requestsToMake = [];
     zones.forEach(zone => {
       anneesNeeded.forEach(annee => {
         const cacheKey = `${zone}_${annee}`;
-        if (!_schoolHolidaysFetched.has(cacheKey)) {
-          _schoolHolidaysFetched.add(cacheKey);
+        if (!_schoolHolidaysCache.has(cacheKey)) {
           const url = `${SCHOOL_HOLIDAYS_API}?refine=zones%3A%22Zone%20${zone}%22&refine=annee_scolaire%3A%22${annee}%22&refine=population%3A%22%C3%89l%C3%A8ves%22&limit=100&timezone=Europe%2FParis`;
-          requestsToMake.push(fetch(url).then(r => r.ok ? r.json() : null).catch(() => null));
+          requestsToMake.push(
+            fetch(url)
+              .then(r => r.ok ? r.json() : null)
+              .catch(() => null)
+              .then(data => ({ cacheKey, records: data?.results || [] }))
+          );
         }
       });
     });
 
     if (requestsToMake.length === 0) {
       console.log('[SCHOOL_HOLIDAYS] Tout déjà en cache pour ce mois');
+      // Reconstruire quand même pour s'assurer que state.schoolHolidays est à jour
+      _rebuildSchoolHolidays();
+      console.log('[SCHOOL_HOLIDAYS] Reconstruit :', Object.keys(state.schoolHolidays).length, 'jours au total');
       return;
     }
 
     const results = await Promise.all(requestsToMake);
-    results.forEach(data => {
-      if (!data?.results) return;
-      data.results.forEach(({ start_date, end_date, description }) => {
-        if (!start_date || !end_date) return;
-        const start = new Date(start_date); start.setHours(0,0,0,0);
-        const end   = new Date(end_date);   end.setHours(0,0,0,0);
-        const desc  = description || 'Vacances scolaires';
-        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-          const iso = fmtISO(new Date(d));
-          if (!state.schoolHolidays[iso]) state.schoolHolidays[iso] = [];
-          if (!state.schoolHolidays[iso].includes(desc)) state.schoolHolidays[iso].push(desc);
-        }
-      });
+    results.forEach(({ cacheKey, records }) => {
+      _schoolHolidaysCache.set(cacheKey, records);
     });
 
+    // Reconstruire l'index depuis TOUS les records en cache
+    _rebuildSchoolHolidays();
     console.log('[SCHOOL_HOLIDAYS] Chargé :', Object.keys(state.schoolHolidays).length, 'jours au total');
   } catch(e) {
     console.error('[SCHOOL_HOLIDAYS] Error:', e);
@@ -572,7 +586,7 @@ async function fetchSchoolHolidays(targetMonth) {
 
 // Réinitialise le cache des vacances (ex: changement de zone)
 function resetSchoolHolidaysCache() {
-  _schoolHolidaysFetched.clear();
+  _schoolHolidaysCache.clear();
   state.schoolHolidays = {};
 }
 
