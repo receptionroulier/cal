@@ -242,9 +242,9 @@ main { display: flex; flex: 1; min-height: 0; }
 .cfg-swatch-reset:hover { color: var(--red); border-color: var(--red); }
 
 #view-absences { display: none; flex-direction: column; flex: 1; padding: 0; overflow: hidden; }
-#absences-container { flex: 1; overflow: auto; }
+#absences-container { flex: 1; overflow: auto; padding: 0; }
 .abs-table { border-collapse: separate; border-spacing: 0; font-size: 0.65rem; background: transparent; width: 100%; table-layout: fixed; }
-.abs-table thead tr th { position: sticky; top: 0; z-index: 3; background: var(--surface); border-bottom: 2px solid var(--border2); padding: 2px; text-align: center; color: var(--text); font-size: 0.6rem; height: 28px; box-sizing: border-box; }
+.abs-table thead tr th { position: sticky; top: 0; z-index: 3; background: var(--surface); border-bottom: 2px solid var(--border2); padding: 2px; text-align: center; color: var(--text); font-size: 0.6rem; height: 28px; box-sizing: border-box; box-shadow: 0 2px 4px rgba(0,0,0,0.4); }
 .abs-table thead tr th.member-cell { z-index: 4; left: 0; text-align: left; padding-left: 8px; }
 .abs-table tbody tr td { padding: 0; text-align: center; height: 28px; box-sizing: border-box; border: none; }
 .abs-table tbody tr td.member-cell { position: sticky; left: 0; z-index: 1; background: var(--surface); padding: 1px 4px; }
@@ -340,7 +340,7 @@ main { display: flex; flex: 1; min-height: 0; }
         </div>
       </div>
       <div id="view-absences">
-          <div id="absences-container" style="padding: 10px 20px 20px"></div>
+          <div id="absences-container" style="padding: 0 20px 20px"></div>
       </div>
     </div>
   </main>
@@ -1526,13 +1526,15 @@ function renderAbsences() {
     });
 
     container.innerHTML = `
-      <table class="abs-table">
-        <thead><tr>
-          <th class="member-cell" style="position:sticky;left:0;background:var(--surface);z-index:4;width:160px;min-width:160px;max-width:160px;text-align:left;padding-left:8px;">Personnel</th>
-          ${dayHeaders}
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>`;
+      <div style="padding: 10px 20px 20px;">
+        <table class="abs-table">
+          <thead><tr>
+            <th class="member-cell" style="position:sticky;left:0;background:var(--surface);z-index:4;width:160px;min-width:160px;max-width:160px;text-align:left;padding-left:8px;">Personnel</th>
+            ${dayHeaders}
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
 }
 
 // ── PDF & EMAILS ──
