@@ -519,11 +519,13 @@ async function fetchSchoolHolidays() {
     const results = await Promise.all(requests);
     results.forEach(data => {
       if (!data) return;
-      (data.results || []).forEach(rec => {
-        if (!rec.start_date || !rec.end_date) return;
+      // L'API v2.0 retourne data.records[].record.fields (pas data.results)
+      (data.records || []).forEach(item => {
+        const rec = item.record?.fields;
+        if (!rec || !rec.start_date || !rec.end_date) return;
         const start = new Date(rec.start_date); start.setHours(0,0,0,0);
         const end   = new Date(rec.end_date);   end.setHours(0,0,0,0);
-        const desc = rec.description || rec.libelle || 'Vacances scolaires';
+        const desc = rec.description || 'Vacances scolaires';
         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
           const iso = fmtISO(new Date(d));
           if (!schoolHolidays[iso]) schoolHolidays[iso] = [];
