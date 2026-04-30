@@ -500,13 +500,19 @@ const _schoolHolidaysCache = new Map();
 // Reconstruit state.schoolHolidays depuis tous les records en cache (toutes zones/années).
 function _rebuildSchoolHolidays() {
   const holidays = {};
+  // Parse uniquement la partie YYYY-MM-DD pour ignorer le fuseau horaire de l'API
+  const parseLocalDate = (str) => {
+    const [y, mo, da] = str.substring(0, 10).split('-').map(Number);
+    return new Date(y, mo - 1, da);
+  };
   for (const records of _schoolHolidaysCache.values()) {
     records.forEach(({ start_date, end_date, description }) => {
       if (!start_date || !end_date) return;
-      const start = new Date(start_date); start.setHours(0,0,0,0);
-      const end   = new Date(end_date);   end.setHours(0,0,0,0);
+      const start = parseLocalDate(start_date);
+      // end_date de l'API = premier jour de reprise → on l'exclut (< strict)
+      const end   = parseLocalDate(end_date);
       const desc  = description || 'Vacances scolaires';
-      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
         const iso = fmtISO(new Date(d));
         if (!holidays[iso]) holidays[iso] = [];
         if (!holidays[iso].includes(desc)) holidays[iso].push(desc);
