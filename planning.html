@@ -70,9 +70,6 @@ header {
 .btn-view { background: var(--surface2); color: var(--text2); border: 1px solid var(--border2); padding: 6px 14px; border-radius: 7px; cursor: pointer; font-size: 0.74rem; font-weight: 700; transition: all .15s; white-space: nowrap; font-family: inherit; }
 .btn-view:hover { color: var(--text); background: var(--surface); border-color: var(--accent); }
 .btn-view.active { background: var(--accent); color: #000; border-color: var(--accent); }
-.view-tabs { display: none; }
-.view-tab { display: none; }
-
 main { display: flex; flex: 1; min-height: 0; }
 
 #panel-staff {
@@ -243,15 +240,15 @@ main { display: flex; flex: 1; min-height: 0; }
 
 #view-absences { display: none; flex-direction: column; flex: 1; padding: 0; overflow: hidden; }
 #abs-header-area { flex-shrink: 0; overflow: hidden; background: var(--surface); border-bottom: 2px solid var(--border2); }
-#abs-header-inner { padding: 0 20px; }
+#abs-header-inner { padding: 0; }
 #abs-scroll-area { flex: 1; overflow: auto; min-height: 0; }
-#abs-scroll-inner { padding: 0 20px 20px; }
+#abs-scroll-inner { padding: 0 0 20px; }
 .abs-header-table { border-collapse: separate; border-spacing: 0; width: 100%; table-layout: fixed; }
 .abs-header-table th { background: var(--surface); padding: 4px 2px; text-align: center; color: var(--text); font-size: 0.6rem; height: 32px; box-sizing: border-box; font-weight: 700; }
-.abs-header-table th.member-cell { text-align: left; padding-left: 8px; }
+.abs-header-table th.member-cell { text-align: left; padding-left: 12px; }
 .abs-table { border-collapse: separate; border-spacing: 0; font-size: 0.65rem; background: transparent; width: 100%; table-layout: fixed; }
 .abs-table tbody tr td { padding: 0; text-align: center; height: 28px; box-sizing: border-box; border: none; }
-.abs-table tbody tr td.member-cell { position: sticky; left: 0; z-index: 1; background: var(--surface); padding: 1px 4px; }
+.abs-table tbody tr td.member-cell { position: sticky; left: 0; z-index: 1; background: var(--surface); padding: 1px 6px 1px 8px; }
 /* cases jour : haut + bas sur toute la ligne, séparateurs verticaux fins entre cases */
 .abs-table tbody tr td.day-cell {
   border-top: 2px solid var(--row-color, var(--border2));
@@ -1567,10 +1564,6 @@ function renderAbsences() {
     if (headerLabel) headerLabel.textContent = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
 
     const headerTable = document.getElementById('abs-header-table');
-    const scrollArea = document.getElementById('abs-scroll-area');
-    const headerInner = document.getElementById('abs-header-inner');
-    const scrollInner = document.getElementById('abs-scroll-inner');
-
     if (state.staff.length === 0) {
         headerTable.innerHTML = '';
         tbody.innerHTML = '<tr><td colspan="32" style="padding:20px;text-align:center;color:var(--text3)">Aucune donnée</td></tr>';
