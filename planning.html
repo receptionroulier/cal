@@ -1592,19 +1592,26 @@ function showConfigModal(tab = 'mail') {
 }
 
 function buildAbsConfigRows() {
-  const order = state.config.absOrder || state.staff.map(w => w.id);
-  const printSet = new Set(state.config.absPrint || state.staff.map(w => w.id));
-  const sorted = [...order]
-    .map(id => state.staff.find(w => w.id === id))
-    .filter(Boolean);
-  // ajouter les membres pas encore dans l'ordre
-  state.staff.forEach(w => { if (!sorted.find(s => s.id === w.id)) sorted.push(w); });
+  const order = state.config.absOrder || [];
+  const printSet = new Set(state.config.absPrint !== undefined ? state.config.absPrint : state.staff.map(w => w.id));
 
-  return sorted.map(w => {
+  // Membres dans l'ordre sauvegardé
+  const sorted = [...order].map(id => state.staff.find(w => w.id === id)).filter(Boolean);
+
+  // Nouveaux membres → PDF=non par défaut, triés alpha, ajoutés en bas
+  const newMembers = state.staff
+    .filter(w => !order.includes(w.id))
+    .sort((a, b) => `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'fr'));
+
+  const allSorted = [...sorted, ...newMembers];
+
+  return allSorted.map(w => {
     const colorKey = state.config.workerColors?.[w.id];
     const colorMap = { rouge:'#ff4d6d', violet:'#a78bfa', vert:'#00c896', bleu:'#3b8fff', jaune:'#ffd060' };
     const borderColor = colorKey ? colorMap[colorKey] : 'var(--border2)';
-    const checked = printSet.has(w.id) ? 'checked' : '';
+    // Nouveau membre → PDF=non par défaut
+    const isNew = !order.includes(w.id);
+    const checked = (!isNew && printSet.has(w.id)) ? 'checked' : '';
     return `
       <div class="cfg-abs-row" data-id="${w.id}" draggable="true" style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:7px;background:var(--surface2);border:1px solid ${borderColor};cursor:grab;user-select:none;">
         <span style="color:var(--text3);font-size:0.8rem;cursor:grab;">⠿</span>
@@ -1632,8 +1639,22 @@ function initAbsDragDrop() {
 
 window.saveAbsConfig = function() {
   const list = document.getElementById('cfg-abs-list');
-  state.config.absOrder = [...list.querySelectorAll('.cfg-abs-row')].map(r => r.dataset.id);
-  state.config.absPrint = [...list.querySelectorAll('[data-print]')].filter(cb => cb.checked).map(cb => cb.dataset.print);
+  const allRows = [...list.querySelectorAll('.cfg-abs-row')];
+  const printIds = new Set(allRows.filter(r => r.querySelector('[data-print]').checked).map(r => r.dataset.id));
+
+  // PDF=oui → ordre drag & drop ; PDF=non → tri alpha
+  const withPrint = allRows.filter(r => printIds.has(r.dataset.id)).map(r => r.dataset.id);
+  const withoutPrint = allRows.filter(r => !printIds.has(r.dataset.id)).map(r => r.dataset.id)
+    .sort((a, b) => {
+      const wa = state.staff.find(w => w.id === a);
+      const wb = state.staff.find(w => w.id === b);
+      const na = wa ? `${wa.lastName} ${wa.firstName}` : a;
+      const nb = wb ? `${wb.lastName} ${wb.firstName}` : b;
+      return na.localeCompare(nb, 'fr');
+    });
+
+  state.config.absOrder = [...withPrint, ...withoutPrint];
+  state.config.absPrint = [...printIds];
   saveState();
   closeModal();
   if (state.view === 'absences') renderAbsences();
