@@ -240,8 +240,8 @@ main { display: flex; flex: 1; min-height: 0; }
 
 #view-absences { display: none; flex-direction: column; flex: 1; padding: 0; overflow: hidden; }
 #abs-scroll-area { flex: 1; overflow: auto; min-height: 0; }
-#abs-scroll-inner { padding: 0 0 20px; }
-.abs-table { border-collapse: separate; border-spacing: 0; font-size: 0.65rem; background: transparent; width: 100%; table-layout: fixed; }
+#abs-scroll-inner { padding: 0 12px 20px; }
+.abs-table { border-collapse: separate; border-spacing: 0; font-size: 0.65rem; background: transparent; min-width: 100%; table-layout: fixed; }
 /* Header sticky */
 .abs-table thead tr th { position: sticky; top: 0; z-index: 2; background: var(--surface); padding: 4px 2px; text-align: center; color: var(--text); font-size: 0.6rem; height: 32px; box-sizing: border-box; font-weight: 700; border-bottom: 2px solid var(--border2); }
 .abs-table thead tr th.member-cell { position: sticky; left: 0; z-index: 3; text-align: left; padding-left: 10px; }
