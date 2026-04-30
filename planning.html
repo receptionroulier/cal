@@ -1403,7 +1403,7 @@ function renderAbsences() {
 
         const memberCell = `
           <td class="member-cell" style="position:sticky;left:0;background:var(--surface);z-index:1;">
-            <div style="padding:4px 6px;border-radius:6px;border:1px solid ${colorKey ? borderColor : 'transparent'};">
+            <div style="padding:4px 6px;border-radius:6px;border:1px solid ${colorKey ? borderColor : 'transparent'};text-align:left;">
               <div style="font-size:0.68rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${w.lastName} ${w.firstName}</div>
               <div style="font-size:0.58rem;color:var(--text3);font-family:'DM Mono',monospace;">${w.matricule || '—'}</div>
             </div>
