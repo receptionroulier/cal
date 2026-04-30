@@ -225,11 +225,11 @@ main { display: flex; flex: 1; min-height: 0; }
                        justify-content: center; color: var(--text3); transition: all .12s; flex-shrink: 0; }
 .cfg-swatch-reset:hover { color: var(--red); border-color: var(--red); }
 
-#view-absences { display: none; flex-direction: column; flex: 1; padding: 0; overflow-y: auto; }
-.abs-table { border-collapse: collapse; font-size: 0.65rem; background: var(--surface); }
-.abs-table th, .abs-table td { border: 1px solid var(--border2); padding: 0; text-align: center; width: 28px; height: 28px; min-width: 28px; max-width: 28px; box-sizing: border-box; }
+#view-absences { display: none; flex-direction: column; flex: 1; padding: 0; overflow: auto; }
+.abs-table { border-collapse: collapse; font-size: 0.65rem; background: var(--surface); width: 100%; table-layout: fixed; }
+.abs-table th, .abs-table td { border: 1px solid var(--border2); padding: 0; text-align: center; height: 36px; box-sizing: border-box; overflow: hidden; }
 .abs-table th { background: var(--surface2); color: var(--text2); font-size: 0.6rem; }
-.abs-table td.member-cell { width: 100px; min-width: 100px; max-width: 100px; padding: 2px 3px; }
+.abs-table td.member-cell, .abs-table th.member-cell { width: 160px; min-width: 160px; max-width: 160px; padding: 2px 4px; }
 .abs-code { font-weight: bold; padding: 1px 3px; border-radius: 3px; background: rgba(255,107,53,0.2); color: var(--warn); font-size: 0.6rem; }
 
 #modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); }
