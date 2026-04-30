@@ -239,22 +239,21 @@ main { display: flex; flex: 1; min-height: 0; }
 .cfg-swatch-reset:hover { color: var(--red); border-color: var(--red); }
 
 #view-absences { display: none; flex-direction: column; flex: 1; padding: 0; overflow: hidden; }
-#abs-header-area { flex-shrink: 0; overflow: hidden; background: var(--surface); border-bottom: 2px solid var(--border2); }
-#abs-header-inner { padding: 0; }
 #abs-scroll-area { flex: 1; overflow: auto; min-height: 0; }
 #abs-scroll-inner { padding: 0 0 20px; }
-.abs-header-table { border-collapse: separate; border-spacing: 0; width: 100%; table-layout: fixed; }
-.abs-header-table th { background: var(--surface); padding: 4px 2px; text-align: center; color: var(--text); font-size: 0.6rem; height: 32px; box-sizing: border-box; font-weight: 700; }
-.abs-header-table th.member-cell { text-align: left; padding-left: 12px; }
 .abs-table { border-collapse: separate; border-spacing: 0; font-size: 0.65rem; background: transparent; width: 100%; table-layout: fixed; }
+/* Header sticky */
+.abs-table thead tr th { position: sticky; top: 0; z-index: 2; background: var(--surface); padding: 4px 2px; text-align: center; color: var(--text); font-size: 0.6rem; height: 32px; box-sizing: border-box; font-weight: 700; border-bottom: 2px solid var(--border2); }
+.abs-table thead tr th.member-cell { position: sticky; left: 0; z-index: 3; text-align: left; padding-left: 10px; }
+/* Séparateurs verticaux fins dans le header */
+.abs-table thead tr th.day-th { border-left: 1px solid rgba(255,255,255,0.08); }
+/* Body */
 .abs-table tbody tr td { padding: 0; text-align: center; height: 28px; box-sizing: border-box; border: none; }
-.abs-table tbody tr td.member-cell { position: sticky; left: 0; z-index: 1; background: var(--surface); padding: 1px 6px 1px 8px; }
-/* cases jour : haut + bas sur toute la ligne, séparateurs verticaux fins entre cases */
+.abs-table tbody tr td.member-cell { position: sticky; left: 0; z-index: 1; background: var(--surface); padding: 1px 6px 1px 10px; }
+/* Bordures de ligne colorée */
 .abs-table tbody tr td.day-cell {
   border-top: 2px solid var(--row-color, var(--border2));
   border-bottom: 2px solid var(--row-color, var(--border2));
-}
-.abs-table tbody tr td.day-cell:not(.day-first):not(.day-last) {
   border-left: 1px solid rgba(255,255,255,0.08);
 }
 .abs-table tbody tr td.day-first {
@@ -341,14 +340,12 @@ main { display: flex; flex: 1; min-height: 0; }
         </div>
       </div>
       <div id="view-absences">
-        <div id="abs-header-area">
-          <div id="abs-header-inner">
-            <table class="abs-header-table" id="abs-header-table"></table>
-          </div>
-        </div>
         <div id="abs-scroll-area">
           <div id="abs-scroll-inner">
-            <table class="abs-table" id="abs-body-table"><tbody id="abs-tbody"></tbody></table>
+            <table class="abs-table" id="abs-body-table">
+              <thead id="abs-thead"></thead>
+              <tbody id="abs-tbody"></tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -1559,20 +1556,20 @@ function renderAbsences() {
     const daysInMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth() + 1, 0).getDate();
     const monthLabel = state.absMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
 
-    // Mettre à jour le label dans le header
     const headerLabel = document.getElementById('header-month-label');
     if (headerLabel) headerLabel.textContent = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
 
-    const headerTable = document.getElementById('abs-header-table');
+    const bodyTable = document.getElementById('abs-body-table');
+    const thead = document.getElementById('abs-thead');
+    const tbody = document.getElementById('abs-tbody');
+
     if (state.staff.length === 0) {
-        headerTable.innerHTML = '';
+        thead.innerHTML = '';
         tbody.innerHTML = '<tr><td colspan="32" style="padding:20px;text-align:center;color:var(--text3)">Aucune donnée</td></tr>';
         return;
     }
 
-    // Largeur fixe colonne personnel
     const MEMBER_W = '160px';
-    // Largeur colonne jour — calculée pour remplir l'écran si possible
     const DAY_W = '28px';
 
     // Trier selon absOrder si défini
@@ -1580,9 +1577,13 @@ function renderAbsences() {
     const staffSorted = [...order].map(id => state.staff.find(w => w.id === id)).filter(Boolean);
     state.staff.forEach(w => { if (!staffSorted.find(s => s.id === w.id)) staffSorted.push(w); });
 
-    // ── HEADER TABLE ──
-    let headerCols = `<colgroup><col style="width:${MEMBER_W};min-width:${MEMBER_W};max-width:${MEMBER_W};">`;
-    let headerRow = `<tr><th class="member-cell" style="width:${MEMBER_W};min-width:${MEMBER_W};max-width:${MEMBER_W};text-align:left;padding-left:8px;">Personnel</th>`;
+    // ── COLGROUP (une seule table) ──
+    let colgroup = `<colgroup><col style="width:${MEMBER_W};min-width:${MEMBER_W};max-width:${MEMBER_W};">`;
+    for (let i = 1; i <= daysInMonth; i++) colgroup += `<col style="width:${DAY_W};min-width:${DAY_W};">`;
+    colgroup += '</colgroup>';
+
+    // ── THEAD ──
+    let headerRow = `<tr><th class="member-cell">Personnel</th>`;
     for (let i = 1; i <= daysInMonth; i++) {
         const d = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), i);
         const dateISO = fmtISO(d);
@@ -1593,21 +1594,13 @@ function renderAbsences() {
         const isVacances = !!(state.schoolHolidays && state.schoolHolidays[dateISO]);
         const isRed = isSun || isFerie;
         const bgStyle = isRed ? 'background:rgba(255,77,109,0.12);' : isSat ? 'background:rgba(59,143,255,0.12);' : '';
-        const borderTopStyle = isVacances ? 'border-top:3px solid var(--red);' : '';
-        headerCols += `<col style="width:${DAY_W};min-width:${DAY_W};">`;
-        headerRow += `<th style="${bgStyle}${borderTopStyle}">${i}<br><span style="font-weight:400;font-size:0.55rem">${dow}</span></th>`;
+        const vacStyle = isVacances ? 'box-shadow:inset 0 3px 0 var(--red);' : '';
+        headerRow += `<th class="day-th" style="${bgStyle}${vacStyle}">${i}<br><span style="font-weight:400;font-size:0.55rem">${dow}</span></th>`;
     }
-    headerCols += '</colgroup>';
     headerRow += '</tr>';
-    headerTable.innerHTML = headerCols + headerRow;
+    thead.innerHTML = headerRow;
 
-    // ── BODY TABLE colgroup (mêmes largeurs) ──
-    const bodyTable = document.getElementById('abs-body-table');
-    let bodyColgroup = `<colgroup><col style="width:${MEMBER_W};min-width:${MEMBER_W};max-width:${MEMBER_W};">`;
-    for (let i = 1; i <= daysInMonth; i++) bodyColgroup += `<col style="width:${DAY_W};min-width:${DAY_W};">`;
-    bodyColgroup += '</colgroup>';
-
-    // ── BODY ROWS ──
+    // ── TBODY ──
     let rows = '';
     staffSorted.forEach(w => {
         const colorKey = state.config.workerColors?.[w.id];
@@ -1630,15 +1623,15 @@ function renderAbsences() {
             const isSat = d.getDay() === 6;
             const isSun = d.getDay() === 0;
             const isFerie = !!state.holidays[dateISO];
-            const dayClass = isSun || isFerie ? 'day-cell day-sun' : isSat ? 'day-cell day-sat' : 'day-cell';
-            const extraClass = i === 1 ? ' day-first' : i === daysInMonth ? ' day-last' : '';
-            dayCells += `<td class="${dayClass}${extraClass}">${code ? `<span class="abs-code">${code}</span>` : ''}</td>`;
+            const colorClass = isSun || isFerie ? ' day-sun' : isSat ? ' day-sat' : '';
+            const firstLast = i === 1 ? ' day-first' : i === daysInMonth ? ' day-last' : '';
+            dayCells += `<td class="day-cell${colorClass}${firstLast}">${code ? `<span class="abs-code">${code}</span>` : ''}</td>`;
         }
         const rowColor = colorKey ? borderColor : 'var(--border2)';
         rows += `<tr style="--row-color:${rowColor};">${memberCell}${dayCells}</tr><tr class="abs-spacer"><td colspan="${daysInMonth + 1}"></td></tr>`;
     });
 
-    bodyTable.innerHTML = bodyColgroup + `<tbody>${rows}</tbody>`;
+    bodyTable.innerHTML = colgroup + `<thead>${headerRow}</thead><tbody>${rows}</tbody>`;
 }
 
 // ── PDF & EMAILS ──
@@ -2202,18 +2195,6 @@ loadState();
   });
 })();
 
-// ── SYNC SCROLL HORIZONTAL absences header ↔ contenu ──
-(function() {
-  const scrollArea = document.getElementById('abs-scroll-area');
-  const headerArea = document.getElementById('abs-header-area');
-  let _syncing = false;
-  scrollArea.addEventListener('scroll', () => {
-    if (_syncing) return;
-    _syncing = true;
-    headerArea.scrollLeft = scrollArea.scrollLeft;
-    _syncing = false;
-  });
-})();
 
 initApp();
 </script>
