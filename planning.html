@@ -491,15 +491,15 @@ async function fetchHolidays() {
     }
 }
 
-// ── FETCH VACANCES SCOLAIRES ──
+// ── FETCH VACANCES SCOLAIRES (API v2.1) ──
+const SCHOOL_HOLIDAYS_API = 'https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-calendrier-scolaire/records';
+
 async function fetchSchoolHolidays() {
   try {
     const zones = Object.entries(state.config.schoolHolidayZones || {})
       .filter(([, enabled]) => enabled)
       .map(([z]) => z);
     if (zones.length === 0) { state.schoolHolidays = {}; return; }
-
-    const schoolHolidays = {};
 
     const currentYear = new Date().getFullYear();
     const annees = [
@@ -508,25 +508,22 @@ async function fetchSchoolHolidays() {
       `${currentYear + 1}-${currentYear + 2}`,
     ];
 
-    const requests = [];
-    zones.forEach(zone => {
-      annees.forEach(annee => {
-        // v2.1 autorise le CORS depuis GitHub Pages (contrairement à v2.0)
-        const url = `https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-calendrier-scolaire/records?refine=zones%3A%22Zone%20${zone}%22&refine=annee_scolaire%3A%22${annee}%22&refine=population%3A%22%C3%89l%C3%A8ves%22&limit=100&timezone=Europe%2FParis`;
-        requests.push(fetch(url, { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null));
-      });
-    });
+    const requests = zones.flatMap(zone =>
+      annees.map(annee => {
+        const url = `${SCHOOL_HOLIDAYS_API}?refine=zones%3A%22Zone%20${zone}%22&refine=annee_scolaire%3A%22${annee}%22&refine=population%3A%22%C3%89l%C3%A8ves%22&limit=100&timezone=Europe%2FParis`;
+        return fetch(url).then(r => r.ok ? r.json() : null).catch(() => null);
+      })
+    );
 
+    const schoolHolidays = {};
     const results = await Promise.all(requests);
     results.forEach(data => {
-      if (!data) return;
-      (data.results || data.records || []).forEach(item => {
-        // v2.1 : champs directement sur item ; v2.0 : item.record.fields
-        const rec = item.start_date ? item : item.record?.fields;
-        if (!rec || !rec.start_date || !rec.end_date) return;
-        const start = new Date(rec.start_date); start.setHours(0,0,0,0);
-        const end   = new Date(rec.end_date);   end.setHours(0,0,0,0);
-        const desc = rec.description || 'Vacances scolaires';
+      if (!data?.results) return;
+      data.results.forEach(({ start_date, end_date, description }) => {
+        if (!start_date || !end_date) return;
+        const start = new Date(start_date); start.setHours(0,0,0,0);
+        const end   = new Date(end_date);   end.setHours(0,0,0,0);
+        const desc  = description || 'Vacances scolaires';
         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
           const iso = fmtISO(new Date(d));
           if (!schoolHolidays[iso]) schoolHolidays[iso] = [];
