@@ -83,44 +83,50 @@ main { display: flex; flex: 1; min-height: 0; }
 #staff-search { margin: 8px 10px; padding: 6px 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.75rem; outline: none; }
 #staff-list { flex: 1; overflow-y: auto; padding: 4px 8px 8px; }
 .staff-item {
-  display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; border-radius: 7px;
-  cursor: grab; margin-bottom: 3px; transition: all .12s; border: 1px solid transparent;
+  padding: 5px 8px; border-radius: 7px;
+  cursor: grab; margin-bottom: 2px; transition: all .12s; border: 1px solid transparent;
 }
 .staff-item:hover { background: var(--surface2); border-color: var(--border); }
-.staff-info { display: flex; align-items: center; gap: 8px; width: 100%; }
-.staff-avatar { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.62rem; font-weight: 700; flex-shrink: 0; }
 .staff-name { font-size: 0.73rem; font-weight: 600; }
 .staff-matric { font-size: 0.62rem; color: var(--text3); font-family: 'DM Mono', monospace; }
-.staff-item.absent { opacity: 0.45; }
 
-.staff-badges {
-  display: flex; gap: 2px; margin-top: 2px; flex-wrap: wrap; justify-content: flex-end;
-}
+.staff-badges { display: flex; gap: 2px; margin-top: 3px; flex-wrap: wrap; }
 .staff-badge {
   font-size: 9px; font-weight: 700; font-family: 'DM Mono', monospace;
-  padding: 1px 3px; border-radius: 3px; border: 1px solid transparent;
-  line-height: 1;
+  padding: 1px 3px; border-radius: 3px; border: 1px solid transparent; line-height: 1;
 }
-.staff-badge.absent {
-  background: rgba(255,77,109,0.15); color: var(--red); border-color: rgba(255,77,109,0.3);
-}
-.staff-badge.present {
-  background: rgba(0,200,150,0.15); color: var(--green); border-color: rgba(0,200,150,0.3);
-}
+.staff-badge.absent  { background: rgba(255,77,109,0.15); color: var(--red);   border-color: rgba(255,77,109,0.3); }
+.staff-badge.present { background: rgba(0,200,150,0.15);  color: var(--green); border-color: rgba(0,200,150,0.3); }
 
 #content { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
 
 #view-week { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+#week-header-area { flex-shrink: 0; overflow: hidden; background: var(--bg); border-bottom: 2px solid var(--border2); }
+#week-scroll-area { flex: 1; overflow: auto; min-height: 0; }
 .days-header { display: grid; gap: 4px; padding: 8px 0 4px; box-sizing: border-box; }
 .day-header-cell {
   text-align: center; padding: 8px 4px; border-radius: 7px; font-size: 0.72rem; font-weight: 700;
   background: var(--surface); border: 2px solid var(--border); cursor: pointer; position: relative;
-  min-height: 60px; box-sizing: border-box;
+  min-height: 60px; box-sizing: border-box; overflow: hidden;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
 }
 .day-header-cell.today { border-color: var(--accent); }
 .day-header-cell.ferie { border-color: var(--red); }
 .day-header-cell.today.ferie { border-color: var(--red); }
+.day-header-cell.vacances::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 5px;
+  background: var(--red);
+  z-index: 3;
+}
+.day-col { position: relative; overflow: hidden; }
+.vacances-badge {
+  position: absolute; left: 4px; bottom: 4px; font-size: 0.48rem; font-weight: 700;
+  color: var(--red); background: rgba(255,77,109,0.15); padding: 1px 4px; border-radius: 3px;
+  max-width: calc(100% - 8px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .ferie-badge {
   position: absolute; left: 4px; top: 4px; font-size: 0.52rem; font-weight: 700;
   color: var(--red); background: rgba(255,77,109,0.15); padding: 1px 4px; border-radius: 3px;
@@ -130,7 +136,7 @@ main { display: flex; flex: 1; min-height: 0; }
   background: var(--surface2); border-radius: 50%; width: 18px; height: 18px;
   display: flex; align-items: center; justify-content: center;
 }
-.day-mail-btn:hover { opacity: 1; color: var(--accent); background: var(--accent); color: #000; }
+.day-mail-btn:hover { opacity: 1; background: var(--accent); color: #000; }
 
 .week-grid { display: grid; gap: 4px; padding: 4px 0 10px; align-content: start; box-sizing: border-box; }
 .day-col {
@@ -172,13 +178,6 @@ main { display: flex; flex: 1; min-height: 0; }
 }
 .assigned-chip:hover .chip-remove { display: block; }
 
-.chip-modified { border-color: var(--warn) !important; }
-.chip-modified-badge {
-  font-size: 0.54rem; font-weight: 700; color: var(--warn);
-  background: rgba(255,107,53,0.15); padding: 1px 5px; border-radius: 3px;
-  margin-top: 2px; display: inline-block; cursor: help;
-}
-
 .drop-zone {
   border: 1px dashed var(--border); border-radius: 5px; padding: 4px; min-height: 32px;
   font-size: 0.62rem; color: var(--text3); display: flex; align-items: center; justify-content: center;
@@ -207,11 +206,72 @@ main { display: flex; flex: 1; min-height: 0; }
   background: rgba(59,143,255,0.35);
 }
 
-#view-absences { display: none; flex: 1; padding: 20px; overflow-y: auto; }
-.abs-table { width: 100%; border-collapse: collapse; font-size: 0.65rem; background: var(--surface); }
-.abs-table th, .abs-table td { border: 1px solid var(--border2); padding: 4px; text-align: center; }
-.abs-table th { background: var(--surface2); color: var(--text2); }
-.abs-code { font-weight: bold; padding: 2px 4px; border-radius: 3px; background: rgba(255,107,53,0.2); color: var(--warn); }
+/* ── Couleurs personnel ── */
+.wcolor-rouge  { --wc: #ff4d6d; }
+.wcolor-violet { --wc: #a78bfa; }
+.wcolor-vert   { --wc: #00c896; }
+.wcolor-bleu   { --wc: #3b8fff; }
+.wcolor-jaune  { --wc: #ffd060; }
+
+.assigned-chip.has-wcolor  { border-color: var(--wc) !important; box-shadow: inset 0 0 0 1px var(--wc); }
+.staff-item.has-wcolor     { border-color: var(--wc) !important; border-style: solid !important; }
+
+/* chip-modified déclaré APRÈS has-wcolor → orange prévaut toujours */
+.chip-modified { border-color: var(--warn) !important; box-shadow: inset 0 0 0 1px var(--warn) !important; }
+
+.cfg-tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 1px solid var(--border2); }
+.cfg-tab  { padding: 6px 16px; font-size: 0.75rem; font-weight: 700; cursor: pointer; color: var(--text3);
+            border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .15s; background: none; border-top: none; border-left: none; border-right: none; font-family: inherit; }
+.cfg-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.cfg-panel { display: none; }
+.cfg-panel.active { display: block; }
+
+.cfg-staff-list { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.cfg-staff-row  { display: flex; align-items: center; gap: 8px; padding: 5px 4px; border-radius: 6px; }
+.cfg-staff-row:hover { background: var(--surface2); }
+.cfg-staff-name { font-size: 0.73rem; font-weight: 600; flex: 1; }
+.cfg-colors     { display: flex; gap: 4px; align-items: center; }
+.cfg-swatch     { width: 18px; height: 18px; border-radius: 50%; cursor: pointer; border: 2px solid transparent;
+                  transition: transform .12s, border-color .12s; flex-shrink: 0; }
+.cfg-swatch:hover    { transform: scale(1.2); }
+.cfg-swatch.selected { border-color: #fff; }
+.cfg-swatch-reset    { width: 18px; height: 18px; border-radius: 50%; cursor: pointer; background: var(--surface2);
+                       border: 1px solid var(--border2); font-size: 0.6rem; display: flex; align-items: center;
+                       justify-content: center; color: var(--text3); transition: all .12s; flex-shrink: 0; }
+.cfg-swatch-reset:hover { color: var(--red); border-color: var(--red); }
+
+#view-absences { display: none; flex-direction: column; flex: 1; padding: 0; overflow: hidden; }
+#abs-header-area { flex-shrink: 0; overflow: hidden; background: var(--surface); border-bottom: 2px solid var(--border2); }
+#abs-header-inner { padding: 0 20px; }
+#abs-scroll-area { flex: 1; overflow: auto; min-height: 0; }
+#abs-scroll-inner { padding: 0 20px 20px; }
+.abs-header-table { border-collapse: separate; border-spacing: 0; width: 100%; table-layout: fixed; }
+.abs-header-table th { background: var(--surface); padding: 4px 2px; text-align: center; color: var(--text); font-size: 0.6rem; height: 32px; box-sizing: border-box; font-weight: 700; }
+.abs-header-table th.member-cell { text-align: left; padding-left: 8px; }
+.abs-table { border-collapse: separate; border-spacing: 0; font-size: 0.65rem; background: transparent; width: 100%; table-layout: fixed; }
+.abs-table tbody tr td { padding: 0; text-align: center; height: 28px; box-sizing: border-box; border: none; }
+.abs-table tbody tr td.member-cell { position: sticky; left: 0; z-index: 1; background: var(--surface); padding: 1px 4px; }
+/* cases jour : haut + bas sur toute la ligne, séparateurs verticaux fins entre cases */
+.abs-table tbody tr td.day-cell {
+  border-top: 2px solid var(--row-color, var(--border2));
+  border-bottom: 2px solid var(--row-color, var(--border2));
+}
+.abs-table tbody tr td.day-cell:not(.day-first):not(.day-last) {
+  border-left: 1px solid rgba(255,255,255,0.08);
+}
+.abs-table tbody tr td.day-first {
+  border-left: 2px solid var(--row-color, var(--border2));
+  border-radius: 4px 0 0 4px;
+}
+.abs-table tbody tr td.day-last {
+  border-right: 2px solid var(--row-color, var(--border2));
+  border-radius: 0 4px 4px 0;
+}
+.abs-table tbody tr td.day-sat { background: rgba(59,143,255,0.22); }
+.abs-table tbody tr td.day-sun, .abs-table tbody tr td.day-ferie { background: rgba(255,77,109,0.22); }
+.abs-table tbody tr.abs-spacer td { height: 7px; border: none; background: transparent; }
+.abs-code { display: inline-flex; align-items: center; justify-content: center; width: 88%; height: 18px; font-weight: 700; border-radius: 3px; background: rgba(255,107,53,0.35); color: var(--warn); font-size: 0.58rem; }
 
 #modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); }
 #modal-overlay.show { display: flex; }
@@ -236,14 +296,30 @@ main { display: flex; flex: 1; min-height: 0; }
       <button class="btn-view active" id="btn-view-week">Planning</button>
       <button class="btn-view" id="btn-view-absences">Absences</button>
       <div class="header-spacer"></div>
-      <div class="week-nav">
+      <div class="week-nav" id="header-week-nav">
         <button id="btn-today">Aujourd'hui</button>
+        <button id="btn-week-prev" class="btn btn-ghost" style="padding:4px 10px;font-size:1rem;">‹</button>
         <div id="week-label">Chargement...</div>
+        <button id="btn-week-next" class="btn btn-ghost" style="padding:4px 10px;font-size:1rem;">›</button>
         <button id="btn-cal-pick" title="Choisir une semaine">📅</button>
         <div id="cal-popup"></div>
       </div>
+      <div class="week-nav" id="header-month-nav" style="display:none;position:relative;">
+        <button id="btn-abs-prev" class="btn btn-ghost" style="padding:4px 10px;font-size:1rem;">‹</button>
+        <div id="header-month-label" style="font-size:0.8rem;font-weight:700;background:var(--surface2);padding:5px 14px;border-radius:20px;border:1px solid var(--border2);white-space:nowrap;min-width:140px;text-align:center;cursor:pointer;transition:border-color .15s;" title="Choisir un mois">—</div>
+        <div id="month-picker-popup" style="display:none;position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:12px;z-index:500;box-shadow:0 8px 32px rgba(0,0,0,0.5);min-width:200px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <button id="mp-prev-year" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:1rem;padding:0 4px;transition:color .12s;">‹</button>
+            <span id="mp-year-label" style="font-size:0.75rem;font-weight:700;color:var(--text);"></span>
+            <button id="mp-next-year" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:1rem;padding:0 4px;transition:color .12s;">›</button>
+          </div>
+          <div id="mp-months-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;"></div>
+        </div>
+        <button id="btn-abs-next" class="btn btn-ghost" style="padding:4px 10px;font-size:1rem;">›</button>
+      </div>
       <div class="header-spacer"></div>
       <button class="btn btn-ghost" id="btn-email-week">✉ Mail Hebdo</button>
+      <button class="btn btn-ghost" id="btn-print-abs" style="display:none;" title="Imprimer PDF">🖨 PDF</button>
       <span id="sync-status"></span>
     </div>
   </header>
@@ -256,23 +332,28 @@ main { display: flex; flex: 1; min-height: 0; }
     </div>
     <div id="content">
       <div id="view-week">
-        <div id="week-scroll-area" style="flex:1;overflow:auto;min-height:0;">
-          <div id="week-inner" style="min-width:560px;padding:0 10px 10px;">
+        <div id="week-header-area">
+          <div id="week-header-inner" style="min-width:560px;padding:0 10px;">
             <div class="days-header" id="days-header"></div>
+          </div>
+        </div>
+        <div id="week-scroll-area">
+          <div id="week-inner" style="min-width:560px;padding:4px 10px 10px;">
             <div class="week-grid" id="week-grid"></div>
           </div>
         </div>
       </div>
-      <div id="view-absences" style="display:none">
-          <div class="panel-title" style="padding: 20px; display:flex; justify-content:space-between; align-items:center">
-              <span>Suivi Mensuel des Absences</span>
-              <div id="month-nav" style="display:flex; gap:10px; align-items:center">
-                  <button class="btn btn-ghost" style="padding:2px 8px" id="abs-prev">‹</button>
-                  <span id="abs-month-label" style="font-size:0.8rem">Chargement...</span>
-                  <button class="btn btn-ghost" style="padding:2px 8px" id="abs-next">›</button>
-              </div>
+      <div id="view-absences">
+        <div id="abs-header-area">
+          <div id="abs-header-inner">
+            <table class="abs-header-table" id="abs-header-table"></table>
           </div>
-          <div id="absences-container" style="padding: 0 20px 20px"></div>
+        </div>
+        <div id="abs-scroll-area">
+          <div id="abs-scroll-inner">
+            <table class="abs-table" id="abs-body-table"><tbody id="abs-tbody"></tbody></table>
+          </div>
+        </div>
       </div>
     </div>
   </main>
@@ -290,16 +371,44 @@ const HOLIDAYS_BASE = "https://calendrier.api.gouv.fr/jours-feries/metropole";
 
 const SECTIONS_ORDER = ['cm', 'fcq', 'pn', 'matin', 'aprem', 'autre'];
 
-const SECTIONS_MAP = {
-  'cm': { id: 'cm', name: 'Chef de Manutention', hours: '', color: '#ff4d6d' },
-  'fcq': { id: 'fcq', name: 'Chef de quai', hours: '8h30-12h00 / 14h00-17h30', color: '#a78bfa' },
-  'pn': { id: 'pn', name: 'Montage / Prépa', hours: '8h30-12h00 / 14h00-17h30', color: '#00c896' },
-  'matin': { id: 'matin', name: 'Réception Matin', hours: '7h00 / 14h00', color: '#3b8fff' },
-  'aprem': { id: 'aprem', name: 'Réception Après-Midi', hours: '13h00 / 20h00', color: '#ffd060' },
-  'autre': { id: 'autre', name: 'Autres', hours: '', color: '#94a3b8' }
+const SECTIONS_MAP_BASE = {
+  'cm':    { id: 'cm',    name: 'Chef de Manutention',    hours: '',                          color: '#ff4d6d' },
+  'fcq':   { id: 'fcq',  name: 'Chef de quai',           hours: '8h30-12h00 / 14h00-17h30', color: '#a78bfa' },
+  'pn':    { id: 'pn',   name: 'Montage / Prépa',        hours: '8h30-12h00 / 14h00-17h30', color: '#00c896' },
+  'matin': { id: 'matin',name: 'Réception Matin',        hours: '7h00 / 14h00',              color: '#ffd060' },
+  'aprem': { id: 'aprem',name: 'Réception Après-Midi',   hours: '13h00 / 20h00',             color: '#3b8fff' },
+  'autre': { id: 'autre',name: 'Autres',                 hours: '',                          color: '#94a3b8' }
 };
 
+// Référence fixe : lundi 28 avril 2025 = semaine "impaire" (matin jaune)
+const WEEK_REF = new Date(2025, 3, 28);
+
+function getSectionsMap() {
+  const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+  const elapsed = Math.round((state.weekStart - WEEK_REF) / msPerWeek);
+  const isOdd = elapsed % 2 === 0; // semaine ref = impaire (0 = pair → isOdd true)
+  return {
+    ...SECTIONS_MAP_BASE,
+    matin: { ...SECTIONS_MAP_BASE.matin, color: isOdd ? '#ffd060' : '#3b8fff' },
+    aprem: { ...SECTIONS_MAP_BASE.aprem, color: isOdd ? '#3b8fff' : '#ffd060' },
+  };
+}
+
+// Alias dynamique utilisé partout
+let SECTIONS_MAP = SECTIONS_MAP_BASE;
+
 const DAYS = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+
+// Membre fictif permanent "À définir"
+const TBD_WORKER = {
+  id: '_tbd_',
+  firstName: 'À',
+  lastName: 'DÉFINIR',
+  matricule: '—',
+  color: '#94a3b8',
+  isChief: false,
+  isTbd: true,
+};
 
 let state = {
   weekStart: getMonday(new Date()),
@@ -310,9 +419,12 @@ let state = {
   slots: {},
   absences: {},
   holidays: {},
+  schoolHolidays: {},
   config: {
     emailWeek: 'chefmanutention.tmt@shgt.fr',
     emailCcWeek: 'smaillard@smr-france.com',
+    workerColors: {},
+    schoolHolidayZones: { A: false, B: true, C: false },
   },
   staff: [],
   workerAssignmentMap: {},
@@ -379,7 +491,72 @@ async function fetchHolidays() {
     }
 }
 
-// ── HELPERS ──
+// ── FETCH VACANCES SCOLAIRES (API v2.1) ──
+const SCHOOL_HOLIDAYS_API = 'https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-calendrier-scolaire/records';
+
+async function fetchSchoolHolidays() {
+  try {
+    const zones = Object.entries(state.config.schoolHolidayZones || {})
+      .filter(([, enabled]) => enabled)
+      .map(([z]) => z);
+
+    if (zones.length === 0) { state.schoolHolidays = {}; return; }
+
+    const currentYear = new Date().getFullYear();
+    // Couvre 3 ans passés + 2 ans futurs pour la navigation historique
+    const annees = [
+      `${currentYear - 3}-${currentYear - 2}`,
+      `${currentYear - 2}-${currentYear - 1}`,
+      `${currentYear - 1}-${currentYear}`,
+      `${currentYear}-${currentYear + 1}`,
+      `${currentYear + 1}-${currentYear + 2}`,
+    ];
+
+    const requests = zones.flatMap(zone =>
+      annees.map(annee => {
+        // CORRECTION : Suppression du filtre 'population' qui bloquait certaines vacances
+        // et augmentation du limit à 500 pour être large
+        const url = `${SCHOOL_HOLIDAYS_API}?refine=zones%3A%22Zone%20${zone}%22&refine=annee_scolaire%3A%22${annee}%22&limit=500&timezone=Europe%2FParis`;
+        return fetch(url).then(r => r.ok ? r.json() : null).catch(() => null);
+      })
+    );
+
+    const schoolHolidays = {};
+    const results = await Promise.all(requests);
+    results.forEach(data => {
+      if (!data?.results) return;
+      data.results.forEach(({ start_date, end_date, description }) => {
+        if (!start_date || !end_date) return;
+        const start = new Date(start_date); start.setHours(0,0,0,0);
+        const end   = new Date(end_date);   end.setHours(0,0,0,0);
+        const desc  = description || 'Vacances scolaires';
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+          const iso = fmtISO(new Date(d));
+          if (!schoolHolidays[iso]) schoolHolidays[iso] = [];
+          if (!schoolHolidays[iso].includes(desc)) schoolHolidays[iso].push(desc);
+        }
+      });
+    });
+
+    state.schoolHolidays = schoolHolidays;
+    console.log('[SCHOOL_HOLIDAYS] Chargé :', Object.keys(schoolHolidays).length, 'jours');
+    // Persistance locale pour navigation future hors cache API
+    try {
+      const raw = localStorage.getItem('planningRoulier_v21');
+      const saved = raw ? JSON.parse(raw) : {};
+      saved.schoolHolidays = schoolHolidays;
+      localStorage.setItem('planningRoulier_v21', JSON.stringify(saved));
+    } catch(e) {}
+  } catch(e) {
+    console.error('[SCHOOL_HOLIDAYS] Error:', e);
+    // On garde le cache déjà chargé (depuis localStorage) en cas d'erreur réseau
+    if (!state.schoolHolidays || Object.keys(state.schoolHolidays).length === 0) {
+      state.schoolHolidays = {};
+    }
+  }
+}
+
+
 function getMonday(d) {
   const r = new Date(d);
   const day = r.getDay();
@@ -397,24 +574,19 @@ function getWeekNum(d) {
 }
 function weekKey() { return fmtISO(state.weekStart); }
 function gkey(localKey) { return `${weekKey()}__${localKey}`; }
-function getWorker(id) { return state.staff.find(w => w.id === id); }
-function initials(w) { return ((w.firstName||'')[0]||'') + ((w.lastName||'')[0]||''); }
-function avatar(w, size=26) {
-  const color = w.color || '#3b8fff';
-  return `<div class="staff-avatar" style="width:${size}px;height:${size}px;background:${color}22;color:${color};border:1px solid ${color}44">${initials(w).toUpperCase()}</div>`;
+function getWorker(id) { if (id === '_tbd_') return TBD_WORKER; return state.staff.find(w => w.id === id); }
+function getWorkerColorClass(workerId) {
+  const c = state.config.workerColors?.[workerId];
+  return c ? `has-wcolor wcolor-${c}` : '';
 }
-function toast(msg) {
+function toast(msg, type='ok') {
   const t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2400);
+  t.textContent = msg;
+  t.style.background = type === 'error' ? 'var(--red)' : 'var(--accent)';
+  t.style.color = '#fff';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
 }
-function getRandomColor(id) {
-    const colors = ['#3b8fff', '#a78bfa', '#00c896', '#ffd060', '#ff6b6b', '#ff4d6d'];
-    let hash = 0;
-    for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
-    return colors[Math.abs(hash) % colors.length];
-}
-
 function findSectionForWorker(jobCode, posteCode, projectName) {
     const isParcProject = projectName && (projectName.includes('Parc SMR') || projectName.includes('Parc Manucar'));
     if (jobCode === 'CM' && posteCode === '0817') return 'cm';
@@ -428,12 +600,21 @@ function findSectionForWorker(jobCode, posteCode, projectName) {
 // ── STATE MANAGEMENT ──
 function loadState() {
   try {
-    const s = localStorage.getItem('planningRoulier_v20');
+    const s = localStorage.getItem('planningRoulier_v21');
     if (s) {
       const saved = JSON.parse(s);
       state.planning = saved.planning || {};
       state.planningModified = saved.planningModified || {};
-      state.config = { ...state.config, ...saved.config };
+      state.config = {
+        ...state.config,
+        ...saved.config,
+        workerColors: { ...(saved.config?.workerColors || {}) },
+        schoolHolidayZones: { A: false, B: true, C: false, ...(saved.config?.schoolHolidayZones || {}) },
+      };
+      // Restaurer le cache des vacances scolaires
+      if (saved.schoolHolidays) {
+        state.schoolHolidays = saved.schoolHolidays;
+      }
     }
     const cw = localStorage.getItem('planningRoulier_colWidths');
     if (cw) state.colWidths = JSON.parse(cw);
@@ -442,8 +623,9 @@ function loadState() {
 }
 function saveState() {
   try {
-    localStorage.setItem('planningRoulier_v20', JSON.stringify({
+    localStorage.setItem('planningRoulier_v21', JSON.stringify({
       planning: state.planning, planningModified: state.planningModified, config: state.config,
+      schoolHolidays: state.schoolHolidays,
     }));
   } catch(e) {}
   savePlanningRemote();
@@ -499,7 +681,7 @@ async function loadPlanningRemote() {
         });
       }
       if (data.config) state.config = { ...state.config, ...data.config };
-      try { localStorage.setItem('planningRoulier_v20', JSON.stringify({ planning: state.planning, planningModified: state.planningModified, config: state.config })); } catch(e) {}
+      try { localStorage.setItem('planningRoulier_v21', JSON.stringify({ planning: state.planning, planningModified: state.planningModified, config: state.config, schoolHolidays: state.schoolHolidays })); } catch(e) {}
       showSyncStatus('loaded');
       return data;
     } else {
@@ -547,7 +729,6 @@ function parsePersonnelData(personnelData, dateFrom, dateTo) {
                 firstName: capitalFirst,
                 lastName: (wc.lastName || '').toUpperCase(),
                 matricule: wc.dockerMatricule || '',
-                color: getRandomColor(workerId),
                 isChief: wc.isChief || false
             });
         }
@@ -750,39 +931,46 @@ function renderStaffList(filter='') {
   list.innerHTML = '';
   const q = filter.toLowerCase();
 
+  // ── Membre "À définir" toujours présent ──
+  const tbdName = 'à définir';
+  if (!q || tbdName.includes(q)) {
+    const tbdEl = document.createElement('div');
+    tbdEl.className = 'staff-item';
+    tbdEl.draggable = true;
+    tbdEl.style.borderStyle = 'dashed';
+    tbdEl.innerHTML = `
+        <div class="staff-name" style="color:var(--text2);font-style:italic">À DÉFINIR</div>
+    `;
+    tbdEl.addEventListener('dragstart', () => { state.dragWorker = TBD_WORKER.id; tbdEl.classList.add('dragging'); });
+    tbdEl.addEventListener('dragend', () => tbdEl.classList.remove('dragging'));
+    list.appendChild(tbdEl);
+  }
+
   if (state.staff.length === 0) {
-    list.innerHTML = '<div style="padding:10px;font-size:0.65rem;color:var(--text3);text-align:center">Aucun personnel</div>';
+    if (!q) list.insertAdjacentHTML('beforeend', '<div style="padding:10px;font-size:0.65rem;color:var(--text3);text-align:center">Aucun personnel</div>');
     return;
   }
 
   state.staff.forEach(w => {
-    const name = `${w.firstName} ${w.lastName}`.toLowerCase();
+    const name = `${w.lastName} ${w.firstName}`.toLowerCase();
     if (q && !name.includes(q) && !(w.matricule||'').toLowerCase().includes(q)) return;
 
     let badgesHtml = '<div class="staff-badges">';
-    for(let i=0; i<7; i++) {
-        const d = addDays(state.weekStart, i);
-        const iso = fmtISO(d);
-        const code = state.absences[w.id]?.[iso];
-        if (code) {
-            badgesHtml += `<span class="staff-badge absent" title="${iso}: ${code}">✕</span>`;
-        } else {
-            badgesHtml += `<span class="staff-badge present" title="${iso}: Présent">✓</span>`;
-        }
+    for (let i = 0; i < 7; i++) {
+      const iso = fmtISO(addDays(state.weekStart, i));
+      const code = state.absences[w.id]?.[iso];
+      badgesHtml += code
+        ? `<span class="staff-badge absent" title="${iso}: ${code}">✕</span>`
+        : `<span class="staff-badge present" title="${iso}: Présent">✓</span>`;
     }
     badgesHtml += '</div>';
 
     const el = document.createElement('div');
-    el.className = 'staff-item';
+    el.className = `staff-item ${getWorkerColorClass(w.id)}`;
     el.draggable = true;
     el.innerHTML = `
-        <div class="staff-info">
-            ${avatar(w, 26)}
-            <div>
-                <div class="staff-name">${w.firstName} ${w.lastName}</div>
-                <div class="staff-matric">${w.matricule||'—'}</div>
-            </div>
-        </div>
+        <div class="staff-name">${w.lastName} ${w.firstName}</div>
+        <div class="staff-matric">${w.matricule||'—'}</div>
         ${badgesHtml}
     `;
     el.addEventListener('dragstart', e => { state.dragWorker = w.id; el.classList.add('dragging'); });
@@ -861,6 +1049,15 @@ function applyGridColumns(autoFit = false) {
   }).join(' ');
   header.style.gridTemplateColumns = cols;
   grid.style.gridTemplateColumns = cols;
+
+  const totalW = state.colWidths.reduce((sum, w, i) => {
+    const col = w || (state._autoWidths ? state._autoWidths[i] : 120);
+    return sum + col + 4;
+  }, 20);
+  const hi = document.getElementById('week-header-inner');
+  const wi = document.getElementById('week-inner');
+  if (hi) hi.style.minWidth = totalW + 'px';
+  if (wi) wi.style.minWidth = totalW + 'px';
 }
 
 function applyGridColumnsAuto() {
@@ -878,13 +1075,16 @@ function renderWeekHeader() {
     const dateISO = fmtISO(d);
     const isToday = d.getTime() === today.getTime();
     const isFerie = !!state.holidays[dateISO];
+    const isVacances = !!(state.schoolHolidays && state.schoolHolidays[dateISO]);
+    const vacancesLabel = isVacances ? (state.schoolHolidays[dateISO][0] || 'Vacances scolaires') : '';
 
     const cell = document.createElement('div');
-    cell.className = `day-header-cell${isToday ? ' today' : ''}${isFerie ? ' ferie' : ''}`;
-    cell.style.overflow = 'visible';
+    cell.className = `day-header-cell${isToday ? ' today' : ''}${isFerie ? ' ferie' : ''}${isVacances ? ' vacances' : ''}`;
 
     cell.innerHTML = `
+      ${isVacances ? `<div style="position:absolute;top:0;left:0;right:0;height:5px;background:var(--red);z-index:3;border-radius:5px 5px 0 0;"></div>` : ''}
       ${isFerie ? `<div class="ferie-badge">Férié</div>` : ''}
+      ${isVacances ? `<div class="vacances-badge">🏖 ${vacancesLabel}</div>` : ''}
       <div class="day-name">${name}</div>
       <div class="day-num">${fmtFR(d)}</div>
       <div class="day-mail-btn" onclick="event.stopPropagation(); sendDailyMail(${i})">💬</div>
@@ -989,7 +1189,7 @@ function renderWeekGrid() {
                 const isApiSlot = !!state.slotApiMap[key];
                 let displayName, displayMatric;
                 if (w) {
-                    displayName = `${w.lastName} ${w.firstName}`;
+                    displayName = w.isTbd ? 'À DÉFINIR' : `${w.lastName} ${w.firstName}`;
                     displayMatric = w.matricule || '—';
                 } else if (workerId) {
                     // Worker ID présent mais pas dans staff → Hors groupe
@@ -1002,14 +1202,13 @@ function renderWeekGrid() {
 
                 const pendingWorkerId = state.planningModified[key];
                 const isModified = pendingWorkerId !== undefined;
-                let pendingWorkerLabel = null;
+                let modifiedTooltip = null;
                 if (isModified) {
                     const pendingWorker = getWorker(pendingWorkerId);
-                    if (pendingWorker) {
-                        pendingWorkerLabel = `${pendingWorker.lastName} ${pendingWorker.firstName}`;
-                    } else {
-                        pendingWorkerLabel = 'Hors groupe';
-                    }
+                    const pendingName = pendingWorker
+                        ? `${pendingWorker.lastName} ${pendingWorker.firstName}`
+                        : 'Hors groupe';
+                    modifiedTooltip = `L'API a remplacé ${pendingName}`;
                 }
 
                 const safeSecId = secId.replace(/'/g, "\\'");
@@ -1019,10 +1218,9 @@ function renderWeekGrid() {
                     <div class="slot-info"><span>${slot.label}</span><span class="slot-remove" onclick="removeSlot(${dayIdx}, '${safeSecId}', ${slotIdx})">✕</span></div>
                     <div class="drop-zone" data-day="${dayIdx}" data-sec="${secId}" data-slot="${slot.id}">
                         ${workerId ? `
-                          <div class="assigned-chip${isModified ? ' chip-modified' : ''}" ${isModified ? `title="Survol : ${pendingWorkerLabel}"` : ''}>
+                          <div class="assigned-chip${isModified ? ' chip-modified' : ''} ${getWorkerColorClass(workerId)}" ${isModified ? `title="${modifiedTooltip}"` : ''}>
                             <div class="chip-name">${displayName}</div>
                             <div class="chip-matric">${displayMatric}</div>
-                            ${isModified ? `<div class="chip-modified-badge">⚠ modifié</div>` : ''}
                             <div class="chip-remove" onclick="removeFromSlot(${dayIdx},'${safeSecId}','${safeSlotId}')">✕</div>
                           </div>
                         ` : 'Glisser ici'}
@@ -1050,52 +1248,228 @@ function duplicateDayToNext(dayIdx) {
   const nextDateISO = fmtISO(addDays(state.weekStart, nextIdx));
   const daySlots = state.slots[dayIdx] || {};
   const nextDaySlots = state.slots[nextIdx] || {};
-  let count = 0;
+
+  // ── Construire la liste des transferts possibles ──
+  // Pour chaque slot source affecté, on cherche un slot destination par sig (jobCode__posteCode)
+  // On ne skippe plus sur !srcWorker pour gérer "hors groupe", mais on skippe isTbd
+  const transfers = []; // { srcSlot, srcWorkerId, dstSlot, secId, dstKey, srcLabel }
 
   SECTIONS_ORDER.forEach(secId => {
     const srcSlots = daySlots[secId] || [];
     const dstSlots = nextDaySlots[secId] || [];
-    const dstAvailable = {};
+
+    // Index des slots destination par sig, tous disponibles
+    const dstBySig = {};
     dstSlots.forEach(dstSlot => {
       const sig = `${dstSlot.jobCode}__${dstSlot.posteCode}`;
-      if (!dstAvailable[sig]) dstAvailable[sig] = [];
-      dstAvailable[sig].push(dstSlot);
+      if (!dstBySig[sig]) dstBySig[sig] = [];
+      dstBySig[sig].push(dstSlot);
     });
-    dstSlots.forEach(dstSlot => {
-      const dstKey = gkey(`${nextIdx}_${secId}_${dstSlot.id}`);
-      if (state.planning[dstKey]) {
-        const sig = `${dstSlot.jobCode}__${dstSlot.posteCode}`;
-        const idx = (dstAvailable[sig] || []).findIndex(s => s.id === dstSlot.id);
-        if (idx !== -1) dstAvailable[sig].splice(idx, 1);
-      }
-    });
+
+    // Pointer pour consommation
+    const dstPointer = {};
+    Object.keys(dstBySig).forEach(sig => { dstPointer[sig] = 0; });
+
     srcSlots.forEach(srcSlot => {
       const srcKey = gkey(`${dayIdx}_${secId}_${srcSlot.id}`);
       const workerId = state.planning[srcKey];
-      if (!workerId) return;
-      const srcWorker = getWorker(workerId);
-      if (!srcWorker) return;
-      if (state.absences[workerId] && state.absences[workerId][nextDateISO]) return;
+      if (!workerId) return;  // slot non affecté → rien à dupliquer
+
       const sig = `${srcSlot.jobCode}__${srcSlot.posteCode}`;
-      const available = dstAvailable[sig];
-      if (!available || available.length === 0) return;
-      const matchingDstSlot = available.shift();
-      const dstKey = gkey(`${nextIdx}_${secId}_${matchingDstSlot.id}`);
-      state.planning[dstKey] = workerId;
-      count++;
+      const candidates = dstBySig[sig] || [];
+      const ptr = dstPointer[sig] || 0;
+      if (ptr >= candidates.length) return; // pas de slot dispo
+
+      const dstSlot = candidates[ptr];
+      dstPointer[sig] = ptr + 1;
+      const dstKey = gkey(`${nextIdx}_${secId}_${dstSlot.id}`);
+
+      // "À définir" n'est jamais absent, on le transfère normalement
+      const isTbd = workerId === '_tbd_';
+      transfers.push({
+        srcSlot, srcWorkerId: workerId, dstSlot, dstKey, secId,
+        srcLabel: srcSlot.label || sig,
+        absent: !isTbd && !!(state.absences[workerId] && state.absences[workerId][nextDateISO])
+      });
     });
   });
 
-  saveState();
-  render();
-  toast(count > 0 ? `${count} affectation(s) dupliquée(s) vers demain ✓` : 'Aucun chantier identique trouvé demain');
+  if (transfers.length === 0) {
+    toast('Aucun poste commun entre ces deux jours', 'error');
+    return;
+  }
+
+  // ── Analyser l'état des destinations ──
+  const alreadySame   = [];  // dst rempli avec le même worker
+  const different     = [];  // dst rempli avec un worker différent
+  const empty         = [];  // dst vide → à remplir
+  const absentList    = [];  // absent demain
+
+  transfers.forEach(t => {
+    if (t.absent) { absentList.push(t); return; }
+    const dstWorkerId = state.planning[t.dstKey];
+    if (!dstWorkerId) {
+      empty.push(t);
+    } else if (dstWorkerId === t.srcWorkerId) {
+      alreadySame.push(t);
+    } else {
+      different.push(t);
+    }
+  });
+
+  // ── Cas 1 : tout déjà identique et aucun absent ──
+  if (empty.length === 0 && different.length === 0 && absentList.length === 0) {
+    toast('Les affectations de demain ont déjà été effectuées');
+    return;
+  }
+
+  // ── Appliquer une liste de transferts (workerId peut être forcé) ──
+  function applyTransfers(list) {
+    list.forEach(t => {
+      state.planning[t.dstKey] = t.assignWorkerId !== undefined ? t.assignWorkerId : t.srcWorkerId;
+      delete state.planningModified[t.dstKey];
+    });
+    saveState();
+    render();
+  }
+
+  // ── Construire et afficher la modale finale avec récap absents ──
+  function showDupModal(normalList, absentDecisions) {
+    // absentDecisions : tableau de { transfer, force: bool }
+    // force=true → affecter srcWorkerId, force=false → affecter _tbd_
+    const hasConflicts = different.length > 0;
+    const diffLabels = hasConflicts ? [...new Set(different.map(t => t.srcLabel))].join(', ') : '';
+
+    let absentHtml = '';
+    if (absentDecisions.length > 0) {
+      absentHtml = `<div style="margin-bottom:12px;padding:10px;background:rgba(255,77,109,0.08);border:1px solid rgba(255,77,109,0.25);border-radius:8px;">
+        <div style="font-size:0.7rem;font-weight:700;color:var(--red);margin-bottom:6px;">Agents absents :</div>`;
+      absentDecisions.forEach((d, idx) => {
+        const w = getWorker(d.transfer.srcWorkerId);
+        const wName = w ? `${w.lastName} ${w.firstName}` : d.transfer.srcWorkerId;
+        const code = state.absences[d.transfer.srcWorkerId]?.[nextDateISO] || '?';
+        absentHtml += `
+          <div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+            <div style="flex:1;font-size:0.75rem;"><strong>${wName}</strong> <span style="color:var(--red);font-size:0.68rem;">(${code})</span><br><span style="color:var(--text3);font-size:0.65rem;">${d.transfer.srcLabel}</span></div>
+            <label style="display:flex;align-items:center;gap:4px;font-size:0.7rem;cursor:pointer;color:var(--warn);">
+              <input type="checkbox" id="force_absent_${idx}" ${d.force ? 'checked' : ''} style="accent-color:var(--warn);"> Forcer
+            </label>
+          </div>`;
+      });
+      absentHtml += `</div>`;
+    }
+
+    let conflictHtml = hasConflicts
+      ? `<p style="font-size:0.78rem;color:var(--text2);margin-bottom:12px">Le(s) poste(s) <strong style="color:var(--warn)">${diffLabels}</strong> seront écrasés.</p>`
+      : '';
+
+    showModal(`
+      <h2 style="margin-bottom:12px">Confirmer la duplication</h2>
+      ${conflictHtml}
+      ${absentHtml}
+      <p style="font-size:0.72rem;color:var(--text3);margin-bottom:4px;">Les agents non forcés seront remplacés par <em>À DÉFINIR</em>.</p>
+      <div class="modal-actions">
+        <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Annuler</button>
+        <button class="modal-btn modal-btn-ok" onclick="_confirmDup()">Confirmer</button>
+      </div>
+    `);
+
+    window._confirmDup = function() {
+      // Relire les checkboxes
+      absentDecisions.forEach((d, idx) => {
+        const cb = document.getElementById(`force_absent_${idx}`);
+        d.force = cb ? cb.checked : false;
+        d.transfer.assignWorkerId = d.force ? d.transfer.srcWorkerId : '_tbd_';
+      });
+      const allToApply = [
+        ...normalList,
+        ...absentDecisions.map(d => d.transfer)
+      ];
+      applyTransfers(allToApply);
+      closeModal();
+      const forced = absentDecisions.filter(d => d.force).length;
+      const tbd    = absentDecisions.filter(d => !d.force).length;
+      let msg = `${allToApply.length} affectation(s) dupliquée(s) ✓`;
+      if (forced > 0) msg += ` · ${forced} forcé(s)`;
+      if (tbd > 0)    msg += ` · ${tbd} → À définir`;
+      toast(msg);
+      delete window._confirmDup;
+    };
+  }
+
+  const normalList = [...empty, ...different];
+  const absentDecisions = absentList.map(t => ({ transfer: t, force: false }));
+
+  // ── Si des absents ou des conflits → toujours afficher la modale ──
+  if (absentList.length > 0 || different.length > 0) {
+    showDupModal(normalList, absentDecisions);
+    return;
+  }
+
+  // ── Cas simple : que des postes vides, aucun absent ──
+  applyTransfers(empty);
+  toast(`${empty.length} affectation(s) dupliquée(s) vers demain ✓`);
+}
+
+function isWorkerAssignedToDay(dayIdx, workerId, excludeSlotId) {
+    // Vérifie si un worker est déjà affecté sur un autre slot du même jour
+    const prefix = `${weekKey()}__${dayIdx}_`;
+    for (const [k, v] of Object.entries(state.planning)) {
+        if (!k.startsWith(prefix)) continue;
+        // Extraire le slotId de la clé : weekKey__dayIdx_secId_slotId
+        // Format: "YYYY-MM-DD__dayIdx_secId_slotXXX"
+        const localPart = k.slice(weekKey().length + 2); // retire "YYYY-MM-DD__"
+        // localPart = "dayIdx_secId_slotId"
+        const parts = localPart.split('_');
+        // parts[0]=dayIdx, parts[1]=secId, reste=slotId reconstruit
+        const slotIdPart = parts.slice(2).join('_');
+        if (slotIdPart === excludeSlotId) continue;
+        if (v === workerId) return true;
+    }
+    return false;
 }
 
 function addToSlot(dayIdx, secId, slotId, workerId) {
     const key = gkey(`${dayIdx}_${secId}_${slotId}`);
     const currentWorkerId = state.planning[key];
     const apiOriginalId = state.slotApiMap[key] || null;
+    const dateISO = fmtISO(addDays(state.weekStart, dayIdx));
+    const worker = getWorker(workerId);
+    const workerName = worker ? `${worker.lastName} ${worker.firstName}` : workerId;
 
+    // ── Vérification absence ──
+    if (workerId !== '_tbd_' && state.absences[workerId] && state.absences[workerId][dateISO]) {
+        const code = state.absences[workerId][dateISO];
+        showModal(`
+          <h2 style="margin-bottom:12px">⚠ Agent absent</h2>
+          <p style="font-size:0.82rem;color:var(--text2);margin-bottom:16px">
+            <strong style="color:var(--text)">${workerName}</strong> est absent ce jour
+            <span style="color:var(--red);font-weight:700"> (${code})</span>.<br><br>
+            Voulez-vous forcer l'affectation malgré l'absence ?
+          </p>
+          <div class="modal-actions">
+            <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Annuler</button>
+            <button class="modal-btn" style="background:var(--warn);color:#fff;" onclick="_forceAbsentAssign()">Forcer l'affectation</button>
+          </div>
+        `);
+        window._forceAbsentAssign = function() {
+            closeModal();
+            delete window._forceAbsentAssign;
+            _doAssign(dayIdx, secId, slotId, workerId, key, currentWorkerId, apiOriginalId);
+        };
+        return;
+    }
+
+    // ── Vérification doublon sur la journée ──
+    if (workerId !== '_tbd_' && isWorkerAssignedToDay(dayIdx, workerId, slotId)) {
+        toast(`⚠ ${workerName} est déjà affecté ce jour`, 'error');
+        return;
+    }
+
+    _doAssign(dayIdx, secId, slotId, workerId, key, currentWorkerId, apiOriginalId);
+}
+
+function _doAssign(dayIdx, secId, slotId, workerId, key, currentWorkerId, apiOriginalId) {
     if (!currentWorkerId) {
         state.planning[key] = workerId;
         delete state.planningModified[key];
@@ -1127,31 +1501,94 @@ function removeSlot(dayIdx, secId, slotIdx) {
 }
 
 function renderAbsences() {
-    const container = document.getElementById('absences-container');
     const startOfMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth(), 1);
     const daysInMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth() + 1, 0).getDate();
-    document.getElementById('abs-month-label').textContent = state.absMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    const monthLabel = state.absMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+
+    // Mettre à jour le label dans le header
+    const headerLabel = document.getElementById('header-month-label');
+    if (headerLabel) headerLabel.textContent = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
+
+    const headerTable = document.getElementById('abs-header-table');
+    const scrollArea = document.getElementById('abs-scroll-area');
+    const headerInner = document.getElementById('abs-header-inner');
+    const scrollInner = document.getElementById('abs-scroll-inner');
+
     if (state.staff.length === 0) {
-        container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3)">Aucune donnée</div>';
+        headerTable.innerHTML = '';
+        tbody.innerHTML = '<tr><td colspan="32" style="padding:20px;text-align:center;color:var(--text3)">Aucune donnée</td></tr>';
         return;
     }
-    let html = `<table class="abs-table"><thead><tr><th style="position:sticky; left:0; background:var(--surface2); z-index:1">Personnel</th>`;
-    for(let i=1; i<=daysInMonth; i++) {
+
+    // Largeur fixe colonne personnel
+    const MEMBER_W = '160px';
+    // Largeur colonne jour — calculée pour remplir l'écran si possible
+    const DAY_W = '28px';
+
+    // Trier selon absOrder si défini
+    const order = state.config.absOrder || state.staff.map(w => w.id);
+    const staffSorted = [...order].map(id => state.staff.find(w => w.id === id)).filter(Boolean);
+    state.staff.forEach(w => { if (!staffSorted.find(s => s.id === w.id)) staffSorted.push(w); });
+
+    // ── HEADER TABLE ──
+    let headerCols = `<colgroup><col style="width:${MEMBER_W};min-width:${MEMBER_W};max-width:${MEMBER_W};">`;
+    let headerRow = `<tr><th class="member-cell" style="width:${MEMBER_W};min-width:${MEMBER_W};max-width:${MEMBER_W};text-align:left;padding-left:8px;">Personnel</th>`;
+    for (let i = 1; i <= daysInMonth; i++) {
         const d = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), i);
-        html += `<th>${i}<br>${d.toLocaleDateString('fr-FR',{weekday:'short'}).substring(0,3)}</th>`;
+        const dateISO = fmtISO(d);
+        const dow = d.toLocaleDateString('fr-FR', { weekday: 'short' }).substring(0, 3);
+        const isSat = d.getDay() === 6;
+        const isSun = d.getDay() === 0;
+        const isFerie = !!state.holidays[dateISO];
+        const isVacances = !!(state.schoolHolidays && state.schoolHolidays[dateISO]);
+        const isRed = isSun || isFerie;
+        const bgStyle = isRed ? 'background:rgba(255,77,109,0.12);' : isSat ? 'background:rgba(59,143,255,0.12);' : '';
+        const borderTopStyle = isVacances ? 'border-top:3px solid var(--red);' : '';
+        headerCols += `<col style="width:${DAY_W};min-width:${DAY_W};">`;
+        headerRow += `<th style="${bgStyle}${borderTopStyle}">${i}<br><span style="font-weight:400;font-size:0.55rem">${dow}</span></th>`;
     }
-    html += `</tr></thead><tbody>`;
-    state.staff.forEach(w => {
-        html += `<tr><td style="position:sticky; left:0; background:var(--surface); border-right:1px solid var(--border2)">${w.lastName} ${w.firstName}</td>`;
-        for(let i=1; i<=daysInMonth; i++) {
+    headerCols += '</colgroup>';
+    headerRow += '</tr>';
+    headerTable.innerHTML = headerCols + headerRow;
+
+    // ── BODY TABLE colgroup (mêmes largeurs) ──
+    const bodyTable = document.getElementById('abs-body-table');
+    let bodyColgroup = `<colgroup><col style="width:${MEMBER_W};min-width:${MEMBER_W};max-width:${MEMBER_W};">`;
+    for (let i = 1; i <= daysInMonth; i++) bodyColgroup += `<col style="width:${DAY_W};min-width:${DAY_W};">`;
+    bodyColgroup += '</colgroup>';
+
+    // ── BODY ROWS ──
+    let rows = '';
+    staffSorted.forEach(w => {
+        const colorKey = state.config.workerColors?.[w.id];
+        const colorMap = { rouge:'#ff4d6d', violet:'#a78bfa', vert:'#00c896', bleu:'#3b8fff', jaune:'#ffd060' };
+        const borderColor = colorKey ? colorMap[colorKey] : 'var(--border2)';
+
+        const memberCell = `
+          <td class="member-cell">
+            <div style="padding:4px 6px;border-radius:6px;border:1px solid ${colorKey ? borderColor : 'var(--border2)'};text-align:left;">
+              <div style="font-size:0.68rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${w.lastName} ${w.firstName}</div>
+              <div style="font-size:0.58rem;color:var(--text3);font-family:'DM Mono',monospace;">${w.matricule || '—'}</div>
+            </div>
+          </td>`;
+
+        let dayCells = '';
+        for (let i = 1; i <= daysInMonth; i++) {
             const dateISO = fmtISO(new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), i));
             const code = state.absences[w.id]?.[dateISO] || '';
-            html += `<td>${code ? `<span class="abs-code">${code}</span>` : '—'}</td>`;
+            const d = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), i);
+            const isSat = d.getDay() === 6;
+            const isSun = d.getDay() === 0;
+            const isFerie = !!state.holidays[dateISO];
+            const dayClass = isSun || isFerie ? 'day-cell day-sun' : isSat ? 'day-cell day-sat' : 'day-cell';
+            const extraClass = i === 1 ? ' day-first' : i === daysInMonth ? ' day-last' : '';
+            dayCells += `<td class="${dayClass}${extraClass}">${code ? `<span class="abs-code">${code}</span>` : ''}</td>`;
         }
-        html += `</tr>`;
+        const rowColor = colorKey ? borderColor : 'var(--border2)';
+        rows += `<tr style="--row-color:${rowColor};">${memberCell}${dayCells}</tr><tr class="abs-spacer"><td colspan="${daysInMonth + 1}"></td></tr>`;
     });
-    html += `</tbody></table>`;
-    container.innerHTML = html;
+
+    bodyTable.innerHTML = bodyColgroup + `<tbody>${rows}</tbody>`;
 }
 
 // ── PDF & EMAILS ──
@@ -1210,19 +1647,217 @@ async function sendWeeklyMail() {
     window.open(`mailto:${state.config.emailWeek}?cc=${state.config.emailCcWeek}&subject=${encodeURIComponent('Planning Hebdo Semaine ' + wn)}&body=${encodeURIComponent(body)}`);
 }
 
-function showConfigModal() {
+const WORKER_COLORS = [
+  { key: 'rouge',  hex: '#ff4d6d' },
+  { key: 'violet', hex: '#a78bfa' },
+  { key: 'vert',   hex: '#00c896' },
+  { key: 'bleu',   hex: '#3b8fff' },
+  { key: 'jaune',  hex: '#ffd060' },
+];
+
+function showConfigModal(tab = 'mail') {
+  const staffRows = state.staff.map(w => {
+    const current = state.config.workerColors?.[w.id] || '';
+    const swatches = WORKER_COLORS.map(c => `
+      <div class="cfg-swatch${current === c.key ? ' selected' : ''}"
+           style="background:${c.hex}"
+           title="${c.key}"
+           onclick="setWorkerColor('${w.id}','${c.key}',this)"></div>
+    `).join('');
+    return `
+      <div class="cfg-staff-row">
+        <div class="cfg-staff-name">${w.lastName} ${w.firstName}</div>
+        <div class="cfg-colors">
+          ${swatches}
+          <div class="cfg-swatch-reset" title="Effacer" onclick="setWorkerColor('${w.id}','',this)">✕</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
   showModal(`
-    <h2>⚙ Configuration</h2>
-    <div class="modal-label">Email destinataires</div>
-    <input class="modal-input" id="cfg-email-week" value="${state.config.emailWeek}">
-    <div class="modal-label">Copie (CC)</div>
-    <input class="modal-input" id="cfg-cc-week" value="${state.config.emailCcWeek}">
-    <div class="modal-actions">
-      <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Annuler</button>
-      <button class="modal-btn modal-btn-ok" onclick="saveConfig()">Enregistrer</button>
+    <h2 style="margin-bottom:12px">⚙ Configuration</h2>
+    <div class="cfg-tabs">
+      <button class="cfg-tab${tab === 'mail' ? ' active' : ''}" onclick="switchCfgTab('mail')">Mail</button>
+      <button class="cfg-tab${tab === 'personnel' ? ' active' : ''}" onclick="switchCfgTab('personnel')">Personnel</button>
+      <button class="cfg-tab${tab === 'absences' ? ' active' : ''}" onclick="switchCfgTab('absences')">Absences</button>
+      <button class="cfg-tab${tab === 'vacances' ? ' active' : ''}" onclick="switchCfgTab('vacances')">Vacances scolaires</button>
+    </div>
+
+    <div class="cfg-panel${tab === 'mail' ? ' active' : ''}" id="cfg-panel-mail">
+      <div class="modal-label">Email destinataires</div>
+      <input class="modal-input" id="cfg-email-week" value="${state.config.emailWeek}">
+      <div class="modal-label">Copie (CC)</div>
+      <input class="modal-input" id="cfg-cc-week" value="${state.config.emailCcWeek}">
+      <div class="modal-actions">
+        <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Annuler</button>
+        <button class="modal-btn modal-btn-ok" onclick="saveConfig()">Enregistrer</button>
+      </div>
+    </div>
+
+    <div class="cfg-panel${tab === 'personnel' ? ' active' : ''}" id="cfg-panel-personnel">
+      <div class="cfg-staff-list">${staffRows || '<div style="color:var(--text3);font-size:0.75rem;padding:10px 0">Aucun personnel chargé</div>'}</div>
+      <div class="modal-actions" style="margin-top:12px">
+        <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Fermer</button>
+      </div>
+    </div>
+
+    <div class="cfg-panel${tab === 'absences' ? ' active' : ''}" id="cfg-panel-absences">
+      <div style="font-size:0.7rem;color:var(--text3);margin-bottom:10px;">Glissez les membres pour définir l'ordre d'affichage. Activez l'impression PDF pour chaque membre.</div>
+      <div id="cfg-abs-list" style="display:flex;flex-direction:column;gap:4px;max-height:340px;overflow-y:auto;">
+        ${buildAbsConfigRows()}
+      </div>
+      <div class="modal-actions" style="margin-top:12px">
+        <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Annuler</button>
+        <button class="modal-btn modal-btn-ok" onclick="saveAbsConfig()">Enregistrer</button>
+      </div>
+    </div>
+
+    <div class="cfg-panel${tab === 'vacances' ? ' active' : ''}" id="cfg-panel-vacances">
+      <div style="font-size:0.7rem;color:var(--text3);margin-bottom:14px;">
+        Sélectionnez les zones scolaires à afficher. Un liseré rouge épais apparaîtra en haut des jours concernés dans le planning.
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        ${['A','B','C'].map(zone => {
+          const zoneNames = { A: 'Zone A — Besançon, Bordeaux, Clermont-Ferrand, Dijon, Grenoble, Limoges, Lyon, Poitiers', B: 'Zone B — Aix-Marseille, Amiens, Caen, Lille, Nancy-Metz, Nantes, Nice, Normandie, Orléans-Tours, Reims, Rennes, Rouen, Strasbourg', C: 'Zone C — Créteil, Montpellier, Paris, Toulouse, Versailles' };
+          const checked = state.config.schoolHolidayZones?.[zone] ? 'checked' : '';
+          return `
+            <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:10px 12px;border-radius:8px;background:var(--surface2);border:1px solid var(--border2);transition:border-color .15s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)'">
+              <input type="checkbox" id="cfg-zone-${zone}" ${checked} style="accent-color:var(--red);width:15px;height:15px;margin-top:1px;flex-shrink:0;">
+              <div>
+                <div style="font-size:0.78rem;font-weight:700;color:var(--text);margin-bottom:3px;">Zone ${zone}</div>
+                <div style="font-size:0.62rem;color:var(--text3);line-height:1.4;">${zoneNames[zone]}</div>
+              </div>
+            </label>`;
+        }).join('')}
+      </div>
+      <div style="margin-top:12px;padding:8px 10px;border-radius:6px;background:rgba(255,77,109,0.08);border:1px solid rgba(255,77,109,0.2);">
+        <div style="font-size:0.65rem;color:var(--red);font-weight:700;">🏖 Normandie → Zone B (cochée par défaut)</div>
+      </div>
+      <div class="modal-actions" style="margin-top:14px">
+        <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Annuler</button>
+        <button class="modal-btn modal-btn-ok" onclick="saveVacancesConfig()">Enregistrer</button>
+      </div>
     </div>
   `);
+  if (tab === 'absences') initAbsDragDrop();
 }
+
+function buildAbsConfigRows() {
+  const order = state.config.absOrder || [];
+  const printSet = new Set(state.config.absPrint !== undefined ? state.config.absPrint : state.staff.map(w => w.id));
+
+  // Membres dans l'ordre sauvegardé
+  const sorted = [...order].map(id => state.staff.find(w => w.id === id)).filter(Boolean);
+
+  // Nouveaux membres → PDF=non par défaut, triés alpha, ajoutés en bas
+  const newMembers = state.staff
+    .filter(w => !order.includes(w.id))
+    .sort((a, b) => `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'fr'));
+
+  const allSorted = [...sorted, ...newMembers];
+
+  return allSorted.map(w => {
+    const colorKey = state.config.workerColors?.[w.id];
+    const colorMap = { rouge:'#ff4d6d', violet:'#a78bfa', vert:'#00c896', bleu:'#3b8fff', jaune:'#ffd060' };
+    const borderColor = colorKey ? colorMap[colorKey] : 'var(--border2)';
+    // Nouveau membre → PDF=non par défaut
+    const isNew = !order.includes(w.id);
+    const checked = (!isNew && printSet.has(w.id)) ? 'checked' : '';
+    return `
+      <div class="cfg-abs-row" data-id="${w.id}" draggable="true" style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:7px;background:var(--surface2);border:1px solid ${borderColor};cursor:grab;user-select:none;">
+        <span style="color:var(--text3);font-size:0.8rem;cursor:grab;">⠿</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:0.73rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${w.lastName} ${w.firstName}</div>
+          <div style="font-size:0.6rem;color:var(--text3);font-family:'DM Mono',monospace;">${w.matricule || '—'}</div>
+        </div>
+        <label style="display:flex;align-items:center;gap:5px;font-size:0.68rem;color:var(--text2);white-space:nowrap;cursor:pointer;">
+          <input type="checkbox" ${checked} data-print="${w.id}" style="accent-color:var(--accent);width:13px;height:13px;"> PDF
+        </label>
+      </div>`;
+  }).join('');
+}
+
+function initAbsDragDrop() {
+  const list = document.getElementById('cfg-abs-list');
+  if (!list) return;
+  let dragging = null;
+  list.querySelectorAll('.cfg-abs-row').forEach(row => {
+    row.addEventListener('dragstart', e => { dragging = row; setTimeout(() => row.style.opacity = '0.4', 0); });
+    row.addEventListener('dragend', () => { dragging = null; row.style.opacity = '1'; });
+    row.addEventListener('dragover', e => { e.preventDefault(); if (dragging && dragging !== row) { const r = row.getBoundingClientRect(); const mid = r.top + r.height / 2; list.insertBefore(dragging, e.clientY < mid ? row : row.nextSibling); } });
+  });
+}
+
+window.saveAbsConfig = function() {
+  const list = document.getElementById('cfg-abs-list');
+  const allRows = [...list.querySelectorAll('.cfg-abs-row')];
+  const printIds = new Set(allRows.filter(r => r.querySelector('[data-print]').checked).map(r => r.dataset.id));
+
+  // PDF=oui → ordre drag & drop ; PDF=non → tri alpha
+  const withPrint = allRows.filter(r => printIds.has(r.dataset.id)).map(r => r.dataset.id);
+  const withoutPrint = allRows.filter(r => !printIds.has(r.dataset.id)).map(r => r.dataset.id)
+    .sort((a, b) => {
+      const wa = state.staff.find(w => w.id === a);
+      const wb = state.staff.find(w => w.id === b);
+      const na = wa ? `${wa.lastName} ${wa.firstName}` : a;
+      const nb = wb ? `${wb.lastName} ${wb.firstName}` : b;
+      return na.localeCompare(nb, 'fr');
+    });
+
+  state.config.absOrder = [...withPrint, ...withoutPrint];
+  state.config.absPrint = [...printIds];
+  saveState();
+  closeModal();
+  if (state.view === 'absences') renderAbsences();
+  toast('Configuration absences sauvegardée');
+};
+
+window.switchCfgTab = function(tab) {
+  document.querySelectorAll('.cfg-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.cfg-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.cfg-tab').forEach(t => {
+    const txt = t.textContent.trim().toLowerCase();
+    if (
+      (tab === 'mail' && txt.includes('mail')) ||
+      (tab === 'personnel' && txt.includes('personnel')) ||
+      (tab === 'absences' && txt.includes('absences')) ||
+      (tab === 'vacances' && txt.includes('vacances'))
+    ) t.classList.add('active');
+  });
+  const panel = document.getElementById(`cfg-panel-${tab}`);
+  if (panel) { panel.classList.add('active'); if (tab === 'absences') initAbsDragDrop(); }
+};
+
+window.setWorkerColor = function(workerId, colorKey, el) {
+  if (!state.config.workerColors) state.config.workerColors = {};
+  if (colorKey) {
+    state.config.workerColors[workerId] = colorKey;
+  } else {
+    delete state.config.workerColors[workerId];
+  }
+  saveState();
+  renderWeekGrid();
+  renderStaffList(document.getElementById('staff-search').value);
+  // Mettre à jour l'UI des swatches dans la modal
+  const row = el.closest('.cfg-staff-row');
+  row.querySelectorAll('.cfg-swatch').forEach(s => s.classList.remove('selected'));
+  if (colorKey) el.classList.add('selected');
+};
+window.saveVacancesConfig = async function() {
+  if (!state.config.schoolHolidayZones) state.config.schoolHolidayZones = {};
+  ['A','B','C'].forEach(zone => {
+    const cb = document.getElementById(`cfg-zone-${zone}`);
+    if (cb) state.config.schoolHolidayZones[zone] = cb.checked;
+  });
+  saveState();
+  closeModal();
+  toast('Chargement des vacances scolaires…');
+  await fetchSchoolHolidays();
+  render();
+  toast('Vacances scolaires mises à jour ✓');
+};
+
 window.saveConfig = function() {
   state.config.emailWeek = document.getElementById('cfg-email-week').value;
   state.config.emailCcWeek = document.getElementById('cfg-cc-week').value;
@@ -1236,14 +1871,87 @@ function showModal(content) {
 function closeModal() { document.getElementById('modal-overlay').classList.remove('show'); }
 window.closeModal = closeModal;
 
-// ── INIT ──
+document.getElementById('btn-print-abs').addEventListener('click', printAbsPDF);
+
+function printAbsPDF() {
+  const startOfMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth(), 1);
+  const daysInMonth = new Date(state.absMonth.getFullYear(), state.absMonth.getMonth() + 1, 0).getDate();
+  const monthLabel = state.absMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+
+  const order = state.config.absOrder || state.staff.map(w => w.id);
+  const printSet = new Set(state.config.absPrint !== undefined ? state.config.absPrint : state.staff.map(w => w.id));
+  const staffSorted = [...order].map(id => state.staff.find(w => w.id === id)).filter(Boolean);
+  state.staff.forEach(w => { if (!staffSorted.find(s => s.id === w.id)) staffSorted.push(w); });
+  const printStaff = staffSorted.filter(w => printSet.has(w.id));
+
+  const colorMap = { rouge:'#ff4d6d', violet:'#a78bfa', vert:'#00c896', bleu:'#3b8fff', jaune:'#ffd060' };
+
+  // En-têtes jours
+  let thDays = '';
+  for (let i = 1; i <= daysInMonth; i++) {
+    const d = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), i);
+    const dow = d.toLocaleDateString('fr-FR', { weekday: 'short' }).substring(0, 2);
+    const isSat = d.getDay() === 6;
+    const isSun = d.getDay() === 0;
+    const isFerie = !!state.holidays[fmtISO(d)];
+    const bg = (isSun || isFerie) ? '#fde8ec' : isSat ? '#e8f0fd' : '#f5f5f5';
+    thDays += `<th style="background:${bg};width:22px;font-size:8px;padding:2px 0;">${i}<br><span style="font-weight:400;font-size:7px">${dow}</span></th>`;
+  }
+
+  let bodyRows = '';
+  printStaff.forEach(w => {
+    const colorKey = state.config.workerColors?.[w.id];
+    const borderColor = colorKey ? colorMap[colorKey] : '#ccc';
+    let tds = '';
+    for (let i = 1; i <= daysInMonth; i++) {
+      const d = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), i);
+      const dateISO = fmtISO(d);
+      const code = state.absences[w.id]?.[dateISO] || '';
+      const isSat = d.getDay() === 6;
+      const isSun = d.getDay() === 0;
+      const isFerie = !!state.holidays[dateISO];
+      const bg = (isSun || isFerie) ? '#fde8ec' : isSat ? '#e8f0fd' : '#fff';
+      tds += `<td style="background:${bg};text-align:center;font-size:8px;font-weight:700;color:#d04000;padding:0;">${code}</td>`;
+    }
+    bodyRows += `<tr>
+      <td style="border-left:3px solid ${borderColor};padding:3px 6px;white-space:nowrap;">
+        <div style="font-size:9px;font-weight:700;">${w.lastName} ${w.firstName}</div>
+        <div style="font-size:7px;color:#888;font-family:monospace;">${w.matricule || ''}</div>
+      </td>${tds}</tr>`;
+  });
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+  <title>Absences – ${monthLabel}</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 10mm; }
+    h2 { font-size: 13px; margin-bottom: 8px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; }
+    th { text-align: center; }
+    @media print { @page { size: A4 landscape; margin: 8mm; } }
+  </style>
+  </head><body>
+  <h2>Suivi des absences – ${monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)}</h2>
+  <table>
+    <thead><tr><th style="text-align:left;padding:3px 6px;font-size:9px;background:#f5f5f5;white-space:nowrap;">Personnel</th>${thDays}</tr></thead>
+    <tbody>${bodyRows}</tbody>
+  </table>
+  <script>window.onload=()=>{window.print();}<\/script>
+  </body></html>`;
+
+  const w2 = window.open('', '_blank');
+  w2.document.write(html);
+  w2.document.close();
+}
 async function initApp() {
     state.absMonth = new Date();
     await fetchHolidays();
+    await fetchSchoolHolidays();
     await loadAllData();
 }
 
 function render() {
+  SECTIONS_MAP = getSectionsMap();
   updateWeekLabel();
   renderStaffList(document.getElementById('staff-search').value);
   if (state.view === 'week') {
@@ -1334,31 +2042,125 @@ function switchView(v) {
   document.getElementById('btn-view-week').classList.toggle('active', v === 'week');
   document.getElementById('btn-view-absences').classList.toggle('active', v === 'absences');
   document.getElementById('view-week').style.display = v === 'week' ? 'flex' : 'none';
-  document.getElementById('view-absences').style.display = v === 'absences' ? 'block' : 'none';
+  document.getElementById('view-absences').style.display = v === 'absences' ? 'flex' : 'none';
+  document.getElementById('panel-staff').style.display = v === 'week' ? 'flex' : 'none';
+  document.getElementById('header-week-nav').style.display = v === 'week' ? 'flex' : 'none';
+  document.getElementById('header-month-nav').style.display = v === 'absences' ? 'flex' : 'none';
+  document.getElementById('btn-email-week').style.display = v === 'week' ? '' : 'none';
+  document.getElementById('btn-print-abs').style.display = v === 'absences' ? '' : 'none';
   render();
 }
 document.getElementById('btn-view-week').addEventListener('click', () => switchView('week'));
 document.getElementById('btn-view-absences').addEventListener('click', () => switchView('absences'));
 document.getElementById('btn-settings').addEventListener('click', showConfigModal);
 document.getElementById('btn-email-week').addEventListener('click', sendWeeklyMail);
+document.getElementById('btn-week-prev').addEventListener('click', async () => {
+    state.weekStart = addDays(state.weekStart, -7);
+    await loadAllData();
+    render();
+});
+document.getElementById('btn-week-next').addEventListener('click', async () => {
+    state.weekStart = addDays(state.weekStart, 7);
+    await loadAllData();
+    render();
+});
 document.getElementById('btn-today').addEventListener('click', async () => {
     state.weekStart = getMonday(new Date());
     await loadAllData();
     render();
 });
 document.getElementById('staff-search').addEventListener('input', e => renderStaffList(e.target.value));
-document.getElementById('abs-prev').addEventListener('click', async () => {
+document.getElementById('btn-abs-prev').addEventListener('click', async () => {
     state.absMonth.setMonth(state.absMonth.getMonth() - 1);
     await loadAllData();
     renderAbsences();
 });
-document.getElementById('abs-next').addEventListener('click', async () => {
+document.getElementById('btn-abs-next').addEventListener('click', async () => {
     state.absMonth.setMonth(state.absMonth.getMonth() + 1);
     await loadAllData();
     renderAbsences();
 });
 
+// ── MONTH PICKER ──
+let _mpYear = new Date().getFullYear();
+const MONTHS_FR = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+
+function renderMonthPicker() {
+  document.getElementById('mp-year-label').textContent = _mpYear;
+  const grid = document.getElementById('mp-months-grid');
+  const curM = state.absMonth.getMonth();
+  const curY = state.absMonth.getFullYear();
+  grid.innerHTML = MONTHS_FR.map((name, i) => {
+    const isCurrent = i === curM && _mpYear === curY;
+    return `<div data-m="${i}" style="
+      font-size:0.7rem;font-weight:700;text-align:center;padding:5px 4px;border-radius:6px;
+      cursor:pointer;transition:all .1s;
+      background:${isCurrent ? 'var(--accent)' : 'transparent'};
+      color:${isCurrent ? '#000' : 'var(--text2)'};
+    " onmouseover="if(!${isCurrent})this.style.background='var(--surface2)'" onmouseout="if(!${isCurrent})this.style.background='transparent'">${name}</div>`;
+  }).join('');
+  grid.querySelectorAll('[data-m]').forEach(el => {
+    el.addEventListener('click', async e => {
+      e.stopPropagation();
+      state.absMonth = new Date(_mpYear, parseInt(el.dataset.m), 1);
+      closeMonthPicker();
+      await loadAllData();
+      renderAbsences();
+    });
+  });
+}
+
+function openMonthPicker() {
+  _mpYear = state.absMonth.getFullYear();
+  renderMonthPicker();
+  document.getElementById('month-picker-popup').style.display = 'block';
+}
+function closeMonthPicker() {
+  document.getElementById('month-picker-popup').style.display = 'none';
+}
+
+document.getElementById('header-month-label').addEventListener('click', e => {
+  e.stopPropagation();
+  const popup = document.getElementById('month-picker-popup');
+  if (popup.style.display === 'none') openMonthPicker();
+  else closeMonthPicker();
+});
+document.getElementById('mp-prev-year').addEventListener('click', e => {
+  e.stopPropagation(); _mpYear--; renderMonthPicker();
+});
+document.getElementById('mp-next-year').addEventListener('click', e => {
+  e.stopPropagation(); _mpYear++; renderMonthPicker();
+});
+document.addEventListener('click', () => closeMonthPicker());
+
 loadState();
+
+// ── SYNC SCROLL HORIZONTAL planning header ↔ contenu ──
+(function() {
+  const scrollArea = document.getElementById('week-scroll-area');
+  const headerArea = document.getElementById('week-header-area');
+  let _syncing = false;
+  scrollArea.addEventListener('scroll', () => {
+    if (_syncing) return;
+    _syncing = true;
+    headerArea.scrollLeft = scrollArea.scrollLeft;
+    _syncing = false;
+  });
+})();
+
+// ── SYNC SCROLL HORIZONTAL absences header ↔ contenu ──
+(function() {
+  const scrollArea = document.getElementById('abs-scroll-area');
+  const headerArea = document.getElementById('abs-header-area');
+  let _syncing = false;
+  scrollArea.addEventListener('scroll', () => {
+    if (_syncing) return;
+    _syncing = true;
+    headerArea.scrollLeft = scrollArea.scrollLeft;
+    _syncing = false;
+  });
+})();
+
 initApp();
 </script>
 </body>
