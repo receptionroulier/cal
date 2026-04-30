@@ -230,15 +230,25 @@ main { display: flex; flex: 1; min-height: 0; }
 .abs-table { border-collapse: separate; border-spacing: 0; font-size: 0.65rem; background: transparent; width: 100%; table-layout: fixed; }
 .abs-table thead tr th { position: sticky; top: 0; z-index: 3; background: var(--surface); border-bottom: 2px solid var(--border2); padding: 2px; text-align: center; color: var(--text); font-size: 0.6rem; height: 28px; box-sizing: border-box; }
 .abs-table thead tr th.member-cell { z-index: 4; left: 0; text-align: left; padding-left: 8px; }
-.abs-table tbody tr td { padding: 0; text-align: center; height: 26px; box-sizing: border-box; border: none; }
+.abs-table tbody tr td { padding: 0; text-align: center; height: 28px; box-sizing: border-box; border: none; }
 .abs-table tbody tr td.member-cell { position: sticky; left: 0; z-index: 1; background: var(--surface); padding: 1px 4px; }
-/* liseré autour des cases jours uniquement */
-.abs-table tbody tr td.day-cell { border-top: 2px solid var(--row-color, var(--border2)); border-bottom: 2px solid var(--row-color, var(--border2)); }
-.abs-table tbody tr td.day-cell:first-of-type, .abs-table tbody tr td.day-first { border-left: 2px solid var(--row-color, var(--border2)); border-radius: 4px 0 0 4px; }
-.abs-table tbody tr td.day-cell:last-child, .abs-table tbody tr td.day-last { border-right: 2px solid var(--row-color, var(--border2)); border-radius: 0 4px 4px 0; }
+/* cases jour : haut + bas sur toute la ligne, séparateurs verticaux fins entre cases */
+.abs-table tbody tr td.day-cell {
+  border-top: 2px solid var(--row-color, var(--border2));
+  border-bottom: 2px solid var(--row-color, var(--border2));
+  border-right: 1px solid rgba(255,255,255,0.07);
+}
+.abs-table tbody tr td.day-first {
+  border-left: 2px solid var(--row-color, var(--border2));
+  border-radius: 4px 0 0 4px;
+}
+.abs-table tbody tr td.day-last {
+  border-right: 2px solid var(--row-color, var(--border2));
+  border-radius: 0 4px 4px 0;
+}
 .abs-table tbody tr td.day-sat { background: rgba(59,143,255,0.22); }
 .abs-table tbody tr td.day-sun, .abs-table tbody tr td.day-ferie { background: rgba(255,77,109,0.22); }
-.abs-table tbody tr.abs-spacer td { height: 3px; border: none; background: transparent; }
+.abs-table tbody tr.abs-spacer td { height: 4px; border: none; background: transparent; }
 .abs-code { display: inline-flex; align-items: center; justify-content: center; width: 88%; height: 18px; font-weight: 700; border-radius: 3px; background: rgba(255,107,53,0.35); color: var(--warn); font-size: 0.58rem; }
 
 #modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); }
