@@ -227,22 +227,14 @@ main { display: flex; flex: 1; min-height: 0; }
 
 #view-absences { display: none; flex-direction: column; flex: 1; padding: 0; overflow: hidden; }
 #absences-container { flex: 1; overflow: auto; }
-.abs-table { border-collapse: separate; border-spacing: 0; font-size: 0.65rem; background: transparent; width: 100%; table-layout: fixed; }
+.abs-table { border-collapse: separate; border-spacing: 2px; font-size: 0.65rem; background: transparent; width: 100%; table-layout: fixed; }
 .abs-table thead tr th { position: sticky; top: 0; z-index: 3; background: var(--surface); border-bottom: 2px solid var(--border2); padding: 4px 2px; text-align: center; color: var(--text); font-size: 0.6rem; height: 36px; box-sizing: border-box; }
 .abs-table thead tr th.member-cell { z-index: 4; left: 0; }
-.abs-table tbody tr td { border: none; padding: 0; text-align: center; height: 34px; box-sizing: border-box; }
-.abs-table tbody tr td.member-cell { position: sticky; left: 0; z-index: 1; background: var(--surface); padding: 2px 4px; }
-.abs-table tbody tr { border: none; }
-.abs-table tbody tr td:not(.member-cell) { background: transparent; }
-.abs-table tbody tr td.day-sat { background: rgba(59,143,255,0.12); }
-.abs-table tbody tr td.day-sun, .abs-table tbody tr td.day-ferie { background: rgba(255,77,109,0.12); }
-.abs-row-inner { display: flex; height: 100%; }
-.abs-row-wrap { display: contents; }
-.abs-table tbody tr td:first-child { border-left: 2px solid var(--row-color, var(--border2)); border-top: 2px solid var(--row-color, var(--border2)); border-bottom: 2px solid var(--row-color, var(--border2)); border-radius: 6px 0 0 6px; }
-.abs-table tbody tr td:last-child { border-right: 2px solid var(--row-color, var(--border2)); border-top: 2px solid var(--row-color, var(--border2)); border-bottom: 2px solid var(--row-color, var(--border2)); border-radius: 0 6px 6px 0; }
-.abs-table tbody tr td:not(:first-child):not(:last-child) { border-top: 2px solid var(--row-color, var(--border2)); border-bottom: 2px solid var(--row-color, var(--border2)); }
-.abs-table tbody tr { margin-bottom: 3px; }
-.abs-code { font-weight: bold; padding: 1px 3px; border-radius: 3px; background: rgba(255,107,53,0.2); color: var(--warn); font-size: 0.6rem; }
+.abs-table tbody tr td { border: 1px solid var(--border2); padding: 0; text-align: center; height: 34px; box-sizing: border-box; border-radius: 4px; }
+.abs-table tbody tr td.member-cell { position: sticky; left: 0; z-index: 1; background: var(--surface); padding: 2px 4px; border: none; }
+.abs-table tbody tr td.day-sat { background: rgba(59,143,255,0.25); border-color: rgba(59,143,255,0.4); }
+.abs-table tbody tr td.day-sun, .abs-table tbody tr td.day-ferie { background: rgba(255,77,109,0.25); border-color: rgba(255,77,109,0.4); }
+.abs-code { display: inline-flex; align-items: center; justify-content: center; width: 90%; height: 24px; font-weight: 700; border-radius: 4px; background: rgba(255,107,53,0.35); color: var(--warn); font-size: 0.62rem; }
 
 #modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); }
 #modal-overlay.show { display: flex; }
@@ -1419,7 +1411,7 @@ function renderAbsences() {
         const borderColor = colorKey ? colorMap[colorKey] : 'var(--border2)';
 
         const memberCell = `
-          <td class="member-cell" style="position:sticky;left:0;background:var(--surface);z-index:1;">
+          <td class="member-cell">
             <div style="padding:4px 6px;border-radius:6px;border:1px solid ${colorKey ? borderColor : 'var(--border2)'};text-align:left;">
               <div style="font-size:0.68rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${w.lastName} ${w.firstName}</div>
               <div style="font-size:0.58rem;color:var(--text3);font-family:'DM Mono',monospace;">${w.matricule || '—'}</div>
@@ -1437,8 +1429,7 @@ function renderAbsences() {
             const dayClass = isSun || isFerie ? 'day-sun' : isSat ? 'day-sat' : '';
             dayCells += `<td class="${dayClass}">${code ? `<span class="abs-code">${code}</span>` : ''}</td>`;
         }
-        const rowColor = colorKey ? borderColor : 'var(--border2)';
-        rows += `<tr style="--row-color:${rowColor};">${memberCell}${dayCells}</tr><tr style="height:3px;"><td colspan="${daysInMonth + 1}" style="border:none;padding:0;"></td></tr>`;
+        rows += `<tr>${memberCell}${dayCells}</tr><tr style="height:3px;"><td colspan="${daysInMonth + 1}" style="border:none;padding:0;background:transparent;"></td></tr>`;
     });
 
     container.innerHTML = `
