@@ -1481,7 +1481,6 @@ function renderAbsences() {
     if (headerLabel) headerLabel.textContent = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
 
     const headerTable = document.getElementById('abs-header-table');
-    const tbody = document.getElementById('abs-tbody');
     const scrollArea = document.getElementById('abs-scroll-area');
     const headerInner = document.getElementById('abs-header-inner');
     const scrollInner = document.getElementById('abs-scroll-inner');
@@ -1560,8 +1559,7 @@ function renderAbsences() {
         rows += `<tr style="--row-color:${rowColor};">${memberCell}${dayCells}</tr><tr class="abs-spacer"><td colspan="${daysInMonth + 1}"></td></tr>`;
     });
 
-    bodyTable.innerHTML = bodyColgroup;
-    tbody.innerHTML = rows;
+    bodyTable.innerHTML = bodyColgroup + `<tbody>${rows}</tbody>`;
 }
 
 // ── PDF & EMAILS ──
