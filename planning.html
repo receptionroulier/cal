@@ -500,34 +500,40 @@ async function fetchSchoolHolidays() {
     if (zones.length === 0) { state.schoolHolidays = {}; return; }
 
     const currentYear = new Date().getFullYear();
-    const yearsToFetch = [currentYear - 1, currentYear, currentYear + 1, currentYear + 2];
+    // Années scolaires à récupérer : on couvre N-1/N, N/N+1, N+1/N+2
+    const annees = [
+      `${currentYear - 1}-${currentYear}`,
+      `${currentYear}-${currentYear + 1}`,
+      `${currentYear + 1}-${currentYear + 2}`,
+    ];
     const schoolHolidays = {};
 
-    await Promise.all(zones.map(async zone => {
-      await Promise.all(yearsToFetch.map(async year => {
-        const zoneLabel = `Zone ${zone}`;
-        const whereClause = `(zone="${zoneLabel}" AND annee_scolaire="${year-1}-${year}") OR (zone="${zoneLabel}" AND annee_scolaire="${year}-${year+1}")`;
-        const url = `https://data.education.gouv.fr/api/explore/v2.0/catalog/datasets/fr-en-calendrier-scolaire/records?where=${encodeURIComponent(whereClause)}&limit=100&timezone=Europe%2FParis`;
-        try {
-          const r = await fetch(url);
-          if (!r.ok) return;
-          const data = await r.json();
-          (data.results || []).forEach(rec => {
-            if (!rec.start_date || !rec.end_date) return;
-            const start = new Date(rec.start_date); start.setHours(0,0,0,0);
-            const end   = new Date(rec.end_date);   end.setHours(0,0,0,0);
-            const desc = rec.description || rec.libelle || 'Vacances scolaires';
-            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-              const iso = fmtISO(new Date(d));
-              if (!schoolHolidays[iso]) schoolHolidays[iso] = [];
-              if (!schoolHolidays[iso].includes(desc)) schoolHolidays[iso].push(desc);
-            }
-          });
-        } catch(e) {}
-      }));
-    }));
+    const requests = [];
+    zones.forEach(zone => {
+      annees.forEach(annee => {
+        const url = `https://data.education.gouv.fr/api/explore/v2.0/catalog/datasets/fr-en-calendrier-scolaire/records?refine=zones%3A%22Zone%20${zone}%22&refine=annee_scolaire%3A%22${annee}%22&refine=population%3A%22%C3%89l%C3%A8ves%22&limit=100&timezone=Europe%2FParis`;
+        requests.push(fetch(url).then(r => r.ok ? r.json() : null).catch(() => null));
+      });
+    });
+
+    const results = await Promise.all(requests);
+    results.forEach(data => {
+      if (!data) return;
+      (data.results || []).forEach(rec => {
+        if (!rec.start_date || !rec.end_date) return;
+        const start = new Date(rec.start_date); start.setHours(0,0,0,0);
+        const end   = new Date(rec.end_date);   end.setHours(0,0,0,0);
+        const desc = rec.description || rec.libelle || 'Vacances scolaires';
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+          const iso = fmtISO(new Date(d));
+          if (!schoolHolidays[iso]) schoolHolidays[iso] = [];
+          if (!schoolHolidays[iso].includes(desc)) schoolHolidays[iso].push(desc);
+        }
+      });
+    });
 
     state.schoolHolidays = schoolHolidays;
+    console.log('[SCHOOL_HOLIDAYS] Chargé :', Object.keys(schoolHolidays).length, 'jours');
   } catch(e) {
     console.error('[SCHOOL_HOLIDAYS] Error:', e);
     state.schoolHolidays = {};
