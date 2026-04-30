@@ -100,37 +100,26 @@ main { display: flex; flex: 1; min-height: 0; }
 
 #content { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
 
-#view-week { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+#view-week { display: flex; flex-direction: column; height: 100%; }
 .days-header { display: grid; gap: 4px; padding: 8px 0 4px; box-sizing: border-box; }
 .day-header-cell {
   text-align: center; padding: 8px 4px; border-radius: 7px; font-size: 0.72rem; font-weight: 700;
   background: var(--surface); border: 2px solid var(--border); cursor: pointer; position: relative;
-  min-height: 60px; box-sizing: border-box;
+  min-height: 60px; box-sizing: border-box; overflow: hidden;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
 }
 .day-header-cell.today { border-color: var(--accent); }
 .day-header-cell.ferie { border-color: var(--red); }
 .day-header-cell.today.ferie { border-color: var(--red); }
-.day-header-cell.vacances::before {
+.day-header-cell.vacances::after {
   content: '';
   position: absolute;
-  top: -2px; left: -2px; right: -2px;
+  top: 0; left: 0; right: 0;
   height: 5px;
   background: var(--red);
-  border-radius: 7px 7px 0 0;
-  z-index: 2;
+  z-index: 3;
 }
-.day-col.vacances::before {
-  content: '';
-  position: absolute;
-  top: -2px; left: -2px; right: -2px;
-  height: 5px;
-  background: var(--red);
-  border-radius: 10px 10px 0 0;
-  z-index: 2;
-}
-.day-col { position: relative; }
-.day-header-cell { position: relative; }
+.day-col { position: relative; overflow: hidden; }
 .vacances-badge {
   position: absolute; left: 4px; bottom: 4px; font-size: 0.48rem; font-weight: 700;
   color: var(--red); background: rgba(255,77,109,0.15); padding: 1px 4px; border-radius: 3px;
@@ -1115,10 +1104,8 @@ function renderWeekGrid() {
     const dateISO = fmtISO(d);
     const isToday = d.getTime() === today.getTime();
     const isFerie = !!state.holidays[dateISO];
-    const isVacances = !!(state.schoolHolidays && state.schoolHolidays[dateISO]);
     if (isToday) col.classList.add('today');
     if (isFerie) col.classList.add('ferie');
-    if (isVacances) col.classList.add('vacances');
 
     const daySlots = state.slots[dayIdx] || {};
     let hasAnySlots = false;
