@@ -9,17 +9,57 @@
   <div>
     <div style="font-size:3rem;margin-bottom:16px;">📲</div>
     <h2 style="margin:0 0 12px;font-size:1.1rem;">RoulierLH a changé d'adresse</h2>
+    <!-- 
+      Note : Sur Android, un simple lien ne déclenche pas l'installation d'une PWA.
+      Pour installer la nouvelle PWA, l'utilisateur doit ouvrir le lien manuellement
+      dans Chrome, puis utiliser le menu "Ajouter à l'écran d'accueil".
+      Le bouton ci-dessous copie donc le lien dans le presse-papier pour faciliter
+      cette étape après désinstallation de l'ancienne app.
+    -->
     <p style="font-size:0.85rem;opacity:.7;line-height:1.7;margin-bottom:8px;">
       <strong style="color:white;">1.</strong> Supprimez l'icône <strong>RoulierLH</strong> de votre écran d'accueil<br>
-      <strong style="color:white;">2.</strong> Ouvrez le nouveau lien ci-dessous<br>
-      <strong style="color:white;">3.</strong> Réinstallez l'app depuis ce nouveau lien
+      <strong style="color:white;">2.</strong> Copiez le nouveau lien (bouton ci-dessous)<br>
+      <strong style="color:white;">3.</strong> Collez-le dans <strong style="color:white;">Chrome</strong> et installez l'app via le menu <strong style="color:white;">⋮ → Ajouter à l'écran d'accueil</strong>
     </p>
-    <a href="https://lh.roulierlh.workers.dev?from=legacy"
-       style="display:inline-block;margin-top:16px;background:#00e5ff;color:#0f172a;padding:14px 28px;border-radius:10px;text-decoration:none;font-weight:700;font-size:0.95rem;">
-      Ouvrir le nouveau lien →
-    </a>
+
+    <!-- Bouton principal : copie le lien dans le presse-papier -->
+    <button id="copyBtn"
+       onclick="copyLink()"
+       style="display:inline-block;margin-top:16px;background:#00e5ff;color:#0f172a;padding:14px 28px;border-radius:10px;border:none;font-weight:700;font-size:0.95rem;cursor:pointer;">
+      📋 Copier le nouveau lien
+    </button>
+
+    <!-- Confirmation visible après copie -->
+    <div id="copyConfirm" style="display:none;margin-top:14px;background:#1e293b;border:1px solid #00e5ff33;border-radius:10px;padding:12px 16px;">
+      <p style="margin:0 0 6px;font-size:0.9rem;color:#00e5ff;font-weight:700;">✅ Lien copié !</p>
+      <p style="margin:0;font-size:0.8rem;opacity:.75;line-height:1.6;">
+        Ouvrez <strong style="color:white;">Chrome</strong>, collez le lien dans la barre d'adresse,<br>
+        puis appuyez sur <strong style="color:white;">⋮ → Ajouter à l'écran d'accueil</strong>.
+      </p>
+    </div>
   </div>
   <script>
+  const NEW_URL = 'https://lh.roulierlh.workers.dev?from=legacy';
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(NEW_URL);
+    } catch (e) {
+      // Fallback pour les contextes sans Clipboard API
+      const ta = document.createElement('textarea');
+      ta.value = NEW_URL;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    document.getElementById('copyBtn').textContent = '✅ Lien copié !';
+    document.getElementById('copyBtn').style.background = '#00c853';
+    document.getElementById('copyConfirm').style.display = 'block';
+  }
+
   async function migrate() {
     if ('serviceWorker' in navigator) {
       const regs = await navigator.serviceWorker.getRegistrations();
